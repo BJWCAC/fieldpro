@@ -362,7 +362,7 @@ select{appearance:none}
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-var API_KEY   = '-I8pKUDucl3vM5_CqrfUSffV0VnXiQpmvn4ApDn6vYkhGmhkYU17GuJkAlodnCNch8L9n-M7jcxY0X2kTFueJgA-dnAW6QAA';
+var API_KEY   = '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';
 var ZOHO_CRM  = 'https://notes-collaboration-mcp-server-918975085.zohomcp.com/mcp/6210ed227c223b2f16e5e0e6b24a9e23/message';
 var ZOHO_NOTE = 'https://crm-activities-engagement-mcp-server-918975085.zohomcp.com/mcp/b00830d1a89d9c325b3f8a189e669763/message';
 var STAGES    = ['Request','Get Pricing','Quote Sent','Verify Pricing','Order Parts','Waiting for Parts','Testing Ready to Ship','Active','Complete'];
@@ -418,7 +418,7 @@ function showEl(id, d) { var e=el(id); if(e) e.style.display=(d||'block'); }
 // ── Anthropic API ─────────────────────────────────────────────────────────────
 async function callAPI(opts) {
   var body = {
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: opts.maxTok || 4000,
     messages: [{ role:'user', content: opts.content }]
   };
