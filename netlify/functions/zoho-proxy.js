@@ -51,7 +51,7 @@ exports.handler = async function(event) {
       });
       const result = await zohoRequest({
         hostname: 'www.zohoapis.com',
-        path: `/crm/v3/${data.deal_id}/Notes`,
+       path: `/crm/v3/Notes`,
         method: 'POST',
         headers: {
           'Authorization': `Zoho-oauthtoken ${token}`,
