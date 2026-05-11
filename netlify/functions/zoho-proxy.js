@@ -46,7 +46,7 @@ exports.handler = async function(event) {
           Note_Title: data.note_title,
           Note_Content: data.note_content,
           Parent_Id: data.deal_id,
-          se_module: 'Deals'
+          $se_module: 'Deals'
         }]
       });
       const result = await zohoRequest({
