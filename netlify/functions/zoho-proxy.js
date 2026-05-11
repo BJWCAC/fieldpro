@@ -1,4 +1,5 @@
 const https = require('https');
+const { Buffer } = require('buffer');
 
 function zohoRequest(options, payload) {
   return new Promise((resolve, reject) => {
@@ -9,6 +10,37 @@ function zohoRequest(options, payload) {
     });
     req.on('error', reject);
     if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function zohoUpload(token, dealId, filename, imageBuffer) {
+  return new Promise((resolve, reject) => {
+    const boundary = '----CapStoneBoundary' + Date.now();
+    const header = Buffer.from(
+      '--' + boundary + '\r\n' +
+      'Content-Disposition: form-data; name="file"; filename="' + filename + '"\r\n' +
+      'Content-Type: image/jpeg\r\n\r\n'
+    );
+    const footer = Buffer.from('\r\n--' + boundary + '--\r\n');
+    const body = Buffer.concat([header, imageBuffer, footer]);
+
+    const req = https.request({
+      hostname: 'www.zohoapis.com',
+      path: `/crm/v3/Deals/${dealId}/Attachments`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${token}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length
+      }
+    }, (res) => {
+      let rb = '';
+      res.on('data', c => rb += c);
+      res.on('end', () => resolve({ status: res.statusCode, body: rb }));
+    });
+    req.on('error', reject);
+    req.write(body);
     req.end();
   });
 }
@@ -40,41 +72,4 @@ exports.handler = async function(event) {
       return { statusCode: result.status, headers, body: result.body };
     }
 
-    if (action === 'save_note') {
-      const payload = JSON.stringify({
-        data: [{
-          Note_Title: data.note_title,
-          Note_Content: data.note_content,
-          Parent_Id: data.deal_id,
-          se_module: 'Deals'
-        }]
-      });
-      const result = await zohoRequest({
-        hostname: 'www.zohoapis.com',
-       path: `/crm/v3/Deals/${data.deal_id}/Notes`,
-        method: 'POST',
-        headers: {
-          'Authorization': `Zoho-oauthtoken ${token}`,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload)
-        }
-      }, payload);
-      return { statusCode: result.status, headers, body: result.body };
-    }
-
-    if (action === 'refresh_token') {
-      const result = await zohoRequest({
-        hostname: 'accounts.zoho.com',
-        path: `/oauth/v2/token?refresh_token=${data.refresh_token}&client_id=${data.client_id}&client_secret=${data.client_secret}&grant_type=refresh_token`,
-        method: 'POST',
-        headers: { 'Content-Length': '0' }
-      });
-      return { statusCode: result.status, headers, body: result.body };
-    }
-
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action' }) };
-
-  } catch (err) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
-  }
-};
+    if (action === 'save_note
