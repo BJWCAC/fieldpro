@@ -56,6 +56,24 @@ exports.handler = async function(event) {
       });
       return { statusCode: result3.status, headers: h, body: result3.body };
     }
+    if (data.action === "upload_photo") {
+      var imgBuf = Buffer.from(data.image_b64, "base64");
+      var boundary = "CapStoneBound" + Date.now();
+      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + data.filename + "\"\r\nContent-Type: image/jpeg\r\n\r\n");
+      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
+      var uploadBody = Buffer.concat([hdr, imgBuf, ftr]);
+      var result4 = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Deals/" + data.deal_id + "/Attachments",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "multipart/form-data; boundary=" + boundary,
+          "Content-Length": uploadBody.length
+        }
+      }, uploadBody);
+      return { statusCode: result4.status, headers: h, body: result4.body };
+    }
 
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
 
