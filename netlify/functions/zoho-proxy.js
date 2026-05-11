@@ -47,29 +47,14 @@ exports.handler = async function(event) {
       return { statusCode: result2.status, headers: h, body: result2.body };
     }
 
-    if (data.action === "upload_photo") {
-      var imgBuf = Buffer.from(data.image_b64, "base64");
-      var boundary = "CapStoneBound" + Date.now();
-      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + data.filename + "\"\r\nContent-Type: image/jpeg\r\n\r\n");
-      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
-      var body2 = Buffer.concat([hdr, imgBuf, ftr]);
-      var result3 = await req({
-        hostname: "www.zohoapis.com",
-        path: "/crm/v3/Deals/" + data.deal_id + "/Attachments",
-        method: "POST",
-        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "multipart/form-data; boundary=" + boundary, "Content-Length": body2.length }
-      }, body2);
-      return { statusCode: result3.status, headers: h, body: result3.body };
-    }
-
     if (data.action === "refresh_token") {
-      var result4 = await req({
+      var result3 = await req({
         hostname: "accounts.zoho.com",
         path: "/oauth/v2/token?refresh_token=" + data.refresh_token + "&client_id=" + data.client_id + "&client_secret=" + data.client_secret + "&grant_type=refresh_token",
         method: "POST",
         headers: { "Content-Length": "0" }
       });
-      return { statusCode: result4.status, headers: h, body: result4.body };
+      return { statusCode: result3.status, headers: h, body: result3.body };
     }
 
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
