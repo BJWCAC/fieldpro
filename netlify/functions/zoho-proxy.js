@@ -74,7 +74,24 @@ exports.handler = async function(event) {
       }, uploadBody);
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
-
+if (data.action === "workdrive_upload") {
+      var fileBuffer = Buffer.from(data.file_b64, "base64");
+      var boundary = "CapStoneBound" + Date.now();
+      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" + data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n");
+      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
+      var uploadBody = Buffer.concat([hdr, fileBuffer, ftr]);
+      var result5 = await req({
+        hostname: "www.zohoapis.com",
+        path: "/workdrive/api/v1/upload?parent_id=" + data.folder_id + "&override-name-exist=true",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "multipart/form-data; boundary=" + boundary,
+          "Content-Length": uploadBody.length
+        }
+      }, uploadBody);
+      return { statusCode: result5.status, headers: h, body: result5.body };
+    }
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
 
   } catch (err) {
