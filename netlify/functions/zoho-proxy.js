@@ -82,7 +82,7 @@ if (data.action === "workdrive_upload") {
       var uploadBody = Buffer.concat([hdr, fileBuffer, ftr]);
       var result5 = await req({
         hostname: "www.zohoapis.com",
-        path: "/workdrive/api/v1/upload?parent_id=" + data.folder_id + "&override-name-exist=true",
+       path: "/workdrive/api/v1/files?parent_id=" + data.folder_id,
         method: "POST",
         headers: {
           "Authorization": "Zoho-oauthtoken " + token,
