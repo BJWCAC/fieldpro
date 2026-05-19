@@ -56,6 +56,7 @@ exports.handler = async function(event) {
       });
       return { statusCode: result3.status, headers: h, body: result3.body };
     }
+
     if (data.action === "upload_photo") {
       var imgBuf = Buffer.from(data.image_b64, "base64");
       var boundary = "CapStoneBound" + Date.now();
@@ -74,15 +75,30 @@ exports.handler = async function(event) {
       }, uploadBody);
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
-if (data.action === "workdrive_upload") {
+
+    if (data.action === "workdrive_upload") {
       var fileBuffer = Buffer.from(data.file_b64, "base64");
       var boundary = "CapStoneBound" + Date.now();
-      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" + data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n");
-      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
-      var uploadBody = Buffer.concat([hdr, fileBuffer, ftr]);
+      var parentPart = Buffer.from(
+        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"parent_id\"\r\n\r\n" +
+        data.folder_id + "\r\n"
+      );
+      var namePart = Buffer.from(
+        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"filename\"\r\n\r\n" +
+        data.filename + "\r\n"
+      );
+      var overridePart = Buffer.from(
+        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"override-name-exist\"\r\n\r\ntrue\r\n"
+      );
+      var filePart = Buffer.from(
+        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" +
+        data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n"
+      );
+      var endPart = Buffer.from("\r\n--" + boundary + "--\r\n");
+      var uploadBody = Buffer.concat([parentPart, namePart, overridePart, filePart, fileBuffer, endPart]);
       var result5 = await req({
         hostname: "www.zohoapis.com",
-       path: "/workdrive/api/v1/files?parent_id=" + data.folder_id,
+        path: "/workdrive/api/v1/upload",
         method: "POST",
         headers: {
           "Authorization": "Zoho-oauthtoken " + token,
@@ -92,6 +108,7 @@ if (data.action === "workdrive_upload") {
       }, uploadBody);
       return { statusCode: result5.status, headers: h, body: result5.body };
     }
+
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
 
   } catch (err) {
