@@ -522,26 +522,18 @@ async function startCam(){
   try{
     A.stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}},
-      audio:true
+      audio:false
     });
   }catch(e){
     try{
       A.stream=await navigator.mediaDevices.getUserMedia({
         video:true,
-        audio:true
+        audio:false
       });
     }catch(e2){
-      try{
-        A.stream=await navigator.mediaDevices.getUserMedia({
-          video:true,
-          audio:false
-        });
-        showToast("Camera started, but microphone was blocked",3000);
-      }catch(e3){
-        showEl("cam-err");
-        el("cam-err").textContent="Camera/mic error: "+e3.name+" - "+e3.message;
-        return;
-      }
+      showEl("cam-err");
+      el("cam-err").textContent="Camera error: "+e2.name+" - "+e2.message;
+      return;
     }
   }
 
