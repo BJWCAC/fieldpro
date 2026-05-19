@@ -726,7 +726,7 @@ async function generate(){
     A.reportPhotos=savedPhotos;
     var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
     saveHistory(meta);renderReport();go("report");
-    if(A.sel)uploadToWorkDriveAll(); // WorkDrive only - note saved via Save button
+    if(A.sel){A.uploadPromise=uploadToWorkDriveAll();}else{A.uploadPromise=null;} // background upload; Save waits on this
     // Auto PDF
     try{
       var pdfPhotos=A.reportPhotos.length>0?A.reportPhotos:A.photos;
@@ -791,8 +791,10 @@ async function zohoSave(){
 }
 async function saveNote(){
   if(!A.sel||!A.report)return;
-  var btn=el("save-btn");btn.disabled=true;btn.textContent="Saving...";
+  var btn=el("save-btn");btn.disabled=true;
   try{
+    if(A.uploadPromise){btn.textContent="Uploading...";try{await A.uploadPromise;}catch(e){console.log("Upload wait error:",e);}}
+    btn.textContent="Saving...";
     await refreshZohoToken();await zohoSave();
     btn.textContent="Saved!";btn.style.background="var(--green)";btn.style.color="#001a18";
     setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
