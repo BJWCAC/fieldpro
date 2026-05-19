@@ -785,13 +785,16 @@ async function uploadToWorkDrive(b64,filename,mimeType){
   if(!r.ok)throw new Error("WorkDrive "+r.status+": "+txt.substring(0,100));
   try{
     var d=JSON.parse(txt);
-    // Try different response formats
-    var link=(d.data&&d.data[0]&&d.data[0].attributes&&d.data[0].attributes.permalink)||
-             (d.data&&d.data[0]&&d.data[0].attributes&&d.data[0].attributes.download_url)||
-             (d.download_url)||(d.permalink)||null;
-    console.log("WorkDrive link:",link,"full:",JSON.stringify(d).substring(0,200));
-    return link||"uploaded";
-  }catch(e){return "uploaded";}
+    var rec=(d.data&&d.data[0])||{};
+    var attrs=rec.attributes||{};
+    var rid=attrs.resource_id||rec.id||null;
+    if(!rid&&attrs["File INFO"]){
+      try{var fi=JSON.parse(attrs["File INFO"]);rid=fi.RESOURCE_ID||rid;}catch(e){}
+    }
+    var link=attrs.permalink||attrs.download_url||(rid?"https://workdrive.zoho.com/file/"+rid:null);
+    console.log("WorkDrive link:",link,"full:",JSON.stringify(d).substring(0,300));
+    return link;
+  }catch(e){return null;}
 }
 
 async function uploadToWorkDriveAll(){
