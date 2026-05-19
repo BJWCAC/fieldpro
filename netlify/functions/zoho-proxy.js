@@ -76,29 +76,74 @@ exports.handler = async function(event) {
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
 
+    if (data.action === "workdrive_find_or_create_folder") {
+      var listResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/workdrive/api/v1/files/" + data.parent_id + "/files?page[limit]=100",
+        method: "GET",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Accept": "application/vnd.api+json"
+        }
+      });
+
+      if (listResult.status >= 200 && listResult.status < 300) {
+        try {
+          var listData = JSON.parse(listResult.body);
+          var target = (data.folder_name || "").toLowerCase().trim();
+          var found = (listData.data || []).find(function(item) {
+            var a = item.attributes || {};
+            var isFolder = (a.is_folder === true) || (a.type === "folder") || (a.resource_type === "folder");
+            var name = (a.name || a.display_name || "").toLowerCase().trim();
+            return isFolder && name === target;
+          });
+          if (found) {
+            return { statusCode: 200, headers: h, body: JSON.stringify({ folder_id: found.id, created: false }) };
+          }
+        } catch (e) {}
+      } else {
+        return { statusCode: listResult.status, headers: h, body: listResult.body };
+      }
+
+      var createBody = JSON.stringify({
+        data: {
+          attributes: { name: data.folder_name, parent_id: data.parent_id },
+          type: "files"
+        }
+      });
+      var createResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/workdrive/api/v1/files",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "application/vnd.api+json",
+          "Accept": "application/vnd.api+json",
+          "Content-Length": Buffer.byteLength(createBody)
+        }
+      }, createBody);
+
+      if (createResult.status >= 200 && createResult.status < 300) {
+        try {
+          var created = JSON.parse(createResult.body);
+          var newId = (created.data && created.data.id) || null;
+          if (newId) {
+            return { statusCode: 200, headers: h, body: JSON.stringify({ folder_id: newId, created: true }) };
+          }
+        } catch (e) {}
+      }
+      return { statusCode: createResult.status, headers: h, body: createResult.body };
+    }
+
     if (data.action === "workdrive_upload") {
       var fileBuffer = Buffer.from(data.file_b64, "base64");
       var boundary = "CapStoneBound" + Date.now();
-      var parentPart = Buffer.from(
-        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"parent_id\"\r\n\r\n" +
-        data.folder_id + "\r\n"
-      );
-      var namePart = Buffer.from(
-        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"filename\"\r\n\r\n" +
-        data.filename + "\r\n"
-      );
-      var overridePart = Buffer.from(
-        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"override-name-exist\"\r\n\r\ntrue\r\n"
-      );
-      var filePart = Buffer.from(
-        "--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" +
-        data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n"
-      );
-      var endPart = Buffer.from("\r\n--" + boundary + "--\r\n");
-      var uploadBody = Buffer.concat([parentPart, namePart, overridePart, filePart, fileBuffer, endPart]);
+      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" + data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n");
+      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
+      var uploadBody = Buffer.concat([hdr, fileBuffer, ftr]);
       var result5 = await req({
         hostname: "www.zohoapis.com",
-        path: "/workdrive/api/v1/upload",
+        path: "/workdrive/api/v1/files?parent_id=" + data.folder_id,
         method: "POST",
         headers: {
           "Authorization": "Zoho-oauthtoken " + token,
