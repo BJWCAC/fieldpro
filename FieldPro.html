@@ -519,25 +519,58 @@ function updLocUI(){
 // CAMERA
 async function startCam(){
   hideEl("cam-err");
-  try{A.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}},audio:false});}
-  catch(e){
-    try{A.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});}
-    catch(e2){showEl("cam-err");el("cam-err").textContent="Camera blocked — go to Settings > Apps > Chrome > Permissions";return;}
+  try{
+    A.stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}},
+      audio:true
+    });
+  }catch(e){
+    try{
+      A.stream=await navigator.mediaDevices.getUserMedia({
+        video:true,
+        audio:true
+      });
+    }catch(e2){
+      try{
+        A.stream=await navigator.mediaDevices.getUserMedia({
+          video:true,
+          audio:false
+        });
+        showToast("Camera started, but microphone was blocked",3000);
+      }catch(e3){
+        showEl("cam-err");
+        el("cam-err").textContent="Camera/mic error: "+e3.name+" - "+e3.message;
+        return;
+      }
+    }
   }
-  A.recording=true;A.paused=false;A.videoChunks=[];
-  var v=el("vid-el");v.srcObject=A.stream;v.style.display="block";v.play();
+
+  A.recording=true;
+  A.paused=false;
+  A.videoChunks=[];
+
+  var v=el("vid-el");
+  v.srcObject=A.stream;
+  v.style.display="block";
+  v.play();
+
   hideEl("vid-ph");
+
   try{
     var mime=["video/webm;codecs=vp9","video/webm","video/mp4"].find(function(t){return MediaRecorder.isTypeSupported(t);})||"";
     var rec=new MediaRecorder(A.stream,mime?{mimeType:mime}:{});
     rec.ondataavailable=function(e){if(e.data&&e.data.size>0)A.videoChunks.push(e.data);};
-    rec.start(1000);A.mRec=rec;
+    rec.start(1000);
+    A.mRec=rec;
   }catch(e){}
+
   getLocation();
-  hideEl("cam-idle");showEl("cam-live");
+  hideEl("cam-idle");
+  showEl("cam-live");
   var vr=el("vb-rec");if(vr)vr.style.display="flex";
-  // Sync tx to tx2
-  var t=el("tx"),t2=el("tx2");if(t&&t2)t2.value=t.value;
+
+  var t=el("tx"),t2=el("tx2");
+  if(t&&t2)t2.value=t.value;
 }
 function togglePause(){
   var btn=el("pause-btn");
