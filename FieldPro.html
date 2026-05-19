@@ -803,29 +803,11 @@ async function saveNote(){
     btn.textContent="Save to Zoho";btn.disabled=false;
   }
 }
-function dealFolderName(){
-  if(!A.sel)return null;
-  var raw=(A.sel.Account_Name?A.sel.Account_Name+" - ":"")+(A.sel.Deal_Name||("Deal-"+A.sel.id));
-  return raw.replace(/[\\\/:*?"<>|]/g,"-").replace(/\s+/g," ").trim().slice(0,150);
-}
 async function resolveDealFolder(){
-  if(!A.sel)return WORKDRIVE_FOLDER;
-  var cacheKey="fp_wd_folder_"+A.sel.id;
-  try{var cached=localStorage.getItem(cacheKey);if(cached)return cached;}catch(e){}
-  var folderName=dealFolderName();if(!folderName)return WORKDRIVE_FOLDER;
+  // Per-deal folder feature is disabled at the proxy. Always upload to CapStone root.
   try{
-    var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"workdrive_find_or_create_folder",token:A.zohoToken,parent_id:WORKDRIVE_FOLDER,folder_name:folderName})});
-    var txt=await r.text();
-    console.log("Folder resolve response:",r.status,txt.substring(0,300));
-    if(!r.ok){showToast("Folder error - using CapStone root",2500);return WORKDRIVE_FOLDER;}
-    var d=JSON.parse(txt);
-    if(d&&d.folder_id){
-      try{localStorage.setItem(cacheKey,d.folder_id);}catch(e){}
-      if(d.created)showToast("Created folder: "+folderName,2500);
-      return d.folder_id;
-    }
-  }catch(e){console.log("Folder resolve exception:",e);}
+    Object.keys(localStorage).forEach(function(k){if(k.indexOf("fp_wd_folder_")===0)localStorage.removeItem(k);});
+  }catch(e){}
   return WORKDRIVE_FOLDER;
 }
 async function uploadToWorkDrive(b64,filename,mimeType,folderId){
