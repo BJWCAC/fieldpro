@@ -803,9 +803,35 @@ async function saveNote(){
     btn.textContent="Save to Zoho";btn.disabled=false;
   }
 }
-async function uploadToWorkDrive(b64,filename,mimeType){
+function dealFolderName(){
+  if(!A.sel)return null;
+  var raw=(A.sel.Account_Name?A.sel.Account_Name+" - ":"")+(A.sel.Deal_Name||("Deal-"+A.sel.id));
+  return raw.replace(/[\\\/:*?"<>|]/g,"-").replace(/\s+/g," ").trim().slice(0,150);
+}
+async function resolveDealFolder(){
+  if(!A.sel)return WORKDRIVE_FOLDER;
+  var cacheKey="fp_wd_folder_"+A.sel.id;
+  try{var cached=localStorage.getItem(cacheKey);if(cached)return cached;}catch(e){}
+  var folderName=dealFolderName();if(!folderName)return WORKDRIVE_FOLDER;
+  try{
+    var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"workdrive_find_or_create_folder",token:A.zohoToken,parent_id:WORKDRIVE_FOLDER,folder_name:folderName})});
+    var txt=await r.text();
+    console.log("Folder resolve response:",r.status,txt.substring(0,300));
+    if(!r.ok){showToast("Folder error - using CapStone root",2500);return WORKDRIVE_FOLDER;}
+    var d=JSON.parse(txt);
+    if(d&&d.folder_id){
+      try{localStorage.setItem(cacheKey,d.folder_id);}catch(e){}
+      if(d.created)showToast("Created folder: "+folderName,2500);
+      return d.folder_id;
+    }
+  }catch(e){console.log("Folder resolve exception:",e);}
+  return WORKDRIVE_FOLDER;
+}
+async function uploadToWorkDrive(b64,filename,mimeType,folderId){
+  var target=folderId||WORKDRIVE_FOLDER;
   var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"workdrive_upload",token:A.zohoToken,folder_id:WORKDRIVE_FOLDER,filename:filename,file_b64:b64,mime_type:mimeType})});
+    body:JSON.stringify({action:"workdrive_upload",token:A.zohoToken,folder_id:target,filename:filename,file_b64:b64,mime_type:mimeType})});
   var txt=await r.text();
   console.log("WorkDrive response:",r.status,txt);
   if(!r.ok)throw new Error("WorkDrive "+r.status+": "+txt.substring(0,100));
@@ -827,15 +853,17 @@ async function uploadToWorkDriveAll(){
   if(!A.sel)return;
   try{
     await refreshZohoToken();
+    var dealFolder=await resolveDealFolder();
+    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     var links=[];
     if(A.reportPhotos.length>0)showToast("Uploading "+A.reportPhotos.length+" photos to WorkDrive...",3000);
     for(var i=0;i<A.reportPhotos.length;i++){
       var p=A.reportPhotos[i];if(!p.display)continue;
       try{
         var b64=await compressPhoto(p.display,1200,0.8);if(!b64)continue;
-        var fname="Photo-"+(i+1)+"-"+A.sel.Account_Name.replace(/[^a-z0-9]/gi,"-")+"-"+new Date().toISOString().slice(0,10)+".jpg";
+        var fname="Photo-"+stamp+"-"+(i+1)+".jpg";
         showToast("Uploading photo "+(i+1)+"...",2000);
-        var link=await uploadToWorkDrive(b64,fname,"image/jpeg");
+        var link=await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
         if(link){links.push({type:"photo",name:"Photo "+(i+1),url:link});showToast("Photo "+(i+1)+" uploaded",1500);}
         else showToast("Photo "+(i+1)+" - no link returned",2000);
       }catch(e){showToast("Photo "+(i+1)+" error: "+e.message,3000);}
@@ -845,8 +873,8 @@ async function uploadToWorkDriveAll(){
         showToast("Uploading video...",3000);
         var vreader=new FileReader();
         var vb64=await new Promise(function(res){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.readAsDataURL(A.videoBlob);});
-        var vfname="Video-"+A.sel.Account_Name.replace(/[^a-z0-9]/gi,"-")+"-"+new Date().toISOString().slice(0,10)+".webm";
-        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm");
+        var vfname="Video-"+stamp+".webm";
+        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder);
         if(vlink){links.push({type:"video",name:"Site Video",url:vlink});showToast("Video uploaded!",2000);}
       }catch(e){showToast("Video error: "+e.message,3000);}
     }
@@ -860,8 +888,9 @@ async function autoSync(){
   if(!A.sel||!A.report)return;
   try{
     await refreshZohoToken();
+    var dealFolder=await resolveDealFolder();
+    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     var links=[];
-    // Upload photos to WorkDrive
     if(A.reportPhotos.length>0){
       showToast("Uploading "+A.reportPhotos.length+" photos to WorkDrive...",3000);
     }
@@ -870,26 +899,24 @@ async function autoSync(){
       try{
         var b64=await compressPhoto(p.display,1200,0.8);
         if(!b64)continue;
-        var fname="Photo-"+(i+1)+"-"+A.sel.Account_Name.replace(/[^a-z0-9]/gi,"-")+"-"+new Date().toISOString().slice(0,10)+".jpg";
+        var fname="Photo-"+stamp+"-"+(i+1)+".jpg";
         showToast("Uploading photo "+(i+1)+" of "+A.reportPhotos.length+"...",2000);
-        var link=await uploadToWorkDrive(b64,fname,"image/jpeg");
+        var link=await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
         if(link){links.push({type:"photo",name:"Photo "+(i+1),url:link});showToast("Photo "+(i+1)+" uploaded",1500);}
         else showToast("Photo "+(i+1)+" upload returned no link",2000);
       }catch(e){showToast("Photo "+(i+1)+" error: "+e.message,3000);console.error("Photo upload error:",e);}
     }
-    // Upload video to WorkDrive
     if(A.videoBlob){
       try{
         showToast("Uploading video to WorkDrive...",3000);
         var vreader=new FileReader();
         var vb64=await new Promise(function(resolve){vreader.onload=function(e){resolve(e.target.result.split(",")[1]);};vreader.readAsDataURL(A.videoBlob);});
-        var vfname="Video-"+A.sel.Account_Name.replace(/[^a-z0-9]/gi,"-")+"-"+new Date().toISOString().slice(0,10)+".webm";
-        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm");
+        var vfname="Video-"+stamp+".webm";
+        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder);
         if(vlink){links.push({type:"video",name:"Site Video",url:vlink});showToast("Video uploaded!",2000);}
         else showToast("Video upload returned no link",2000);
       }catch(e){showToast("Video error: "+e.message,3000);console.error("Video upload error:",e);}
     }
-    // Save note with WorkDrive links
     A.workdriveLinks=links;
     await zohoSave();
     if(links.length>0)showToast(links.length+" files uploaded to WorkDrive",3000);
