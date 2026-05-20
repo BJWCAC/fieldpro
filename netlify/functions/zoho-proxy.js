@@ -79,12 +79,15 @@ exports.handler = async function(event) {
     if (data.action === "workdrive_upload") {
       var fileBuffer = Buffer.from(data.file_b64, "base64");
       var boundary = "CapStoneBound" + Date.now();
-      var hdr = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" + data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n");
-      var ftr = Buffer.from("\r\n--" + boundary + "--\r\n");
-      var uploadBody = Buffer.concat([hdr, fileBuffer, ftr]);
+      var parentPart = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"parent_id\"\r\n\r\n" + data.folder_id + "\r\n");
+      var namePart = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"filename\"\r\n\r\n" + data.filename + "\r\n");
+      var overridePart = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"override-name-exist\"\r\n\r\ntrue\r\n");
+      var filePart = Buffer.from("--" + boundary + "\r\nContent-Disposition: form-data; name=\"content\"; filename=\"" + data.filename + "\"\r\nContent-Type: " + data.mime_type + "\r\n\r\n");
+      var endPart = Buffer.from("\r\n--" + boundary + "--\r\n");
+      var uploadBody = Buffer.concat([parentPart, namePart, overridePart, filePart, fileBuffer, endPart]);
       var result5 = await req({
         hostname: "www.zohoapis.com",
-        path: "/workdrive/api/v1/files?parent_id=" + data.folder_id,
+        path: "/workdrive/api/v1/upload",
         method: "POST",
         headers: {
           "Authorization": "Zoho-oauthtoken " + token,
@@ -92,6 +95,20 @@ exports.handler = async function(event) {
           "Content-Length": uploadBody.length
         }
       }, uploadBody);
+      if (result5.status >= 200 && result5.status < 300) {
+        try {
+          var parsed = JSON.parse(result5.body);
+          var rec = (parsed.data && parsed.data[0]) || {};
+          var attrs = rec.attributes || {};
+          var rid = attrs.resource_id || rec.id || null;
+          if (!rid && attrs["File INFO"]) {
+            try { var fi = JSON.parse(attrs["File INFO"]); rid = fi.RESOURCE_ID || rid; } catch (e2) {}
+          }
+          var link = attrs.permalink || attrs.download_url || attrs.web_url || attrs.url ||
+            (rid ? "https://workdrive.zoho.com/file/" + rid : null);
+          return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, resource_id: rid, link: link }) };
+        } catch (e3) {}
+      }
       return { statusCode: result5.status, headers: h, body: result5.body };
     }
 
