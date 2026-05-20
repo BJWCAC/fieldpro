@@ -118,7 +118,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v111</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v112</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -325,7 +325,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">111</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">112</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -381,7 +381,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="111";
+var FP_VERSION="112";
 
 function el(id){return document.getElementById(id);}
 function go(n){
@@ -625,6 +625,11 @@ function setSort(f){if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";else{A.s
 function selectDeal(id){
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
   A.sel=d;
+  A.workdriveFolderUrl=null;
+  try{
+    var cf=localStorage.getItem("fp_wd_folder_"+d.id);
+    if(cf){var cj=JSON.parse(cf);if(cj.folder_url)A.workdriveFolderUrl=cj.folder_url;}
+  }catch(e){}
   showEl("deal-bar");hideEl("no-deal-bar");
   el("db-acct").textContent=d.Account_Name;
   el("db-info").textContent=(d.Deal_Name||"")+(d.Stage?" — "+d.Stage:"")+(d.Closing_Date?" — "+d.Closing_Date:"");
@@ -906,6 +911,7 @@ function renderReport(){
 
 // ZOHO SAVE
 function workdriveFolderUrl(){
+  if(A.workdriveFolderUrl)return A.workdriveFolderUrl;
   try{
     var u=localStorage.getItem("fp_wd_folder_url");
     if(u&&u.indexOf("workdrive")>=0)return u.trim();
@@ -920,8 +926,9 @@ function buildZohoNote(){
   lines.push("");lines.push(A.report);lines.push("");
   lines.push("--------------------");
   if(A.workdriveUploadCount>0){
-    lines.push("FIELD FILES (WorkDrive — CapStone folder):");
-    lines.push(workdriveFolderUrl());
+    var folderLabel=A.sel?((A.sel.Account_Name||"Account")+" — "+(A.sel.Deal_Name||"Deal")):"CapStone";
+    lines.push("FIELD FILES (WorkDrive — "+folderLabel+"):");
+    lines.push(A.workdriveFolderUrl||workdriveFolderUrl());
     lines.push(A.workdriveUploadCount+" file(s) uploaded for this visit (see today's date in filenames).");
     lines.push("");
   }
@@ -966,11 +973,43 @@ async function saveNote(){
     btn.textContent="Save to Zoho";btn.disabled=false;
   }
 }
+function sanitizeWdFolderName(s){
+  return String(s||"").replace(/[\\/:*?"<>|]/g,"-").replace(/\s+/g," ").trim().slice(0,120);
+}
+function dealFolderName(){
+  if(!A.sel)return "CapStone";
+  return sanitizeWdFolderName((A.sel.Account_Name||"Account")+" — "+(A.sel.Deal_Name||"Deal"));
+}
 async function resolveDealFolder(){
-  // Per-deal folder feature is disabled at the proxy. Always upload to CapStone root.
+  if(!A.sel)return WORKDRIVE_FOLDER;
+  var cacheKey="fp_wd_folder_"+A.sel.id;
   try{
-    Object.keys(localStorage).forEach(function(k){if(k.indexOf("fp_wd_folder_")===0)localStorage.removeItem(k);});
+    var cached=localStorage.getItem(cacheKey);
+    if(cached){
+      var c=JSON.parse(cached);
+      if(c.folder_id){
+        A.workdriveFolderUrl=c.folder_url||("https://workdrive.zoho.com/folder/"+c.folder_id);
+        return c.folder_id;
+      }
+    }
   }catch(e){}
+  try{
+    await refreshZohoToken();
+    var name=dealFolderName();
+    showUploadStatus("Opening WorkDrive folder: "+name,false);
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"workdrive_get_or_create_folder",token:A.zohoToken,parent_id:WORKDRIVE_FOLDER,folder_name:name})},ZOHO_FETCH_MS);
+    var d=JSON.parse(await r.text());
+    if(d.ok&&d.folder_id){
+      A.workdriveFolderUrl=d.folder_url||("https://workdrive.zoho.com/folder/"+d.folder_id);
+      try{localStorage.setItem(cacheKey,JSON.stringify({folder_id:d.folder_id,folder_url:A.workdriveFolderUrl,name:name}));}catch(e){}
+      if(d.fallback)showToast("Using CapStone root (deal folder unavailable)",6000);
+      else showToast("WorkDrive folder ready",4000);
+      return d.folder_id;
+    }
+  }catch(e){console.log("resolveDealFolder:",e);}
+  A.workdriveFolderUrl=WORKDRIVE_FOLDER_URL;
+  showToast("Deal folder error — using CapStone root",6000);
   return WORKDRIVE_FOLDER;
 }
 function parseWorkDriveLink(txt){
