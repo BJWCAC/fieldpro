@@ -308,6 +308,12 @@ body.light .hist-card{background:#fff}
     <button class="bp bfull" onclick="enterKey()">Update API Key</button>
   </div>
   <div class="card">
+    <div class="stitle">Troubleshooting</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
+    <button class="bg bfull" onclick="resetAppCache()" style="margin-bottom:8px">Reset App Cache &amp; Reload</button>
+    <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
+  </div>
+  <div class="card">
     <div class="stitle">History Storage</div>
     <div id="storage-info" style="font-size:11px;color:var(--amber);margin-bottom:10px;font-family:monospace"></div>
     <button class="bp bfull" onclick="exportHistory()" style="margin-bottom:8px">Export History to File</button>
@@ -319,7 +325,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version 82 &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">109</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -361,55 +367,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-
-function showDealsErr(msg){
-  var d=el("deals-err");if(!d)return;
-  if(msg){d.textContent=msg;d.style.display="block";}else d.style.display="none";
-}
-function resetDealsUI(){
-  var btn=el("ref-btn");if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
-  showDealsErr("");
-  var sm=el("sync-msg");
-  if(A.deals&&A.deals.length){if(sm){sm.textContent=A.deals.length+" deals (cached) — tap Refresh to update";sm.style.color="var(--dim)";}renderDeals();}
-  else{if(sm){sm.textContent="Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}}
-  showToast("Screen reset — tap Refresh from Zoho if needed",4000);
-}
-function loadDealsFromCache(){
-  var sd=localStorage.getItem("fp_deals");
-  if(!sd)return 0;
-  var p=JSON.parse(sd);
-  if(!p||!p.length)return 0;
-  var strVal=function(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);};
-  p=p.map(function(d){return{id:d.id,Deal_Name:strVal(d.Deal_Name),Account_Name:strVal(d.Account_Name),Stage:strVal(d.Stage),Amount:d.Amount||null,Description:strVal(d.Description),Owner:strVal(d.Owner),Closing_Date:strVal(d.Closing_Date)};});
-  A.deals=p;renderDeals();badge("tb-deals",p.length);
-  return p.length;
-}
-window.onerror=function(msg,src,line){
-  showDealsErr("App error: "+msg+(line?" (line "+line+")":""));
-  resetDealsUI();
-};
-window.onload=function(){
-  var sm=el("sync-msg");if(sm){sm.textContent="Starting CapStone...";sm.style.color="var(--dim)";}
-  var k=localStorage.getItem("fp_api_key");
-  if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}
-  else{setKeyUI(false);}
-  var t=localStorage.getItem("fp_theme");
-  if(t==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
-  try{
-    var ra=localStorage.getItem("fp_record_audio");
-    if(ra==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
-  }catch(e){}
-  renderHistory();
-  try{
-    var n=loadDealsFromCache();
-    if(sm){sm.textContent=n?n+" deals loaded from cache (tap Refresh to update Zoho)":"Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}
-  }catch(e){
-    try{localStorage.removeItem("fp_deals");}catch(e2){}
-    if(sm){sm.textContent="Cached deals were corrupt — tap Refresh from Zoho";sm.style.color="var(--red)";}
-    showDealsErr("Deal cache reset: "+e.message);
-  }
-  resetDealsUI();
-};
+var FP_VERSION="109";
 
 function el(id){return document.getElementById(id);}
 function go(n){
@@ -418,8 +376,8 @@ function go(n){
     if(p)p.classList.toggle("on",x===n);
     if(t)t.classList.toggle("on",x===n);
   });
-  if(n==="history")renderHistory();
-  if(n==="settings"){updateStorageInfo();renderCorrections();}
+  if(n==="history"&&typeof renderHistory==="function")renderHistory();
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();}
 }
 function badge(id,n){var e=el(id);if(!e)return;e.textContent=n||"";e.style.display=n?"inline":"none";}
 function esc(s){if(!s)return"";if(typeof s==="object")s=s.name||s.id||"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -434,6 +392,58 @@ function showToast(msg,ms){
   t.textContent=msg;t.classList.add("show");
   toastTimer=setTimeout(function(){t.classList.remove("show");toastTimer=null;},ms||3500);
 }
+function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";}
+function enterKey(){var k=prompt("Paste your Anthropic API key:");if(!k)return;k=k.trim();if(!k.startsWith("sk-ant")){alert("Key should start with sk-ant-");return;}API_KEY=k;localStorage.setItem("fp_api_key",k);setKeyUI(true);showToast("API key saved",2000);}
+function showDealsErr(msg){
+  var d=el("deals-err");if(!d)return;
+  if(msg){d.textContent=msg;d.style.display="block";}else d.style.display="none";
+}
+function resetDealsUI(){
+  var btn=el("ref-btn");if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+  showDealsErr("");
+  var sm=el("sync-msg");
+  if(A.deals&&A.deals.length){
+    if(sm){sm.textContent=A.deals.length+" deals (cached) — tap Refresh to update";sm.style.color="var(--dim)";}
+    if(typeof renderDeals==="function")renderDeals();
+  }else if(sm){sm.textContent="Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}
+}
+function loadDealsFromCache(){
+  var sd=localStorage.getItem("fp_deals");
+  if(!sd)return 0;
+  var p=JSON.parse(sd);
+  if(!p||!p.length)return 0;
+  var strVal=function(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);};
+  p=p.map(function(d){return{id:d.id,Deal_Name:strVal(d.Deal_Name),Account_Name:strVal(d.Account_Name),Stage:strVal(d.Stage),Amount:d.Amount||null,Description:strVal(d.Description),Owner:strVal(d.Owner),Closing_Date:strVal(d.Closing_Date)};});
+  A.deals=p;
+  if(typeof renderDeals==="function")renderDeals();
+  badge("tb-deals",p.length);
+  return p.length;
+}
+function clearDealCache(){try{localStorage.removeItem("fp_deals");}catch(e){}A.deals=[];resetDealsUI();showToast("Deal cache cleared",2000);}
+function bootApp(){
+  try{
+    var sm=el("sync-msg");if(sm){sm.textContent="Starting CapStone v"+FP_VERSION+"...";sm.style.color="var(--dim)";}
+    var k=localStorage.getItem("fp_api_key");
+    if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}else setKeyUI(false);
+    if(localStorage.getItem("fp_theme")==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
+    if(localStorage.getItem("fp_record_audio")==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
+    if(typeof renderHistory==="function")renderHistory();
+    try{
+      var n=loadDealsFromCache();
+      if(sm){sm.textContent=n?n+" deals from cache — tap Refresh to update":"Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}
+    }catch(e){
+      try{localStorage.removeItem("fp_deals");}catch(e2){}
+      if(sm){sm.textContent="Deal cache reset — tap Refresh from Zoho";sm.style.color="var(--red)";}
+      showDealsErr("Deal cache was reset: "+e.message);
+    }
+    go("deals");
+    var fv=el("fp-ver");if(fv)fv.textContent=FP_VERSION;
+  }catch(e){
+    showDealsErr("CapStone failed to start: "+e.message);
+    alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
+  }
+}
+window.onload=bootApp;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -441,10 +451,12 @@ function showUploadStatus(msg,isErr){
 }
 function fetchWithTimeout(url,opts,ms){
   ms=ms||UPLOAD_FETCH_MS;
+  opts=opts||{};
   if(typeof AbortController!=="undefined"){
     var ac=new AbortController();
     var timer=setTimeout(function(){ac.abort();},ms);
-    return fetch(url,Object.assign({},opts||{},{signal:ac.signal})).finally(function(){clearTimeout(timer);});
+    var o={method:opts.method,headers:opts.headers,body:opts.body,signal:ac.signal};
+    return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){clearTimeout(timer);throw e;});
   }
   return Promise.race([fetch(url,opts),new Promise(function(_,rej){setTimeout(function(){rej(new Error("Upload timed out after "+Math.round(ms/1000)+"s");},ms);})]);
 }
@@ -460,10 +472,13 @@ async function waitForUploads(ms){
     return{timedOut:false};
   }
 }
-function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";}
 function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");}
-function enterKey(){var k=prompt("Paste your Anthropic API key:");if(!k)return;k=k.trim();if(!k.startsWith("sk-ant")){alert("Key should start with sk-ant-");return;}API_KEY=k;localStorage.setItem("fp_api_key",k);setKeyUI(true);showToast("API key saved",2000);}
 function syncTx(){var t2=el("tx2"),t=el("tx");if(t2&&t)t.value=t2.value;checkGen();}
+function resetAppCache(){
+  if(!confirm("Reset CapStone on this device? Clears cached deals and reloads. Your API key and history stay unless you clear all site data."))return;
+  try{localStorage.removeItem("fp_deals");}catch(e){}
+  location.reload();
+}
 
 function newProject(){
   if((A.photos.length>0||(el("tx")&&el("tx").value.trim()))&&!confirm("Start new project? Current work saved to History."))return;
@@ -472,14 +487,15 @@ function newProject(){
 }
 function clearCapture(){
   A.photos=[];A.reportPhotos=[];A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];
-  el("photo-cards").innerHTML="";
+  var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
-  el("loc-body").innerHTML="Tap Get Location to capture GPS";el("loc-btn").textContent="GET LOCATION";
+  var lb=el("loc-body");if(lb)lb.innerHTML="Tap Get Location to capture GPS";
+  var lbtn=el("loc-btn");if(lbtn)lbtn.textContent="GET LOCATION";
   hideEl("hb-gps");hideEl("vb-gps");hideEl("vb-pc");
   hideEl("deal-bar");showEl("no-deal-bar");
   hideEl("video-save-bar");
-  el("db-acct").textContent="";el("db-info").textContent="";
+  var da=el("db-acct"),di=el("db-info");if(da)da.textContent="";if(di)di.textContent="";
   var hdn=el("hdr-deal-name");if(hdn){hdn.textContent="";hdn.style.display="none";}
   badge("tb-photos","");
   if(el("gen-btn"))el("gen-btn").style.display="none";
@@ -534,8 +550,8 @@ async function loadDeals(){
 function renderDeals(){
   if(!A.deals.length){hideEl("filter-area");el("deals-list").innerHTML="<div class='empty'><div class='e-icon'>&#128452;</div><div class='e-title'>No Deals</div><div class='e-sub'>Tap Refresh or Import CSV</div></div>";return;}
   showEl("filter-area");
-  var accounts=[...new Set(A.deals.map(function(d){return d.Account_Name;}).filter(Boolean))].sort();
-  var stages=[...new Set(A.deals.map(function(d){return d.Stage;}).filter(Boolean))].sort();
+  var accounts=Array.from(new Set(A.deals.map(function(d){return d.Account_Name;}).filter(Boolean))).sort();
+  var stages=Array.from(new Set(A.deals.map(function(d){return d.Stage;}).filter(Boolean))).sort();
   var fA=el("f-acct"),fS=el("f-stage");var ca=fA?fA.value:"",cs=fS?fS.value:"";
   if(fA)fA.innerHTML="<option value=''>All Accounts</option>"+accounts.map(function(a){return"<option value='"+esc(a)+"'>"+esc(a)+"</option>";}).join("");
   if(fS)fS.innerHTML="<option value=''>All Stages</option>"+stages.map(function(s){return"<option value='"+esc(s)+"'>"+esc(s)+"</option>";}).join("");
@@ -959,7 +975,7 @@ async function uploadToWorkDriveAll(){
         showUploadStatus("Uploading photo "+(i+1)+" of "+total+"...",false);
         showToast("Uploading photo "+(i+1)+" of "+total+"...",4000);
         await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
-        ok++;A.workdriveUploadCount=ok;showToast("Photo "+(i+1)+" uploaded ✓",5000);
+        ok++;A.workdriveUploadCount=ok;showToast("Photo "+(i+1)+" uploaded OK",5000);
       }catch(e){fail++;showToast("Photo "+(i+1)+" error: "+e.message,7000);}
     }
     if(A.videoBlob){
@@ -967,15 +983,17 @@ async function uploadToWorkDriveAll(){
         fail++;
         showUploadStatus("Video skipped (over 2 MB) — photos still upload. Save when ready.",true);
         showToast("Video skipped — too large for proxy ("+(A.videoBlob.size/1048576).toFixed(1)+" MB). Photos are fine.",8000);
-      }else try{
-        showUploadStatus("Uploading video (may take up to 50s)...",false);
-        showToast("Uploading video to WorkDrive...",5000);
-        var vreader=new FileReader();
-        var vb64=await new Promise(function(res,rej){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.onerror=function(){rej(new Error("Could not read video"));};vreader.readAsDataURL(A.videoBlob);});
-        var vfname="Video-"+stamp+".webm";
-        await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder,45000);
-        ok++;A.workdriveUploadCount=ok;showToast("Video uploaded ✓",5000);
-      }catch(e){fail++;showToast("Video error: "+e.message,7000);}
+      }else{
+        try{
+          showUploadStatus("Uploading video (may take up to 50s)...",false);
+          showToast("Uploading video to WorkDrive...",5000);
+          var vreader=new FileReader();
+          var vb64=await new Promise(function(res,rej){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.onerror=function(){rej(new Error("Could not read video"));};vreader.readAsDataURL(A.videoBlob);});
+          var vfname="Video-"+stamp+".webm";
+          await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder,45000);
+          ok++;A.workdriveUploadCount=ok;showToast("Video uploaded OK",5000);
+        }catch(e){fail++;showToast("Video error: "+e.message,7000);}
+      }
     }
     var summary=ok+" file"+(ok!==1?"s":"")+" uploaded";
     if(fail)summary+=", "+fail+" problem"+(fail!==1?"s":"");
