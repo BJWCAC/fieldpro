@@ -121,7 +121,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v115</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v116</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -329,7 +329,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">115</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">116</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -385,8 +385,36 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="115";
+var FP_VERSION="116";
 
+function appBaseUrl(){
+  var p=location.pathname||"";
+  if(p.indexOf("FieldPro.html")>=0)return location.origin+p;
+  return "https://BJWCAC.github.io/fieldpro/FieldPro.html";
+}
+function parseUrlBuild(){
+  try{var m=location.search.match(/[?&]v=(\d+)/);return m?parseInt(m[1],10):0;}catch(e){return 0;}
+}
+function parseBuildVer(txt){
+  var m=String(txt||"").match(/FP_VERSION="(\d+)"/);
+  return m?parseInt(m[1],10):0;
+}
+async function checkForAppUpdate(){
+  try{
+    if(sessionStorage.getItem("fp_update_skip")==="1")return false;
+    var local=parseInt(FP_VERSION,10)||0;
+    if(parseUrlBuild()>=local)return false;
+    var guardKey="fp_reload_"+local;
+    if(sessionStorage.getItem(guardKey))return false;
+    var r=await fetch(appBaseUrl()+"?fpchk="+Date.now(),{cache:"no-store"});
+    if(!r.ok)return false;
+    var remote=parseBuildVer(await r.text());
+    if(!remote||remote<=local)return false;
+    sessionStorage.setItem(guardKey,"1");
+    location.replace(appBaseUrl()+"?v="+remote);
+    return true;
+  }catch(e){console.log("update check:",e);return false;}
+}
 function el(id){return document.getElementById(id);}
 function go(n){
   ["deals","capture","report","history","settings"].forEach(function(x){
@@ -486,7 +514,11 @@ function bootApp(){
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
   }
 }
-window.onload=bootApp;
+async function startCapStone(){
+  if(await checkForAppUpdate())return;
+  bootApp();
+}
+window.onload=startCapStone;
 window.enterKey=enterKey;
 window.saveApiKey=saveApiKey;
 window.closeKeyModal=closeKeyModal;
