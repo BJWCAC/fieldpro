@@ -123,8 +123,8 @@ body.light .hist-card{background:#fff}
   </div>
   <div id="hdr-r">
     <div id="hb-gps" class="hb hb-b" style="display:none">GPS</div>
-    <button onclick="go('settings')" style="background:transparent;border:1px solid var(--bdr);color:var(--amber);border-radius:4px;padding:3px 8px;font-size:14px;cursor:pointer">&#9881;</button>
-    <button onclick="enterKey()" id="key-btn" style="background:transparent;border:1px solid var(--bdr);color:var(--dim);border-radius:4px;padding:3px 8px;font-size:10px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">KEY</button>
+    <button type="button" onclick="go('settings')" style="background:transparent;border:1px solid var(--bdr);color:var(--amber);border-radius:4px;padding:3px 8px;font-size:14px;cursor:pointer">&#9881;</button>
+    <button type="button" onclick="enterKey()" id="key-btn" style="background:transparent;border:1px solid var(--bdr);color:var(--dim);border-radius:4px;padding:3px 8px;font-size:10px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer;z-index:101;position:relative">KEY</button>
   </div>
 </div>
 
@@ -325,13 +325,27 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">109</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">110</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
 </div>
 
 <div id="toast" class="toast"></div>
+
+<div id="keymodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeKeyModal()">
+  <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Anthropic API Key</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For AI reports only. Saved on this device. Keys from console.anthropic.com</div>
+    <label class="lbl" for="key-in">API Key</label>
+    <input type="password" id="key-in" placeholder="sk-ant-..." autocomplete="off" style="margin-bottom:8px"/>
+    <div id="key-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
+    <div class="g2">
+      <button type="button" class="bg bfull" onclick="closeKeyModal()">Cancel</button>
+      <button type="button" class="bp bfull" onclick="saveApiKey()">Save Key</button>
+    </div>
+  </div>
+</div>
 
 <div id="smodal" class="smodal" onclick="if(event.target===this)closeShare()">
   <div class="sbox">
@@ -367,7 +381,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="109";
+var FP_VERSION="110";
 
 function el(id){return document.getElementById(id);}
 function go(n){
@@ -392,8 +406,32 @@ function showToast(msg,ms){
   t.textContent=msg;t.classList.add("show");
   toastTimer=setTimeout(function(){t.classList.remove("show");toastTimer=null;},ms||3500);
 }
-function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";}
-function enterKey(){var k=prompt("Paste your Anthropic API key:");if(!k)return;k=k.trim();if(!k.startsWith("sk-ant")){alert("Key should start with sk-ant-");return;}API_KEY=k;localStorage.setItem("fp_api_key",k);setKeyUI(true);showToast("API key saved",2000);}
+function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";b.style.background=on?"#051a18":"transparent";}
+function closeKeyModal(){var m=el("keymodal");if(m)m.style.display="none";}
+function enterKey(){
+  var m=el("keymodal"),inp=el("key-in"),err=el("key-err");
+  if(!m){
+    var k=prompt("Paste your Anthropic API key:");
+    if(!k)return;k=k.trim();
+    if(!k.startsWith("sk-ant")){alert("Key should start with sk-ant-");return;}
+    API_KEY=k;try{localStorage.setItem("fp_api_key",k);}catch(e){alert("Could not save key");return;}
+    setKeyUI(true);showToast("API key saved",2000);return;
+  }
+  if(err)err.textContent="";
+  var saved="";try{saved=localStorage.getItem("fp_api_key")||"";}catch(e){}
+  if(inp)inp.value=saved||API_KEY||"";
+  m.style.display="flex";
+  if(inp){try{inp.focus();}catch(e){}}
+}
+function saveApiKey(){
+  var inp=el("key-in"),err=el("key-err");
+  var k=(inp&&inp.value||"").trim();
+  if(!k){if(err)err.textContent="Paste your API key first";return;}
+  if(!k.startsWith("sk-ant")){if(err)err.textContent="Key must start with sk-ant-";return;}
+  API_KEY=k;
+  try{localStorage.setItem("fp_api_key",k);}catch(e){if(err)err.textContent="Could not save: "+e.message;return;}
+  setKeyUI(true);closeKeyModal();showToast("API key saved",3000);
+}
 function showDealsErr(msg){
   var d=el("deals-err");if(!d)return;
   if(msg){d.textContent=msg;d.style.display="block";}else d.style.display="none";
@@ -444,6 +482,10 @@ function bootApp(){
   }
 }
 window.onload=bootApp;
+window.enterKey=enterKey;
+window.saveApiKey=saveApiKey;
+window.closeKeyModal=closeKeyModal;
+window.go=go;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
