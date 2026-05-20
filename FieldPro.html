@@ -341,6 +341,9 @@ var ZOHO_REFRESH="1000.af6da2ff9d130330225e2ab88148fb79.980d490ffc49507250b6ed92
 var ZOHO_CLIENT="1000.YXEEB4LIVO90TM5SOFP1IXNF3Z8NMT";
 var ZOHO_SECRET="4a11be5bd1410d4678d7d45b2444bf1ca5f8db5dc6";
 var WORKDRIVE_FOLDER="t16759780cbaabd3647cf897be2931dfa11ae";
+var UPLOAD_FETCH_MS=50000;
+var UPLOAD_WAIT_MS=70000;
+var VIDEO_MAX_BYTES=2*1024*1024;
 var SEC_LABELS=["1. Site Visit Summary","2. Equipment / Systems Serviced","3. Work Performed","4. Calibration Results & Readings","5. Findings & Observations","6. Issues / Deficiencies","7. Recommendations & Next Steps","8. Follow-Up Required","9. Materials / Parts Used"];
 var SEC_IDS=["sec1","sec2","sec3","sec4","sec5","sec6","sec7","sec8","sec9"];
 var SORT_FIELDS=[{k:"Account_Name",l:"Account"},{k:"Deal_Name",l:"Deal"},{k:"Stage",l:"Stage"},{k:"Amount",l:"Amount"},{k:"Closing_Date",l:"Date"}];
@@ -407,6 +410,27 @@ function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
   else u.style.display="none";
+}
+function fetchWithTimeout(url,opts,ms){
+  ms=ms||UPLOAD_FETCH_MS;
+  if(typeof AbortController!=="undefined"){
+    var ac=new AbortController();
+    var timer=setTimeout(function(){ac.abort();},ms);
+    return fetch(url,Object.assign({},opts||{},{signal:ac.signal})).finally(function(){clearTimeout(timer);});
+  }
+  return Promise.race([fetch(url,opts),new Promise(function(_,rej){setTimeout(function(){rej(new Error("Upload timed out after "+Math.round(ms/1000)+"s");},ms);})]);
+}
+function waitMs(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function waitForUploads(ms){
+  if(!A.uploadPromise)return{timedOut:false};
+  try{
+    await Promise.race([A.uploadPromise,waitMs(ms).then(function(){throw new Error("__upload_wait_timeout__");})]);
+    return{timedOut:false};
+  }catch(e){
+    if(e&&e.message==="__upload_wait_timeout__")return{timedOut:true};
+    console.log("Upload wait error:",e);
+    return{timedOut:false};
+  }
 }
 function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";}
 function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");}
@@ -805,7 +829,15 @@ async function saveNote(){
   if(!A.sel||!A.report)return;
   var btn=el("save-btn");btn.disabled=true;
   try{
-    if(A.uploadPromise){btn.textContent="Uploading...";showUploadStatus("Waiting for WorkDrive uploads...",false);try{await A.uploadPromise;}catch(e){console.log("Upload wait error:",e);}}
+    if(A.uploadPromise){
+      btn.textContent="Uploading...";
+      showUploadStatus("Waiting for WorkDrive uploads (max ~70s)...",false);
+      var w=await waitForUploads(UPLOAD_WAIT_MS);
+      if(w.timedOut){
+        showUploadStatus("Upload still running — saving now with any links ready so far.",true);
+        showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
+      }
+    }
     btn.textContent="Saving...";
     await refreshZohoToken();await zohoSave();
     btn.textContent="Saved!";btn.style.background="var(--green)";btn.style.color="#001a18";
@@ -847,10 +879,10 @@ function parseWorkDriveLink(txt){
     return null;
   }
 }
-async function uploadToWorkDrive(b64,filename,mimeType,folderId){
+async function uploadToWorkDrive(b64,filename,mimeType,folderId,timeoutMs){
   var target=folderId||WORKDRIVE_FOLDER;
-  var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"workdrive_upload",token:A.zohoToken,folder_id:target,filename:filename,file_b64:b64,mime_type:mimeType})});
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"workdrive_upload",token:A.zohoToken,folder_id:target,filename:filename,file_b64:b64,mime_type:mimeType})},timeoutMs||UPLOAD_FETCH_MS);
   var txt=await r.text();
   console.log("WorkDrive response:",r.status,txt.substring(0,300));
   if(!r.ok)throw new Error("WorkDrive "+r.status+": "+txt.substring(0,120));
@@ -879,19 +911,23 @@ async function uploadToWorkDriveAll(){
         showUploadStatus("Uploading photo "+(i+1)+" of "+total+"...",false);
         showToast("Uploading photo "+(i+1)+" of "+total+"...",4000);
         var link=await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
-        if(link){links.push({type:"photo",name:"Photo "+(i+1),url:link});ok++;showToast("Photo "+(i+1)+" uploaded ✓",5000);}
+        if(link){links.push({type:"photo",name:"Photo "+(i+1),url:link});A.workdriveLinks=links.slice();ok++;showToast("Photo "+(i+1)+" uploaded ✓",5000);}
         else{fail++;showToast("Photo "+(i+1)+" uploaded but no link — check CapStone folder",6000);}
       }catch(e){fail++;showToast("Photo "+(i+1)+" error: "+e.message,7000);}
     }
     if(A.videoBlob){
-      try{
-        showUploadStatus("Uploading video...",false);
+      if(A.videoBlob.size>VIDEO_MAX_BYTES){
+        fail++;
+        showUploadStatus("Video skipped (over 2 MB) — photos still upload. Save when ready.",true);
+        showToast("Video skipped — too large for proxy ("+(A.videoBlob.size/1048576).toFixed(1)+" MB). Photos are fine.",8000);
+      }else try{
+        showUploadStatus("Uploading video (may take up to 50s)...",false);
         showToast("Uploading video to WorkDrive...",5000);
         var vreader=new FileReader();
-        var vb64=await new Promise(function(res){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.readAsDataURL(A.videoBlob);});
+        var vb64=await new Promise(function(res,rej){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.onerror=function(){rej(new Error("Could not read video"));};vreader.readAsDataURL(A.videoBlob);});
         var vfname="Video-"+stamp+".webm";
-        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder);
-        if(vlink){links.push({type:"video",name:"Site Video",url:vlink});ok++;showToast("Video uploaded ✓",5000);}
+        var vlink=await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder,45000);
+        if(vlink){links.push({type:"video",name:"Site Video",url:vlink});A.workdriveLinks=links.slice();ok++;showToast("Video uploaded ✓",5000);}
         else{fail++;showToast("Video uploaded but no link — check CapStone folder",6000);}
       }catch(e){fail++;showToast("Video error: "+e.message,7000);}
     }
@@ -910,6 +946,8 @@ async function uploadToWorkDriveAll(){
   }catch(e){
     showUploadStatus("WorkDrive error: "+e.message,true);
     showToast("WorkDrive error: "+e.message,8000);
+  }finally{
+    A.uploadPromise=null;
   }
 }
 
