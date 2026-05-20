@@ -311,6 +311,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Troubleshooting</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
     <button class="bg bfull" onclick="resetAppCache()" style="margin-bottom:8px">Reset App Cache &amp; Reload</button>
+    <button class="bg bfull" onclick="clearWorkDriveFolderCache()" style="margin-bottom:8px">Clear WorkDrive Folder Cache</button>
     <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
   </div>
   <div class="card">
@@ -381,7 +382,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="112";
+var FP_VERSION="114";
 
 function el(id){return document.getElementById(id);}
 function go(n){
@@ -522,9 +523,21 @@ async function waitForUploads(ms){
 }
 function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");}
 function syncTx(){var t2=el("tx2"),t=el("tx");if(t2&&t)t.value=t2.value;checkGen();}
+function clearWorkDriveFolderCache(){
+  try{
+    var keys=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k&&k.indexOf("fp_wd_folder_")===0)keys.push(k);
+    }
+    keys.forEach(function(k){localStorage.removeItem(k);});
+    showToast("WorkDrive folder cache cleared ("+keys.length+")",3000);
+  }catch(e){showToast("Could not clear folder cache",3000);}
+}
 function resetAppCache(){
-  if(!confirm("Reset CapStone on this device? Clears cached deals and reloads. Your API key and history stay unless you clear all site data."))return;
+  if(!confirm("Reset CapStone on this device? Clears cached deals and WorkDrive folder IDs, then reloads."))return;
   try{localStorage.removeItem("fp_deals");}catch(e){}
+  clearWorkDriveFolderCache();
   location.reload();
 }
 
@@ -628,7 +641,7 @@ function selectDeal(id){
   A.workdriveFolderUrl=null;
   try{
     var cf=localStorage.getItem("fp_wd_folder_"+d.id);
-    if(cf){var cj=JSON.parse(cf);if(cj.folder_url)A.workdriveFolderUrl=cj.folder_url;}
+    if(cf){var cj=JSON.parse(cf);if(cj.folder_id&&cj.folder_id!==WORKDRIVE_FOLDER&&cj.folder_url)A.workdriveFolderUrl=cj.folder_url;}
   }catch(e){}
   showEl("deal-bar");hideEl("no-deal-bar");
   el("db-acct").textContent=d.Account_Name;
@@ -980,17 +993,23 @@ function dealFolderName(){
   if(!A.sel)return "CapStone";
   return sanitizeWdFolderName((A.sel.Account_Name||"Account")+" — "+(A.sel.Deal_Name||"Deal"));
 }
+function workdriveFilePrefix(){
+  if(!A.sel)return "";
+  return sanitizeWdFolderName(dealFolderName()).replace(/\s+/g," ")+" - ";
+}
 async function resolveDealFolder(){
+  A.workdriveFolderFallback=false;
   if(!A.sel)return WORKDRIVE_FOLDER;
   var cacheKey="fp_wd_folder_"+A.sel.id;
   try{
     var cached=localStorage.getItem(cacheKey);
     if(cached){
       var c=JSON.parse(cached);
-      if(c.folder_id){
+      if(c.folder_id&&c.folder_id!==WORKDRIVE_FOLDER&&!c.fallback){
         A.workdriveFolderUrl=c.folder_url||("https://workdrive.zoho.com/folder/"+c.folder_id);
         return c.folder_id;
       }
+      try{localStorage.removeItem(cacheKey);}catch(e){}
     }
   }catch(e){}
   try{
@@ -1000,16 +1019,24 @@ async function resolveDealFolder(){
     var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({action:"workdrive_get_or_create_folder",token:A.zohoToken,parent_id:WORKDRIVE_FOLDER,folder_name:name})},ZOHO_FETCH_MS);
     var d=JSON.parse(await r.text());
-    if(d.ok&&d.folder_id){
+    if(d.ok&&d.folder_id&&d.folder_id!==WORKDRIVE_FOLDER&&!d.fallback){
       A.workdriveFolderUrl=d.folder_url||("https://workdrive.zoho.com/folder/"+d.folder_id);
       try{localStorage.setItem(cacheKey,JSON.stringify({folder_id:d.folder_id,folder_url:A.workdriveFolderUrl,name:name}));}catch(e){}
-      if(d.fallback)showToast("Using CapStone root (deal folder unavailable)",6000);
-      else showToast("WorkDrive folder ready",4000);
+      showToast("WorkDrive folder ready: "+name,5000);
       return d.folder_id;
     }
-  }catch(e){console.log("resolveDealFolder:",e);}
+    A.workdriveFolderFallback=true;
+    var hint="";
+    if(d.debug&&d.debug.create&&d.debug.create[0]){
+      var c0=d.debug.create[0];
+      hint=" ("+c0.host+" create "+c0.status+")";
+    }else if(d.debug&&d.debug.list&&d.debug.list[0]){
+      hint=" (list "+d.debug.list[0].status+")";
+    }
+    showToast("Deal folder failed"+hint+" — files go to CapStone root with deal name in filename",10000);
+    console.log("WorkDrive folder fallback:",d);
+  }catch(e){console.log("resolveDealFolder:",e);A.workdriveFolderFallback=true;}
   A.workdriveFolderUrl=WORKDRIVE_FOLDER_URL;
-  showToast("Deal folder error — using CapStone root",6000);
   return WORKDRIVE_FOLDER;
 }
 function parseWorkDriveLink(txt){
@@ -1058,7 +1085,7 @@ async function uploadToWorkDriveAll(){
       try{
         var b64=await compressPhoto(p.display,1200,0.8);
         if(!b64){skipped++;showToast("Photo "+(i+1)+" skipped (compress failed)",5000);continue;}
-        var fname="Photo-"+stamp+"-"+(i+1)+".jpg";
+        var fname=workdriveFilePrefix()+"Photo-"+stamp+"-"+(i+1)+".jpg";
         showUploadStatus("Uploading photo "+(i+1)+" of "+total+"...",false);
         showToast("Uploading photo "+(i+1)+" of "+total+"...",4000);
         await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
@@ -1076,7 +1103,7 @@ async function uploadToWorkDriveAll(){
           showToast("Uploading video to WorkDrive...",5000);
           var vreader=new FileReader();
           var vb64=await new Promise(function(res,rej){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.onerror=function(){rej(new Error("Could not read video"));};vreader.readAsDataURL(A.videoBlob);});
-          var vfname="Video-"+stamp+".webm";
+          var vfname=workdriveFilePrefix()+"Video-"+stamp+".webm";
           await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder,45000);
           ok++;A.workdriveUploadCount=ok;showToast("Video uploaded OK",5000);
         }catch(e){fail++;showToast("Video error: "+e.message,7000);}
@@ -1117,7 +1144,7 @@ async function autoSync(){
       try{
         var b64=await compressPhoto(p.display,1200,0.8);
         if(!b64)continue;
-        var fname="Photo-"+stamp+"-"+(i+1)+".jpg";
+        var fname=workdriveFilePrefix()+"Photo-"+stamp+"-"+(i+1)+".jpg";
         showToast("Uploading photo "+(i+1)+" of "+A.reportPhotos.length+"...",2000);
         await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
         ok++;A.workdriveUploadCount=ok;showToast("Photo "+(i+1)+" uploaded",1500);
@@ -1128,7 +1155,7 @@ async function autoSync(){
         showToast("Uploading video to WorkDrive...",3000);
         var vreader=new FileReader();
         var vb64=await new Promise(function(resolve){vreader.onload=function(e){resolve(e.target.result.split(",")[1]);};vreader.readAsDataURL(A.videoBlob);});
-        var vfname="Video-"+stamp+".webm";
+        var vfname=workdriveFilePrefix()+"Video-"+stamp+".webm";
         await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder);
         ok++;A.workdriveUploadCount=ok;showToast("Video uploaded!",2000);
       }catch(e){showToast("Video error: "+e.message,3000);console.error("Video upload error:",e);}
