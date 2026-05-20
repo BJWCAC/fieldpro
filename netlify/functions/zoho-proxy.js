@@ -79,79 +79,126 @@ exports.handler = async function(event) {
     if (data.action === "workdrive_get_or_create_folder") {
       var parentId = data.parent_id || "";
       var folderName = String(data.folder_name || "Deal").substring(0, 120);
-      var fallbackBody = JSON.stringify({
-        ok: true,
-        folder_id: parentId,
-        folder_url: "https://workdrive.zoho.com/folder/" + parentId,
-        fallback: true
-      });
+      var wdHeaders = {
+        "Authorization": "Zoho-oauthtoken " + token,
+        "Accept": "application/vnd.api+json"
+      };
+      var debug = { list: [], create_status: null };
+
+      function folderUrl(id, attrs) {
+        attrs = attrs || {};
+        return attrs.permalink || attrs.web_url || ("https://workdrive.zoho.com/folder/" + id);
+      }
+
+      function parseFolderId(obj) {
+        if (!obj) return null;
+        if (obj.id) return obj.id;
+        var d = obj.data;
+        if (!d) return null;
+        if (Array.isArray(d)) {
+          var rec = d[0] || {};
+          return rec.id || (rec.attributes && (rec.attributes.resource_id || rec.attributes.id)) || null;
+        }
+        return d.id || (d.attributes && (d.attributes.resource_id || d.attributes.id)) || null;
+      }
+
+      function findInList(body) {
+        try {
+          var listed = JSON.parse(body);
+          var items = listed.data || [];
+          for (var li = 0; li < items.length; li++) {
+            var attrs = items[li].attributes || {};
+            var n = (attrs.name || attrs.display_html_name || "").trim();
+            if (n === folderName.trim()) {
+              var existingId = items[li].id || attrs.resource_id || attrs.id || null;
+              if (existingId) return { id: existingId, url: folderUrl(existingId, attrs) };
+            }
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function fallbackBody(reason) {
+        return JSON.stringify({
+          ok: true,
+          folder_id: parentId,
+          folder_url: "https://workdrive.zoho.com/folder/" + parentId,
+          fallback: true,
+          reason: reason || "unknown",
+          debug: debug
+        });
+      }
+
       try {
         if (!parentId || !folderName) {
-          return { statusCode: 200, headers: h, body: fallbackBody };
+          return { statusCode: 200, headers: h, body: fallbackBody("missing parent or name") };
         }
-        var listResult = await req({
-          hostname: "www.zohoapis.com",
-          path: "/workdrive/api/v1/files/" + encodeURIComponent(parentId) + "/files?page[limit]=200",
-          method: "GET",
-          headers: {
-            "Authorization": "Zoho-oauthtoken " + token,
-            "Accept": "application/vnd.api+json"
-          }
-        });
-        if (listResult.status >= 200 && listResult.status < 300) {
-          try {
-            var listed = JSON.parse(listResult.body);
-            var items = listed.data || [];
-            for (var li = 0; li < items.length; li++) {
-              var attrs = items[li].attributes || {};
-              if ((attrs.name || "") === folderName) {
-                var existingId = attrs.resource_id || items[li].id || null;
-                if (existingId) {
-                  var existingUrl = attrs.permalink || attrs.web_url ||
-                    ("https://workdrive.zoho.com/folder/" + existingId);
-                  return {
-                    statusCode: 200,
-                    headers: h,
-                    body: JSON.stringify({ ok: true, folder_id: existingId, folder_url: existingUrl, created: false })
-                  };
-                }
-              }
+
+        var listPaths = [
+          "/workdrive/api/v1/teamfolders/" + encodeURIComponent(parentId) + "/folders?page[limit]=200",
+          "/workdrive/api/v1/files/" + encodeURIComponent(parentId) + "/files?page[limit]=200"
+        ];
+        for (var pi = 0; pi < listPaths.length; pi++) {
+          var listResult = await req({
+            hostname: "www.zohoapis.com",
+            path: listPaths[pi],
+            method: "GET",
+            headers: wdHeaders
+          });
+          debug.list.push({ path: listPaths[pi], status: listResult.status });
+          if (listResult.status >= 200 && listResult.status < 300) {
+            var hit = findInList(listResult.body);
+            if (hit) {
+              return {
+                statusCode: 200,
+                headers: h,
+                body: JSON.stringify({ ok: true, folder_id: hit.id, folder_url: hit.url, created: false })
+              };
             }
-          } catch (le) {}
+          }
         }
+
         var createPayload = JSON.stringify({
-          data: [{ attributes: { name: folderName, parent_id: parentId }, type: "files" }]
+          data: { attributes: { name: folderName, parent_id: parentId }, type: "files" }
         });
         var createResult = await req({
           hostname: "www.zohoapis.com",
           path: "/workdrive/api/v1/files",
           method: "POST",
-          headers: {
-            "Authorization": "Zoho-oauthtoken " + token,
+          headers: Object.assign({}, wdHeaders, {
             "Content-Type": "application/json",
-            "Accept": "application/vnd.api+json",
             "Content-Length": Buffer.byteLength(createPayload)
-          }
+          })
         }, createPayload);
+        debug.create_status = createResult.status;
         if (createResult.status >= 200 && createResult.status < 300) {
           try {
             var created = JSON.parse(createResult.body);
-            var rec = (created.data && created.data[0]) || {};
-            var cattrs = rec.attributes || {};
-            var newId = cattrs.resource_id || rec.id || null;
+            var newId = parseFolderId(created);
+            var cattrs = (created.data && !Array.isArray(created.data) && created.data.attributes) ||
+              (created.data && created.data[0] && created.data[0].attributes) || {};
             if (newId) {
-              var newUrl = cattrs.permalink || cattrs.web_url ||
-                ("https://workdrive.zoho.com/folder/" + newId);
               return {
                 statusCode: 200,
                 headers: h,
-                body: JSON.stringify({ ok: true, folder_id: newId, folder_url: newUrl, created: true })
+                body: JSON.stringify({
+                  ok: true,
+                  folder_id: newId,
+                  folder_url: folderUrl(newId, cattrs),
+                  created: true
+                })
               };
             }
-          } catch (ce) {}
+          } catch (ce) {
+            debug.create_parse = ce.message;
+          }
+        } else {
+          debug.create_body = String(createResult.body || "").substring(0, 200);
         }
-      } catch (fe) {}
-      return { statusCode: 200, headers: h, body: fallbackBody };
+      } catch (fe) {
+        debug.error = fe.message;
+      }
+      return { statusCode: 200, headers: h, body: fallbackBody("list and create failed") };
     }
 
     if (data.action === "workdrive_upload") {
