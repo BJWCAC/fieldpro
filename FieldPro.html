@@ -121,7 +121,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v118</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v119</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -306,6 +306,16 @@ body.light .hist-card{background:#fff}
     </div>
   </div>
   <div class="card">
+    <div class="stitle">Zoho CRM</div>
+    <div class="tog-row" onclick="toggleAutoSaveZoho()">
+      <div class="tog on" id="tog-auto-zoho"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-save to Zoho after Generate</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, PDF, and CRM note when a deal is selected</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
     <div class="stitle">API Key</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Your Anthropic API key — saved on this device. Get keys at console.anthropic.com.</div>
     <button class="bp bfull" onclick="enterKey()">Update API Key</button>
@@ -329,7 +339,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">118</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">119</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -384,8 +394,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="118";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false};
+var FP_VERSION="119";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -497,6 +507,8 @@ function bootApp(){
     if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}else setKeyUI(false);
     if(localStorage.getItem("fp_theme")==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
     if(localStorage.getItem("fp_record_audio")==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
+    A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
+    var az=el("tog-auto-zoho");if(az)az.classList.toggle("on",A.autoSaveZoho);
     if(typeof renderHistory==="function")renderHistory();
     try{
       var n=loadDealsFromCache();
@@ -557,6 +569,12 @@ async function waitForUploads(ms){
   }
 }
 function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");}
+function toggleAutoSaveZoho(){
+  A.autoSaveZoho=!A.autoSaveZoho;
+  var t=el("tog-auto-zoho");if(t)t.classList.toggle("on",A.autoSaveZoho);
+  try{localStorage.setItem("fp_auto_save_zoho",A.autoSaveZoho?"1":"0");}catch(e){}
+  showToast(A.autoSaveZoho?"Auto-save to Zoho ON":"Auto-save to Zoho OFF",2500);
+}
 function syncTx(){var t2=el("tx2"),t=el("tx");if(t2&&t)t.value=t2.value;checkGen();}
 function clearWorkDriveFolderCache(){
   try{
@@ -920,15 +938,28 @@ async function generate(){
     A.reportPhotos=savedPhotos;
     var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
     saveHistory(meta);renderReport();go("report");
-    if(A.sel){A.uploadPromise=uploadToWorkDriveAll();}else{A.uploadPromise=null;} // background upload; Save waits on this
-    // Auto PDF
-    try{
-      var pdfPhotos=A.reportPhotos.length>0?A.reportPhotos:A.photos;
-      await Promise.all(pdfPhotos.map(function(p){return new Promise(function(res){var img=new Image();img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};img.onerror=res;img.src=p.display;});}));
-      var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location);
-      var acct=(A.sel?A.sel.Account_Name:"report").replace(/[^a-z0-9]/gi,"-").toLowerCase();
-      doc.save("capstone-"+acct+"-"+new Date().toISOString().slice(0,10)+".pdf");
-    }catch(e){}
+    if(A.sel){
+      A.uploadPromise=uploadToWorkDriveAll();
+      if(A.autoSaveZoho){
+        if(btn)btn.textContent="Saving to Zoho...";
+        try{
+          await saveNoteToZoho({fromGenerate:true});
+          showToast("Saved to Zoho — WorkDrive + PDF + note",6000);
+        }catch(se){
+          var reSave=el("rpt-err");if(reSave){reSave.textContent="Auto-save failed: "+se.message+". Tap Save to Zoho to retry.";reSave.style.display="block";}
+          showToast("Auto-save failed — tap Save to Zoho",8000);
+        }
+      }
+    }else{A.uploadPromise=null;}
+    if(!A.autoSaveZoho||!A.sel){
+      try{
+        var pdfPhotos=A.reportPhotos.length>0?A.reportPhotos:A.photos;
+        await Promise.all(pdfPhotos.map(function(p){return new Promise(function(res){var img=new Image();img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};img.onerror=res;img.src=p.display;});}));
+        var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location);
+        var acct=(A.sel?A.sel.Account_Name:"report").replace(/[^a-z0-9]/gi,"-").toLowerCase();
+        doc.save("capstone-"+acct+"-"+new Date().toISOString().slice(0,10)+".pdf");
+      }catch(e){}
+    }
   }catch(e){var re=el("rpt-err");if(re){re.textContent="Report error: "+e.message;re.style.display="block";}alert("Report error: "+e.message);}
   if(btn){btn.disabled=false;btn.textContent="Generate AI Report";}if(regen)regen.disabled=false;
 }
@@ -999,10 +1030,30 @@ async function zohoSave(){
 }
 async function saveNote(){
   if(!A.sel||!A.report)return;
-  var btn=el("save-btn");btn.disabled=true;
+  if(A.savingToZoho){showToast("Save already in progress",3000);return;}
   try{
+    await saveNoteToZoho({});
+    showToast("Saved to Zoho",4000);
+  }catch(e){
+    var re=el("rpt-err");if(re){re.textContent="Save failed: "+e.message;re.style.display="block";}
+    showToast("Save failed: "+e.message,7000);
+  }
+}
+async function saveNoteToZoho(opts){
+  opts=opts||{};
+  if(!A.sel||!A.report)throw new Error("Select a deal and generate a report first");
+  if(A.savingToZoho)throw new Error("Save already in progress");
+  A.savingToZoho=true;
+  var btn=el("save-btn");
+  var genBtn=opts.fromGenerate?el("gen-btn"):null;
+  var regen=el("regen-btn");
+  function setStatus(txt){if(btn)btn.textContent=txt;if(genBtn)genBtn.textContent=txt;}
+  if(btn){btn.disabled=true;}
+  if(regen)regen.disabled=true;
+  try{
+    if(!A.uploadPromise&&A.sel)A.uploadPromise=uploadToWorkDriveAll();
     if(A.uploadPromise){
-      btn.textContent="Uploading...";
+      setStatus("Uploading...");
       showUploadStatus("Waiting for WorkDrive uploads (max ~70s)...",false);
       var w=await waitForUploads(UPLOAD_WAIT_MS);
       if(w.timedOut){
@@ -1010,24 +1061,29 @@ async function saveNote(){
         showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
       }
     }
-    btn.textContent="Uploading PDF...";
+    setStatus("Uploading PDF...");
     showUploadStatus("Uploading report PDF to WorkDrive...",false);
     await refreshZohoToken();
     await uploadReportPdfToWorkDrive();
-    btn.textContent="Saving...";
+    setStatus("Saving to Zoho...");
+    showUploadStatus("Saving note to Zoho CRM...",false);
     await zohoSave();
-    btn.textContent="Saved!";btn.style.background="var(--green)";btn.style.color="#001a18";
+    setStatus("Saved!");
+    if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
+    showUploadStatus("Saved to Zoho — WorkDrive folder, PDF, and CRM note.",false);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
     }else if(A.reportPhotos&&A.reportPhotos.length>0){
-      var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the CapStone folder — photos may still be there.";reWarn.style.display="block";}
+      var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
-    setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
-    // Mark as saved in history
-    var hh=getHistory();if(hh.length>0){hh[0].pdfSaved=true;localStorage.setItem("fp_history",JSON.stringify(hh));}
-  }catch(e){
-    var re=el("rpt-err");if(re){re.textContent="Save failed: "+e.message;re.style.display="block";}
-    btn.textContent="Save to Zoho";btn.disabled=false;
+    var hh=getHistory();if(hh.length>0){hh[0].pdfSaved=true;hh[0].zohoSaved=true;localStorage.setItem("fp_history",JSON.stringify(hh));}
+    if(btn&&!opts.fromGenerate){
+      setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
+    }
+  }finally{
+    A.savingToZoho=false;
+    if(btn&&opts.fromGenerate){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;}
+    if(regen)regen.disabled=false;
   }
 }
 function sanitizeWdFolderName(s){
