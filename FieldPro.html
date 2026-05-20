@@ -118,7 +118,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls</div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v111</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -325,7 +325,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">110</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">111</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -381,7 +381,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
-var FP_VERSION="110";
+var FP_VERSION="111";
 
 function el(id){return document.getElementById(id);}
 function go(n){
@@ -476,6 +476,7 @@ function bootApp(){
     }
     go("deals");
     var fv=el("fp-ver");if(fv)fv.textContent=FP_VERSION;
+    var hv=el("hdr-ver");if(hv)hv.textContent="v"+FP_VERSION;
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -500,7 +501,12 @@ function fetchWithTimeout(url,opts,ms){
     var o={method:opts.method,headers:opts.headers,body:opts.body,signal:ac.signal};
     return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){clearTimeout(timer);throw e;});
   }
-  return Promise.race([fetch(url,opts),new Promise(function(_,rej){setTimeout(function(){rej(new Error("Upload timed out after "+Math.round(ms/1000)+"s");},ms);})]);
+  return Promise.race([
+    fetch(url,opts),
+    new Promise(function(resolve,reject){
+      setTimeout(function(){reject(new Error("Upload timed out after "+Math.round(ms/1000)+"s"));},ms);
+    })
+  ]);
 }
 function waitMs(ms){return new Promise(function(r){setTimeout(r,ms);});}
 async function waitForUploads(ms){
