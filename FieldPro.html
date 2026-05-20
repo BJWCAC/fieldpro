@@ -145,7 +145,11 @@ body.light .hist-card{background:#fff}
     <button class="bp bfull" id="ref-btn" onclick="loadDeals()">Refresh from Zoho</button>
     <label class="fbtn bs bfull" style="padding:14px 20px;font-size:14px">Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(this)"/></label>
   </div>
-  <div id="sync-msg" style="font-size:11px;color:var(--dim);margin-bottom:10px;min-height:16px">Loading deals...</div>
+  <div id="deals-err" class="err-box" style="display:none"></div>
+  <div id="sync-msg" style="font-size:11px;color:var(--dim);margin-bottom:10px;min-height:16px">Tap Refresh to load deals from Zoho</div>
+  <div style="margin-bottom:10px">
+    <button type="button" class="bg bsm" onclick="resetDealsUI()">Unstick / reset screen</button>
+  </div>
   <div id="filter-area" style="display:none">
     <div class="card">
       <div class="stitle">Filters</div>
@@ -345,6 +349,7 @@ var WORKDRIVE_FOLDER_URL="https://workdrive.zoho.com/folder/"+WORKDRIVE_FOLDER;
 var UPLOAD_FETCH_MS=50000;
 var UPLOAD_WAIT_MS=70000;
 var VIDEO_MAX_BYTES=2*1024*1024;
+var ZOHO_FETCH_MS=20000;
 var SEC_LABELS=["1. Site Visit Summary","2. Equipment / Systems Serviced","3. Work Performed","4. Calibration Results & Readings","5. Findings & Observations","6. Issues / Deficiencies","7. Recommendations & Next Steps","8. Follow-Up Required","9. Materials / Parts Used"];
 var SEC_IDS=["sec1","sec2","sec3","sec4","sec5","sec6","sec7","sec8","sec9"];
 var SORT_FIELDS=[{k:"Account_Name",l:"Account"},{k:"Deal_Name",l:"Deal"},{k:"Stage",l:"Stage"},{k:"Amount",l:"Amount"},{k:"Closing_Date",l:"Date"}];
@@ -357,9 +362,37 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false};
 
+function showDealsErr(msg){
+  var d=el("deals-err");if(!d)return;
+  if(msg){d.textContent=msg;d.style.display="block";}else d.style.display="none";
+}
+function resetDealsUI(){
+  var btn=el("ref-btn");if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+  showDealsErr("");
+  var sm=el("sync-msg");
+  if(A.deals&&A.deals.length){if(sm){sm.textContent=A.deals.length+" deals (cached) — tap Refresh to update";sm.style.color="var(--dim)";}renderDeals();}
+  else{if(sm){sm.textContent="Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}}
+  showToast("Screen reset — tap Refresh from Zoho if needed",4000);
+}
+function loadDealsFromCache(){
+  var sd=localStorage.getItem("fp_deals");
+  if(!sd)return 0;
+  var p=JSON.parse(sd);
+  if(!p||!p.length)return 0;
+  var strVal=function(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);};
+  p=p.map(function(d){return{id:d.id,Deal_Name:strVal(d.Deal_Name),Account_Name:strVal(d.Account_Name),Stage:strVal(d.Stage),Amount:d.Amount||null,Description:strVal(d.Description),Owner:strVal(d.Owner),Closing_Date:strVal(d.Closing_Date)};});
+  A.deals=p;renderDeals();badge("tb-deals",p.length);
+  return p.length;
+}
+window.onerror=function(msg,src,line){
+  showDealsErr("App error: "+msg+(line?" (line "+line+")":""));
+  resetDealsUI();
+};
 window.onload=function(){
+  var sm=el("sync-msg");if(sm){sm.textContent="Starting CapStone...";sm.style.color="var(--dim)";}
   var k=localStorage.getItem("fp_api_key");
   if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}
+  else{setKeyUI(false);}
   var t=localStorage.getItem("fp_theme");
   if(t==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
   try{
@@ -367,21 +400,15 @@ window.onload=function(){
     if(ra==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
   }catch(e){}
   renderHistory();
-  // Load deals from cache only - user taps Refresh to sync from Zoho
   try{
-    var sd=localStorage.getItem("fp_deals");
-    if(sd){
-      var p=JSON.parse(sd);
-      if(p&&p.length){
-        var strVal=function(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);};
-        p=p.map(function(d){return{id:d.id,Deal_Name:strVal(d.Deal_Name),Account_Name:strVal(d.Account_Name),Stage:strVal(d.Stage),Amount:d.Amount||null,Description:strVal(d.Description),Owner:strVal(d.Owner),Closing_Date:strVal(d.Closing_Date)};});
-        A.deals=p;renderDeals();badge("tb-deals",p.length);
-        var sm=el("sync-msg");if(sm){sm.textContent=p.length+" deals loaded from cache";sm.style.color="var(--dim)";}
-      }
-    } else {
-      var sm2=el("sync-msg");if(sm2){sm2.textContent="Tap Refresh to load deals from Zoho";sm2.style.color="var(--dim)";}
-    }
-  }catch(e){}
+    var n=loadDealsFromCache();
+    if(sm){sm.textContent=n?n+" deals loaded from cache (tap Refresh to update Zoho)":"Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}
+  }catch(e){
+    try{localStorage.removeItem("fp_deals");}catch(e2){}
+    if(sm){sm.textContent="Cached deals were corrupt — tap Refresh from Zoho";sm.style.color="var(--red)";}
+    showDealsErr("Deal cache reset: "+e.message);
+  }
+  resetDealsUI();
 };
 
 function el(id){return document.getElementById(id);}
@@ -469,26 +496,38 @@ function saveCurrentToHistory(){
 
 // ZOHO
 async function refreshZohoToken(){
-  var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})});
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},12000);
   var d=await r.json();if(d.access_token){A.zohoToken=d.access_token;return true;}return false;
 }
 async function loadDeals(){
   var btn=el("ref-btn");if(btn){btn.disabled=true;btn.textContent="Syncing...";}
-  var sm=el("sync-msg");if(sm){sm.textContent="Connecting to Zoho CRM...";sm.style.color="var(--dim)";}
+  var sm=el("sync-msg");showDealsErr("");
+  if(sm){sm.textContent="Connecting to Zoho CRM (20s timeout)...";sm.style.color="var(--dim)";}
   try{
+    var tokOk=await refreshZohoToken();
+    if(!tokOk)throw new Error("Zoho token refresh failed — proxy or credentials");
     var allDeals=[],page=1,hasMore=true;
     while(hasMore&&page<=10){
-      var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})});
-      if(!r.ok){if(r.status===401){await refreshZohoToken();r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})});if(!r.ok)throw new Error("Auth failed");}else throw new Error("Error "+r.status);}
+      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})},ZOHO_FETCH_MS);
+      if(!r.ok){if(r.status===401){await refreshZohoToken();r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})},ZOHO_FETCH_MS);if(!r.ok)throw new Error("Zoho auth failed");}else throw new Error("Proxy error "+r.status);}
       var d=await r.json();
       function str(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);}
       (d.data||[]).forEach(function(rec){allDeals.push({id:rec.id,Deal_Name:str(rec.Deal_Name),Account_Name:str(rec.Account_Name),Stage:str(rec.Stage),Amount:rec.Amount||null,Description:str(rec.Description),Owner:str(rec.Owner&&rec.Owner.name?rec.Owner.name:rec.Owner),Closing_Date:str(rec.Closing_Date)});});
       hasMore=d.info&&d.info.more_records;page++;
+      if(sm)sm.textContent="Loading deals... page "+page+" ("+allDeals.length+" so far)";
     }
     if(allDeals.length){A.deals=allDeals;localStorage.setItem("fp_deals",JSON.stringify(allDeals));if(sm){sm.textContent=allDeals.length+" deals loaded — "+new Date().toLocaleTimeString();sm.style.color="var(--green)";}renderDeals();badge("tb-deals",allDeals.length);}
-    else{if(sm){sm.textContent="No deals found";sm.style.color="var(--amber)";}}
-  }catch(e){if(sm){sm.textContent="Error: "+e.message;sm.style.color="var(--red)";}}
-  if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+    else{if(sm){sm.textContent="No deals found in Zoho";sm.style.color="var(--amber)";}}
+  }catch(e){
+    if(sm){sm.textContent="Zoho error: "+e.message;sm.style.color="var(--red)";}
+    showDealsErr("Could not load deals: "+e.message+". API key is only for AI reports — tap Refresh from Zoho for deals.");
+    try{
+      var n=loadDealsFromCache();
+      if(n&&sm){sm.textContent=n+" cached deals shown — Zoho sync failed above";sm.style.color="var(--amber)";}
+    }catch(e2){}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+  }
 }
 
 // DEALS UI
