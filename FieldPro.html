@@ -19,8 +19,10 @@ button{cursor:pointer;font-family:"Barlow Condensed",sans-serif;font-weight:700;
 button:disabled{opacity:.4}button:active:not(:disabled){opacity:.7}
 label.fbtn{cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:"Barlow Condensed",sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;border:none;transition:opacity .15s}
 label.fbtn:active{opacity:.7}
-input,textarea,select{font-family:"IBM Plex Sans",sans-serif;font-size:13px;color:var(--text);background:transparent;border:1px solid var(--bdr);border-radius:6px;outline:none;width:100%;padding:8px 12px}
+input,textarea,select{font-family:"IBM Plex Sans",sans-serif;font-size:13px;color:#0f2420;background:#fff;border:1px solid #b2ddd6;border-radius:6px;outline:none;width:100%;padding:8px 12px}
+input::placeholder,textarea::placeholder{color:#64748b}
 textarea{resize:vertical}select{appearance:none}
+select option{background:#fff;color:#0f2420}
 body.light input,body.light textarea,body.light select{background:#fff;color:var(--text);border-color:var(--bdr)}
 #app{display:flex;flex-direction:column;min-height:100vh}
 #hdr{background:linear-gradient(135deg,#0a1a18,#051210);border-bottom:2px solid var(--amber);padding:10px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100}
@@ -121,7 +123,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v119</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v120</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -182,6 +184,15 @@ body.light .hist-card{background:#fff}
       <button class="bg bsm" id="loc-btn" onclick="getLocation()">GET LOCATION</button>
     </div>
     <div id="loc-body" style="font-size:11px;color:var(--dim)">Tap Get Location to capture GPS</div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Report Context</div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl" for="ctx-account">Account</label><input id="ctx-account" type="text" readonly placeholder="No deal selected"/></div>
+      <div><label class="lbl" for="ctx-deal">Deal</label><input id="ctx-deal" type="text" readonly placeholder="No deal selected"/></div>
+    </div>
+    <div style="margin-bottom:8px"><label class="lbl" for="ctx-gps">GPS Coordinates</label><input id="ctx-gps" type="text" readonly placeholder="No GPS captured"/></div>
+    <div><label class="lbl" for="ctx-site">Site / Address</label><textarea id="ctx-site" rows="2" readonly placeholder="No address captured"></textarea></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Video Walkthrough</div>
@@ -339,7 +350,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">119</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">120</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -395,7 +406,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false};
-var FP_VERSION="119";
+var FP_VERSION="120";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -441,6 +452,72 @@ function fmtAmt(a){return a?"$"+Number(a).toLocaleString():"";}
 function ownerStr(d){return typeof d.Owner==="string"?d.Owner:(d.Owner&&d.Owner.name)||"";}
 function showEl(id,d){var e=el(id);if(e)e.style.display=(d||"block");}
 function hideEl(id){var e=el(id);if(e)e.style.display="none";}
+function dealHeaderText(d){
+  if(!d)return"";
+  var acct=d.Account_Name||"",deal=d.Deal_Name||"";
+  return acct&&deal?acct+" — "+deal:(deal||acct);
+}
+function setHeaderDeal(d){
+  var hdn=el("hdr-deal-name");if(!hdn)return;
+  var txt=dealHeaderText(d);
+  hdn.textContent=txt;hdn.style.display=txt?"block":"none";
+}
+function updateReportContext(){
+  var acct=el("ctx-account"),deal=el("ctx-deal"),gps=el("ctx-gps"),site=el("ctx-site");
+  if(acct)acct.value=A.sel?(A.sel.Account_Name||""):"";
+  if(deal)deal.value=A.sel?(A.sel.Deal_Name||""):"";
+  if(gps)gps.value=A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"";
+  if(site)site.value=A.location?(A.location.address||""):"";
+}
+function updateLocationUI(){
+  if(A.location){
+    updLocUI();
+    var lbtn=el("loc-btn");if(lbtn)lbtn.textContent="REFRESH";
+    var vg=el("vb-gps");if(vg){vg.textContent=A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4);showEl("vb-gps");}
+    showEl("hb-gps");
+  }else{
+    var lb=el("loc-body");if(lb)lb.innerHTML="Tap Get Location to capture GPS";
+    var btn=el("loc-btn");if(btn)btn.textContent="GET LOCATION";
+    hideEl("hb-gps");hideEl("vb-gps");
+    updateReportContext();
+  }
+}
+function updateDealUI(){
+  var da=el("db-acct"),di=el("db-info");
+  if(A.sel){
+    showEl("deal-bar");hideEl("no-deal-bar");
+    if(da)da.textContent=A.sel.Account_Name||"";
+    if(di)di.textContent=(A.sel.Deal_Name||"")+(A.sel.Stage?" — "+A.sel.Stage:"")+(A.sel.Closing_Date?" — "+A.sel.Closing_Date:"");
+  }else{
+    hideEl("deal-bar");showEl("no-deal-bar");
+    if(da)da.textContent="";if(di)di.textContent="";
+  }
+  setHeaderDeal(A.sel);
+  updateReportContext();
+}
+function locationMeta(){
+  return A.location?{lat:A.location.lat,lng:A.location.lng,accuracy:A.location.accuracy||null,address:A.location.address||null}:null;
+}
+function restoreLocationFromRecord(r){
+  if(r&&r.locationData&&typeof r.locationData.lat==="number"&&typeof r.locationData.lng==="number"){
+    return{lat:r.locationData.lat,lng:r.locationData.lng,accuracy:r.locationData.accuracy||null,address:r.locationData.address||null};
+  }
+  if(r&&r.location){
+    var m=String(r.location).match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+    if(m)return{lat:parseFloat(m[1]),lng:parseFloat(m[2]),accuracy:null,address:null};
+  }
+  return null;
+}
+function dealFromRecord(r){
+  if(!r)return null;
+  if(r.dealId){
+    var d=A.deals.find(function(x){return x.id===r.dealId;});
+    if(d)return d;
+  }
+  if(r.account==="No deal"&&!r.deal&&!r.dealId)return null;
+  if(r.account||r.deal||r.stage)return{id:r.dealId||("hist-"+r.id),Account_Name:r.account||"",Deal_Name:r.deal||"",Stage:r.stage||"",Amount:r.amount||null,Closing_Date:r.closingDate||""};
+  return null;
+}
 var toastTimer=null;
 function showToast(msg,ms){
   var t=el("toast");if(!t)return;
@@ -607,10 +684,8 @@ function clearCapture(){
   var lb=el("loc-body");if(lb)lb.innerHTML="Tap Get Location to capture GPS";
   var lbtn=el("loc-btn");if(lbtn)lbtn.textContent="GET LOCATION";
   hideEl("hb-gps");hideEl("vb-gps");hideEl("vb-pc");
-  hideEl("deal-bar");showEl("no-deal-bar");
+  updateDealUI();
   hideEl("video-save-bar");
-  var da=el("db-acct"),di=el("db-info");if(da)da.textContent="";if(di)di.textContent="";
-  var hdn=el("hdr-deal-name");if(hdn){hdn.textContent="";hdn.style.display="none";}
   badge("tb-photos","");
   if(el("gen-btn"))el("gen-btn").style.display="none";
   if(el("gen-summary"))el("gen-summary").style.display="none";
@@ -621,7 +696,7 @@ function saveCurrentToHistory(){
   var vn=(el("tx")||{value:""}).value;
   var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
   var sp=A.photos.map(function(p){return{id:p.id,display:p.display,desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
-  saveHistory({id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,dealId:A.sel?A.sel.id:null});
+  saveHistory({id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,dealId:A.sel?A.sel.id:null});
 }
 
 // ZOHO
@@ -696,10 +771,7 @@ function selectDeal(id){
     var cf=localStorage.getItem("fp_wd_folder_"+d.id);
     if(cf){var cj=JSON.parse(cf);if(cj.folder_id&&cj.folder_id!==WORKDRIVE_FOLDER&&cj.folder_url)A.workdriveFolderUrl=cj.folder_url;}
   }catch(e){}
-  showEl("deal-bar");hideEl("no-deal-bar");
-  el("db-acct").textContent=d.Account_Name;
-  el("db-info").textContent=(d.Deal_Name||"")+(d.Stage?" — "+d.Stage:"")+(d.Closing_Date?" — "+d.Closing_Date:"");
-  var hdn=el("hdr-deal-name");if(hdn){hdn.textContent=d.Account_Name;hdn.style.display="block";}
+  updateDealUI();
   applyFilters();
   go("capture");
   setTimeout(function(){window.scrollTo({top:0,behavior:"smooth"});},50);
@@ -721,6 +793,7 @@ function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++)
 // LOCATION
 function getLocation(){
   el("loc-body").innerHTML="<em style='color:var(--dim)'>Locating...</em>";el("loc-btn").textContent="...";
+  updateReportContext();
   if(!navigator.geolocation){el("loc-body").innerHTML="GPS not available";return;}
   navigator.geolocation.getCurrentPosition(async function(pos){
     var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy;
@@ -736,6 +809,7 @@ function updLocUI(){
   h+="<span style='font-size:11px;color:var(--amber);font-family:monospace'>"+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)+"</span>";
   if(A.location.accuracy)h+="<span style='font-size:11px;color:var(--dim);margin-left:8px'>±"+Math.round(A.location.accuracy)+"m</span>";
   el("loc-body").innerHTML=h;
+  updateReportContext();
 }
 
 // CAMERA
@@ -875,7 +949,7 @@ function checkGen(){
     if(hasP)parts.push(A.photos.length+" photo"+(A.photos.length!==1?"s":""));
     if(hasN)parts.push("Voice notes");
     if(hasSec){var fc=SEC_IDS.filter(function(id){var e=el(id);return e&&e.value.trim();}).length;parts.push(fc+" section"+(fc!==1?"s":"")+" filled");}
-    if(A.location)parts.push("GPS");if(A.sel)parts.push(A.sel.Account_Name);
+    if(A.location)parts.push("GPS");if(A.sel)parts.push(dealHeaderText(A.sel));
     gt.textContent=parts.join(" — ");
   }else if(gs)gs.style.display="none";
 }
@@ -936,7 +1010,7 @@ async function generate(){
       }
     }catch(e){}
     A.reportPhotos=savedPhotos;
-    var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
+    var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
     saveHistory(meta);renderReport();go("report");
     if(A.sel){
       A.uploadPromise=uploadToWorkDriveAll();
@@ -1357,13 +1431,13 @@ function renderHistory(){
   }
   var hl=el("hist-list");if(hl)hl.innerHTML=html;
 }
-function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.report=r.report;A.reportPhotos=r.photoData||[];if(r.dealId){var d=A.deals.find(function(x){return x.id===r.dealId;});if(d)A.sel=d;}renderReport();go("report");}
+function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.report=r.report;A.reportPhotos=r.photoData||[];A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();go("report");}
 function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;
   if(!confirm("Open this project to continue?"))return;
   A.reportPhotos=r.photoData||[];A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
   A.report=r.report;
-  if(r.dealId){var d=A.deals.find(function(x){return x.id===r.dealId;});if(d){A.sel=d;showEl("deal-bar");hideEl("no-deal-bar");el("db-acct").textContent=d.Account_Name;el("db-info").textContent=(d.Deal_Name||"")+(d.Stage?" — "+d.Stage:"");var hdn=el("hdr-deal-name");if(hdn){hdn.textContent=d.Account_Name;hdn.style.display="block";}}}
+  A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
   if(r.sections){SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});}
   if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;}
   renderPhotoCards();checkGen();go("capture");
