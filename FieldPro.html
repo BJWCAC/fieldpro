@@ -124,7 +124,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v122</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v123</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -351,7 +351,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">122</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">123</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -407,7 +407,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
-var FP_VERSION="122";
+var FP_VERSION="123";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -657,19 +657,25 @@ function showUploadStatus(msg,isErr){
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
   else u.style.display="none";
 }
+function fetchTimeoutMessage(ms){return "Request timed out after "+Math.round(ms/1000)+"s";}
 function fetchWithTimeout(url,opts,ms){
   ms=ms||UPLOAD_FETCH_MS;
   opts=opts||{};
   if(typeof AbortController!=="undefined"){
     var ac=new AbortController();
-    var timer=setTimeout(function(){ac.abort();},ms);
+    var timer=setTimeout(function(){try{ac.abort(fetchTimeoutMessage(ms));}catch(e){ac.abort();}},ms);
     var o={method:opts.method,headers:opts.headers,body:opts.body,signal:ac.signal};
-    return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){clearTimeout(timer);throw e;});
+    return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){
+      clearTimeout(timer);
+      var msg=String((e&&e.message)||e||"");
+      if(e&&e.name==="AbortError"||msg.indexOf("aborted")>=0||msg.indexOf("abort")>=0)throw new Error(fetchTimeoutMessage(ms));
+      throw e;
+    });
   }
   return Promise.race([
     fetch(url,opts),
     new Promise(function(resolve,reject){
-      setTimeout(function(){reject(new Error("Upload timed out after "+Math.round(ms/1000)+"s"));},ms);
+      setTimeout(function(){reject(new Error(fetchTimeoutMessage(ms)));},ms);
     })
   ]);
 }
@@ -741,7 +747,7 @@ function saveCurrentToHistory(){
 
 // ZOHO
 async function refreshZohoToken(){
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},12000);
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},30000);
   var d=await r.json();if(d.access_token){A.zohoToken=d.access_token;return true;}return false;
 }
 async function loadDeals(){
@@ -1190,16 +1196,23 @@ async function saveNoteToZoho(opts){
         showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
       }
     }
+    var uploadWarning="";
     setStatus("Uploading PDF...");
     showUploadStatus("Uploading report PDF to WorkDrive...",false);
-    await refreshZohoToken();
-    await uploadReportPdfToWorkDrive();
+    try{
+      await refreshZohoToken();
+      await uploadReportPdfToWorkDrive();
+    }catch(upErr){
+      uploadWarning=upErr&&upErr.message?upErr.message:String(upErr);
+      console.log("Continuing Zoho save after upload warning:",upErr);
+      showUploadStatus("WorkDrive/PDF upload did not finish ("+uploadWarning+"). Saving Zoho note now...",true);
+    }
     setStatus(A.zohoNoteId?"Updating Zoho...":"Saving to Zoho...");
     showUploadStatus(A.zohoNoteId?"Updating existing Zoho CRM note...":"Saving note to Zoho CRM...",false);
     var savedNoteId=await zohoSave();
     setStatus("Saved!");
     if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
-    showUploadStatus("Saved to Zoho — WorkDrive folder, PDF, and CRM note.",false);
+    showUploadStatus(uploadWarning?"Saved to Zoho. WorkDrive/PDF upload needs retry: "+uploadWarning:"Saved to Zoho — WorkDrive folder, PDF, and CRM note.",!!uploadWarning);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
     }else if(A.reportPhotos&&A.reportPhotos.length>0){
