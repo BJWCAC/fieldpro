@@ -125,7 +125,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v126</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v127</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -352,7 +352,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">126</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">127</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -408,7 +408,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
-var FP_VERSION="126";
+var FP_VERSION="127";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -548,13 +548,17 @@ function updateCurrentHistory(fields){
   if(idx<0)return;
   h[idx]=Object.assign({},h[idx],fields);
   A.currentHistoryId=h[idx].id;
-  if(fields.zohoNoteId)A.zohoNoteId=fields.zohoNoteId;
+  if(Object.prototype.hasOwnProperty.call(fields,"zohoNoteId"))A.zohoNoteId=fields.zohoNoteId||null;
   try{localStorage.setItem("fp_history",JSON.stringify(h));}catch(e){}
   renderHistory();
 }
 function zohoNoteIdFromResponse(d){
   var rec=d&&d.data&&d.data[0];
   return rec&&(rec.details&&rec.details.id||rec.id)||null;
+}
+function isStaleZohoNoteError(status,body){
+  var t=String(body||"").toLowerCase();
+  return status===404||(status===400&&(t.indexOf("invalid_data")>=0||t.indexOf("not found")>=0||t.indexOf("invalid")>=0));
 }
 function zohoReportMarker(){return A.currentHistoryId?("CapStone Report ID: "+A.currentHistoryId):"";}
 function zohoNoteTitle(){
@@ -1173,8 +1177,15 @@ async function zohoSave(){
       if(noteId)A.zohoNoteId=noteId;
       return noteId;
     }
+    var e=await r.text();
     if(r.status===401&&attempt===0){var ref=await refreshZohoToken();if(ref)continue;throw new Error("Token refresh failed");}
-    var e=await r.text();throw new Error("Proxy error "+r.status+": "+e.substring(0,100));
+    if(payload.action==="update_note"&&isStaleZohoNoteError(r.status,e)){
+      console.log("Stored Zoho note was not found; creating a replacement note.",e);
+      A.zohoNoteId=null;
+      updateCurrentHistory({zohoNoteId:null,zohoSaved:false});
+      continue;
+    }
+    throw new Error("Proxy error "+r.status+": "+e.substring(0,100));
   }
 }
 async function saveNote(){
