@@ -124,7 +124,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v123</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v124</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -351,7 +351,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">123</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">124</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -407,7 +407,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
-var FP_VERSION="123";
+var FP_VERSION="124";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -1239,6 +1239,17 @@ function workdriveFilePrefix(){
   if(!A.sel)return "";
   return sanitizeWdFolderName(dealFolderName()).replace(/\s+/g," ")+" - ";
 }
+function workdriveReportKey(){
+  var key=A.currentHistoryId||(A.sel&&A.sel.id)||("report-"+new Date().toISOString().slice(0,10));
+  return sanitizeWdFolderName(key).replace(/\s+/g,"-")||"report";
+}
+function workdriveStableFileName(kind,suffix,ext){
+  var cleanSuffix=suffix?sanitizeWdFolderName(suffix).replace(/\s+/g,"-"):"";
+  return workdriveFilePrefix()+kind+"-"+workdriveReportKey()+(cleanSuffix?"-"+cleanSuffix:"")+"."+ext;
+}
+function workdrivePhotoFileName(p,i){return workdriveStableFileName("Photo",(p&&p.id)||("photo-"+(i+1)),"jpg");}
+function workdriveVideoFileName(){return workdriveStableFileName("Video","","webm");}
+function workdrivePdfFileName(){return workdriveStableFileName("Report","","pdf");}
 async function resolveDealFolder(){
   A.workdriveFolderFallback=false;
   if(!A.sel)return WORKDRIVE_FOLDER;
@@ -1318,7 +1329,6 @@ async function uploadToWorkDriveAll(){
     showUploadStatus("WorkDrive upload starting...",false);
     await refreshZohoToken();
     var dealFolder=await resolveDealFolder();
-    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     A.workdriveUploadCount=0;
     var total=A.reportPhotos.length;
     if(total>0)showToast("Uploading "+total+" photos to WorkDrive...",5000);
@@ -1327,7 +1337,7 @@ async function uploadToWorkDriveAll(){
       try{
         var b64=await compressPhoto(p.display,1200,0.8);
         if(!b64){skipped++;showToast("Photo "+(i+1)+" skipped (compress failed)",5000);continue;}
-        var fname=workdriveFilePrefix()+"Photo-"+stamp+"-"+(i+1)+".jpg";
+        var fname=workdrivePhotoFileName(p,i);
         showUploadStatus("Uploading photo "+(i+1)+" of "+total+"...",false);
         showToast("Uploading photo "+(i+1)+" of "+total+"...",4000);
         await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
@@ -1345,7 +1355,7 @@ async function uploadToWorkDriveAll(){
           showToast("Uploading video to WorkDrive...",5000);
           var vreader=new FileReader();
           var vb64=await new Promise(function(res,rej){vreader.onload=function(e){res(e.target.result.split(",")[1]);};vreader.onerror=function(){rej(new Error("Could not read video"));};vreader.readAsDataURL(A.videoBlob);});
-          var vfname=workdriveFilePrefix()+"Video-"+stamp+".webm";
+          var vfname=workdriveVideoFileName();
           await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder,45000);
           ok++;A.workdriveUploadCount=ok;showToast("Video uploaded OK",5000);
         }catch(e){fail++;showToast("Video error: "+e.message,7000);}
@@ -1396,8 +1406,7 @@ async function uploadReportPdfToWorkDrive(){
       showToast("PDF too large to upload from phone — use Download PDF; photos are in WorkDrive",9000);
       return null;
     }
-    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
-    var fname=workdriveFilePrefix()+"Report-"+stamp+".pdf";
+    var fname=workdrivePdfFileName();
     var link=await uploadToWorkDrive(b64,fname,"application/pdf",dealFolder,90000);
     if(link){
       A.workdrivePdfUrl=link;
@@ -1417,7 +1426,6 @@ async function autoSync(){
   try{
     await refreshZohoToken();
     var dealFolder=await resolveDealFolder();
-    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
     var ok=0;
     A.workdriveUploadCount=0;
     if(A.reportPhotos.length>0){
@@ -1428,7 +1436,7 @@ async function autoSync(){
       try{
         var b64=await compressPhoto(p.display,1200,0.8);
         if(!b64)continue;
-        var fname=workdriveFilePrefix()+"Photo-"+stamp+"-"+(i+1)+".jpg";
+        var fname=workdrivePhotoFileName(p,i);
         showToast("Uploading photo "+(i+1)+" of "+A.reportPhotos.length+"...",2000);
         await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
         ok++;A.workdriveUploadCount=ok;showToast("Photo "+(i+1)+" uploaded",1500);
@@ -1439,7 +1447,7 @@ async function autoSync(){
         showToast("Uploading video to WorkDrive...",3000);
         var vreader=new FileReader();
         var vb64=await new Promise(function(resolve){vreader.onload=function(e){resolve(e.target.result.split(",")[1]);};vreader.readAsDataURL(A.videoBlob);});
-        var vfname=workdriveFilePrefix()+"Video-"+stamp+".webm";
+        var vfname=workdriveVideoFileName();
         await uploadToWorkDrive(vb64,vfname,"video/webm",dealFolder);
         ok++;A.workdriveUploadCount=ok;showToast("Video uploaded!",2000);
       }catch(e){showToast("Video error: "+e.message,3000);console.error("Video upload error:",e);}
