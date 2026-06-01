@@ -1,0 +1,340 @@
+# CapStone Android Training Video Script
+
+This document is a recording-ready script for a CapStone Android training video. It is written for a technician using CapStone on an Android phone in Chrome or from an Android home screen shortcut.
+
+Recommended video length: 12 to 18 minutes.
+
+## Purpose of the video
+
+The video should teach a technician how to use CapStone in the field from start to finish:
+
+- open CapStone on Android
+- refresh and select a Zoho deal
+- capture GPS
+- add notes, photos, and optional report fields
+- generate an AI report
+- save/update Zoho deal notes
+- understand WorkDrive uploads
+- continue a report from History
+
+## Opening message
+
+Screen action:
+
+- Show the Android home screen.
+- Tap the CapStone icon, or open Chrome and navigate to the latest CapStone URL.
+
+Narration:
+
+> This video shows how to use CapStone on an Android phone. CapStone is the field documentation system for Calibrations & Controls. It connects a site visit to a Zoho deal, captures field information, generates an AI report, saves the report to Zoho deal notes, and uploads supporting files to WorkDrive.
+
+## Section 1: Open CapStone on Android
+
+Screen action:
+
+- Open Chrome.
+- Enter the versioned URL:
+
+```text
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=128
+```
+
+- Optionally show Add to Home screen.
+
+Narration:
+
+> Open CapStone in Chrome. After updates, use the versioned link to make sure Android loads the newest build. You can also add CapStone to the Android home screen for quicker access.
+
+On-screen callout:
+
+```text
+Use latest versioned URL after updates.
+```
+
+## Section 2: Refresh Zoho deals
+
+Screen action:
+
+- Go to the Deals tab.
+- Tap Refresh from Zoho.
+- Wait for deal list to load.
+
+Narration:
+
+> Start by refreshing deals from Zoho. The deal you choose controls where the report note is saved and how the WorkDrive files are organized.
+
+Show:
+
+- search box
+- account filter
+- stage filter
+- deal cards
+
+## Section 3: Select the active deal
+
+Screen action:
+
+- Tap a test deal.
+- Show the Capture tab opening.
+- Show the active deal panel and header.
+
+Narration:
+
+> Select the correct deal before documenting the visit. CapStone shows the active deal and uses it for the Zoho note and WorkDrive folder.
+
+On-screen callout:
+
+```text
+Always confirm the active deal before generating a report.
+```
+
+## Section 4: Capture GPS
+
+Screen action:
+
+- Tap Get Location.
+- Allow Android/Chrome location permission if prompted.
+- Show GPS coordinates.
+
+Narration:
+
+> Tap Get Location to capture the site GPS. If Android asks for permission, allow location access. CapStone includes the GPS and address information in the report and Zoho note.
+
+Troubleshooting note:
+
+> If GPS does not work, check Chrome location permission in Android settings.
+
+## Section 5: Record or enter field notes
+
+Screen action:
+
+- Tap the notes area.
+- Dictate or type a short field note.
+
+Sample narration to dictate:
+
+```text
+Performed field service visit at the lift station. Verified control panel operation, checked pump lead-lag sequence, inspected float wiring, and tested alarm light operation. Corrosion was found on one terminal strip. Recommend replacement during the next scheduled service visit.
+```
+
+Narration:
+
+> The notes are one of the most important inputs. Describe what you did, what you found, and what you recommend. CapStone will use these facts to generate the field report.
+
+Tip:
+
+```text
+Use clear facts. Do not rely on the AI to guess missing details.
+```
+
+## Section 6: Add photos
+
+Screen action:
+
+- Add one or two photos.
+- Add a description under each photo.
+
+Example descriptions:
+
+- Control panel overview after inspection.
+- Corrosion observed on terminal strip.
+- Pump controller status screen showing normal operation.
+
+Narration:
+
+> Add photos from the camera or gallery. Add a short description to explain why each photo matters. These descriptions help CapStone understand the field evidence.
+
+## Section 7: Explain the nine optional fields
+
+Screen action:
+
+- Scroll to the nine report fields.
+- Fill in one example field.
+
+Narration:
+
+> These nine fields are optional. You do not need to fill all of them in. If they are blank, CapStone uses your notes, photos, deal information, and GPS. Use the fields when you want specific information to appear in a specific report section.
+
+Example:
+
+```text
+Issues / Deficiencies:
+Corrosion noted on one terminal strip.
+
+Recommendations & Next Steps:
+Replace terminal strip during next scheduled service.
+```
+
+On-screen callout:
+
+```text
+Blank fields are ignored.
+```
+
+## Section 8: Generate the AI report
+
+Screen action:
+
+- Tap Generate AI Report.
+- Wait for the report.
+- Show the Report tab.
+
+Narration:
+
+> Tap Generate AI Report. CapStone creates a professional report from the deal, GPS, notes, photos, and any optional fields.
+
+Important:
+
+> Review the report before using it. The technician is responsible for confirming accuracy.
+
+## Section 9: Review the report
+
+Screen action:
+
+- Scroll through Report Header.
+- Show Site Photos.
+- Show report body.
+
+Narration:
+
+> Review the account, deal, GPS, photos, and report text. Confirm the findings and recommendations are correct.
+
+Review checklist:
+
+- correct account
+- correct deal
+- correct GPS/site
+- correct work performed
+- correct findings
+- correct recommendations
+
+## Section 10: Save or update the Zoho note
+
+Screen action:
+
+- Tap Save to Zoho if needed.
+- Show status messages.
+- Optionally open the Zoho deal notes on another screen after recording.
+
+Narration:
+
+> Saving to Zoho creates or updates the deal note. CapStone is designed to avoid duplicate notes for the same report. The first save creates the note. Later saves update that note.
+
+Explain:
+
+> If the note was deleted directly in Zoho, CapStone clears the old note ID and creates a replacement note.
+
+On-screen callout:
+
+```text
+Same report = update existing Zoho note.
+Deleted note = create replacement note.
+```
+
+## Section 11: WorkDrive files
+
+Screen action:
+
+- Show upload status if available.
+- Explain that files go to WorkDrive.
+
+Narration:
+
+> CapStone uploads report files, photos, and video to WorkDrive. For the same report, filenames are stable. This helps replace prior files instead of creating repeated timestamped duplicates.
+
+Important:
+
+> Old duplicates from before this behavior may still need to be cleaned up manually.
+
+## Section 12: PDF Options
+
+Screen action:
+
+- Show PDF Options.
+- Toggle Include photos in PDF.
+- Tap Download PDF.
+
+Narration:
+
+> Use PDF Options to choose whether photos are included in the PDF. Tap Download PDF to save a copy to the Android device.
+
+## Section 13: Continue a report from History
+
+Screen action:
+
+- Go to History.
+- Tap Open + Continue on a report.
+- Edit a note or field.
+- Generate again.
+
+Narration:
+
+> CapStone History lets you reopen a report and continue working. When you regenerate and save the same report, CapStone attempts to update the existing Zoho note and replace the matching WorkDrive files.
+
+Warning:
+
+> History is stored in Android browser storage. Clearing Chrome site data can remove CapStone History.
+
+## Section 14: Android troubleshooting
+
+Screen action:
+
+- Show Settings.
+- Show troubleshooting buttons if appropriate.
+
+Narration:
+
+> If something does not work, first confirm Android permissions. Camera, location, microphone, and file picker access are controlled by Android and Chrome. If the app did not update, use the latest versioned URL.
+
+Troubleshooting points:
+
+- App not updated: open latest `?v=` URL.
+- GPS not working: allow Chrome location permission.
+- Camera not working: allow Chrome camera permission.
+- Deals stale: refresh from Zoho or clear cached deals.
+- Zoho note missing: save again; CapStone should create a replacement.
+- WorkDrive duplicates: old duplicates may need manual cleanup.
+
+## Closing
+
+Screen action:
+
+- Return to the CapStone report screen or home screen icon.
+
+Narration:
+
+> That is the Android workflow for CapStone: select the deal, capture GPS, document the work, generate the AI report, review it, and save it back to Zoho and WorkDrive.
+
+## Short training video version
+
+Use this for a 3 to 5 minute quick-start video.
+
+Narration:
+
+> CapStone is the Android field documentation system for Calibrations & Controls. Open CapStone in Chrome or from the Android home screen. Refresh Zoho deals and select the correct deal. Capture GPS, add notes, add photos, and fill in optional report fields only when needed. Tap Generate AI Report, review the report, and save it to Zoho. CapStone updates the existing Zoho note for the same report, creates a replacement if the old note was deleted, and uses stable WorkDrive filenames to reduce duplicate files. Use History to continue a report later.
+
+## Recording checklist
+
+Before recording:
+
+- Use an Android phone.
+- Use a test Zoho deal.
+- Use the latest versioned URL.
+- Confirm Android permissions are enabled.
+- Prepare one sample field note.
+- Prepare one or two sample photos.
+- Avoid showing private customer information.
+
+During recording:
+
+- Move slowly.
+- Pause after tapping buttons.
+- Narrate what the technician should verify.
+- Show the report review step.
+- Emphasize that the technician must confirm report accuracy.
+
+After recording:
+
+- Confirm the Zoho test note was created or updated.
+- Confirm WorkDrive files uploaded.
+- Clean up test notes/files if needed.
