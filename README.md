@@ -8,11 +8,11 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v128**
+Current milestone build: **v129**
 
 ## Major milestone: CapStone Android field workflow
 
-Build v128 is a significant step in CapStone's evolution. It brings together the core Android field workflow:
+Build v129 is a significant step in CapStone's evolution. It brings together the core Android field workflow:
 
 - Zoho deal selection
 - GPS capture
@@ -22,6 +22,7 @@ Build v128 is a significant step in CapStone's evolution. It brings together the
 - WorkDrive file replacement behavior
 - local History for continuing reports
 - white-background report creation and review screens for better readability on mobile
+- first code-structure cleanup step, with CSS and JavaScript moved out of the single HTML file
 
 This milestone is intended to make CapStone usable as a practical Android field reporting tool rather than only a prototype.
 
@@ -33,7 +34,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=128
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
    ```
 
 3. Tap the Chrome menu.
@@ -140,7 +141,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=128
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
 ```
 
 Update the version number when a later build is released.
@@ -169,7 +170,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=128
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
 ```
 
 If needed, close Chrome fully and reopen CapStone.
