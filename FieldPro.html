@@ -124,7 +124,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v121</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v123</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -351,7 +351,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">121</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">123</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -406,8 +406,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false};
-var FP_VERSION="121";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
+var FP_VERSION="123";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -519,6 +519,45 @@ function dealFromRecord(r){
   if(r.account||r.deal||r.stage)return{id:r.dealId||("hist-"+r.id),Account_Name:r.account||"",Deal_Name:r.deal||"",Stage:r.stage||"",Amount:r.amount||null,Closing_Date:r.closingDate||""};
   return null;
 }
+function currentHistoryIndex(){
+  if(!A.currentHistoryId)return -1;
+  var h=getHistory();
+  for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId)return i;}
+  return -1;
+}
+function saveOrUpdateHistory(meta){
+  if(A.currentHistoryId){
+    var h=getHistory(),idx=-1;
+    for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){idx=i;break;}}
+    if(idx>=0){
+      h[idx]=Object.assign({},h[idx],meta,{id:A.currentHistoryId,zohoNoteId:A.zohoNoteId||meta.zohoNoteId||h[idx].zohoNoteId||null});
+      try{localStorage.setItem("fp_history",JSON.stringify(h));}catch(e){}
+      badge("tb-hist",h.filter(function(r){return!r.archived;}).length||"");
+      renderHistory();
+      return h[idx];
+    }
+  }
+  A.currentHistoryId=meta.id;
+  saveHistory(meta);
+  return meta;
+}
+function updateCurrentHistory(fields){
+  var h=getHistory(),idx=currentHistoryIndex();
+  if(idx<0&&h.length>0)idx=0;
+  if(idx<0)return;
+  h[idx]=Object.assign({},h[idx],fields);
+  A.currentHistoryId=h[idx].id;
+  if(fields.zohoNoteId)A.zohoNoteId=fields.zohoNoteId;
+  try{localStorage.setItem("fp_history",JSON.stringify(h));}catch(e){}
+  renderHistory();
+}
+function zohoNoteIdFromResponse(d){
+  var rec=d&&d.data&&d.data[0];
+  return rec&&(rec.details&&rec.details.id||rec.id)||null;
+}
+function zohoNoteTitle(){
+  return "CapStone Report — "+A.sel.Account_Name+" — "+new Date().toLocaleDateString();
+}
 var toastTimer=null;
 function showToast(msg,ms){
   var t=el("toast");if(!t)return;
@@ -618,19 +657,25 @@ function showUploadStatus(msg,isErr){
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
   else u.style.display="none";
 }
+function fetchTimeoutMessage(ms){return "Request timed out after "+Math.round(ms/1000)+"s";}
 function fetchWithTimeout(url,opts,ms){
   ms=ms||UPLOAD_FETCH_MS;
   opts=opts||{};
   if(typeof AbortController!=="undefined"){
     var ac=new AbortController();
-    var timer=setTimeout(function(){ac.abort();},ms);
+    var timer=setTimeout(function(){try{ac.abort(fetchTimeoutMessage(ms));}catch(e){ac.abort();}},ms);
     var o={method:opts.method,headers:opts.headers,body:opts.body,signal:ac.signal};
-    return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){clearTimeout(timer);throw e;});
+    return fetch(url,o).then(function(r){clearTimeout(timer);return r;},function(e){
+      clearTimeout(timer);
+      var msg=String((e&&e.message)||e||"");
+      if(e&&e.name==="AbortError"||msg.indexOf("aborted")>=0||msg.indexOf("abort")>=0)throw new Error(fetchTimeoutMessage(ms));
+      throw e;
+    });
   }
   return Promise.race([
     fetch(url,opts),
     new Promise(function(resolve,reject){
-      setTimeout(function(){reject(new Error("Upload timed out after "+Math.round(ms/1000)+"s"));},ms);
+      setTimeout(function(){reject(new Error(fetchTimeoutMessage(ms)));},ms);
     })
   ]);
 }
@@ -678,7 +723,7 @@ function newProject(){
   clearCapture();go("capture");
 }
 function clearCapture(){
-  A.photos=[];A.reportPhotos=[];A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;
+  A.photos=[];A.reportPhotos=[];A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -697,12 +742,12 @@ function saveCurrentToHistory(){
   var vn=(el("tx")||{value:""}).value;
   var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
   var sp=A.photos.map(function(p){return{id:p.id,display:p.display,desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
-  saveHistory({id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,dealId:A.sel?A.sel.id:null});
+  saveOrUpdateHistory({id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null});
 }
 
 // ZOHO
 async function refreshZohoToken(){
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},12000);
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},30000);
   var d=await r.json();if(d.access_token){A.zohoToken=d.access_token;return true;}return false;
 }
 async function loadDeals(){
@@ -766,6 +811,8 @@ function applyFilters(){
 function setSort(f){if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";else{A.sortF=f;A.sortD="asc";}renderDeals();}
 function selectDeal(id){
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
+  var prevDealId=A.sel&&A.sel.id;
+  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;}
   A.sel=d;
   A.workdriveFolderUrl=null;
   try{
@@ -1011,8 +1058,8 @@ async function generate(){
       }
     }catch(e){}
     A.reportPhotos=savedPhotos;
-    var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
-    saveHistory(meta);renderReport();go("report");
+    var meta={id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null};
+    saveOrUpdateHistory(meta);renderReport();go("report");
     if(A.sel){
       A.uploadPromise=uploadToWorkDriveAll();
       if(A.autoSaveZoho){
@@ -1097,8 +1144,21 @@ function buildZohoNote(){
 }
 async function zohoSave(){
   for(var attempt=0;attempt<2;attempt++){
-    var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken||ZOHO_ACCESS,deal_id:A.sel.id,note_title:"CapStone Report — "+A.sel.Account_Name+" — "+new Date().toLocaleDateString(),note_content:buildZohoNote()})});
-    if(r.ok)return;
+    var payload={
+      action:A.zohoNoteId?"update_note":"save_note",
+      token:A.zohoToken||ZOHO_ACCESS,
+      deal_id:A.sel.id,
+      note_id:A.zohoNoteId||null,
+      note_title:zohoNoteTitle(),
+      note_content:buildZohoNote()
+    };
+    var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(r.ok){
+      var d={};try{d=await r.json();}catch(pe){}
+      var noteId=zohoNoteIdFromResponse(d)||A.zohoNoteId||null;
+      if(noteId)A.zohoNoteId=noteId;
+      return noteId;
+    }
     if(r.status===401&&attempt===0){var ref=await refreshZohoToken();if(ref)continue;throw new Error("Token refresh failed");}
     var e=await r.text();throw new Error("Proxy error "+r.status+": "+e.substring(0,100));
   }
@@ -1136,22 +1196,29 @@ async function saveNoteToZoho(opts){
         showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
       }
     }
+    var uploadWarning="";
     setStatus("Uploading PDF...");
     showUploadStatus("Uploading report PDF to WorkDrive...",false);
-    await refreshZohoToken();
-    await uploadReportPdfToWorkDrive();
-    setStatus("Saving to Zoho...");
-    showUploadStatus("Saving note to Zoho CRM...",false);
-    await zohoSave();
+    try{
+      await refreshZohoToken();
+      await uploadReportPdfToWorkDrive();
+    }catch(upErr){
+      uploadWarning=upErr&&upErr.message?upErr.message:String(upErr);
+      console.log("Continuing Zoho save after upload warning:",upErr);
+      showUploadStatus("WorkDrive/PDF upload did not finish ("+uploadWarning+"). Saving Zoho note now...",true);
+    }
+    setStatus(A.zohoNoteId?"Updating Zoho...":"Saving to Zoho...");
+    showUploadStatus(A.zohoNoteId?"Updating existing Zoho CRM note...":"Saving note to Zoho CRM...",false);
+    var savedNoteId=await zohoSave();
     setStatus("Saved!");
     if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
-    showUploadStatus("Saved to Zoho — WorkDrive folder, PDF, and CRM note.",false);
+    showUploadStatus(uploadWarning?"Saved to Zoho. WorkDrive/PDF upload needs retry: "+uploadWarning:"Saved to Zoho — WorkDrive folder, PDF, and CRM note.",!!uploadWarning);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
     }else if(A.reportPhotos&&A.reportPhotos.length>0){
       var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
-    var hh=getHistory();if(hh.length>0){hh[0].pdfSaved=true;hh[0].zohoSaved=true;localStorage.setItem("fp_history",JSON.stringify(hh));}
+    updateCurrentHistory({pdfSaved:true,zohoSaved:true,zohoNoteId:savedNoteId||A.zohoNoteId||null});
     if(btn&&!opts.fromGenerate){
       setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
     }
@@ -1432,13 +1499,13 @@ function renderHistory(){
   }
   var hl=el("hist-list");if(hl)hl.innerHTML=html;
 }
-function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.report=r.report;A.reportPhotos=r.photoData||[];A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();go("report");}
+function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.report=r.report;A.reportPhotos=r.photoData||[];A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();go("report");}
 function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;
   if(!confirm("Open this project to continue?"))return;
   A.reportPhotos=r.photoData||[];A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
   A.report=r.report;
-  A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
+  A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
   if(r.sections){SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});}
   if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;}
   renderPhotoCards();checkGen();go("capture");
