@@ -124,7 +124,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v124</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v125</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -351,7 +351,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">124</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">125</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -407,7 +407,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
-var FP_VERSION="124";
+var FP_VERSION="125";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -555,8 +555,19 @@ function zohoNoteIdFromResponse(d){
   var rec=d&&d.data&&d.data[0];
   return rec&&(rec.details&&rec.details.id||rec.id)||null;
 }
+function zohoReportMarker(){return A.currentHistoryId?("CapStone Report ID: "+A.currentHistoryId):"";}
 function zohoNoteTitle(){
   return "CapStone Report — "+A.sel.Account_Name+" — "+new Date().toLocaleDateString();
+}
+async function findExistingZohoNote(){
+  if(A.zohoNoteId||!A.sel)return A.zohoNoteId||null;
+  var marker=zohoReportMarker();
+  if(!marker)return null;
+  var r=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_note",token:A.zohoToken||ZOHO_ACCESS,deal_id:A.sel.id,note_title:zohoNoteTitle(),marker:marker})});
+  if(!r.ok)return null;
+  var d={};try{d=await r.json();}catch(e){}
+  if(d&&d.note_id){A.zohoNoteId=d.note_id;return A.zohoNoteId;}
+  return null;
 }
 var toastTimer=null;
 function showToast(msg,ms){
@@ -1122,6 +1133,7 @@ function workdriveFolderUrl(){
 }
 function buildZohoNote(){
   var lines=["CapStone FIELD SERVICE REPORT","=============================="];
+  var marker=zohoReportMarker();if(marker)lines.push(marker);
   if(A.sel){lines.push("Account: "+(A.sel.Account_Name||""));lines.push("Deal: "+(A.sel.Deal_Name||""));lines.push("Stage: "+(A.sel.Stage||""));if(A.sel.Amount)lines.push("Amount: "+fmtAmt(A.sel.Amount));if(A.sel.Closing_Date)lines.push("Date: "+A.sel.Closing_Date);}
   lines.push("Report Date: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
   if(A.location){if(A.location.address)lines.push("Site: "+A.location.address);lines.push("GPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6));}
@@ -1144,6 +1156,7 @@ function buildZohoNote(){
 }
 async function zohoSave(){
   for(var attempt=0;attempt<2;attempt++){
+    if(!A.zohoNoteId){try{await findExistingZohoNote();}catch(fe){console.log("findExistingZohoNote:",fe);}}
     var payload={
       action:A.zohoNoteId?"update_note":"save_note",
       token:A.zohoToken||ZOHO_ACCESS,
