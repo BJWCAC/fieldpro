@@ -40,6 +40,7 @@ body.light input,body.light textarea,body.light select{background:#fff;color:var
 .pane{display:none;padding:14px}.pane.on{display:block}
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:10px}
 body.light .card{background:#fff}
+#p-report .card{background:#fff;color:#0f2420;border-color:#b2ddd6}
 .stitle{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
 .lbl{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:4px}
 .bp{background:var(--amber);color:#001a18;padding:9px 16px;font-size:13px}
@@ -80,21 +81,21 @@ body.light .hist-card{background:#fff}
 .h-acct{font-family:"Barlow Condensed",sans-serif;font-size:15px;font-weight:700}
 .h-meta{font-size:11px;color:var(--dim);margin:3px 0 8px;line-height:1.5}
 .h-acts{display:flex;gap:6px;flex-wrap:wrap}
-.rpt-hdr{background:#0a1a18;border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:12px}
+.rpt-hdr{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:12px;margin-bottom:12px;color:#0f2420}
 .rh-row{font-size:12px;margin-bottom:3px}
 .rh-k{color:var(--dim)}
-.pdf-opts{background:#0a1a18;border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px}
+.pdf-opts{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:12px;margin-bottom:8px;color:#0f2420}
 .tog-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer}
 .tog{width:36px;height:20px;border-radius:10px;background:var(--bdr);transition:background .2s;flex-shrink:0;position:relative;margin-top:2px}
 .tog.on{background:var(--amber)}
 .tog-thumb{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s}
 .tog.on .tog-thumb{left:19px}
-.pgcard{background:#0a1a18;border:1px solid var(--bdr);border-radius:8px;margin-bottom:10px;overflow:hidden}
+.pgcard{background:#fff;border:1px solid #b2ddd6;border-radius:8px;margin-bottom:10px;overflow:hidden;color:#0f2420}
 .pgcard img{width:100%;display:block;object-fit:contain;max-height:320px;background:#000}
 .pgbody{padding:12px}
 .pgblk{margin-bottom:10px}
 .pgdiv{border-top:1px solid var(--bdr);padding-top:10px}
-#rpt-body{white-space:pre-wrap;font-size:13px;line-height:1.8;color:#cbd5e1}
+#rpt-body{white-space:pre-wrap;font-size:13px;line-height:1.8;color:#2d6b60}
 .empty{text-align:center;padding:48px 20px}
 .e-icon{font-size:48px;margin-bottom:12px;opacity:.25}
 .e-title{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:800;margin-bottom:6px}
@@ -123,7 +124,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v120</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v121</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -173,10 +174,10 @@ body.light .hist-card{background:#fff}
 <!-- CAPTURE -->
 <div class="pane" id="p-capture">
   <div id="no-deal-bar" class="no-deal-bar"><span>No deal linked</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
-  <div id="deal-bar" class="card" style="background:#051a18;border:1px solid #006050;display:none;margin-bottom:10px">
+  <div id="deal-bar" class="card" style="background:#fff;border:1px solid #b2ddd6;display:none;margin-bottom:10px;color:#0f2420">
     <div class="stitle" style="color:var(--green);margin-bottom:2px">Active Deal</div>
-    <div id="db-acct" style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:800"></div>
-    <div id="db-info" style="font-size:12px;color:var(--sub)"></div>
+    <div id="db-acct" style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:800;color:#0f2420"></div>
+    <div id="db-info" style="font-size:12px;color:#2d6b60"></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -259,9 +260,9 @@ body.light .hist-card{background:#fff}
     <div style="margin-bottom:10px"><label class="lbl">8. Follow-Up Required</label><textarea id="sec8" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
     <div><label class="lbl">9. Materials / Parts Used</label><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
   </div>
-  <div id="gen-summary" style="display:none;background:#051a18;border:1px solid #006050;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px">
+  <div id="gen-summary" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#0f2420">
     <div style="font-family:Barlow Condensed,sans-serif;font-weight:700;color:var(--green);margin-bottom:3px">Report will include:</div>
-    <div id="gen-summary-txt" style="color:var(--sub);line-height:1.6"></div>
+    <div id="gen-summary-txt" style="color:#2d6b60;line-height:1.6"></div>
   </div>
   <button class="bs-lg" id="gen-btn" onclick="generate()" style="display:none;margin-bottom:20px">Generate AI Report</button>
 </div>
@@ -350,7 +351,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">120</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">121</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -406,7 +407,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false};
-var FP_VERSION="120";
+var FP_VERSION="121";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
