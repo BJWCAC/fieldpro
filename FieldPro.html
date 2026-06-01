@@ -125,7 +125,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v127</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v128</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -352,7 +352,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">127</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">128</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -408,7 +408,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null};
-var FP_VERSION="127";
+var FP_VERSION="128";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -557,8 +557,8 @@ function zohoNoteIdFromResponse(d){
   return rec&&(rec.details&&rec.details.id||rec.id)||null;
 }
 function isStaleZohoNoteError(status,body){
-  var t=String(body||"").toLowerCase();
-  return status===404||(status===400&&(t.indexOf("invalid_data")>=0||t.indexOf("not found")>=0||t.indexOf("invalid")>=0));
+  var t=String(body||"").toLowerCase().trim();
+  return status===404||(status===400&&(!t||t.indexOf("invalid_data")>=0||t.indexOf("not found")>=0||t.indexOf("invalid")>=0));
 }
 function zohoReportMarker(){return A.currentHistoryId?("CapStone Report ID: "+A.currentHistoryId):"";}
 function zohoNoteTitle(){
