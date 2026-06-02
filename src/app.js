@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],savedItems:[]}};
-var FP_VERSION="145";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="146";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -289,6 +289,7 @@ window.saveAssetToZoho=saveAssetToZoho;
 window.resetAssetFormForNext=resetAssetFormForNext;
 window.searchExistingAssets=searchExistingAssets;
 window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
+window.startAssetReplacement=startAssetReplacement;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -522,6 +523,27 @@ function renderAssetForm(){
 }
 function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
 function assetLookupName(v){if(!v)return"";if(typeof v==="string")return v;return v.name||v.id||"";}
+function originalAssetSnapshot(r){return r?{id:r.id,name:r.Name||"",brand:r.Asset_Brand||"",type:r.Asset_Type||"",model:r.Asset_Model_Number||"",serial:r.Serial_Number||"",series:r.Asset_Series||""}:null;}
+function replacementSummaryText(){
+  var o=A.asset.loadedOriginal;if(!o)return"";
+  return "Replacing existing asset:<br>Old Brand/Type: "+esc([o.brand,o.type].filter(Boolean).join(" / ")||"-")+"<br>Old Model: "+esc(o.model||"-")+"<br>Old Serial: "+esc(o.serial||"-")+"<br>New Model: "+esc(assetInput("asset-model")||"-")+"<br>New Serial: "+esc(assetInput("asset-serial")||"-");
+}
+function renderAssetReplacementPanel(){
+  var panel=el("asset-replace-panel"),summary=el("asset-replace-summary");
+  if(panel)panel.style.display=A.asset.currentAssetId?"block":"none";
+  if(summary){summary.style.display=A.asset.replacementMode?"block":"none";summary.innerHTML=A.asset.replacementMode?replacementSummaryText():"";}
+}
+function startAssetReplacement(){
+  if(!A.asset.currentAssetId){assetStatus("Load an existing asset first.",true);return;}
+  A.asset.replacementMode=true;
+  renderAssetReplacementPanel();
+  assetStatus("Replacement mode on. Enter the new instrument model, serial, photos, and notes, then save.",false);
+}
+function replacementNote(){
+  var o=A.asset.loadedOriginal;if(!A.asset.replacementMode||!o)return"";
+  var lines=["Replacement recorded by CapStone on "+new Date().toLocaleDateString(),"Previous Model: "+(o.model||""),"Previous Serial: "+(o.serial||""),"Previous Brand: "+(o.brand||""),"Previous Type: "+(o.type||""),"New Model: "+assetInput("asset-model"),"New Serial: "+assetInput("asset-serial"),"New Brand: "+assetInput("asset-brand"),"New Type: "+assetInput("asset-type")];
+  return lines.join("\n");
+}
 function renderAssetSearchResults(){
   var box=el("asset-search-results");if(!box)return;
   if(!A.asset.searchResults.length){box.style.display="block";box.innerHTML="<div style='font-size:12px;color:var(--dim)'>No matching assets found.</div>";return;}
@@ -548,6 +570,8 @@ function loadExistingAssetFromSearch(idx){
   var r=A.asset.searchResults[idx];if(!r)return;
   clearAssetEntryState("Loaded existing asset for update.");
   A.asset.currentAssetId=r.id;
+  A.asset.loadedOriginal=originalAssetSnapshot(r);
+  A.asset.replacementMode=false;
   setAssetInput("asset-name",r.Name||"");
   setAssetSelectIfPresent("asset-category",r.Asset_Category||"");
   setAssetSelectIfPresent("asset-function",r.Asset_Function||"");
@@ -566,6 +590,7 @@ function loadExistingAssetFromSearch(idx){
   setAssetInput("asset-description",r.Description_Instructions||"");
   setAssetInput("asset-search",r.CAC_Asset_ID||r.Serial_Number||r.Name||"");
   var box=el("asset-search-results");if(box)box.style.display="none";
+  renderAssetReplacementPanel();
   updateAssetSaveState();
 }
 function assetPhotoFingerprint(dataUrl){
@@ -692,6 +717,7 @@ function updateAssetSaveState(){
     btn.title=missing.length?"Complete required fields: "+missing.join(", "):"";
     if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":"Save Asset to Zoho";
   }
+  if(typeof renderAssetReplacementPanel==="function")renderAssetReplacementPanel();
   return missing;
 }
 function setupAssetRequiredHandlers(){
@@ -714,7 +740,7 @@ function renderSavedAssets(){
 function clearAssetEntryState(msg){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
   A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
-  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.savedItems=[];
+  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;A.asset.savedItems=[];
   renderAssetPhotos();renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
@@ -753,7 +779,10 @@ function assetPayload(opts){
   setOptional("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
   setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
   setOptional("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
-  setOptional("Description_Instructions",assetInput("asset-description"));
+  var desc=assetInput("asset-description");
+  var repl=replacementNote();
+  if(repl)desc=desc?(desc+"\n\n"+repl):repl;
+  setOptional("Description_Instructions",desc);
   setOptional("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
   payload.Date=new Date().toISOString().slice(0,10);
   return payload;

@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=145"/>
+<link rel="stylesheet" href="src/styles.css?v=146"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v145</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v146</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -176,6 +176,10 @@
         <button class="bb-lg" onclick="searchExistingAssets()">Search Assets</button>
       </div>
       <div id="asset-search-results" style="display:none"></div>
+      <div id="asset-replace-panel" style="display:none;margin-top:10px;border-top:1px solid #b2ddd6;padding-top:10px">
+        <button type="button" class="bb-lg" onclick="startAssetReplacement()">Replace Instrument</button>
+        <div id="asset-replace-summary" style="display:none;margin-top:8px;font-size:12px;color:#2d6b60;line-height:1.6"></div>
+      </div>
     </div>
     <div class="g2" style="margin-bottom:8px">
       <label class="fbtn bb-lg">Take Nameplate Photo<input id="asset-photo-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="assetPhotoSelected(this)"/></label>
@@ -306,7 +310,7 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">145</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">146</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -338,7 +342,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=145"></script>
+<script src="src/app.js?v=146"></script>
 
 </body>
 </html>
