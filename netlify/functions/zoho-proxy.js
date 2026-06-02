@@ -124,6 +124,45 @@ exports.handler = async function(event) {
       return a.id || "";
     }
 
+    function subformAssetId(row) {
+      var a = row && row.Assets;
+      if (!a) return "";
+      if (typeof a === "string") return a;
+      return a.id || "";
+    }
+
+    if (data.action === "link_equipment_to_deal") {
+      var dealResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Deals/" + data.deal_id + "?fields=Assets_and_Checklist",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (dealResult.status < 200 || dealResult.status >= 300) return { statusCode: dealResult.status, headers: h, body: dealResult.body };
+      var rows = [];
+      try {
+        var dealRec = (JSON.parse(dealResult.body).data || [])[0] || {};
+        rows = Array.isArray(dealRec.Assets_and_Checklist) ? dealRec.Assets_and_Checklist : [];
+      } catch (de) {}
+      var exists = false;
+      for (var ri = 0; ri < rows.length; ri++) { if (subformAssetId(rows[ri]) === data.equipment_id) { exists = true; break; } }
+      if (!exists) {
+        rows.push({
+          Assets: { id: data.equipment_id },
+          Instrument_Description: data.description || "",
+          If_not_completed_why: data.notes || ""
+        });
+      }
+      var dealPayload = JSON.stringify({ data: [{ Assets_and_Checklist: rows }] });
+      var dealUpdateResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Deals/" + data.deal_id,
+        method: "PUT",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(dealPayload) }
+      }, dealPayload);
+      return { statusCode: dealUpdateResult.status, headers: h, body: JSON.stringify({ ok: dealUpdateResult.status >= 200 && dealUpdateResult.status < 300, already_linked: exists, response: dealUpdateResult.body }) };
+    }
+
     if (data.action === "find_equipment") {
       var serial = String(data.serial_number || "").replace(/"/g, "").trim();
       if (!serial) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: null }) };
