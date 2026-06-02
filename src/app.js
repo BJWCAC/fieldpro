@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false}};
-var FP_VERSION="134";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,savedItems:[]}};
+var FP_VERSION="135";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -286,6 +286,7 @@ window.go=go;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
+window.resetAssetFormForNext=resetAssetFormForNext;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -502,6 +503,8 @@ function renderAssetForm(){
     setupAssetRequiredHandlers();
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
+  renderSavedAssets();
+  var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
 }
 function assetPhotoSelected(input){
   var file=input.files&&input.files[0];if(!file)return;
@@ -620,6 +623,22 @@ function setupAssetRequiredHandlers(){
   });
   A.assetReqHandlersBound=true;
 }
+function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-description"];}
+function renderSavedAssets(){
+  var box=el("asset-saved-list");if(!box)return;
+  if(!A.asset.savedItems.length){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";
+  box.innerHTML="<div class='stitle'>Saved This Visit</div>"+A.asset.savedItems.map(function(a,i){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:4px'>"+(i+1)+". "+esc(a.name||"Asset")+(a.model?" — "+esc(a.model):"")+(a.serial?" — S/N "+esc(a.serial):"")+"</div>";}).join("");
+}
+function resetAssetFormForNext(){
+  assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
+  A.asset.photoData="";A.asset.photoName="";A.asset.saved=false;
+  var img=el("asset-photo-preview");if(img)img.removeAttribute("src");
+  hideEl("asset-photo-wrap");assetStatus("Ready for next asset. Account and GPS are still retained.",false);
+  var next=el("asset-next-btn");if(next)next.style.display="none";
+  updateAssetSaveState();
+  try{var first=el("asset-photo-input");if(first)first.focus();}catch(e){}
+}
 function validateAssetForm(){
   var missing=markAssetRequiredFields();
   if(!A.sel)missing.unshift("Zoho Deal");
@@ -669,7 +688,10 @@ async function saveAssetToZoho(){
       if(!pr.ok)showToast("Asset created, but photo attachment failed",6000);
     }
     A.asset.saved=true;
-    assetStatus("Asset saved to Zoho Equipments.",false);showToast("Asset saved to Zoho",4000);
+    A.asset.savedItems.push({id:equipmentId,name:assetInput("asset-name"),model:assetInput("asset-model"),serial:assetInput("asset-serial")});
+    renderSavedAssets();
+    var next=el("asset-next-btn");if(next)next.style.display="flex";
+    assetStatus("Asset saved to Zoho Equipments. Tap Save Another Asset to add the next one for this same account/deal.",false);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
   finally{A.asset.saving=false;updateAssetSaveState();}
 }
