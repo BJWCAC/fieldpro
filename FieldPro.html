@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=135"/>
+<link rel="stylesheet" href="src/styles.css?v=136"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v135</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v136</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -177,7 +177,7 @@
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><img id="asset-photo-preview" alt="Asset nameplate" style="width:100%;max-height:260px;object-fit:contain;background:#fff;border:1px solid #b2ddd6;border-radius:8px"/></div>
     <div class="g2" style="margin-bottom:8px">
       <div><label class="lbl">Account</label><input id="asset-account" readonly placeholder="No deal selected"/></div>
-      <div><label class="lbl">GPS</label><input id="asset-location" readonly placeholder="No GPS captured"/></div>
+      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/></div>
     </div>
     <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
     <div class="g2" style="margin-bottom:8px">
@@ -298,7 +298,7 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">135</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">136</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -330,7 +330,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=135"></script>
+<script src="src/app.js?v=136"></script>
 
 </body>
 </html>
