@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",savedItems:[]}};
-var FP_VERSION="144";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],savedItems:[]}};
+var FP_VERSION="145";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -287,6 +287,8 @@ window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
 window.resetAssetFormForNext=resetAssetFormForNext;
+window.searchExistingAssets=searchExistingAssets;
+window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -517,6 +519,54 @@ function renderAssetForm(){
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
+}
+function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
+function assetLookupName(v){if(!v)return"";if(typeof v==="string")return v;return v.name||v.id||"";}
+function renderAssetSearchResults(){
+  var box=el("asset-search-results");if(!box)return;
+  if(!A.asset.searchResults.length){box.style.display="block";box.innerHTML="<div style='font-size:12px;color:var(--dim)'>No matching assets found.</div>";return;}
+  box.style.display="block";
+  box.innerHTML=A.asset.searchResults.map(function(r,i){
+    var title=esc(r.CAC_Asset_ID||r.Name||"Asset");
+    var meta=[r.Name,r.Asset_Model_Number,r.Serial_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
+    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+meta+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Asset</button></div>";
+  }).join("");
+}
+async function searchExistingAssets(){
+  try{
+    if(!A.sel){assetStatus("Select a deal/account first.",true);return;}
+    var q=assetInput("asset-search");if(!q){assetStatus("Enter an AMD/CAC ID, serial, model, name, building, or designator.",true);return;}
+    await refreshZohoToken();
+    assetStatus("Searching existing assets...",false);
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search_equipment_assets",token:A.zohoToken,account_id:A.sel.Account_Id||"",query:q})},30000);
+    var txt=await r.text();if(!r.ok)throw new Error("Asset search "+r.status+": "+txt.substring(0,160));
+    var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();assetStatus(A.asset.searchResults.length?"Select an existing asset to load it for update.":"No matching assets found.",!A.asset.searchResults.length);
+  }catch(e){assetStatus("Asset search failed: "+e.message,true);}
+}
+function setAssetSelectIfPresent(id,value){var e=el(id);if(!e)return;var v=String(value||"");e.value=v;if(v&&e.value!==v){var opt=document.createElement("option");opt.value=v;opt.textContent=v;e.appendChild(opt);e.value=v;}}
+function loadExistingAssetFromSearch(idx){
+  var r=A.asset.searchResults[idx];if(!r)return;
+  clearAssetEntryState("Loaded existing asset for update.");
+  A.asset.currentAssetId=r.id;
+  setAssetInput("asset-name",r.Name||"");
+  setAssetSelectIfPresent("asset-category",r.Asset_Category||"");
+  setAssetSelectIfPresent("asset-function",r.Asset_Function||"");
+  setAssetInput("asset-building",r.Building||"");
+  setAssetInput("asset-designator",r.Additional_Designator||"");
+  setAssetSelectIfPresent("asset-brand",r.Asset_Brand||"");
+  setAssetSelectIfPresent("asset-type",r.Asset_Type||"");
+  setAssetInput("asset-brand-other",r.If_Asset_Brand_Other_explain||"");
+  setAssetInput("asset-type-other",r.If_Asset_Type_other_explain||"");
+  setAssetInput("asset-model",r.Asset_Model_Number||"");
+  setAssetInput("asset-serial",r.Serial_Number||"");
+  setAssetSelectIfPresent("asset-series",r.Asset_Series||"");
+  setAssetInput("asset-series-other",r.If_Asset_Series_is_Other_Function_explain||"");
+  setAssetSelectIfPresent("asset-environment",r.Asset_Environment||"");
+  setAssetSelectIfPresent("asset-confined",r.Confined_Space||"");
+  setAssetInput("asset-description",r.Description_Instructions||"");
+  setAssetInput("asset-search",r.CAC_Asset_ID||r.Serial_Number||r.Name||"");
+  var box=el("asset-search-results");if(box)box.style.display="none";
+  updateAssetSaveState();
 }
 function assetPhotoFingerprint(dataUrl){
   var s=String(dataUrl||"");

@@ -163,6 +163,34 @@ exports.handler = async function(event) {
       return { statusCode: dealUpdateResult.status, headers: h, body: JSON.stringify({ ok: dealUpdateResult.status >= 200 && dealUpdateResult.status < 300, already_linked: exists, response: dealUpdateResult.body }) };
     }
 
+    if (data.action === "search_equipment_assets") {
+      var q = String(data.query || "").replace(/"/g, "").trim();
+      if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
+      var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number"];
+      var seen = {};
+      var hits = [];
+      for (var sfi = 0; sfi < searchFields.length; sfi++) {
+        var crit = encodeURIComponent("(" + searchFields[sfi] + ":equals:" + q + ")");
+        var searchResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/Equipments/search?criteria=" + crit + "&fields=Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Description_Instructions,Location_Coordinates,Date",
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (searchResult.status === 204) continue;
+        if (searchResult.status < 200 || searchResult.status >= 300) continue;
+        try {
+          var foundRows = (JSON.parse(searchResult.body).data || []);
+          for (var sri = 0; sri < foundRows.length; sri++) {
+            var rec = foundRows[sri];
+            if (data.account_id && equipmentAccountId(rec) !== data.account_id) continue;
+            if (!seen[rec.id]) { seen[rec.id] = true; hits.push(rec); }
+          }
+        } catch (se) {}
+      }
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: hits.slice(0, 20) }) };
+    }
+
     if (data.action === "find_equipment") {
       var serial = String(data.serial_number || "").replace(/"/g, "").trim();
       if (!serial) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: null }) };
