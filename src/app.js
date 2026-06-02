@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
-var FP_VERSION="137";
+var FP_VERSION="138";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -646,7 +646,9 @@ function validateAssetForm(){
   return missing;
 }
 function equipmentIdFromResponse(d){var rec=d&&d.data&&d.data[0];return rec&&(rec.details&&rec.details.id||rec.id)||null;}
-function assetPayload(){
+function assetPayload(opts){
+  opts=opts||{};
+  var includeBlank=!!opts.includeBlank;
   var payload={
     Asset_Category:assetInput("asset-category"),
     Account:{id:A.sel.Account_Id},
@@ -661,12 +663,13 @@ function assetPayload(){
     Asset_Environment:assetInput("asset-environment"),
     Confined_Space:assetInput("asset-confined")
   };
-  if(assetInput("asset-series"))payload.Asset_Series=assetInput("asset-series");
-  if(assetInput("asset-brand-other"))payload.If_Asset_Brand_Other_explain=assetInput("asset-brand-other");
-  if(assetInput("asset-type-other"))payload.If_Asset_Type_other_explain=assetInput("asset-type-other");
-  if(assetInput("asset-series-other"))payload.If_Asset_Series_is_Other_Function_explain=assetInput("asset-series-other");
-  if(assetInput("asset-description"))payload.Description_Instructions=assetInput("asset-description");
-  if(A.location)payload.Location_Coordinates=A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6);
+  function setOptional(apiName,value){if(includeBlank||value)payload[apiName]=value||"";}
+  setOptional("Asset_Series",assetInput("asset-series"));
+  setOptional("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
+  setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
+  setOptional("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
+  setOptional("Description_Instructions",assetInput("asset-description"));
+  setOptional("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
   payload.Date=new Date().toISOString().slice(0,10);
   return payload;
 }
@@ -681,12 +684,13 @@ async function findExistingEquipmentBySerial(){
   return null;
 }
 async function saveEquipmentRecord(){
-  var payload=assetPayload();
+  var payload=assetPayload({includeBlank:!!A.asset.currentAssetId});
   var existing=A.asset.currentAssetId?{equipment_id:A.asset.currentAssetId}:await findExistingEquipmentBySerial();
   if(existing&&existing.equipment_id&&!A.asset.currentAssetId){
     var label=(existing.equipment&&existing.equipment.Name)||assetInput("asset-name")||"this asset";
     if(!confirm("An asset with this serial number already exists for this account ("+label+"). Update the existing asset instead of creating a duplicate?"))throw new Error("Asset save cancelled to avoid duplicate serial number");
     A.asset.currentAssetId=existing.equipment_id;
+    payload=assetPayload({includeBlank:true});
   }
   var action=A.asset.currentAssetId?"update_equipment":"create_equipment";
   assetStatus((action==="update_equipment"?"Updating existing":"Creating")+" equipment asset in Zoho...",false);
