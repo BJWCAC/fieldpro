@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,savedItems:[]}};
-var FP_VERSION="136";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
+var FP_VERSION="137";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -632,7 +632,7 @@ function renderSavedAssets(){
 }
 function resetAssetFormForNext(){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
-  A.asset.photoData="";A.asset.photoName="";A.asset.saved=false;
+  A.asset.photoData="";A.asset.photoName="";A.asset.saved=false;A.asset.currentAssetId=null;
   var img=el("asset-photo-preview");if(img)img.removeAttribute("src");
   hideEl("asset-photo-wrap");assetStatus("Ready for next asset. Account and GPS are still retained.",false);
   var next=el("asset-next-btn");if(next)next.style.display="none";
@@ -670,6 +670,35 @@ function assetPayload(){
   payload.Date=new Date().toISOString().slice(0,10);
   return payload;
 }
+async function findExistingEquipmentBySerial(){
+  if(A.asset.currentAssetId)return A.asset.currentAssetId;
+  var serial=assetInput("asset-serial");
+  if(!serial||!A.sel||!A.sel.Account_Id)return null;
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_equipment",token:A.zohoToken,account_id:A.sel.Account_Id,serial_number:serial})},30000);
+  if(!r.ok)return null;
+  var d={};try{d=await r.json();}catch(e){}
+  if(d&&d.equipment_id)return d;
+  return null;
+}
+async function saveEquipmentRecord(){
+  var payload=assetPayload();
+  var existing=A.asset.currentAssetId?{equipment_id:A.asset.currentAssetId}:await findExistingEquipmentBySerial();
+  if(existing&&existing.equipment_id&&!A.asset.currentAssetId){
+    var label=(existing.equipment&&existing.equipment.Name)||assetInput("asset-name")||"this asset";
+    if(!confirm("An asset with this serial number already exists for this account ("+label+"). Update the existing asset instead of creating a duplicate?"))throw new Error("Asset save cancelled to avoid duplicate serial number");
+    A.asset.currentAssetId=existing.equipment_id;
+  }
+  var action=A.asset.currentAssetId?"update_equipment":"create_equipment";
+  assetStatus((action==="update_equipment"?"Updating existing":"Creating")+" equipment asset in Zoho...",false);
+  var body={action:action,token:A.zohoToken,equipment:payload};
+  if(A.asset.currentAssetId)body.equipment_id=A.asset.currentAssetId;
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},30000);
+  var txt=await r.text();if(!r.ok)throw new Error("Zoho equipment "+r.status+": "+txt.substring(0,160));
+  var equipmentId=A.asset.currentAssetId||equipmentIdFromResponse(JSON.parse(txt));
+  if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
+  A.asset.currentAssetId=equipmentId;
+  return equipmentId;
+}
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
@@ -677,10 +706,7 @@ async function saveAssetToZoho(){
   A.asset.saving=true;var btn=el("asset-save-btn");if(btn){btn.disabled=true;btn.textContent="Saving Asset...";}
   try{
     await refreshZohoToken();
-    assetStatus("Creating equipment asset in Zoho...",false);
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"create_equipment",token:A.zohoToken,equipment:assetPayload()})},30000);
-    var txt=await r.text();if(!r.ok)throw new Error("Zoho equipment "+r.status+": "+txt.substring(0,160));
-    var equipmentId=equipmentIdFromResponse(JSON.parse(txt));if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
+    var equipmentId=await saveEquipmentRecord();
     var photoWarning="";
     if(A.asset.photoData){
       try{
@@ -696,7 +722,7 @@ async function saveAssetToZoho(){
       }
     }
     A.asset.saved=true;
-    A.asset.savedItems.push({id:equipmentId,name:assetInput("asset-name"),model:assetInput("asset-model"),serial:assetInput("asset-serial")});
+    if(!A.asset.savedItems.some(function(a){return a.id===equipmentId;}))A.asset.savedItems.push({id:equipmentId,name:assetInput("asset-name"),model:assetInput("asset-model"),serial:assetInput("asset-serial")});
     renderSavedAssets();
     var next=el("asset-next-btn");if(next)next.style.display="flex";
     assetStatus(photoWarning?"Asset saved to Zoho, but nameplate photo attachment failed: "+photoWarning:"Asset saved to Zoho Equipments. Tap Save Another Asset to add the next one for this same account/deal.",!!photoWarning);showToast("Asset saved to Zoho",4000);
