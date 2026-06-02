@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v129</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v130</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -33,6 +33,7 @@
   </div>
   <div class="tab on" id="t-deals" onclick="go('deals')">Deals <span class="tbadge" id="tb-deals" style="display:none"></span></div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
+  <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
   <div class="tab" id="t-settings" onclick="go('settings')">Settings</div>
@@ -160,6 +161,57 @@
   <button class="bs-lg" id="gen-btn" onclick="generate()" style="display:none;margin-bottom:20px">Generate AI Report</button>
 </div>
 
+
+<!-- ASSETS -->
+<div class="pane" id="p-assets">
+  <div id="no-deal-assets" class="no-deal-bar"><span>Select a deal before adding an asset</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
+  <div class="card">
+    <div class="stitle">Add Asset to Zoho</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Capture a nameplate photo, optionally extract details with AI, review required fields, then save to Zoho Equipments.</div>
+    <div id="asset-status" class="err-box" style="display:none"></div>
+    <div class="g2" style="margin-bottom:10px">
+      <label class="fbtn bb-lg">Nameplate Photo<input id="asset-photo-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="assetPhotoSelected(this)"/></label>
+      <button class="bg-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()">Extract with AI</button>
+    </div>
+    <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><img id="asset-photo-preview" alt="Asset nameplate" style="width:100%;max-height:260px;object-fit:contain;background:#fff;border:1px solid #b2ddd6;border-radius:8px"/></div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Account</label><input id="asset-account" readonly placeholder="No deal selected"/></div>
+      <div><label class="lbl">GPS</label><input id="asset-location" readonly placeholder="No GPS captured"/></div>
+    </div>
+    <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Asset Category *</label><select id="asset-category"></select></div>
+      <div><label class="lbl">Asset Function *</label><select id="asset-function"></select></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Building *</label><input id="asset-building" placeholder="Example: Headworks"/></div>
+      <div><label class="lbl">Additional Designator *</label><input id="asset-designator" placeholder="Example: FE-101"/></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Asset Brand *</label><select id="asset-brand"></select></div>
+      <div><label class="lbl">Asset Type *</label><select id="asset-type"></select></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Brand Other</label><input id="asset-brand-other" placeholder="Only if brand is 1 Other"/></div>
+      <div><label class="lbl">Type Other</label><input id="asset-type-other" placeholder="Only if type is 1 Other"/></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Model Number *</label><input id="asset-model"/></div>
+      <div><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Series</label><select id="asset-series"></select></div>
+      <div><label class="lbl">Series Other</label><input id="asset-series-other" placeholder="Only if series is Other"/></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Environment *</label><select id="asset-environment"></select></div>
+      <div><label class="lbl">Confined Space *</label><select id="asset-confined"></select></div>
+    </div>
+    <div style="margin-bottom:10px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Notes, ratings, nameplate text, or service instructions"></textarea></div>
+    <button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button>
+  </div>
+</div>
+
 <!-- REPORT -->
 <div class="pane" id="p-report">
   <div id="rpt-empty" class="empty">
@@ -244,7 +296,7 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">129</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">130</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>

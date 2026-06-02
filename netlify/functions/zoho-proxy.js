@@ -117,6 +117,36 @@ exports.handler = async function(event) {
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
 
+    if (data.action === "create_equipment") {
+      var equipmentPayload = JSON.stringify({ data: [data.equipment || {}] });
+      var equipmentResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments",
+        method: "POST",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(equipmentPayload) }
+      }, equipmentPayload);
+      return { statusCode: equipmentResult.status, headers: h, body: equipmentResult.body };
+    }
+
+    if (data.action === "upload_equipment_photo") {
+      var assetImgBuf = Buffer.from(data.image_b64, "base64");
+      var assetBoundary = "CapStoneBound" + Date.now();
+      var assetHdr = Buffer.from("--" + assetBoundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + data.filename + "\"\r\nContent-Type: image/jpeg\r\n\r\n");
+      var assetFtr = Buffer.from("\r\n--" + assetBoundary + "--\r\n");
+      var assetUploadBody = Buffer.concat([assetHdr, assetImgBuf, assetFtr]);
+      var assetUploadResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/" + data.equipment_id + "/Attachments",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "multipart/form-data; boundary=" + assetBoundary,
+          "Content-Length": assetUploadBody.length
+        }
+      }, assetUploadBody);
+      return { statusCode: assetUploadResult.status, headers: h, body: assetUploadResult.body };
+    }
+
     if (data.action === "workdrive_get_or_create_folder") {
       var parentId = data.parent_id || "";
       var folderName = String(data.folder_name || "Deal").substring(0, 120);
