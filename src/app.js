@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false}};
-var FP_VERSION="133";
+var FP_VERSION="134";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -537,6 +537,33 @@ function applyAssetExtraction(x){
   if(notes.length)setAssetInput("asset-description",notes.join("\n"));
   updateAssetSaveState();
 }
+function assetJsonCandidate(txt){
+  txt=String(txt||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/g,"").trim();
+  var start=txt.indexOf("{");if(start<0)return"";
+  var depth=0,inStr=false,escp=false;
+  for(var i=start;i<txt.length;i++){
+    var ch=txt[i];
+    if(inStr){if(escp)escp=false;else if(ch==="\\")escp=true;else if(ch==='"')inStr=false;continue;}
+    if(ch==='"')inStr=true;
+    else if(ch==="{")depth++;
+    else if(ch==="}"){depth--;if(depth===0)return txt.slice(start,i+1);}
+  }
+  return txt.slice(start);
+}
+function parseAssetJson(txt){
+  var raw=assetJsonCandidate(txt);
+  if(!raw)throw new Error("AI did not return JSON");
+  try{return JSON.parse(raw);}catch(e1){}
+  var cleaned=raw.replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/,\s*([}\]])/g,"$1");
+  try{return JSON.parse(cleaned);}catch(e2){throw new Error(e2.message+". Raw AI text: "+raw.substring(0,300));}
+}
+async function parseAssetJsonWithRepair(txt){
+  try{return parseAssetJson(txt);}catch(firstErr){
+    var repair=[{type:"text",text:"Convert this asset extraction response into valid minified JSON only. Use exactly these keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. All values must be strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
+    var repaired=await callAPI({content:repair,maxTok:500,ms:30000});
+    try{return parseAssetJson(getText(repaired));}catch(secondErr){throw firstErr;}
+  }
+}
 async function extractAssetFromPhoto(){
   try{
     A.asset.saved=false;
@@ -544,11 +571,10 @@ async function extractAssetFromPhoto(){
     if(!API_KEY){enterKey();assetStatus("Add your Anthropic API key, then tap Extract again.",true);return;}
     assetStatus("Extracting asset details from photo...",false);
     var b64=await compressPhoto(A.asset.photoData,900,0.55);
-    var content=[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Extract equipment nameplate details for a Zoho equipment asset. Return ONLY compact JSON with keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. Use null for unknown values. Do not guess."}];
+    var content=[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Extract equipment nameplate details for a Zoho equipment asset. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. All values must be strings or null. Do not guess."}];
     var data=await callAPI({content:content,maxTok:600,ms:45000});
-    var txt=getText(data),m=txt.match(/\{[\s\S]*\}/);
-    if(!m)throw new Error("AI did not return JSON");
-    applyAssetExtraction(JSON.parse(m[0]));
+    var txt=getText(data);
+    applyAssetExtraction(await parseAssetJsonWithRepair(txt));
     assetStatus("AI extraction complete. Review all required fields before saving.",false);
   }catch(e){assetStatus("Asset extraction failed: "+e.message,true);}
 }
