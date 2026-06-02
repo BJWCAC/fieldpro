@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,savedItems:[]}};
-var FP_VERSION="135";
+var FP_VERSION="136";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -681,17 +681,25 @@ async function saveAssetToZoho(){
     var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"create_equipment",token:A.zohoToken,equipment:assetPayload()})},30000);
     var txt=await r.text();if(!r.ok)throw new Error("Zoho equipment "+r.status+": "+txt.substring(0,160));
     var equipmentId=equipmentIdFromResponse(JSON.parse(txt));if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
+    var photoWarning="";
     if(A.asset.photoData){
-      assetStatus("Asset created. Attaching nameplate photo...",false);
-      var b64=A.asset.photoData.split(",")[1]||"";
-      var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:A.asset.photoName||"asset-nameplate.jpg",image_b64:b64})},45000);
-      if(!pr.ok)showToast("Asset created, but photo attachment failed",6000);
+      try{
+        assetStatus("Asset created. Attaching nameplate photo...",false);
+        var b64=await compressPhoto(A.asset.photoData,1200,0.8);
+        if(!b64)throw new Error("Could not compress nameplate photo");
+        var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:A.asset.photoName||"asset-nameplate.jpg",image_b64:b64})},45000);
+        if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
+      }catch(photoErr){
+        photoWarning=photoErr&&photoErr.message?photoErr.message:String(photoErr);
+        console.log("Asset photo attachment failed after asset create:",photoErr);
+        showToast("Asset saved, but photo attachment failed",7000);
+      }
     }
     A.asset.saved=true;
     A.asset.savedItems.push({id:equipmentId,name:assetInput("asset-name"),model:assetInput("asset-model"),serial:assetInput("asset-serial")});
     renderSavedAssets();
     var next=el("asset-next-btn");if(next)next.style.display="flex";
-    assetStatus("Asset saved to Zoho Equipments. Tap Save Another Asset to add the next one for this same account/deal.",false);showToast("Asset saved to Zoho",4000);
+    assetStatus(photoWarning?"Asset saved to Zoho, but nameplate photo attachment failed: "+photoWarning:"Asset saved to Zoho Equipments. Tap Save Another Asset to add the next one for this same account/deal.",!!photoWarning);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
   finally{A.asset.saving=false;updateAssetSaveState();}
 }
