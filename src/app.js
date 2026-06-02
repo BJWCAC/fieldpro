@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="148";
+var FP_VERSION="149";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -753,7 +753,7 @@ function setupAssetRequiredHandlers(){
   });
   A.assetReqHandlersBound=true;
 }
-function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-description"];}
+function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-description","asset-deal-notes"];}
 function renderSavedAssets(){
   var box=el("asset-saved-list");if(!box)return;
   if(!A.asset.savedItems.length){box.style.display="none";box.innerHTML="";return;}
@@ -855,9 +855,15 @@ function assetDealDescription(){
   }
   return parts.join(" — ");
 }
+function assetDealNotes(){
+  var note=assetInput("asset-deal-notes");
+  if(note)return note;
+  if(A.asset.replacementMode)return "Replaced instrument during this visit.";
+  return "Added from CapStone";
+}
 async function linkEquipmentToSelectedDeal(equipmentId){
   if(!A.sel||!A.sel.id||!equipmentId)return{linked:false};
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"link_equipment_to_deal",token:A.zohoToken,deal_id:A.sel.id,equipment_id:equipmentId,description:assetDealDescription(),notes:"Added from CapStone"})},30000);
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"link_equipment_to_deal",token:A.zohoToken,deal_id:A.sel.id,equipment_id:equipmentId,description:assetDealDescription(),notes:assetDealNotes()})},30000);
   var txt=await r.text();
   if(!r.ok)throw new Error("Deal asset link "+r.status+": "+txt.substring(0,160));
   var d={};try{d=JSON.parse(txt);}catch(e){}
