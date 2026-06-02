@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
-var FP_VERSION="138";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",photoFingerprint:"",lastUploadedPhotoFingerprint:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
+var FP_VERSION="139";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -506,12 +506,19 @@ function renderAssetForm(){
   renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
 }
+function assetPhotoFingerprint(dataUrl){
+  var s=String(dataUrl||"");
+  return s.length+":"+s.slice(0,80)+":"+s.slice(-80);
+}
+function shouldUploadAssetPhoto(){
+  return !!(A.asset.photoData&&A.asset.photoFingerprint&&A.asset.photoFingerprint!==A.asset.lastUploadedPhotoFingerprint);
+}
 function assetPhotoSelected(input){
   var file=input.files&&input.files[0];if(!file)return;
   A.asset.saved=false;
   var reader=new FileReader();
   reader.onload=function(ev){
-    A.asset.photoData=ev.target.result;A.asset.photoName=file.name||"asset-nameplate.jpg";
+    A.asset.photoData=ev.target.result;A.asset.photoName=file.name||"asset-nameplate.jpg";A.asset.photoFingerprint=assetPhotoFingerprint(A.asset.photoData);
     var img=el("asset-photo-preview");if(img)img.src=A.asset.photoData;
     showEl("asset-photo-wrap");assetStatus("Nameplate photo ready. Review fields or tap Extract with AI.",false);
   };
@@ -632,7 +639,7 @@ function renderSavedAssets(){
 }
 function resetAssetFormForNext(){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
-  A.asset.photoData="";A.asset.photoName="";A.asset.saved=false;A.asset.currentAssetId=null;
+  A.asset.photoData="";A.asset.photoName="";A.asset.photoFingerprint="";A.asset.lastUploadedPhotoFingerprint="";A.asset.saved=false;A.asset.currentAssetId=null;
   var img=el("asset-photo-preview");if(img)img.removeAttribute("src");
   hideEl("asset-photo-wrap");assetStatus("Ready for next asset. Account and GPS are still retained.",false);
   var next=el("asset-next-btn");if(next)next.style.display="none";
@@ -712,13 +719,14 @@ async function saveAssetToZoho(){
     await refreshZohoToken();
     var equipmentId=await saveEquipmentRecord();
     var photoWarning="";
-    if(A.asset.photoData){
+    if(shouldUploadAssetPhoto()){
       try{
         assetStatus("Asset created. Attaching nameplate photo...",false);
         var b64=await compressPhoto(A.asset.photoData,1200,0.8);
         if(!b64)throw new Error("Could not compress nameplate photo");
         var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:A.asset.photoName||"asset-nameplate.jpg",image_b64:b64})},45000);
         if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
+        A.asset.lastUploadedPhotoFingerprint=A.asset.photoFingerprint;
       }catch(photoErr){
         photoWarning=photoErr&&photoErr.message?photoErr.message:String(photoErr);
         console.log("Asset photo attachment failed after asset create:",photoErr);
