@@ -107,3 +107,4 @@ body.light .hist-card{background:#fff}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,192,160,.95);color:#001a18;padding:10px 20px;border-radius:20px;font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:700;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:85%;text-align:center}
 .toast.show{opacity:1}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1a3030;border-radius:4px}
+.asset-photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.asset-photo-grid img{width:100%;height:90px;object-fit:contain;background:#fff;border:1px solid #b2ddd6;border-radius:8px}

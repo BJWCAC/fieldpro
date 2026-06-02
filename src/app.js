@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",photoFingerprint:"",lastUploadedPhotoFingerprint:"",saving:false,saved:false,currentAssetId:null,activeDealKey:"",savedItems:[]}};
-var FP_VERSION="142";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",savedItems:[]}};
+var FP_VERSION="143";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -522,19 +522,30 @@ function assetPhotoFingerprint(dataUrl){
   var s=String(dataUrl||"");
   return s.length+":"+s.slice(0,80)+":"+s.slice(-80);
 }
-function shouldUploadAssetPhoto(){
-  return !!(A.asset.photoData&&A.asset.photoFingerprint&&A.asset.photoFingerprint!==A.asset.lastUploadedPhotoFingerprint);
+function renderAssetPhotos(){
+  var grid=el("asset-photo-grid");if(!grid)return;
+  grid.innerHTML=A.asset.photos.map(function(p){return"<img src='"+p.data+"' alt='Asset photo'/>";}).join("");
+  if(A.asset.photos.length)showEl("asset-photo-wrap");else hideEl("asset-photo-wrap");
 }
+function assetPhotosToUpload(){
+  return A.asset.photos.filter(function(p){return p.fingerprint&&!A.asset.lastUploadedPhotoFingerprints[p.fingerprint];});
+}
+function primaryAssetPhoto(){return A.asset.photos[0]||null;}
 function assetPhotoSelected(input){
-  var file=input.files&&input.files[0];if(!file)return;
+  var files=Array.from(input.files||[]);if(!files.length)return;
   A.asset.saved=false;
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    A.asset.photoData=ev.target.result;A.asset.photoName=file.name||"asset-nameplate.jpg";A.asset.photoFingerprint=assetPhotoFingerprint(A.asset.photoData);
-    var img=el("asset-photo-preview");if(img)img.src=A.asset.photoData;
-    showEl("asset-photo-wrap");assetStatus("Nameplate photo ready. Review fields or tap Extract with AI.",false);
-  };
-  reader.readAsDataURL(file);input.value="";
+  var remaining=files.length;
+  files.forEach(function(file){
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var data=ev.target.result,fp=assetPhotoFingerprint(data);
+      A.asset.photos.push({data:data,name:file.name||("asset-nameplate-"+A.asset.photos.length+".jpg"),fingerprint:fp});
+      remaining--;if(remaining===0){renderAssetPhotos();assetStatus(A.asset.photos.length+" asset photo(s) ready. AI extraction uses up to the first 3.",false);}
+    };
+    reader.onerror=function(){remaining--;if(remaining===0)renderAssetPhotos();};
+    reader.readAsDataURL(file);
+  });
+  input.value="";
 }
 function exactPicklistMatch(field,val){
   val=String(val||"").trim();if(!val)return"";
@@ -589,11 +600,12 @@ async function parseAssetJsonWithRepair(txt){
 async function extractAssetFromPhoto(){
   try{
     A.asset.saved=false;
-    if(!A.asset.photoData){assetStatus("Take or upload a nameplate photo first.",true);return;}
+    if(!A.asset.photos.length){assetStatus("Take or upload at least one nameplate photo first.",true);return;}
     if(!API_KEY){enterKey();assetStatus("Add your Anthropic API key, then tap Extract again.",true);return;}
     assetStatus("Extracting asset details from photo...",false);
-    var b64=await compressPhoto(A.asset.photoData,900,0.55);
-    var content=[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Extract equipment nameplate details for a Zoho equipment asset. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. All values must be strings or null. Do not guess."}];
+    var content=[];
+    for(var pi=0;pi<Math.min(3,A.asset.photos.length);pi++){var b64=await compressPhoto(A.asset.photos[pi].data,900,0.55);if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});}
+    content.push({type:"text",text:"Extract equipment nameplate details from these photos for a Zoho equipment asset. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. All values must be strings or null. Do not guess."});
     var data=await callAPI({content:content,maxTok:600,ms:45000});
     var txt=getText(data);
     applyAssetExtraction(await parseAssetJsonWithRepair(txt));
@@ -651,10 +663,9 @@ function renderSavedAssets(){
 }
 function clearAssetEntryState(msg){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
-  A.asset.photoData="";A.asset.photoName="";A.asset.photoFingerprint="";A.asset.lastUploadedPhotoFingerprint="";
+  A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
   A.asset.saved=false;A.asset.currentAssetId=null;A.asset.savedItems=[];
-  var img=el("asset-photo-preview");if(img)img.removeAttribute("src");
-  hideEl("asset-photo-wrap");renderSavedAssets();
+  renderAssetPhotos();renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
   updateAssetSaveState();
@@ -754,14 +765,18 @@ async function saveAssetToZoho(){
     var dealLinkWarning="";
     var dealLinked=false;
     try{var linkResult=await linkEquipmentToSelectedDeal(equipmentId);dealLinked=!!linkResult.linked;}catch(linkErr){dealLinkWarning=linkErr&&linkErr.message?linkErr.message:String(linkErr);console.log("Asset saved but deal subform link failed:",linkErr);showToast("Asset saved, but deal link failed",7000);}
-    if(shouldUploadAssetPhoto()){
+    var photosToUpload=assetPhotosToUpload();
+    if(photosToUpload.length){
       try{
-        assetStatus("Asset created. Attaching nameplate photo...",false);
-        var b64=await compressPhoto(A.asset.photoData,1200,0.8);
-        if(!b64)throw new Error("Could not compress nameplate photo");
-        var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:A.asset.photoName||"asset-nameplate.jpg",image_b64:b64})},45000);
-        if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
-        A.asset.lastUploadedPhotoFingerprint=A.asset.photoFingerprint;
+        assetStatus("Asset created. Attaching "+photosToUpload.length+" nameplate photo(s)...",false);
+        for(var upi=0;upi<photosToUpload.length;upi++){
+          var ap=photosToUpload[upi];
+          var b64=await compressPhoto(ap.data,1200,0.8);
+          if(!b64)throw new Error("Could not compress nameplate photo");
+          var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:ap.name||("asset-nameplate-"+(upi+1)+".jpg"),image_b64:b64})},45000);
+          if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
+          A.asset.lastUploadedPhotoFingerprints[ap.fingerprint]=true;
+        }
       }catch(photoErr){
         photoWarning=photoErr&&photoErr.message?photoErr.message:String(photoErr);
         console.log("Asset photo attachment failed after asset create:",photoErr);
