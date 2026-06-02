@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false}};
-var FP_VERSION="132";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false,saved:false}};
+var FP_VERSION="133";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -505,6 +505,7 @@ function renderAssetForm(){
 }
 function assetPhotoSelected(input){
   var file=input.files&&input.files[0];if(!file)return;
+  A.asset.saved=false;
   var reader=new FileReader();
   reader.onload=function(ev){
     A.asset.photoData=ev.target.result;A.asset.photoName=file.name||"asset-nameplate.jpg";
@@ -538,6 +539,7 @@ function applyAssetExtraction(x){
 }
 async function extractAssetFromPhoto(){
   try{
+    A.asset.saved=false;
     if(!A.asset.photoData){assetStatus("Take or upload a nameplate photo first.",true);return;}
     if(!API_KEY){enterKey();assetStatus("Add your Anthropic API key, then tap Extract again.",true);return;}
     assetStatus("Extracting asset details from photo...",false);
@@ -578,6 +580,7 @@ function updateAssetSaveState(){
   if(btn){
     btn.disabled=A.asset.saving||missing.length>0;
     btn.title=missing.length?"Complete required fields: "+missing.join(", "):"";
+    if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":"Save Asset to Zoho";
   }
   return missing;
 }
@@ -625,6 +628,7 @@ function assetPayload(){
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
+  A.asset.saved=false;
   A.asset.saving=true;var btn=el("asset-save-btn");if(btn){btn.disabled=true;btn.textContent="Saving Asset...";}
   try{
     await refreshZohoToken();
@@ -638,9 +642,10 @@ async function saveAssetToZoho(){
       var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:A.asset.photoName||"asset-nameplate.jpg",image_b64:b64})},45000);
       if(!pr.ok)showToast("Asset created, but photo attachment failed",6000);
     }
+    A.asset.saved=true;
     assetStatus("Asset saved to Zoho Equipments.",false);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
-  finally{A.asset.saving=false;if(btn){btn.textContent="Save Asset to Zoho";}updateAssetSaveState();}
+  finally{A.asset.saving=false;updateAssetSaveState();}
 }
 
 // LOCATION
