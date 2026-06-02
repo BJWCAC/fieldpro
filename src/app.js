@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,asset:{photoData:"",photoName:"",saving:false}};
-var FP_VERSION="131";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",saving:false}};
+var FP_VERSION="132";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -476,7 +476,7 @@ function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++)
 // ASSETS / EQUIPMENTS
 function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.borderColor=isErr?"#ef4444":"#006050";e.style.color=isErr?"#fca5a5":"var(--amber)";}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
-function setAssetInput(id,val){var e=el(id);if(e)e.value=val||"";}
+function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function")setTimeout(updateAssetSaveState,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
 function assetPicklistValues(field){var p=assetPicklists()[field];return p&&p.values||[];}
 function fillAssetSelect(id,field,placeholder){var e=el(id);if(!e)return;var cur=e.value;var vals=assetPicklistValues(field);e.innerHTML="<option value=''>"+(placeholder||"Select")+"</option>"+vals.map(function(v){return"<option value='"+esc(v)+"'>"+esc(v)+"</option>";}).join("");if(cur)e.value=cur;}
@@ -499,6 +499,8 @@ function renderAssetForm(){
     fillAssetSelect("asset-series","Asset_Series","Select series");
     fillAssetSelect("asset-environment","Asset_Environment","Select environment");
     fillAssetSelect("asset-confined","Confined_Space","Select yes/no");
+    setupAssetRequiredHandlers();
+    updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
 }
 function assetPhotoSelected(input){
@@ -532,6 +534,7 @@ function applyAssetExtraction(x){
   if(!assetInput("asset-name"))setAssetInput("asset-name",nameParts.join(" "));
   var notes=[];if(x.part_number)notes.push("Part Number: "+x.part_number);if(x.ratings)notes.push("Ratings: "+x.ratings);if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-description",notes.join("\n"));
+  updateAssetSaveState();
 }
 async function extractAssetFromPhoto(){
   try{
@@ -547,9 +550,49 @@ async function extractAssetFromPhoto(){
     assetStatus("AI extraction complete. Review all required fields before saving.",false);
   }catch(e){assetStatus("Asset extraction failed: "+e.message,true);}
 }
+function assetRequiredFields(){return [
+  ["asset-name","Asset Name"],
+  ["asset-category","Asset Category"],
+  ["asset-function","Asset Function"],
+  ["asset-building","Building"],
+  ["asset-designator","Additional Designator"],
+  ["asset-brand","Asset Brand"],
+  ["asset-type","Asset Type"],
+  ["asset-model","Model Number"],
+  ["asset-serial","Serial Number"],
+  ["asset-environment","Environment"],
+  ["asset-confined","Confined Space"]
+];}
+function markAssetRequiredFields(){
+  var missing=[];
+  assetRequiredFields().forEach(function(r){
+    var e=el(r[0]),isMissing=!assetInput(r[0]);
+    if(e)e.classList.toggle("asset-required-missing",isMissing);
+    if(isMissing)missing.push(r[1]);
+  });
+  return missing;
+}
+function updateAssetSaveState(){
+  var missing=markAssetRequiredFields();
+  var btn=el("asset-save-btn");
+  if(btn){
+    btn.disabled=A.asset.saving||missing.length>0;
+    btn.title=missing.length?"Complete required fields: "+missing.join(", "):"";
+  }
+  return missing;
+}
+function setupAssetRequiredHandlers(){
+  if(A.assetReqHandlersBound)return;
+  assetRequiredFields().forEach(function(r){
+    var e=el(r[0]);if(!e)return;
+    e.addEventListener("input",updateAssetSaveState);
+    e.addEventListener("change",updateAssetSaveState);
+    e.addEventListener("blur",updateAssetSaveState);
+  });
+  A.assetReqHandlersBound=true;
+}
 function validateAssetForm(){
-  var req=[['asset-category','Asset Category'],['asset-function','Asset Function'],['asset-name','Asset Name'],['asset-building','Building'],['asset-designator','Additional Designator'],['asset-brand','Asset Brand'],['asset-type','Asset Type'],['asset-model','Model Number'],['asset-serial','Serial Number'],['asset-environment','Environment'],['asset-confined','Confined Space']];
-  var missing=req.filter(function(r){return!assetInput(r[0]);}).map(function(r){return r[1];});
+  var missing=markAssetRequiredFields();
   if(!A.sel)missing.unshift("Zoho Deal");
   if(A.sel&&!A.sel.Account_Id)missing.unshift("Zoho Account ID (refresh deals from Zoho)");
   return missing;
@@ -581,7 +624,7 @@ function assetPayload(){
 }
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
-  var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);return;}
+  var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
   A.asset.saving=true;var btn=el("asset-save-btn");if(btn){btn.disabled=true;btn.textContent="Saving Asset...";}
   try{
     await refreshZohoToken();
@@ -597,7 +640,7 @@ async function saveAssetToZoho(){
     }
     assetStatus("Asset saved to Zoho Equipments.",false);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
-  finally{A.asset.saving=false;if(btn){btn.disabled=false;btn.textContent="Save Asset to Zoho";}}
+  finally{A.asset.saving=false;if(btn){btn.textContent="Save Asset to Zoho";}updateAssetSaveState();}
 }
 
 // LOCATION

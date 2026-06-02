@@ -11,6 +11,7 @@ input,textarea,select{font-family:"IBM Plex Sans",sans-serif;font-size:13px;colo
 input::placeholder,textarea::placeholder{color:#64748b}
 textarea{resize:vertical}select{appearance:none}
 select option{background:#fff;color:#0f2420}
+.asset-required-missing{background:#fee2e2!important;border-color:#ef4444!important}
 body.light input,body.light textarea,body.light select{background:#fff;color:var(--text);border-color:var(--bdr)}
 #app{display:flex;flex-direction:column;min-height:100vh}
 #hdr{background:linear-gradient(135deg,#0a1a18,#051210);border-bottom:2px solid var(--amber);padding:10px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100}
