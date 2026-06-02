@@ -117,6 +117,46 @@ exports.handler = async function(event) {
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
 
+    function equipmentAccountId(rec) {
+      var a = rec && rec.Account;
+      if (!a) return "";
+      if (typeof a === "string") return a;
+      return a.id || "";
+    }
+
+    if (data.action === "find_equipment") {
+      var serial = String(data.serial_number || "").replace(/"/g, "").trim();
+      if (!serial) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: null }) };
+      var criteria = encodeURIComponent("(Serial_Number:equals:" + serial + ")");
+      var findEquipmentResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/search?criteria=" + criteria + "&fields=Name,Account,Serial_Number,Asset_Model_Number",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (findEquipmentResult.status === 204) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: null }) };
+      if (findEquipmentResult.status < 200 || findEquipmentResult.status >= 300) return { statusCode: findEquipmentResult.status, headers: h, body: findEquipmentResult.body };
+      var equipmentFound = null;
+      try {
+        var records = (JSON.parse(findEquipmentResult.body).data || []);
+        for (var ei = 0; ei < records.length; ei++) {
+          if (!data.account_id || equipmentAccountId(records[ei]) === data.account_id) { equipmentFound = records[ei]; break; }
+        }
+      } catch (ee) {}
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: equipmentFound && equipmentFound.id || null, equipment: equipmentFound || null }) };
+    }
+
+    if (data.action === "update_equipment") {
+      var updateEquipmentPayload = JSON.stringify({ data: [data.equipment || {}] });
+      var updateEquipmentResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/" + data.equipment_id,
+        method: "PUT",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(updateEquipmentPayload) }
+      }, updateEquipmentPayload);
+      return { statusCode: updateEquipmentResult.status, headers: h, body: updateEquipmentResult.body };
+    }
+
     if (data.action === "create_equipment") {
       var equipmentPayload = JSON.stringify({ data: [data.equipment || {}] });
       var equipmentResult = await req({
