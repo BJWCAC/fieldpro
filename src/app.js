@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",photoFingerprint:"",lastUploadedPhotoFingerprint:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
-var FP_VERSION="141";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",photoFingerprint:"",lastUploadedPhotoFingerprint:"",saving:false,saved:false,currentAssetId:null,activeDealKey:"",savedItems:[]}};
+var FP_VERSION="142";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -447,8 +447,9 @@ function setSort(f){if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";else{A.s
 function selectDeal(id){
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
   var prevDealId=A.sel&&A.sel.id;
-  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;if(typeof clearAssetEntryState==="function")clearAssetEntryState("Asset form cleared for the newly selected deal.");}
+  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;}
   A.sel=d;
+  if(prevDealId&&prevDealId!==id&&typeof resetAssetContextForSelectedDeal==="function")resetAssetContextForSelectedDeal("Asset form cleared for the newly selected deal.");
   A.workdriveFolderUrl=null;
   try{
     var cf=localStorage.getItem("fp_wd_folder_"+d.id);
@@ -488,7 +489,18 @@ async function loadEquipmentConfig(){
   A.equipmentConfig=await r.json();
   return A.equipmentConfig;
 }
+function selectedAssetDealKey(){return A.sel?((A.sel.id||"")+":"+(A.sel.Account_Id||"")+":"+(A.sel.Account_Name||"")):"";}
+function resetAssetContextForSelectedDeal(msg){
+  clearAssetEntryState(msg||"Asset form cleared for the selected deal.");
+  A.asset.activeDealKey=selectedAssetDealKey();
+}
+function ensureAssetContext(){
+  var key=selectedAssetDealKey();
+  if(key&&A.asset.activeDealKey&&A.asset.activeDealKey!==key){resetAssetContextForSelectedDeal("Asset form cleared for this account/deal.");}
+  else if(key&&!A.asset.activeDealKey)A.asset.activeDealKey=key;
+}
 function renderAssetForm(){
+  ensureAssetContext();
   var nd=el("no-deal-assets");if(nd)nd.style.display=A.sel?"none":"flex";
   setAssetInput("asset-account",A.sel?A.sel.Account_Name:"");
   setAssetInput("asset-location",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
