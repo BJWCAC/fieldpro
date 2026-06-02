@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photoData:"",photoName:"",photoFingerprint:"",lastUploadedPhotoFingerprint:"",saving:false,saved:false,currentAssetId:null,savedItems:[]}};
-var FP_VERSION="140";
+var FP_VERSION="141";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -447,7 +447,7 @@ function setSort(f){if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";else{A.s
 function selectDeal(id){
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
   var prevDealId=A.sel&&A.sel.id;
-  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;}
+  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;if(typeof clearAssetEntryState==="function")clearAssetEntryState("Asset form cleared for the newly selected deal.");}
   A.sel=d;
   A.workdriveFolderUrl=null;
   try{
@@ -637,13 +637,18 @@ function renderSavedAssets(){
   box.style.display="block";
   box.innerHTML="<div class='stitle'>Saved This Visit</div>"+A.asset.savedItems.map(function(a,i){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:4px'>"+(i+1)+". "+esc(a.name||"Asset")+(a.model?" — "+esc(a.model):"")+(a.serial?" — S/N "+esc(a.serial):"")+(a.dealLinked?" — linked to deal":"")+"</div>";}).join("");
 }
-function resetAssetFormForNext(){
+function clearAssetEntryState(msg){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
-  A.asset.photoData="";A.asset.photoName="";A.asset.photoFingerprint="";A.asset.lastUploadedPhotoFingerprint="";A.asset.saved=false;A.asset.currentAssetId=null;
+  A.asset.photoData="";A.asset.photoName="";A.asset.photoFingerprint="";A.asset.lastUploadedPhotoFingerprint="";
+  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.savedItems=[];
   var img=el("asset-photo-preview");if(img)img.removeAttribute("src");
-  hideEl("asset-photo-wrap");assetStatus("Ready for next asset. Account and GPS are still retained.",false);
+  hideEl("asset-photo-wrap");renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display="none";
+  if(msg)assetStatus(msg,false);else assetStatus("",false);
   updateAssetSaveState();
+}
+function resetAssetFormForNext(){
+  clearAssetEntryState("Ready for next asset. Account and GPS are still retained.");
   try{var first=el("asset-photo-input");if(first)first.focus();}catch(e){}
 }
 function validateAssetForm(){
