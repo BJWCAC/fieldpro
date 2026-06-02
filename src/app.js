@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="147";
+var FP_VERSION="148";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -842,9 +842,17 @@ async function saveEquipmentRecord(){
 }
 function assetDealDescription(){
   var parts=[];
+  var brandType=[assetInput("asset-brand"),assetInput("asset-type")].filter(Boolean).join(" ");
   if(assetInput("asset-name"))parts.push(assetInput("asset-name"));
-  if(assetInput("asset-model"))parts.push("Model "+assetInput("asset-model"));
-  if(assetInput("asset-serial"))parts.push("S/N "+assetInput("asset-serial"));
+  if(brandType)parts.push(brandType);
+  if(assetInput("asset-model"))parts.push("Model: "+assetInput("asset-model"));
+  if(assetInput("asset-serial"))parts.push("Serial: "+assetInput("asset-serial"));
+  if(A.asset.replacementMode&&A.asset.loadedOriginal){
+    var oldBits=[];
+    if(A.asset.loadedOriginal.model)oldBits.push("Previous Model "+A.asset.loadedOriginal.model);
+    if(A.asset.loadedOriginal.serial)oldBits.push("Previous Serial "+A.asset.loadedOriginal.serial);
+    if(oldBits.length)parts.push("Replacement: "+oldBits.join(", "));
+  }
   return parts.join(" — ");
 }
 async function linkEquipmentToSelectedDeal(equipmentId){
