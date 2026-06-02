@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="146";
+var FP_VERSION="147";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -523,7 +523,29 @@ function renderAssetForm(){
 }
 function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
 function assetLookupName(v){if(!v)return"";if(typeof v==="string")return v;return v.name||v.id||"";}
-function originalAssetSnapshot(r){return r?{id:r.id,name:r.Name||"",brand:r.Asset_Brand||"",type:r.Asset_Type||"",model:r.Asset_Model_Number||"",serial:r.Serial_Number||"",series:r.Asset_Series||""}:null;}
+function originalAssetSnapshot(r){return r?{id:r.id,cacId:r.CAC_Asset_ID||"",name:r.Name||"",account:assetLookupName(r.Account)||"",brand:r.Asset_Brand||"",type:r.Asset_Type||"",model:r.Asset_Model_Number||"",serial:r.Serial_Number||"",series:r.Asset_Series||"",building:r.Building||"",designator:r.Additional_Designator||"",description:r.Description_Instructions||""}:null;}
+function assetReplacementHistoryEntries(){
+  var txt=(A.asset.loadedOriginal&&A.asset.loadedOriginal.description)||assetInput("asset-description")||"";
+  return String(txt).split(/\n\n+/).filter(function(block){return block.indexOf("Replacement recorded by CapStone")>=0;});
+}
+function renderAssetHistoryPanel(){
+  var panel=el("asset-history-panel");if(!panel)return;
+  var o=A.asset.loadedOriginal;
+  if(!o){panel.style.display="none";panel.innerHTML="";return;}
+  var rows=[
+    ["AMD/CAC ID",o.cacId||"-"],
+    ["Account",o.account||assetInput("asset-account")||"-"],
+    ["Current Model",assetInput("asset-model")||o.model||"-"],
+    ["Current Serial",assetInput("asset-serial")||o.serial||"-"],
+    ["Building",assetInput("asset-building")||o.building||"-"],
+    ["Designator",assetInput("asset-designator")||o.designator||"-"]
+  ];
+  var history=assetReplacementHistoryEntries();
+  panel.style.display="block";
+  panel.innerHTML="<div class='stitle' style='margin-bottom:6px'>Asset History</div>"+
+    rows.map(function(r){return"<div><span style='color:var(--dim)'>"+esc(r[0])+": </span><span style='color:#2d6b60'>"+esc(r[1])+"</span></div>";}).join("")+
+    (history.length?"<div style='margin-top:8px;color:var(--dim)'>Replacement Notes</div>"+history.map(function(h){return"<pre style='white-space:pre-wrap;background:#fff;border:1px solid #b2ddd6;border-radius:6px;padding:6px;color:#2d6b60;margin-top:4px'>"+esc(h)+"</pre>";}).join(""):"<div style='margin-top:8px;color:var(--dim)'>No replacement notes recorded yet.</div>");
+}
 function replacementSummaryText(){
   var o=A.asset.loadedOriginal;if(!o)return"";
   return "Replacing existing asset:<br>Old Brand/Type: "+esc([o.brand,o.type].filter(Boolean).join(" / ")||"-")+"<br>Old Model: "+esc(o.model||"-")+"<br>Old Serial: "+esc(o.serial||"-")+"<br>New Model: "+esc(assetInput("asset-model")||"-")+"<br>New Serial: "+esc(assetInput("asset-serial")||"-");
@@ -532,6 +554,7 @@ function renderAssetReplacementPanel(){
   var panel=el("asset-replace-panel"),summary=el("asset-replace-summary");
   if(panel)panel.style.display=A.asset.currentAssetId?"block":"none";
   if(summary){summary.style.display=A.asset.replacementMode?"block":"none";summary.innerHTML=A.asset.replacementMode?replacementSummaryText():"";}
+  renderAssetHistoryPanel();
 }
 function startAssetReplacement(){
   if(!A.asset.currentAssetId){assetStatus("Load an existing asset first.",true);return;}
@@ -869,6 +892,7 @@ async function saveAssetToZoho(){
     renderSavedAssets();
     var next=el("asset-next-btn");if(next)next.style.display="flex";
     var warn=photoWarning||dealLinkWarning;
+    if(A.asset.loadedOriginal){A.asset.loadedOriginal=Object.assign({},A.asset.loadedOriginal,{model:assetInput("asset-model"),serial:assetInput("asset-serial"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),building:assetInput("asset-building"),designator:assetInput("asset-designator"),description:assetPayload({includeBlank:true}).Description_Instructions||""});renderAssetHistoryPanel();}
     assetStatus(warn?"Asset saved to Zoho, but follow-up step failed: "+warn:"Asset saved to Zoho and linked to this Deal. Tap Save Another Asset to add the next one for this same account/deal.",!!warn);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
   finally{A.asset.saving=false;updateAssetSaveState();}
