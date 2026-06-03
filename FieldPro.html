@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=150"/>
+<link rel="stylesheet" href="src/styles.css?v=151"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v150</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v151</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -323,13 +323,33 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">150</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">151</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
 </div>
 
 <div id="toast" class="toast"></div>
+
+<div id="techmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)dismissTechnicianPrompt()">
+  <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Select Technician</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">Choose the technician using CapStone on this device. This will be included in asset update notes.</div>
+    <label class="lbl" for="tech-prompt-select">Technician</label>
+    <select id="tech-prompt-select" style="margin-bottom:8px">
+      <option value="">Select technician</option>
+      <option value="Brad White">Brad White</option>
+      <option value="Daniel Olson">Daniel Olson</option>
+      <option value="Garrett White">Garrett White</option>
+      <option value="Greg Freie">Greg Freie</option>
+    </select>
+    <div id="tech-prompt-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
+    <div class="g2">
+      <button type="button" class="bg bfull" onclick="dismissTechnicianPrompt()">Later</button>
+      <button type="button" class="bp bfull" onclick="saveTechnicianPrompt()">Save Technician</button>
+    </div>
+  </div>
+</div>
 
 <div id="keymodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeKeyModal()">
   <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
@@ -355,7 +375,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=150"></script>
+<script src="src/app.js?v=151"></script>
 
 </body>
 </html>
