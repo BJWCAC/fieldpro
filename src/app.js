@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="150";
+var FP_VERSION="151";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -196,8 +196,39 @@ function showToast(msg,ms){
   t.textContent=msg;t.classList.add("show");
   toastTimer=setTimeout(function(){t.classList.remove("show");toastTimer=null;},ms||3500);
 }
-function setTechnicianUI(){var e=el("tech-select");if(e)e.value=A.technician||"";}
-function saveTechnicianSetting(v){A.technician=v||"";try{localStorage.setItem("fp_technician",A.technician);}catch(e){}showToast(A.technician?("Technician: "+A.technician):"Technician cleared",2000);}
+function setTechnicianUI(){
+  ["tech-select","tech-prompt-select"].forEach(function(id){var e=el(id);if(e)e.value=A.technician||"";});
+  var err=el("tech-prompt-err");if(err)err.textContent="";
+}
+function saveTechnicianSetting(v){
+  A.technician=v||"";
+  try{localStorage.setItem("fp_technician",A.technician);}catch(e){}
+  setTechnicianUI();
+  showToast(A.technician?("Technician: "+A.technician):"Technician cleared",2000);
+}
+function openTechnicianPrompt(){
+  var m=el("techmodal");if(!m)return;
+  setTechnicianUI();
+  m.style.display="flex";
+  var s=el("tech-prompt-select");if(s){try{s.focus();}catch(e){}}
+}
+function closeTechnicianPrompt(){var m=el("techmodal");if(m)m.style.display="none";}
+function dismissTechnicianPrompt(){
+  try{sessionStorage.setItem("fp_technician_prompt_skipped","1");}catch(e){}
+  closeTechnicianPrompt();
+  showToast("Choose technician anytime in Settings",3000);
+}
+function saveTechnicianPrompt(){
+  var s=el("tech-prompt-select"),err=el("tech-prompt-err"),v=(s&&s.value||"").trim();
+  if(!v){if(err)err.textContent="Select a technician to continue, or tap Later.";return;}
+  saveTechnicianSetting(v);
+  closeTechnicianPrompt();
+}
+function maybePromptForTechnician(){
+  if(A.technician)return;
+  try{if(sessionStorage.getItem("fp_technician_prompt_skipped")==="1")return;}catch(e){}
+  setTimeout(openTechnicianPrompt,250);
+}
 function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";b.style.background=on?"#051a18":"transparent";}
 function closeKeyModal(){var m=el("keymodal");if(m)m.style.display="none";}
 function enterKey(){
@@ -272,6 +303,7 @@ function bootApp(){
     go("deals");
     var fv=el("fp-ver");if(fv)fv.textContent=FP_VERSION;
     var hv=el("hdr-ver");if(hv)hv.textContent="v"+FP_VERSION;
+    maybePromptForTechnician();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -285,6 +317,8 @@ window.onload=startCapStone;
 window.enterKey=enterKey;
 window.saveApiKey=saveApiKey;
 window.closeKeyModal=closeKeyModal;
+window.dismissTechnicianPrompt=dismissTechnicianPrompt;
+window.saveTechnicianPrompt=saveTechnicianPrompt;
 window.go=go;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.assetPhotoSelected=assetPhotoSelected;
