@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="162";
+var FP_VERSION="163";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -233,6 +233,8 @@ function maybePromptForTechnician(){
   setTimeout(openTechnicianPrompt,250);
 }
 function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";b.style.background=on?"#051a18":"transparent";}
+function openQuickStart(){var m=el("quickstartmodal");if(m)m.style.display="flex";}
+function closeQuickStart(){var m=el("quickstartmodal");if(m)m.style.display="none";}
 function closeKeyModal(){var m=el("keymodal");if(m)m.style.display="none";}
 function enterKey(){
   var m=el("keymodal"),inp=el("key-in"),err=el("key-err");
@@ -319,6 +321,8 @@ async function startCapStone(){
 window.onload=startCapStone;
 window.enterKey=enterKey;
 window.saveApiKey=saveApiKey;
+window.openQuickStart=openQuickStart;
+window.closeQuickStart=closeQuickStart;
 window.closeKeyModal=closeKeyModal;
 window.dismissTechnicianPrompt=dismissTechnicianPrompt;
 window.saveTechnicianPrompt=saveTechnicianPrompt;

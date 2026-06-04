@@ -38,10 +38,11 @@ Screen action:
 - Enter the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=162
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=163
 ```
 
 - Optionally show Add to Home screen.
+- Tap the question-mark button to show the in-app Quick Start.
 
 Narration:
 
