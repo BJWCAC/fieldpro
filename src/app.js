@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="159";
+var FP_VERSION="160";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -570,8 +570,8 @@ function renderAssetForm(){
 function renderAssetModeControls(){
   var isUpdate=A.asset.mode==="update";
   var add=el("asset-mode-add"),upd=el("asset-mode-update"),help=el("asset-mode-help"),search=el("asset-search-card");
-  if(add){add.className=isUpdate?"bg-lg":"bb-lg";}
-  if(upd){upd.className=isUpdate?"bb-lg":"bg-lg";}
+  if(add){add.className="asset-path-btn"+(isUpdate?"":" on");}
+  if(upd){upd.className="asset-path-btn"+(isUpdate?" on":"");}
   if(search)search.style.display=isUpdate||A.asset.currentAssetId?"block":"none";
   if(help)help.textContent=isUpdate?"Search and load an existing Equipment record before saving. This path updates the existing asset and adds new update notes.":"Use this when the equipment is new to Zoho. CapStone will still ask for confirmation before creating the record.";
 }
