@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=160"/>
+<link rel="stylesheet" href="src/styles.css?v=161"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v160</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v161</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -172,10 +172,15 @@
     <div style="background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px">
       <div class="stitle" style="margin-bottom:6px">Choose Asset Path</div>
       <div class="g2">
-        <button type="button" id="asset-mode-add" class="asset-path-btn on" onclick="setAssetMode('add')">Add New Asset</button>
-        <button type="button" id="asset-mode-update" class="asset-path-btn" onclick="setAssetMode('update')">Update Existing Asset</button>
+        <div>
+          <button type="button" id="asset-mode-add" class="asset-path-btn on" onclick="setAssetMode('add')">Add New Asset</button>
+          <div class="asset-path-desc">Use when the equipment is not already in Zoho. Creates a new Equipment record, links it to the Deal, and adds asset update notes.</div>
+        </div>
+        <div>
+          <button type="button" id="asset-mode-update" class="asset-path-btn" onclick="setAssetMode('update')">Update Existing Asset</button>
+          <div class="asset-path-desc">Use when the equipment already exists. Search and load the asset first, then save updates and add a new update note.</div>
+        </div>
       </div>
-      <div id="asset-mode-help" style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:8px"></div>
     </div>
     <div id="asset-search-card" style="background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px">
       <div class="stitle" style="margin-bottom:6px">Find Existing Asset</div>
@@ -325,7 +330,7 @@
         <li>For Assets, save/update the asset and confirm update notes appear on both the Asset and Deal.</li>
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=160</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=161</div>
     </div>
   </div>
   <div class="card">
@@ -352,7 +357,7 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">160</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">161</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -404,7 +409,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=160"></script>
+<script src="src/app.js?v=161"></script>
 
 </body>
 </html>
