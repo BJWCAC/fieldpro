@@ -38,7 +38,7 @@ Screen action:
 - Enter the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=157
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=159
 ```
 
 - Optionally show Add to Home screen.
@@ -98,15 +98,17 @@ Screen action:
 
 - Go to the Assets tab.
 - Confirm the account/deal context.
+- Choose Add New Asset or Update Existing Asset.
 - Search for the asset by serial, model, CAC ID, name, building, or designator.
 - Load the existing asset if a match is found.
 - Complete required fields.
 - Tap Save Asset to Zoho.
 - Show the saved asset confirmation.
+- Show Saved This Visit and tap Reopen if the asset needs another update.
 
 Narration:
 
-> Use the Assets tab when equipment is added, replaced, or updated during the visit. Search first so an existing asset can be updated instead of creating a duplicate. CapStone saves the Equipment record, links it to the selected Deal, and writes a CapStone Asset Update note to both the Equipment record and the Deal. Each asset update creates a new note so the asset has a clear service history.
+> Use the Assets tab when equipment is added, replaced, or updated during the visit. Choose Add New Asset for new equipment, or Update Existing Asset when the equipment is already in Zoho. Search first so an existing asset can be updated instead of creating a duplicate. CapStone saves the Equipment record, links it to the selected Deal, and writes a CapStone Asset Update note to both the Equipment record and the Deal. Saved This Visit lets you reopen an asset for review or another update without searching again. Each asset update creates a new note so the asset has a clear service history.
 
 On-screen callout:
 
