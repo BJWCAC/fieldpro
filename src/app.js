@@ -646,7 +646,7 @@ function searchAssetByCurrentField(id){
   var v=assetInput(id);
   if(!v){assetStatus(id==="asset-serial"?"Enter a serial number first.":"Enter a model number first.",true);return;}
   setAssetInput("asset-search",v);
-  searchExistingAssets();
+  return searchExistingAssets();
 }
 function setAssetSelectIfPresent(id,value){var e=el(id);if(!e)return;var v=String(value||"");e.value=v;if(v&&e.value!==v){var opt=document.createElement("option");opt.value=v;opt.textContent=v;e.appendChild(opt);e.value=v;}}
 function loadExistingAssetFromSearch(idx){
