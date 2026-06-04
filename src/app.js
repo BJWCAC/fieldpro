@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="152";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="153";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -402,7 +402,7 @@ function newProject(){
   clearCapture();go("capture");
 }
 function clearCapture(){
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -421,7 +421,7 @@ function saveCurrentToHistory(){
   var vn=(el("tx")||{value:""}).value;
   var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
   var sp=A.photos.map(function(p){return{id:p.id,display:p.display,desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
-  saveOrUpdateHistory({id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,technician:currentTechnicianName(),dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null});
+  saveOrUpdateHistory({id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,technician:currentTechnicianName(),dealPdfAttached:!!A.dealPdfAttached,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null});
 }
 
 // ZOHO
@@ -1210,7 +1210,7 @@ async function generate(){
       }
     }catch(e){}
     A.reportPhotos=savedPhotos;
-    var meta={id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,technician:currentTechnicianName(),dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null};
+    var meta={id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,technician:currentTechnicianName(),dealPdfAttached:!!A.dealPdfAttached,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null};
     saveOrUpdateHistory(meta);renderReport();go("report");
     if(A.sel){
       A.uploadPromise=uploadToWorkDriveAll();
@@ -1218,7 +1218,7 @@ async function generate(){
         if(btn)btn.textContent="Saving to Zoho...";
         try{
           await saveNoteToZoho({fromGenerate:true});
-          showToast("Saved to Zoho — WorkDrive + PDF + note",6000);
+          showToast("Saved to Zoho — Deal PDF + WorkDrive + note",6000);
         }catch(se){
           var reSave=el("rpt-err");if(reSave){reSave.textContent="Auto-save failed: "+se.message+". Tap Save to Zoho to retry.";reSave.style.display="block";}
           showToast("Auto-save failed — tap Save to Zoho",8000);
@@ -1285,6 +1285,11 @@ function buildZohoNote(){
   if(A.workdrivePdfUrl){
     lines.push("REPORT PDF (WorkDrive):");
     lines.push(A.workdrivePdfUrl);
+    lines.push("");
+  }
+  if(A.dealPdfAttached){
+    lines.push("REPORT PDF:");
+    lines.push("Attached directly to this Zoho Deal.");
     lines.push("");
   }
   if(A.workdriveUploadCount>0){
@@ -1368,29 +1373,41 @@ async function saveNoteToZoho(opts){
         showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
       }
     }
-    var uploadWarning="";
+    var uploadWarnings=[];
     setStatus("Uploading PDF...");
     showUploadStatus("Uploading report PDF to WorkDrive...",false);
     try{
       await refreshZohoToken();
       await uploadReportPdfToWorkDrive();
     }catch(upErr){
-      uploadWarning=upErr&&upErr.message?upErr.message:String(upErr);
+      uploadWarnings.push("WorkDrive/PDF: "+(upErr&&upErr.message?upErr.message:String(upErr)));
       console.log("Continuing Zoho save after upload warning:",upErr);
-      showUploadStatus("WorkDrive/PDF upload did not finish ("+uploadWarning+"). Saving Zoho note now...",true);
+      showUploadStatus("WorkDrive/PDF upload did not finish. Continuing...",true);
+    }
+    setStatus("Attaching PDF...");
+    showUploadStatus(A.dealPdfAttached?"Report PDF already attached to this deal.":"Attaching report PDF directly to Zoho Deal...",false);
+    try{
+      await refreshZohoToken();
+      var attached=await uploadReportPdfToDealAttachment();
+      if(!attached&&!A.dealPdfAttached)uploadWarnings.push("Deal attachment: PDF too large or skipped");
+    }catch(attErr){
+      uploadWarnings.push("Deal attachment: "+(attErr&&attErr.message?attErr.message:String(attErr)));
+      console.log("Continuing Zoho save after attachment warning:",attErr);
+      showUploadStatus("Deal PDF attachment did not finish. Saving Zoho note now...",true);
     }
     setStatus(A.zohoNoteId?"Updating Zoho...":"Saving to Zoho...");
     showUploadStatus(A.zohoNoteId?"Updating existing Zoho CRM note...":"Saving note to Zoho CRM...",false);
     var savedNoteId=await zohoSave();
     setStatus("Saved!");
     if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
-    showUploadStatus(uploadWarning?"Saved to Zoho. WorkDrive/PDF upload needs retry: "+uploadWarning:"Saved to Zoho — WorkDrive folder, PDF, and CRM note.",!!uploadWarning);
+    var uploadWarning=uploadWarnings.join("; ");
+    showUploadStatus(uploadWarning?"Saved to Zoho. Some upload steps need retry: "+uploadWarning:"Saved to Zoho — WorkDrive folder, deal PDF attachment, PDF, and CRM note.",!!uploadWarning);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
     }else if(A.reportPhotos&&A.reportPhotos.length>0){
       var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
-    updateCurrentHistory({pdfSaved:true,zohoSaved:true,zohoNoteId:savedNoteId||A.zohoNoteId||null});
+    updateCurrentHistory({pdfSaved:true,zohoSaved:true,dealPdfAttached:!!A.dealPdfAttached,zohoNoteId:savedNoteId||A.zohoNoteId||null});
     if(btn&&!opts.fromGenerate){
       setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
     }
@@ -1592,6 +1609,35 @@ async function uploadReportPdfToWorkDrive(){
   }
   return null;
 }
+async function uploadReportPdfToDealAttachment(){
+  if(!A.sel||!A.report)return false;
+  if(A.dealPdfAttached)return true;
+  var pdfPhotos=A.reportPhotos&&A.reportPhotos.length>0?A.reportPhotos:A.photos;
+  if(A.inclPhotos&&pdfPhotos.length>0){
+    await Promise.all(pdfPhotos.map(function(p){
+      return new Promise(function(res){
+        var img=new Image();
+        img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};
+        img.onerror=res;img.src=p.display;
+      });
+    }));
+  }
+  var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location,currentTechnicianName());
+  var dataUri=doc.output("datauristring");
+  var b64=(dataUri.split(",")[1]||"").trim();
+  if(!b64)throw new Error("Could not build PDF attachment");
+  if(b64.length>5500000){
+    showToast("PDF too large for direct deal attachment — WorkDrive link remains in note",9000);
+    return false;
+  }
+  var fname=workdrivePdfFileName();
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:A.sel.id,filename:fname,file_b64:b64,mime_type:"application/pdf"})},90000);
+  var txt=await r.text();
+  if(!r.ok)throw new Error("Deal attachment "+r.status+": "+txt.substring(0,120));
+  A.dealPdfAttached=true;
+  showToast("Report PDF attached to Zoho Deal",5000);
+  return true;
+}
 
 async function autoSync(){
   if(!A.sel||!A.report)return;
@@ -1679,14 +1725,14 @@ function renderHistory(){
   }
   var hl=el("hist-list");if(hl)hl.innerHTML=html;
 }
-function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.report=r.report;A.reportPhotos=r.photoData||[];setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();go("report");}
+function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.dealPdfAttached=!!r.dealPdfAttached;A.report=r.report;A.reportPhotos=r.photoData||[];setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();go("report");}
 function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;
   if(!confirm("Open this project to continue?"))return;
   A.reportPhotos=r.photoData||[];A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||""};});
   A.report=r.report;
   setReportTechnician(r.technician||"");
-  A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
+  A.dealPdfAttached=!!r.dealPdfAttached;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
   if(r.sections){SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});}
   if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;}
   renderPhotoCards();checkGen();go("capture");
