@@ -8,11 +8,11 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v158**
+Current milestone build: **v159**
 
 ## Current milestone: CapStone Android field workflow
 
-Build v158 brings together the current Android field workflow:
+Build v159 brings together the current Android field workflow:
 
 - technician selection on each device
 - Zoho deal selection
@@ -20,6 +20,7 @@ Build v158 brings together the current Android field workflow:
 - photo and video field documentation
 - equipment asset save/update workflow
 - search-first asset update flow to help avoid duplicate equipment records
+- separate Add New Asset and Update Existing Asset paths
 - Saved This Visit reopen action for recently saved assets
 - AI report generation
 - Zoho deal note update/recovery behavior
@@ -40,7 +41,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=158
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=159
    ```
 
 3. Tap the Chrome menu.
@@ -122,6 +123,7 @@ Current behavior:
 
 - required asset fields are highlighted before save
 - technicians are prompted to search before creating a new asset
+- Add New Asset and Update Existing Asset paths keep creation and update workflows clear
 - serial/model quick-search buttons help find existing assets faster
 - Saved This Visit lets technicians reopen a saved asset for review or another update without searching again
 - an existing asset can be updated instead of creating a duplicate
@@ -167,7 +169,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=158
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=159
 ```
 
 Update the version number when a later build is released.
@@ -200,7 +202,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=158
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=159
 ```
 
 If needed, close Chrome fully and reopen CapStone.

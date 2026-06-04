@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="158";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="159";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -332,6 +332,7 @@ window.searchExistingAssets=searchExistingAssets;
 window.searchAssetByCurrentField=searchAssetByCurrentField;
 window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 window.reopenSavedAsset=reopenSavedAsset;
+window.setAssetMode=setAssetMode;
 window.startAssetReplacement=startAssetReplacement;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
@@ -562,8 +563,25 @@ function renderAssetForm(){
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
+  renderAssetModeControls();
   renderAssetModeBanner();
   var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
+}
+function renderAssetModeControls(){
+  var isUpdate=A.asset.mode==="update";
+  var add=el("asset-mode-add"),upd=el("asset-mode-update"),help=el("asset-mode-help"),search=el("asset-search-card");
+  if(add){add.className=isUpdate?"bg-lg":"bb-lg";}
+  if(upd){upd.className=isUpdate?"bb-lg":"bg-lg";}
+  if(search)search.style.display=isUpdate||A.asset.currentAssetId?"block":"none";
+  if(help)help.textContent=isUpdate?"Search and load an existing Equipment record before saving. This path updates the existing asset and adds new update notes.":"Use this when the equipment is new to Zoho. CapStone will still ask for confirmation before creating the record.";
+}
+function setAssetMode(mode){
+  mode=mode==="update"?"update":"add";
+  if(A.asset.mode===mode){renderAssetModeControls();renderAssetModeBanner();updateAssetSaveState();return;}
+  A.asset.mode=mode;
+  clearAssetEntryState(mode==="update"?"Update Existing Asset mode. Search and load the asset before saving.":"Add New Asset mode. Complete the fields for new equipment.",true);
+  renderAssetModeControls();
+  if(mode==="update"){var s=el("asset-search");if(s){try{s.focus();}catch(e){}}}
 }
 function renderAssetModeBanner(){
   var b=el("asset-mode-banner");if(!b)return;
@@ -573,7 +591,7 @@ function renderAssetModeBanner(){
     b.innerHTML="<strong>Update Existing Asset</strong><br>"+esc(assetInput("asset-name")||"Loaded asset")+" will update the existing Equipment record and add a new update note to both the Asset and Deal.";
   }else{
     b.style.background="#fff7ed";b.style.border="1px solid #fdba74";b.style.color="#9a3412";
-    b.innerHTML="<strong>Create New Asset</strong><br>Search by serial, model, CAC ID, name, building, or designator before saving if this equipment may already exist.";
+    b.innerHTML=A.asset.mode==="update"?"<strong>Update Existing Asset</strong><br>Search and load an existing asset before saving.":"<strong>Add New Asset</strong><br>Use this path for equipment that is not already in Zoho.";
   }
 }
 function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
@@ -653,6 +671,7 @@ function setAssetSelectIfPresent(id,value){var e=el(id);if(!e)return;var v=Strin
 function loadExistingAssetFromSearch(idx){
   var r=A.asset.searchResults[idx];if(!r)return;
   clearAssetEntryState("Loaded existing asset for update.",true);
+  A.asset.mode="update";
   A.asset.currentAssetId=r.id;
   A.asset.loadedOriginal=originalAssetSnapshot(r);
   A.asset.replacementMode=false;
@@ -797,11 +816,13 @@ function updateAssetSaveState(){
   var missing=markAssetRequiredFields();
   var btn=el("asset-save-btn");
   if(btn){
-    btn.disabled=A.asset.saving||missing.length>0;
-    btn.title=missing.length?"Complete required fields: "+missing.join(", "):"";
-    if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":(A.asset.currentAssetId?"Update Existing Asset":"Save New Asset to Zoho");
+    var needsExisting=A.asset.mode==="update"&&!A.asset.currentAssetId;
+    btn.disabled=A.asset.saving||missing.length>0||needsExisting;
+    btn.title=needsExisting?"Search and load an existing asset before saving.":(missing.length?"Complete required fields: "+missing.join(", "):"");
+    if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":(A.asset.currentAssetId?"Update Existing Asset":(A.asset.mode==="update"?"Load Existing Asset First":"Save New Asset to Zoho"));
   }
   if(typeof renderAssetReplacementPanel==="function")renderAssetReplacementPanel();
+  if(typeof renderAssetModeControls==="function")renderAssetModeControls();
   if(typeof renderAssetModeBanner==="function")renderAssetModeBanner();
   return missing;
 }
@@ -837,12 +858,13 @@ function clearAssetEntryState(msg,keepSavedItems){
   updateAssetSaveState();
 }
 function resetAssetFormForNext(){
-  clearAssetEntryState("Ready for next asset. Account, GPS, and Saved This Visit are still retained.",true);
+  clearAssetEntryState(A.asset.mode==="update"?"Ready to search for the next existing asset. Saved This Visit is still retained.":"Ready for next new asset. Account, GPS, and Saved This Visit are still retained.",true);
   try{var first=el("asset-photo-input");if(first)first.focus();}catch(e){}
 }
 function reopenSavedAsset(idx){
   var a=A.asset.savedItems[idx];if(!a)return;
   clearAssetEntryState("Reopened saved asset for review or another update.",true);
+  A.asset.mode="update";
   A.asset.currentAssetId=a.id;A.asset.loadedOriginal={id:a.id,cacId:"",name:a.name||"",account:assetInput("asset-account")||"",brand:a.brand||"",type:a.type||"",model:a.model||"",serial:a.serial||"",series:a.series||"",building:a.building||"",designator:a.designator||"",description:a.description||""};A.asset.replacementMode=false;
   setAssetInput("asset-name",a.name||"");setAssetSelectIfPresent("asset-category",a.category||"");setAssetSelectIfPresent("asset-function",a.assetFunction||"");setAssetInput("asset-building",a.building||"");setAssetInput("asset-designator",a.designator||"");setAssetSelectIfPresent("asset-brand",a.brand||"");setAssetSelectIfPresent("asset-type",a.type||"");setAssetInput("asset-brand-other",a.brandOther||"");setAssetInput("asset-type-other",a.typeOther||"");setAssetInput("asset-model",a.model||"");setAssetInput("asset-serial",a.serial||"");setAssetSelectIfPresent("asset-series",a.series||"");setAssetInput("asset-series-other",a.seriesOther||"");setAssetSelectIfPresent("asset-environment",a.environment||"");setAssetSelectIfPresent("asset-confined",a.confined||"");setAssetInput("asset-description",a.description||"");setAssetInput("asset-deal-notes",a.dealNotes||"");setAssetInput("asset-search",a.serial||a.model||a.name||"");
   renderSavedAssets();renderAssetReplacementPanel();updateAssetSaveState();
@@ -991,6 +1013,7 @@ async function saveDealAssetUpdateNote(equipmentId){
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
+  if(A.asset.mode==="update"&&!A.asset.currentAssetId){assetStatus("Search and load an existing asset before saving an update.",true);updateAssetSaveState();return;}
   if(!A.asset.currentAssetId){
     var searchHint=assetInput("asset-search")||assetInput("asset-serial")||assetInput("asset-model");
     if(!confirm("Create a new Zoho Equipment asset? If this asset may already exist, tap Cancel and search first"+(searchHint?" using: "+searchHint:"")+"."))return;
