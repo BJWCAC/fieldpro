@@ -8,11 +8,11 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v165**
+Current milestone build: **v166**
 
 ## Current milestone: CapStone Android field workflow
 
-Build v165 brings together the current Android field workflow:
+Build v166 brings together the current Android field workflow:
 
 - technician selection on each device
 - Zoho deal selection
@@ -24,6 +24,7 @@ Build v165 brings together the current Android field workflow:
 - Saved This Visit reopen action for recently saved assets
 - in-app Quick Start help from the header
 - report review checklist before saving to Zoho
+- organized Settings tab for technician, workflow, save behavior, storage, troubleshooting, appearance, API key, and app info
 - AI report generation
 - Zoho deal note update/recovery behavior
 - direct report PDF attachment to the Zoho deal
@@ -43,7 +44,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=165
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=166
    ```
 
 3. Tap the Chrome menu.
@@ -171,7 +172,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=165
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=166
 ```
 
 Update the version number when a later build is released.
@@ -204,7 +205,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=165
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=166
 ```
 
 If needed, close Chrome fully and reopen CapStone.
