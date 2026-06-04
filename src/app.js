@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="164";
+var FP_VERSION="165";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1296,7 +1296,7 @@ async function generate(){
         if(btn)btn.textContent="Saving to Zoho...";
         try{
           await saveNoteToZoho({fromGenerate:true});
-          showToast("Saved to Zoho — Deal PDF + WorkDrive + note",6000);
+          showToast("Saved to Zoho — Deal note, PDF attachment, and WorkDrive links",6000);
         }catch(se){
           var reSave=el("rpt-err");if(reSave){reSave.textContent="Auto-save failed: "+se.message+". Tap Save to Zoho to retry.";reSave.style.display="block";}
           showToast("Auto-save failed — tap Save to Zoho",8000);
@@ -1317,9 +1317,24 @@ async function generate(){
 }
 
 // REPORT
+function reportChecklistItem(ok,label,detail){
+  return"<div class='rsc-row "+(ok?"rsc-ok":"rsc-warn")+"'><span class='rsc-dot'>"+(ok?"✓":"!")+"</span><div><strong>"+esc(label)+"</strong>"+(detail?"<div style='color:#64748b'>"+esc(detail)+"</div>":"")+"</div></div>";
+}
+function renderReportSaveChecklist(){
+  var box=el("report-save-checklist");if(!box)return;
+  var hasDeal=!!A.sel,hasTech=!!currentTechnicianName(),hasGps=!!A.location,photoCount=A.reportPhotos&&A.reportPhotos.length||0,assetCount=A.asset&&A.asset.savedItems?A.asset.savedItems.length:0;
+  box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Before Saving to Zoho</div>"+
+    reportChecklistItem(hasDeal,"Deal selected",hasDeal?dealHeaderText(A.sel):"Pick the correct Deal before saving.")+
+    reportChecklistItem(hasTech,"Technician selected",hasTech?technicianDisplayName():"Select technician in Settings or the startup prompt.")+
+    reportChecklistItem(hasGps,"GPS captured",hasGps?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Capture GPS if location should appear in the report.")+
+    reportChecklistItem(true,"Photos reviewed",photoCount?photoCount+" photo"+(photoCount!==1?"s":"")+" included.":"No photos attached to this report.")+
+    reportChecklistItem(true,"Asset updates",assetCount?assetCount+" asset update"+(assetCount!==1?"s":"")+" saved this visit.":"If equipment changed, save it on the Assets tab first.")+
+    "<div class='rsc-note'><strong>Save to Zoho will:</strong> create/update the Deal note, attach the report PDF to the Deal, upload the PDF/photos/video to WorkDrive, and keep History available for continuing this report.</div>";
+}
 function renderReport(){
   if(!A.report){hideEl("rpt-content");showEl("rpt-empty");return;}
   hideEl("rpt-empty");showEl("rpt-content");
+  renderReportSaveChecklist();
   var rb=el("rpt-body");if(rb)rb.textContent=A.report;
   var h="";
   h+="<div class='rh-row'><span class='rh-k'>Technician: </span>"+esc(technicianDisplayName())+"</div>";
@@ -1479,13 +1494,14 @@ async function saveNoteToZoho(opts){
     setStatus("Saved!");
     if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
     var uploadWarning=uploadWarnings.join("; ");
-    showUploadStatus(uploadWarning?"Saved to Zoho. Some upload steps need retry: "+uploadWarning:"Saved to Zoho — WorkDrive folder, deal PDF attachment, PDF, and CRM note.",!!uploadWarning);
+    showUploadStatus(uploadWarning?"Saved to Zoho. Some upload steps need retry: "+uploadWarning:"Saved successfully: Deal note updated, report PDF attached to Deal, and WorkDrive files/links saved.",!!uploadWarning);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
     }else if(A.reportPhotos&&A.reportPhotos.length>0){
       var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
     updateCurrentHistory({pdfSaved:true,zohoSaved:true,dealPdfAttached:!!A.dealPdfAttached,zohoNoteId:savedNoteId||A.zohoNoteId||null});
+    renderReportSaveChecklist();
     if(btn&&!opts.fromGenerate){
       setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
     }
