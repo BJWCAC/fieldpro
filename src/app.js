@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="166";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="167";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -338,6 +338,8 @@ window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 window.reopenSavedAsset=reopenSavedAsset;
 window.setAssetMode=setAssetMode;
 window.startAssetReplacement=startAssetReplacement;
+window.retryReportSave=retryReportSave;
+window.retryReportUploads=retryReportUploads;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -409,7 +411,7 @@ function newProject(){
   clearCapture();go("capture");
 }
 function clearCapture(){
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -1251,7 +1253,7 @@ function compressPhoto(dataUrl,maxW,quality){
 
 // GENERATE
 async function generate(){
-  A.workdrivePdfUrl=null;
+  A.workdrivePdfUrl=null;A.lastSaveResult=null;A.lastSaveIssue=null;
   var btn=el("gen-btn"),regen=el("regen-btn");
   if(btn){btn.disabled=true;btn.textContent="Generating...";}
   if(regen)regen.disabled=true;
@@ -1298,6 +1300,8 @@ async function generate(){
           await saveNoteToZoho({fromGenerate:true});
           showToast("Saved to Zoho — Deal note, PDF attachment, and WorkDrive links",6000);
         }catch(se){
+          A.lastSaveIssue="Auto-save failed: "+se.message+". Use Retry Save to Zoho after checking connection.";
+          renderReportRetryActions();
           var reSave=el("rpt-err");if(reSave){reSave.textContent="Auto-save failed: "+se.message+". Tap Save to Zoho to retry.";reSave.style.display="block";}
           showToast("Auto-save failed — tap Save to Zoho",8000);
         }
@@ -1331,10 +1335,32 @@ function renderReportSaveChecklist(){
     reportChecklistItem(true,"Asset updates",assetCount?assetCount+" asset update"+(assetCount!==1?"s":"")+" saved this visit.":"If equipment changed, save it on the Assets tab first.")+
     "<div class='rsc-note'><strong>Save to Zoho will:</strong> create/update the Deal note, attach the report PDF to the Deal, upload the PDF/photos/video to WorkDrive, and keep History available for continuing this report.</div>";
 }
+function renderReportSaveConfirmation(){
+  var box=el("report-save-confirmation");if(!box)return;
+  var r=A.lastSaveResult;
+  if(!r){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";
+  box.innerHTML="<div class='stitle' style='margin-bottom:8px;color:#166534'>Saved to Zoho</div>"+
+    reportChecklistItem(!!r.note,"Deal note",r.note?"Created or updated on the selected Deal.":"Not confirmed.")+
+    reportChecklistItem(!!r.dealPdf,"Report PDF attached to Deal",r.dealPdf?"PDF attachment confirmed or already attached.":"Not confirmed; use Retry Uploads/PDF.")+
+    reportChecklistItem(!!r.workdrive,"WorkDrive files/links",r.workdrive?"PDF/photos/video uploaded or WorkDrive PDF link saved.":"No WorkDrive upload confirmed; use Retry Uploads/PDF.")+
+    reportChecklistItem(true,"History updated","This report can be reopened from History.")+
+    reportChecklistItem(true,"Asset update notes",r.assets?r.assets+" asset update"+(r.assets!==1?"s":"")+" saved this visit.":"No asset updates saved this visit.")+
+    (r.warning?"<div class='rsc-note'><strong>Warning:</strong> "+esc(r.warning)+"</div>":"");
+}
+function renderReportRetryActions(){
+  var box=el("report-retry-actions"),msg=el("report-retry-message");if(!box)return;
+  var issue=A.lastSaveIssue;
+  if(!issue){box.style.display="none";if(msg)msg.textContent="";return;}
+  box.style.display="block";
+  if(msg)msg.textContent=issue;
+}
 function renderReport(){
   if(!A.report){hideEl("rpt-content");showEl("rpt-empty");return;}
   hideEl("rpt-empty");showEl("rpt-content");
   renderReportSaveChecklist();
+  renderReportSaveConfirmation();
+  renderReportRetryActions();
   var rb=el("rpt-body");if(rb)rb.textContent=A.report;
   var h="";
   h+="<div class='rh-row'><span class='rh-k'>Technician: </span>"+esc(technicianDisplayName())+"</div>";
@@ -1440,8 +1466,40 @@ async function saveNote(){
     await saveNoteToZoho({});
     showToast("Saved to Zoho",4000);
   }catch(e){
+    A.lastSaveIssue="Save failed: "+e.message+". Use Retry Save to Zoho after checking connection.";
+    renderReportRetryActions();
     var re=el("rpt-err");if(re){re.textContent="Save failed: "+e.message;re.style.display="block";}
     showToast("Save failed: "+e.message,7000);
+  }
+}
+async function retryReportSave(){
+  if(A.savingToZoho){showToast("Save already in progress",3000);return;}
+  A.lastSaveIssue=null;renderReportRetryActions();
+  try{await saveNoteToZoho({});showToast("Retry save complete",4000);}
+  catch(e){A.lastSaveIssue="Retry save failed: "+e.message;renderReportRetryActions();showToast("Retry save failed",6000);}
+}
+async function retryReportUploads(){
+  if(!A.sel||!A.report){showToast("Select a deal and generate a report first",4000);return;}
+  try{
+    A.lastSaveIssue=null;renderReportRetryActions();
+    showUploadStatus("Retrying WorkDrive uploads and Deal PDF attachment...",false);
+    await refreshZohoToken();
+    A.uploadPromise=uploadToWorkDriveAll();
+    await A.uploadPromise;
+    await refreshZohoToken();
+    await uploadReportPdfToWorkDrive();
+    await uploadReportPdfToDealAttachment();
+    var savedNoteId=await zohoSave();
+    updateCurrentHistory({pdfSaved:true,zohoSaved:true,dealPdfAttached:!!A.dealPdfAttached,zohoNoteId:savedNoteId||A.zohoNoteId||null});
+    A.lastSaveResult={note:true,dealPdf:!!A.dealPdfAttached,workdrive:!!(A.workdrivePdfUrl||A.workdriveUploadCount>0),assets:A.asset&&A.asset.savedItems?A.asset.savedItems.length:0,warning:""};
+    renderReportSaveConfirmation();renderReportRetryActions();
+    showUploadStatus("Retry complete: uploads/PDF checked and Zoho note refreshed.",false);
+    showToast("Retry uploads complete",4000);
+  }catch(e){
+    A.lastSaveIssue="Retry uploads/PDF failed: "+e.message;
+    renderReportRetryActions();
+    showUploadStatus(A.lastSaveIssue,true);
+    showToast("Retry uploads failed",6000);
   }
 }
 async function saveNoteToZoho(opts){
@@ -1501,7 +1559,11 @@ async function saveNoteToZoho(opts){
       var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
     updateCurrentHistory({pdfSaved:true,zohoSaved:true,dealPdfAttached:!!A.dealPdfAttached,zohoNoteId:savedNoteId||A.zohoNoteId||null});
+    A.lastSaveResult={note:true,dealPdf:!!A.dealPdfAttached,workdrive:!!(A.workdrivePdfUrl||A.workdriveUploadCount>0),assets:A.asset&&A.asset.savedItems?A.asset.savedItems.length:0,warning:uploadWarning};
+    A.lastSaveIssue=uploadWarning?("Some save/upload steps need retry: "+uploadWarning):null;
     renderReportSaveChecklist();
+    renderReportSaveConfirmation();
+    renderReportRetryActions();
     if(btn&&!opts.fromGenerate){
       setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
     }
