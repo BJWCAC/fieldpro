@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=162"/>
+<link rel="stylesheet" href="src/styles.css?v=163"/>
 
 </head>
 <body>
@@ -17,11 +17,12 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v162</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v163</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
     <div id="hb-gps" class="hb hb-b" style="display:none">GPS</div>
+    <button type="button" onclick="openQuickStart()" style="background:transparent;border:1px solid var(--bdr);color:var(--green);border-radius:4px;padding:3px 8px;font-size:14px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">?</button>
     <button type="button" onclick="go('settings')" style="background:transparent;border:1px solid var(--bdr);color:var(--amber);border-radius:4px;padding:3px 8px;font-size:14px;cursor:pointer">&#9881;</button>
     <button type="button" onclick="enterKey()" id="key-btn" style="background:transparent;border:1px solid var(--bdr);color:var(--dim);border-radius:4px;padding:3px 8px;font-size:10px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer;z-index:101;position:relative">KEY</button>
   </div>
@@ -330,7 +331,7 @@
         <li>For Assets, save/update the asset and confirm update notes appear on both the Asset and Deal.</li>
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=162</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=163</div>
     </div>
   </div>
   <div class="card">
@@ -357,13 +358,34 @@
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">162</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">163</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
 </div>
 
 <div id="toast" class="toast"></div>
+
+<div id="quickstartmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeQuickStart()">
+  <div class="sbox" style="border-radius:12px;max-width:480px;max-height:86vh;overflow:auto" onclick="event.stopPropagation()">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">CapStone Quick Start</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:12px">Use this checklist in the field before saving to Zoho.</div>
+    <ol style="font-size:12px;color:var(--text);line-height:1.7;padding-left:18px;margin-bottom:12px">
+      <li>Select your technician name.</li>
+      <li>Refresh Zoho deals and select the correct active Deal.</li>
+      <li>For assets, choose Add New Asset or Update Existing Asset.</li>
+      <li>Capture GPS, photos, and field notes.</li>
+      <li>Generate and review the report before saving.</li>
+      <li>Save to Zoho.</li>
+      <li>Verify the Deal note, attached PDF, WorkDrive links, and any Asset/Deal update notes.</li>
+      <li>Use History or Saved This Visit to continue work instead of starting over.</li>
+    </ol>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:10px;font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:12px">
+      Asset rule: use Add New only for equipment that is not already in Zoho. Use Update Existing when the equipment already exists.
+    </div>
+    <button type="button" class="bp bfull" onclick="closeQuickStart()">Got It</button>
+  </div>
+</div>
 
 <div id="techmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)dismissTechnicianPrompt()">
   <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
@@ -409,7 +431,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=162"></script>
+<script src="src/app.js?v=163"></script>
 
 </body>
 </html>
