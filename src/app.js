@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="153";
+var FP_VERSION="154";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -943,6 +943,13 @@ async function saveEquipmentUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_equipment_note",token:A.zohoToken,equipment_id:equipmentId,note_title:"CapStone Asset Update — "+new Date().toLocaleDateString(),note_content:assetUpdateNoteContent()})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Asset note "+r.status+": "+txt.substring(0,120));}
 }
+async function saveDealAssetUpdateNote(equipmentId){
+  if(!A.sel||!A.sel.id||!equipmentId)return;
+  var title="CapStone Asset Update — "+(assetInput("asset-name")||assetInput("asset-model")||"Asset")+" — "+new Date().toLocaleDateString();
+  var content=assetUpdateNoteContent()+"\n\nZoho Equipment ID: "+equipmentId;
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
+  if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
+}
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
@@ -953,10 +960,12 @@ async function saveAssetToZoho(){
     var equipmentId=await saveEquipmentRecord();
     var photoWarning="";
     var noteWarning="";
+    var dealNoteWarning="";
     var dealLinkWarning="";
     var dealLinked=false;
     try{var linkResult=await linkEquipmentToSelectedDeal(equipmentId);dealLinked=!!linkResult.linked;}catch(linkErr){dealLinkWarning=linkErr&&linkErr.message?linkErr.message:String(linkErr);console.log("Asset saved but deal subform link failed:",linkErr);showToast("Asset saved, but deal link failed",7000);}
     try{await saveEquipmentUpdateNote(equipmentId);}catch(noteErr){noteWarning=noteErr&&noteErr.message?noteErr.message:String(noteErr);console.log("Asset saved but update note failed:",noteErr);showToast("Asset saved, but note failed",7000);}
+    try{await saveDealAssetUpdateNote(equipmentId);}catch(dealNoteErr){dealNoteWarning=dealNoteErr&&dealNoteErr.message?dealNoteErr.message:String(dealNoteErr);console.log("Asset saved but deal update note failed:",dealNoteErr);showToast("Asset saved, but deal note failed",7000);}
     var photosToUpload=assetPhotosToUpload();
     if(photosToUpload.length){
       try{
@@ -981,9 +990,9 @@ async function saveAssetToZoho(){
     else A.asset.savedItems.push({id:equipmentId,name:assetInput("asset-name"),model:assetInput("asset-model"),serial:assetInput("asset-serial"),dealLinked:dealLinked});
     renderSavedAssets();
     var next=el("asset-next-btn");if(next)next.style.display="flex";
-    var warn=photoWarning||noteWarning||dealLinkWarning;
+    var warn=photoWarning||noteWarning||dealNoteWarning||dealLinkWarning;
     if(A.asset.loadedOriginal){A.asset.loadedOriginal=Object.assign({},A.asset.loadedOriginal,{model:assetInput("asset-model"),serial:assetInput("asset-serial"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),building:assetInput("asset-building"),designator:assetInput("asset-designator"),description:assetPayload({includeBlank:true}).Description_Instructions||""});renderAssetHistoryPanel();}
-    assetStatus(warn?"Asset saved to Zoho, but follow-up step failed: "+warn:"Asset saved to Zoho and linked to this Deal. Tap Save Another Asset to add the next one for this same account/deal.",!!warn);showToast("Asset saved to Zoho",4000);
+    assetStatus(warn?"Asset saved to Zoho, but follow-up step failed: "+warn:"Asset saved to Zoho, linked to this Deal, and update notes added to the Asset and Deal. Tap Save Another Asset to add the next one for this same account/deal.",!!warn);showToast("Asset saved to Zoho",4000);
   }catch(e){assetStatus("Asset save failed: "+e.message,true);showToast("Asset save failed",5000);}
   finally{A.asset.saving=false;updateAssetSaveState();}
 }
