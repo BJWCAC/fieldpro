@@ -132,6 +132,26 @@ exports.handler = async function(event) {
       return { statusCode: result4.status, headers: h, body: result4.body };
     }
 
+    if (data.action === "upload_deal_attachment") {
+      var attachBuf = Buffer.from(data.file_b64, "base64");
+      var attachBoundary = "CapStoneBound" + Date.now();
+      var attachFilename = String(data.filename || "capstone-report.pdf").replace(/"/g, "");
+      var attachMime = data.mime_type || "application/pdf";
+      var attachHdr = Buffer.from("--" + attachBoundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + attachFilename + "\"\r\nContent-Type: " + attachMime + "\r\n\r\n");
+      var attachFtr = Buffer.from("\r\n--" + attachBoundary + "--\r\n");
+      var attachBody = Buffer.concat([attachHdr, attachBuf, attachFtr]);
+      var attachResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Deals/" + data.deal_id + "/Attachments",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "multipart/form-data; boundary=" + attachBoundary,
+          "Content-Length": attachBody.length
+        }
+      }, attachBody);
+      return { statusCode: attachResult.status, headers: h, body: attachResult.body };
+    }
     function equipmentAccountId(rec) {
       var a = rec && rec.Account;
       if (!a) return "";
