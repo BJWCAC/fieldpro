@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="155";
+var FP_VERSION="156";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -329,6 +329,7 @@ window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
 window.resetAssetFormForNext=resetAssetFormForNext;
 window.searchExistingAssets=searchExistingAssets;
+window.searchAssetByCurrentField=searchAssetByCurrentField;
 window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 window.startAssetReplacement=startAssetReplacement;
 function showUploadStatus(msg,isErr){
@@ -560,7 +561,19 @@ function renderAssetForm(){
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
+  renderAssetModeBanner();
   var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
+}
+function renderAssetModeBanner(){
+  var b=el("asset-mode-banner");if(!b)return;
+  b.style.display="block";
+  if(A.asset.currentAssetId){
+    b.style.background="#f0fdf4";b.style.border="1px solid #86efac";b.style.color="#166534";
+    b.innerHTML="<strong>Update Existing Asset</strong><br>"+esc(assetInput("asset-name")||"Loaded asset")+" will update the existing Equipment record and add a new update note to both the Asset and Deal.";
+  }else{
+    b.style.background="#fff7ed";b.style.border="1px solid #fdba74";b.style.color="#9a3412";
+    b.innerHTML="<strong>Create New Asset</strong><br>Search by serial, model, CAC ID, name, building, or designator before saving if this equipment may already exist.";
+  }
 }
 function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
 function assetLookupName(v){if(!v)return"";if(typeof v==="string")return v;return v.name||v.id||"";}
@@ -610,12 +623,12 @@ function replacementNote(){
 }
 function renderAssetSearchResults(){
   var box=el("asset-search-results");if(!box)return;
-  if(!A.asset.searchResults.length){box.style.display="block";box.innerHTML="<div style='font-size:12px;color:var(--dim)'>No matching assets found.</div>";return;}
+  if(!A.asset.searchResults.length){box.style.display="block";box.innerHTML="<div style='font-size:12px;color:var(--dim);line-height:1.5'>No matching assets found. If this is new equipment, complete the required fields and save it as a new asset.</div>";return;}
   box.style.display="block";
   box.innerHTML=A.asset.searchResults.map(function(r,i){
     var title=esc(r.CAC_Asset_ID||r.Name||"Asset");
     var meta=[r.Name,r.Asset_Model_Number,r.Serial_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
-    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+meta+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Asset</button></div>";
+    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
   }).join("");
 }
 async function searchExistingAssets(){
@@ -628,6 +641,12 @@ async function searchExistingAssets(){
     var txt=await r.text();if(!r.ok)throw new Error("Asset search "+r.status+": "+txt.substring(0,160));
     var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();assetStatus(A.asset.searchResults.length?"Select an existing asset to load it for update.":"No matching assets found.",!A.asset.searchResults.length);
   }catch(e){assetStatus("Asset search failed: "+e.message,true);}
+}
+function searchAssetByCurrentField(id){
+  var v=assetInput(id);
+  if(!v){assetStatus(id==="asset-serial"?"Enter a serial number first.":"Enter a model number first.",true);return;}
+  setAssetInput("asset-search",v);
+  searchExistingAssets();
 }
 function setAssetSelectIfPresent(id,value){var e=el(id);if(!e)return;var v=String(value||"");e.value=v;if(v&&e.value!==v){var opt=document.createElement("option");opt.value=v;opt.textContent=v;e.appendChild(opt);e.value=v;}}
 function loadExistingAssetFromSearch(idx){
@@ -779,9 +798,10 @@ function updateAssetSaveState(){
   if(btn){
     btn.disabled=A.asset.saving||missing.length>0;
     btn.title=missing.length?"Complete required fields: "+missing.join(", "):"";
-    if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":"Save Asset to Zoho";
+    if(!A.asset.saving)btn.textContent=A.asset.saved?"Saved":(A.asset.currentAssetId?"Update Existing Asset":"Save New Asset to Zoho");
   }
   if(typeof renderAssetReplacementPanel==="function")renderAssetReplacementPanel();
+  if(typeof renderAssetModeBanner==="function")renderAssetModeBanner();
   return missing;
 }
 function setupAssetRequiredHandlers(){
@@ -953,6 +973,10 @@ async function saveDealAssetUpdateNote(equipmentId){
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
+  if(!A.asset.currentAssetId){
+    var searchHint=assetInput("asset-search")||assetInput("asset-serial")||assetInput("asset-model");
+    if(!confirm("Create a new Zoho Equipment asset? If this asset may already exist, tap Cancel and search first"+(searchHint?" using: "+searchHint:"")+"."))return;
+  }
   A.asset.saved=false;
   A.asset.saving=true;var btn=el("asset-save-btn");if(btn){btn.disabled=true;btn.textContent="Saving Asset...";}
   try{

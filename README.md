@@ -8,17 +8,18 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v155**
+Current milestone build: **v156**
 
 ## Current milestone: CapStone Android field workflow
 
-Build v155 brings together the current Android field workflow:
+Build v156 brings together the current Android field workflow:
 
 - technician selection on each device
 - Zoho deal selection
 - GPS capture
 - photo and video field documentation
 - equipment asset save/update workflow
+- search-first asset update flow to help avoid duplicate equipment records
 - AI report generation
 - Zoho deal note update/recovery behavior
 - direct report PDF attachment to the Zoho deal
@@ -38,7 +39,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=156
    ```
 
 3. Tap the Chrome menu.
@@ -119,6 +120,8 @@ CapStone can save or update equipment assets from the Assets tab.
 Current behavior:
 
 - required asset fields are highlighted before save
+- technicians are prompted to search before creating a new asset
+- serial/model quick-search buttons help find existing assets faster
 - an existing asset can be updated instead of creating a duplicate
 - the asset can be linked to the selected Zoho deal
 - each asset save creates a new CapStone Asset Update note on the Equipment record
@@ -162,7 +165,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=156
 ```
 
 Update the version number when a later build is released.
@@ -195,7 +198,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=156
 ```
 
 If needed, close Chrome fully and reopen CapStone.
