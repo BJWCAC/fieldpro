@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="156";
+var FP_VERSION="157";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -963,9 +963,14 @@ async function saveEquipmentUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_equipment_note",token:A.zohoToken,equipment_id:equipmentId,note_title:"CapStone Asset Update — "+new Date().toLocaleDateString(),note_content:assetUpdateNoteContent()})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Asset note "+r.status+": "+txt.substring(0,120));}
 }
+function zohoNoteTitleLimit(s){
+  s=String(s||"").replace(/\s+/g," ").trim();
+  return s.length>120?s.slice(0,117)+"...":s;
+}
 async function saveDealAssetUpdateNote(equipmentId){
   if(!A.sel||!A.sel.id||!equipmentId)return;
-  var title="CapStone Asset Update — "+(assetInput("asset-name")||assetInput("asset-model")||"Asset")+" — "+new Date().toLocaleDateString();
+  var assetLabel=(assetInput("asset-name")||assetInput("asset-model")||assetInput("asset-serial")||"Asset");
+  var title=zohoNoteTitleLimit("CapStone Asset Update — "+assetLabel+" — "+new Date().toLocaleDateString());
   var content=assetUpdateNoteContent()+"\n\nZoho Equipment ID: "+equipmentId;
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
