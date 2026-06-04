@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=165"/>
+<link rel="stylesheet" href="src/styles.css?v=166"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v165</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v166</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -293,23 +293,6 @@
 <div class="pane" id="p-settings">
   <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:16px">Settings</div>
   <div class="card">
-    <div class="stitle">Appearance</div>
-    <div class="tog-row" onclick="toggleDark()">
-      <div class="tog on" id="tog-dark"><div class="tog-thumb"></div></div>
-      <div><div style="font-size:14px;font-weight:500">Dark Mode</div></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="stitle">Zoho CRM</div>
-    <div class="tog-row" onclick="toggleAutoSaveZoho()">
-      <div class="tog on" id="tog-auto-zoho"><div class="tog-thumb"></div></div>
-      <div>
-        <div style="font-size:14px;font-weight:500">Auto-save to Zoho after Generate</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, PDF, and CRM note when a deal is selected</div>
-      </div>
-    </div>
-  </div>
-  <div class="card">
     <div class="stitle">Technician</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Used in CapStone asset update notes until multi-user login is added.</div>
     <select id="tech-select" onchange="saveTechnicianSetting(this.value)">
@@ -321,7 +304,7 @@
     </select>
   </div>
   <div class="card">
-    <div class="stitle">Technician Workflow Checklist</div>
+    <div class="stitle">Quick Start / Workflow</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.7">
       <ol style="padding-left:18px;margin-bottom:10px">
         <li>Select your technician name when CapStone opens.</li>
@@ -332,13 +315,27 @@
         <li>For Assets, save/update the asset and confirm update notes appear on both the Asset and Deal.</li>
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=165</div>
+      <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=166</div>
     </div>
   </div>
   <div class="card">
-    <div class="stitle">API Key</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Your Anthropic API key — saved on this device. Get keys at console.anthropic.com.</div>
-    <button class="bp bfull" onclick="enterKey()">Update API Key</button>
+    <div class="stitle">Zoho + Save Behavior</div>
+    <div class="tog-row" onclick="toggleAutoSaveZoho()">
+      <div class="tog on" id="tog-auto-zoho"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-save to Zoho after Generate</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, attaches the report PDF, and saves/updates the CRM note when a deal is selected.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="stitle">Storage / History</div>
+    <div id="storage-info" style="font-size:11px;color:var(--amber);margin-bottom:10px;font-family:monospace"></div>
+    <button class="bp bfull" onclick="exportHistory()" style="margin-bottom:8px">Export History to File</button>
+    <label class="fbtn bs bfull" style="padding:14px 20px;font-size:14px;margin-bottom:8px">Import History<input type="file" accept=".json" style="display:none" onchange="importHistory(this)"/></label>
+    <button class="bg bfull" onclick="clearOldPhotos()" style="margin-bottom:8px">Free Up Space (Remove Old Photos)</button>
+    <button class="bd bfull" onclick="clearAllHistory()">Clear All History</button>
   </div>
   <div class="card">
     <div class="stitle">Troubleshooting</div>
@@ -348,18 +345,22 @@
     <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
   </div>
   <div class="card">
-    <div class="stitle">History Storage</div>
-    <div id="storage-info" style="font-size:11px;color:var(--amber);margin-bottom:10px;font-family:monospace"></div>
-    <button class="bp bfull" onclick="exportHistory()" style="margin-bottom:8px">Export History to File</button>
-    <label class="fbtn bs bfull" style="padding:14px 20px;font-size:14px;margin-bottom:8px">Import History<input type="file" accept=".json" style="display:none" onchange="importHistory(this)"/></label>
-    <button class="bg bfull" onclick="clearOldPhotos()" style="margin-bottom:8px">Free Up Space (Remove Old Photos)</button>
-    <button class="bd bfull" onclick="clearAllHistory()">Clear All History</button>
+    <div class="stitle">Appearance</div>
+    <div class="tog-row" onclick="toggleDark()">
+      <div class="tog on" id="tog-dark"><div class="tog-thumb"></div></div>
+      <div><div style="font-size:14px;font-weight:500">Dark Mode</div></div>
+    </div>
   </div>
   <div class="card">
-    <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
+    <div class="stitle">API Key</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Your Anthropic API key — saved on this device. Get keys at console.anthropic.com.</div>
+    <button class="bp bfull" onclick="enterKey()">Update API Key</button>
+  </div>
+  <div class="card">
+    <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">165</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">166</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -432,7 +433,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=165"></script>
+<script src="src/app.js?v=166"></script>
 
 </body>
 </html>
