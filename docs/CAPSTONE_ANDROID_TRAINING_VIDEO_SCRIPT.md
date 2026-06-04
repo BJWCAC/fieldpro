@@ -38,7 +38,7 @@ Screen action:
 - Enter the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=167
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=168
 ```
 
 - Optionally show Add to Home screen.
@@ -363,6 +363,7 @@ During recording:
 - Pause after tapping buttons.
 - Narrate what the technician should verify.
 - Show the report review step.
+- Show the field data checklist before tapping Generate AI Report.
 - Show the report save checklist before tapping Save to Zoho.
 - If a save/upload warning appears, show the Retry Options panel.
 - Emphasize that the technician must confirm report accuracy.

@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="167";
+var FP_VERSION="168";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1224,12 +1224,21 @@ function checkGen(){
   var show=hasP||hasN||hasSec;
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
   var gs=el("gen-summary"),gt=el("gen-summary-txt");
-  if(show&&gs&&gt){gs.style.display="block";var parts=[];
-    if(hasP)parts.push(A.photos.length+" photo"+(A.photos.length!==1?"s":""));
-    if(hasN)parts.push("Voice notes");
-    if(hasSec){var fc=SEC_IDS.filter(function(id){var e=el(id);return e&&e.value.trim();}).length;parts.push(fc+" section"+(fc!==1?"s":"")+" filled");}
-    if(A.location)parts.push("GPS");if(A.sel)parts.push(dealHeaderText(A.sel));
-    gt.textContent=parts.join(" — ");
+  if(show&&gs&&gt){
+    gs.style.display="block";
+    var fc=SEC_IDS.filter(function(id){var e=el(id);return e&&e.value.trim();}).length;
+    var assetCount=A.asset&&A.asset.savedItems?A.asset.savedItems.length:0;
+    var rows=[
+      [!!A.sel,"Deal selected",A.sel?dealHeaderText(A.sel):"Pick the correct Deal before generating if this report goes to Zoho."],
+      [!!currentTechnicianName(),"Technician selected",currentTechnicianName()||"Select technician so the report identifies who performed the work."],
+      [!!A.location,"GPS captured",A.location?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Tap Get Location if site/GPS should be included."],
+      [hasN,"Field notes",hasN?"Voice/typed notes included.":"Add notes describing what was found or completed."],
+      [hasP,"Photos",hasP?(A.photos.length+" photo"+(A.photos.length!==1?"s":"")+" added."):"Add photos when visual evidence matters."],
+      [hasSec,"Structured sections",hasSec?(fc+" section"+(fc!==1?"s":"")+" filled."):"Optional, but useful for forcing details into report sections."],
+      [assetCount>0,"Asset updates",assetCount?(assetCount+" asset update"+(assetCount!==1?"s":"")+" saved this visit."):"If equipment was added/changed, save it on Assets first."]
+    ];
+    gt.innerHTML=rows.map(function(r){return"<div class='rsc-row "+(r[0]?"rsc-ok":"rsc-warn")+"'><span class='rsc-dot'>"+(r[0]?"✓":"!")+"</span><div><strong>"+esc(r[1])+"</strong><div style='color:#64748b'>"+esc(r[2])+"</div></div></div>";}).join("")+
+      "<div class='rsc-note'><strong>Minimum to generate:</strong> add notes, photos, or structured section text. Review warnings before creating the report.</div>";
   }else if(gs)gs.style.display="none";
 }
 
