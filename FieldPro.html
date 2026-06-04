@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=166"/>
+<link rel="stylesheet" href="src/styles.css?v=167"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v166</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v167</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -272,6 +272,15 @@
     </div>
     <button class="bg bsm" onclick="generate()" style="margin-bottom:12px">Regenerate</button>
     <div id="upload-status" class="err-box" style="display:none;background:#051a18;border-color:#006050;color:var(--amber);font-size:12px;line-height:1.5"></div>
+    <div id="report-retry-actions" class="report-retry-actions" style="display:none">
+      <div class="stitle" style="margin-bottom:6px;color:#f59e0b">Retry Options</div>
+      <div id="report-retry-message" style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px"></div>
+      <div class="g2">
+        <button type="button" class="bs" onclick="retryReportSave()">Retry Save to Zoho</button>
+        <button type="button" class="bg" onclick="retryReportUploads()">Retry Uploads/PDF</button>
+      </div>
+    </div>
+    <div id="report-save-confirmation" class="report-save-confirmation" style="display:none"></div>
     <div id="rpt-err" class="err-box" style="display:none"></div>
     <div id="no-deal-rpt" class="no-deal-bar" style="display:none"><span>No deal linked</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
     <div class="rpt-hdr"><div class="stitle">Report Header</div><div id="rpt-hdr-rows"></div></div>
@@ -316,7 +325,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=166</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=167</div>
     </div>
   </div>
   <div class="card">
@@ -360,7 +369,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">166</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">167</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -433,7 +442,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=166"></script>
+<script src="src/app.js?v=167"></script>
 
 </body>
 </html>
