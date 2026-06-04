@@ -8,17 +8,21 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v129**
+Current milestone build: **v155**
 
-## Major milestone: CapStone Android field workflow
+## Current milestone: CapStone Android field workflow
 
-Build v129 is a significant step in CapStone's evolution. It brings together the core Android field workflow:
+Build v155 brings together the current Android field workflow:
 
+- technician selection on each device
 - Zoho deal selection
 - GPS capture
 - photo and video field documentation
+- equipment asset save/update workflow
 - AI report generation
 - Zoho deal note update/recovery behavior
+- direct report PDF attachment to the Zoho deal
+- asset update notes on both Equipment and Deal records
 - WorkDrive file replacement behavior
 - local History for continuing reports
 - white-background report creation and review screens for better readability on mobile
@@ -34,7 +38,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
    ```
 
 3. Tap the Chrome menu.
@@ -58,20 +62,21 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 ## Daily field workflow
 
 1. Open CapStone on Android.
-2. Refresh deals from Zoho.
-3. Select the correct Zoho deal.
-4. Capture GPS location.
-5. Record video if needed.
-6. Add photos.
-7. Add photo descriptions.
-8. Dictate or type field notes.
-9. Optionally fill in any of the nine structured report fields.
-10. Generate the AI report.
-11. Review the report.
-12. Regenerate if details need correction.
-13. Save/update the Zoho deal note.
-14. Download the PDF if needed.
-15. Use History if the report needs to be continued later.
+2. Select the technician if prompted.
+3. Refresh deals from Zoho.
+4. Select the correct Zoho deal.
+5. Capture GPS location.
+6. Record video if needed.
+7. Add photos.
+8. Add photo descriptions.
+9. Dictate or type field notes.
+10. Optionally fill in any of the nine structured report fields.
+11. Generate the AI report.
+12. Review the report.
+13. Regenerate if details need correction.
+14. Save/update the Zoho deal note.
+15. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
+16. Use History if the report needs to be continued later.
 
 ## The nine report fields
 
@@ -103,8 +108,24 @@ CapStone is designed to reduce duplicate Zoho deal notes.
 - If the local note ID is missing, CapStone looks for an existing report note using a stable `CapStone Report ID` marker.
 - If the stored note was deleted manually in Zoho, CapStone clears the stale ID and creates a replacement note.
 - If Zoho returns a blank update error for a missing note, CapStone retries by creating a replacement note.
+- CapStone also attaches the generated report PDF directly to the selected Zoho deal when saving.
 
 Important: notes created before the report marker was added may not always be recoverable automatically. Once a report is saved with the current milestone behavior, future updates are more reliable.
+
+## Asset update behavior
+
+CapStone can save or update equipment assets from the Assets tab.
+
+Current behavior:
+
+- required asset fields are highlighted before save
+- an existing asset can be updated instead of creating a duplicate
+- the asset can be linked to the selected Zoho deal
+- each asset save creates a new CapStone Asset Update note on the Equipment record
+- the same asset update note is also saved to the selected Deal notes
+- the Deal note includes the Zoho Equipment ID for traceability
+
+Keeping a new note for each asset update creates a service history when an asset is updated more than once.
 
 ## WorkDrive behavior
 
@@ -141,7 +162,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
 ```
 
 Update the version number when a later build is released.
@@ -157,11 +178,15 @@ Recommended Android smoke test:
 7. Generate an AI report.
 8. Save to Zoho.
 9. Confirm the Zoho deal note exists.
-10. Reopen the report from History.
-11. Change a note or field.
-12. Generate again.
-13. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
-14. Confirm WorkDrive does not create new timestamped duplicates for the same report.
+10. Confirm the report PDF is attached directly to the Zoho deal.
+11. Confirm WorkDrive does not create new timestamped duplicates for the same report.
+12. Save or update one test asset.
+13. Confirm the Equipment record has a CapStone Asset Update note.
+14. Confirm the Deal has the same CapStone Asset Update note.
+15. Reopen the report from History.
+16. Change a note or field.
+17. Generate again.
+18. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
 
 ## Troubleshooting on Android
 
@@ -170,7 +195,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
 ```
 
 If needed, close Chrome fully and reopen CapStone.

@@ -9,11 +9,13 @@ Recommended video length: 12 to 18 minutes.
 The video should teach a technician how to use CapStone in the field from start to finish:
 
 - open CapStone on Android
+- select the technician using the device
 - refresh and select a Zoho deal
 - capture GPS
+- save or update equipment assets when needed
 - add notes, photos, and optional report fields
 - generate an AI report
-- save/update Zoho deal notes
+- save/update Zoho deal notes and attach the report PDF to the deal
 - understand WorkDrive uploads
 - continue a report from History
 
@@ -36,7 +38,7 @@ Screen action:
 - Enter the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=129
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=155
 ```
 
 - Optionally show Add to Home screen.
@@ -50,6 +52,8 @@ On-screen callout:
 ```text
 Use latest versioned URL after updates.
 ```
+
+If this is the first time CapStone has been opened on the device, select the technician name when prompted.
 
 ## Section 2: Refresh Zoho deals
 
@@ -86,6 +90,27 @@ On-screen callout:
 
 ```text
 Always confirm the active deal before generating a report.
+```
+
+## Section 3A: Asset updates when equipment is added or changed
+
+Screen action:
+
+- Go to the Assets tab.
+- Confirm the account/deal context.
+- Enter or search for the asset.
+- Complete required fields.
+- Tap Save Asset to Zoho.
+- Show the saved asset confirmation.
+
+Narration:
+
+> Use the Assets tab when equipment is added, replaced, or updated during the visit. CapStone saves the Equipment record, links it to the selected Deal, and writes a CapStone Asset Update note to both the Equipment record and the Deal. Each asset update creates a new note so the asset has a clear service history.
+
+On-screen callout:
+
+```text
+After saving an asset, verify notes on both the Equipment record and the Deal.
 ```
 
 ## Section 4: Capture GPS
@@ -218,7 +243,7 @@ Screen action:
 
 Narration:
 
-> Saving to Zoho creates or updates the deal note. CapStone is designed to avoid duplicate notes for the same report. The first save creates the note. Later saves update that note.
+> Saving to Zoho creates or updates the deal note. CapStone is designed to avoid duplicate notes for the same report. The first save creates the note. Later saves update that note. CapStone also attaches the report PDF directly to the Zoho Deal and uploads report files to WorkDrive.
 
 Explain:
 
@@ -231,7 +256,7 @@ Same report = update existing Zoho note.
 Deleted note = create replacement note.
 ```
 
-## Section 11: WorkDrive files
+## Section 11: WorkDrive files and Deal PDF attachment
 
 Screen action:
 
@@ -240,7 +265,7 @@ Screen action:
 
 Narration:
 
-> CapStone uploads report files, photos, and video to WorkDrive. For the same report, filenames are stable. This helps replace prior files instead of creating repeated timestamped duplicates.
+> CapStone uploads report files, photos, and video to WorkDrive. For the same report, filenames are stable. This helps replace prior files instead of creating repeated timestamped duplicates. The report PDF is also attached directly to the selected Zoho Deal so it can be found from the Deal record.
 
 Important:
 
@@ -294,6 +319,7 @@ Troubleshooting points:
 - Deals stale: refresh from Zoho or clear cached deals.
 - Zoho note missing: save again; CapStone should create a replacement.
 - WorkDrive duplicates: old duplicates may need manual cleanup.
+- Asset update missing on Deal: verify the correct active Deal was selected before saving the asset.
 
 ## Closing
 
@@ -311,7 +337,7 @@ Use this for a 3 to 5 minute quick-start video.
 
 Narration:
 
-> CapStone is the Android field documentation system for Calibrations & Controls. Open CapStone in Chrome or from the Android home screen. Refresh Zoho deals and select the correct deal. Capture GPS, add notes, add photos, and fill in optional report fields only when needed. Tap Generate AI Report, review the report, and save it to Zoho. CapStone updates the existing Zoho note for the same report, creates a replacement if the old note was deleted, and uses stable WorkDrive filenames to reduce duplicate files. Use History to continue a report later.
+> CapStone is the Android field documentation system for Calibrations & Controls. Open CapStone in Chrome or from the Android home screen. Select the technician, refresh Zoho deals, and select the correct deal. Use Assets when equipment is added or updated. Capture GPS, add notes, add photos, and fill in optional report fields only when needed. Tap Generate AI Report, review the report, and save it to Zoho. CapStone updates the existing Zoho note for the same report, attaches the report PDF to the Deal, creates asset update notes on both the Equipment and Deal, and uses stable WorkDrive filenames to reduce duplicate files. Use History to continue a report later.
 
 ## Recording checklist
 
@@ -320,9 +346,11 @@ Before recording:
 - Use an Android phone.
 - Use a test Zoho deal.
 - Use the latest versioned URL.
+- Confirm a technician is selected.
 - Confirm Android permissions are enabled.
 - Prepare one sample field note.
 - Prepare one or two sample photos.
+- Prepare one sample asset update if demonstrating the Assets tab.
 - Avoid showing private customer information.
 
 During recording:
@@ -336,5 +364,7 @@ During recording:
 After recording:
 
 - Confirm the Zoho test note was created or updated.
+- Confirm the report PDF was attached to the Zoho Deal.
+- Confirm asset update notes were created on both the Equipment record and the Deal if the Assets tab was demonstrated.
 - Confirm WorkDrive files uploaded.
 - Clean up test notes/files if needed.
