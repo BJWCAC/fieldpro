@@ -198,6 +198,16 @@ exports.handler = async function(event) {
       return { statusCode: dealUpdateResult.status, headers: h, body: JSON.stringify({ ok: dealUpdateResult.status >= 200 && dealUpdateResult.status < 300, already_linked: exists, response: dealUpdateResult.body }) };
     }
 
+    if (data.action === "get_equipment") {
+      var equipmentGetResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: equipmentGetResult.status, headers: h, body: equipmentGetResult.body };
+    }
+
     if (data.action === "search_equipment_assets") {
       var q = String(data.query || "").replace(/"/g, "").trim();
       if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };

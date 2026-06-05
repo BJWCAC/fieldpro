@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="168";
+var FP_VERSION="169";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1015,6 +1015,22 @@ async function saveDealAssetUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
+function sanitizeAssetFilePart(s){return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"asset";}
+async function getEquipmentRecord(equipmentId){
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_equipment",token:A.zohoToken,equipment_id:equipmentId})},30000);
+  if(!r.ok)return null;
+  var d={};try{d=await r.json();}catch(e){}
+  return d&&d.data&&d.data[0]||null;
+}
+async function assetPhotoFilePrefix(equipmentId){
+  var rec=await getEquipmentRecord(equipmentId);
+  var cac=(rec&&rec.CAC_Asset_ID)||(A.asset.loadedOriginal&&A.asset.loadedOriginal.cacId)||equipmentId;
+  return sanitizeAssetFilePart(cac);
+}
+function assetPhotoAttachmentName(prefix,photo,idx){
+  var original=String(photo&&photo.name||"").replace(/\.[^.]*$/,"");
+  return prefix+"-nameplate-"+(idx+1)+(original?"-"+sanitizeAssetFilePart(original):"")+".jpg";
+}
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   var missing=validateAssetForm();if(missing.length){assetStatus("Complete required fields: "+missing.join(", "),true);updateAssetSaveState();return;}
@@ -1040,11 +1056,12 @@ async function saveAssetToZoho(){
     if(photosToUpload.length){
       try{
         assetStatus("Asset created. Attaching "+photosToUpload.length+" nameplate photo(s)...",false);
+        var assetFilePrefix=await assetPhotoFilePrefix(equipmentId);
         for(var upi=0;upi<photosToUpload.length;upi++){
           var ap=photosToUpload[upi];
           var b64=await compressPhoto(ap.data,1200,0.8);
           if(!b64)throw new Error("Could not compress nameplate photo");
-          var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:ap.name||("asset-nameplate-"+(upi+1)+".jpg"),image_b64:b64})},45000);
+          var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:assetPhotoAttachmentName(assetFilePrefix,ap,upi),image_b64:b64})},45000);
           if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
           A.asset.lastUploadedPhotoFingerprints[ap.fingerprint]=true;
         }
