@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="169";
+var FP_VERSION="170";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -722,7 +722,7 @@ function assetPhotoSelected(input){
     var reader=new FileReader();
     reader.onload=function(ev){
       var data=ev.target.result,fp=assetPhotoFingerprint(data);
-      A.asset.photos.push({data:data,name:file.name||("asset-nameplate-"+A.asset.photos.length+".jpg"),fingerprint:fp});
+      A.asset.photos.push({data:data,name:file.name||("asset-nameplate-"+A.asset.photos.length+".jpg"),fingerprint:fp,shortDescription:""});
       remaining--;if(remaining===0){renderAssetPhotos();assetStatus(A.asset.photos.length+" asset photo(s) ready. AI extraction uses up to the first 3.",false);}
     };
     reader.onerror=function(){remaining--;if(remaining===0)renderAssetPhotos();};
@@ -1027,9 +1027,15 @@ async function assetPhotoFilePrefix(equipmentId){
   var cac=(rec&&rec.CAC_Asset_ID)||(A.asset.loadedOriginal&&A.asset.loadedOriginal.cacId)||equipmentId;
   return sanitizeAssetFilePart(cac);
 }
+function assetPhotoDescription(photo,idx){
+  if(photo.shortDescription)return photo.shortDescription;
+  var val=prompt("Short description for asset photo "+(idx+1)+" (example: nameplate, transmitter, wiring):",photo.shortDescription||"nameplate");
+  photo.shortDescription=(val||"nameplate").trim()||"nameplate";
+  return photo.shortDescription;
+}
 function assetPhotoAttachmentName(prefix,photo,idx){
-  var original=String(photo&&photo.name||"").replace(/\.[^.]*$/,"");
-  return prefix+"-nameplate-"+(idx+1)+(original?"-"+sanitizeAssetFilePart(original):"")+".jpg";
+  var desc=sanitizeAssetFilePart(assetPhotoDescription(photo,idx));
+  return prefix+"-"+desc+"-"+(idx+1)+".jpg";
 }
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
