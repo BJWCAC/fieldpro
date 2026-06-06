@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=185"/>
+<link rel="stylesheet" href="src/styles.css?v=186"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v185</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v186</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -332,6 +332,7 @@
 <!-- SETTINGS -->
 <div class="pane" id="p-settings">
   <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:16px">Settings</div>
+  <div class="settings-group-title">User / Technician</div>
   <div class="card">
     <div class="stitle">Technician</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Used in CapStone asset update notes until multi-user login is added.</div>
@@ -343,6 +344,29 @@
       <option value="Greg Freie">Greg Freie</option>
     </select>
   </div>
+  <div class="settings-group-title">Sync / Pending</div>
+  <div class="card">
+    <div class="stitle">Pending Sync</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Pending sync items retry automatically when CapStone opens, comes online, or returns to the foreground. You can also retry manually.</div>
+    <div id="pending-uploads-count" style="font-size:12px;color:var(--amber);margin-bottom:8px">0 pending</div>
+    <div id="pending-uploads-list" style="margin-bottom:10px"></div>
+    <div class="g2">
+      <button class="bp bfull" onclick="retryPendingUploads()">Retry Sync</button>
+      <button class="bg bfull" onclick="clearPendingUploads()">Clear Sync</button>
+    </div>
+  </div>
+  <div class="settings-group-title">Zoho + Save Behavior</div>
+  <div class="card">
+    <div class="stitle">Zoho + Save Behavior</div>
+    <div class="tog-row" onclick="toggleAutoSaveZoho()">
+      <div class="tog on" id="tog-auto-zoho"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-save to Zoho after Generate</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, attaches the report PDF, and saves/updates the CRM note when a deal is selected.</div>
+      </div>
+    </div>
+  </div>
+  <div class="settings-group-title">Workflow Help</div>
   <div class="card">
     <div class="stitle">Quick Start / Workflow</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.7">
@@ -356,19 +380,10 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=182</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=186</div>
     </div>
   </div>
-  <div class="card">
-    <div class="stitle">Zoho + Save Behavior</div>
-    <div class="tog-row" onclick="toggleAutoSaveZoho()">
-      <div class="tog on" id="tog-auto-zoho"><div class="tog-thumb"></div></div>
-      <div>
-        <div style="font-size:14px;font-weight:500">Auto-save to Zoho after Generate</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, attaches the report PDF, and saves/updates the CRM note when a deal is selected.</div>
-      </div>
-    </div>
-  </div>
+  <div class="settings-group-title">Storage / History</div>
   <div class="card">
     <div class="stitle">Storage / History</div>
     <div id="storage-info" style="font-size:11px;color:var(--amber);margin-bottom:10px;font-family:monospace"></div>
@@ -377,16 +392,7 @@
     <button class="bg bfull" onclick="clearOldPhotos()" style="margin-bottom:8px">Free Up Space (Remove Old Photos)</button>
     <button class="bd bfull" onclick="clearAllHistory()">Clear All History</button>
   </div>
-  <div class="card">
-    <div class="stitle">Pending Sync</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Pending sync items retry automatically when CapStone opens, comes online, or returns to the foreground. You can also retry manually.</div>
-    <div id="pending-uploads-count" style="font-size:12px;color:var(--amber);margin-bottom:8px">0 pending</div>
-    <div id="pending-uploads-list" style="margin-bottom:10px"></div>
-    <div class="g2">
-      <button class="bp bfull" onclick="retryPendingUploads()">Retry Sync</button>
-      <button class="bg bfull" onclick="clearPendingUploads()">Clear Sync</button>
-    </div>
-  </div>
+  <div class="settings-group-title">Troubleshooting</div>
   <div class="card">
     <div class="stitle">Troubleshooting</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
@@ -394,6 +400,7 @@
     <button class="bg bfull" onclick="clearWorkDriveFolderCache()" style="margin-bottom:8px">Clear WorkDrive Folder Cache</button>
     <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
   </div>
+  <div class="settings-group-title">Appearance</div>
   <div class="card">
     <div class="stitle">Appearance</div>
     <div class="tog-row" onclick="toggleDark()">
@@ -401,16 +408,18 @@
       <div><div style="font-size:14px;font-weight:500">Dark Mode</div></div>
     </div>
   </div>
+  <div class="settings-group-title">API Key</div>
   <div class="card">
     <div class="stitle">API Key</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Your Anthropic API key — saved on this device. Get keys at console.anthropic.com.</div>
     <button class="bp bfull" onclick="enterKey()">Update API Key</button>
   </div>
+  <div class="settings-group-title">App Info</div>
   <div class="card">
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">185</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">186</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -498,7 +507,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=185"></script>
+<script src="src/app.js?v=186"></script>
 
 </body>
 </html>
