@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="182";
+var FP_VERSION="183";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -589,6 +589,22 @@ function ensureAssetContext(){
   var key=selectedAssetDealKey();
   if(key&&A.asset.activeDealKey&&A.asset.activeDealKey!==key){resetAssetContextForSelectedDeal("Asset form cleared for this account/deal.");}
   else if(key&&!A.asset.activeDealKey)A.asset.activeDealKey=key;
+}
+function renderAssetSaveChecklist(){
+  var box=el("asset-save-checklist");if(!box)return;
+  var missing=markAssetRequiredFields();
+  var hasDeal=!!A.sel,hasAccount=!!(A.sel&&A.sel.Account_Id),hasMode=!!A.asset.mode;
+  var updateReady=A.asset.mode!=="update"||!!A.asset.currentAssetId;
+  var photoCount=A.asset.photos.length,pendingCount=getPendingUploads().length;
+  box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Asset Save Checklist</div>"+
+    reportChecklistItem(hasDeal,"Deal selected",hasDeal?dealHeaderText(A.sel):"Pick the correct Deal before saving.")+
+    reportChecklistItem(hasAccount,"Account ID available",hasAccount?"Asset will link to the selected Account.":"Refresh deals from Zoho to get Account ID.")+
+    reportChecklistItem(!missing.length,"Required fields complete",missing.length?missing.join(", "):"All required asset fields are complete.")+
+    reportChecklistItem(hasMode,"Asset path selected",A.asset.mode==="update"?"Update Existing Asset":"Add New Asset")+
+    reportChecklistItem(updateReady,"Existing asset loaded",A.asset.mode==="update"?(updateReady?"Loaded existing asset will be updated.":"Search and load an existing asset first."):"Not required for Add New Asset.")+
+    reportChecklistItem(true,"Photos",photoCount?photoCount+" photo"+(photoCount!==1?"s":"")+" selected.":"No asset photos selected.")+
+    reportChecklistItem(true,"Deal Asset Notes",assetInput("asset-deal-notes")||"Default note will be used.")+
+    reportChecklistItem(!pendingCount,"Pending Sync",pendingCount?pendingCount+" item"+(pendingCount!==1?"s":"")+" pending sync.":"No pending sync items.");
 }
 function renderAssetForm(){
   ensureAssetContext();
@@ -1168,6 +1184,7 @@ function renderPendingUploads(){
   var items=getPendingUploads();
   renderPendingBadge(items);
   if(count)count.textContent=items.length+" pending";
+  if(typeof renderAssetSaveChecklist==="function")renderAssetSaveChecklist();
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
 function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;savePendingUploads([]);showToast("Pending sync cleared",2500);}
