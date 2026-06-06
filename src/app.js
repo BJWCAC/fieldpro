@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="178";
+var FP_VERSION="179";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -411,6 +411,7 @@ function resetAppCache(){
   location.reload();
 }
 
+function setCaptureDraftStatus(msg,isErr){var e=el("capture-draft-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.color=isErr?"#991b1b":"#2d6b60";e.style.background=isErr?"#fee2e2":"#fff";e.style.borderColor=isErr?"#ef4444":"#b2ddd6";}else e.style.display="none";}
 function captureDraftSections(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value||"";});return sd;}
 function captureDraftHasWork(){
   var tx=(el("tx")||{value:""}).value.trim();
@@ -422,10 +423,10 @@ function buildCaptureDraft(){
 }
 function saveCaptureDraftNow(){
   if(!captureDraftHasWork())return;
-  try{localStorage.setItem("fp_capture_draft",JSON.stringify(buildCaptureDraft()));}catch(e){console.log("capture draft save",e);}
+  try{localStorage.setItem("fp_capture_draft",JSON.stringify(buildCaptureDraft()));setCaptureDraftStatus("Draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("capture draft save",e);setCaptureDraftStatus("Draft save failed",true);}
 }
 function scheduleCaptureDraftSave(){if(A.draftRestored===false&&document.readyState==="loading")return;if(A.draftTimer)clearTimeout(A.draftTimer);A.draftTimer=setTimeout(function(){A.draftTimer=null;saveCaptureDraftNow();},800);}
-function clearCaptureDraft(){try{localStorage.removeItem("fp_capture_draft");}catch(e){}}
+function clearCaptureDraft(){try{localStorage.removeItem("fp_capture_draft");}catch(e){}setCaptureDraftStatus("",false);}
 function restoreCaptureDraft(d){
   if(!d)return;
   A.sel=d.deal||null;A.location=d.location||null;A.photos=d.photos||[];A.reportPhotos=d.reportPhotos||[];A.report=d.report||"";A.reportTechnician=d.technician||"";A.currentHistoryId=d.currentHistoryId||null;A.zohoNoteId=d.zohoNoteId||null;A.dealPdfAttached=!!d.dealPdfAttached;A.workdrivePdfUrl=d.workdrivePdfUrl||null;
@@ -438,7 +439,7 @@ function maybeRestoreCaptureDraft(){
   if(!raw)return;
   var d=null;try{d=JSON.parse(raw);}catch(e){clearCaptureDraft();return;}
   var label=d&&d.savedAt?new Date(d.savedAt).toLocaleString():"recently";
-  if(confirm("Restore unsaved CapStone capture draft saved "+label+"?")){restoreCaptureDraft(d);A.draftRestored=true;showToast("Capture draft restored",3000);go("capture");}
+  if(confirm("Restore unsaved CapStone capture draft saved "+label+"?")){restoreCaptureDraft(d);A.draftRestored=true;showToast("Capture draft restored",3000);setCaptureDraftStatus("Draft restored");go("capture");}
   else clearCaptureDraft();
 }
 function newProject(){
