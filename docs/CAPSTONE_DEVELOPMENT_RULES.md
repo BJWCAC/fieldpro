@@ -290,7 +290,7 @@ If yes, either implement it now or add it to the improvement list.
 
 From the UI / Workflow Consistency Audit:
 
-1. Rename Pending Uploads to Pending Sync.
+1. Rename Pending Sync to Pending Sync.
 2. Add Deal Selection Workflow card.
 3. Standardize save/retry button labels.
 4. Add Asset Save Checklist.

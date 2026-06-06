@@ -129,7 +129,7 @@ Reason:
 
 Asset creation can take time onsite. Losing a partially filled asset form would be frustrating.
 
-## 4. Pending Uploads label says uploads, but queue now covers more than uploads
+## 4. Pending Sync label says uploads, but queue now covers more than uploads
 
 Current state:
 
@@ -145,13 +145,13 @@ Pending queue can include:
 
 Recommendation:
 
-Rename UI from **Pending Uploads** to **Pending Sync**.
+Rename UI from **Pending Sync** to **Pending Sync**.
 
 Change wording:
 
-- Pending Uploads -> Pending Sync
-- Retry Pending -> Retry Sync
-- upload(s) still pending -> sync item(s) still pending
+- Pending Sync -> Pending Sync
+- Retry Sync -> Retry Sync
+- sync item(s) still pending -> sync item(s) still pending
 
 Priority: High
 
@@ -190,7 +190,7 @@ Current examples:
 - Saved
 - Retry Save to Zoho
 - Retry Uploads/PDF
-- Retry Pending
+- Retry Sync
 
 Recommendation:
 
@@ -201,7 +201,7 @@ Use consistent labels:
 - Saved
 - Retry Report Save
 - Retry File/Sync Items
-- Retry Pending Sync
+- Retry Sync Sync
 
 Priority: Medium
 
@@ -243,7 +243,7 @@ Settings contains:
 - Technician
 - Quick Start
 - Zoho/save behavior
-- Pending Uploads
+- Pending Sync
 - API key
 - Troubleshooting
 - History storage
@@ -329,7 +329,7 @@ This will matter for long-term asset tracking.
 
 ### Phase 1: Naming and visibility cleanup
 
-1. Rename Pending Uploads to Pending Sync.
+1. Rename Pending Sync to Pending Sync.
 2. Add Deal Selection Workflow card.
 3. Standardize save/retry button labels.
 
@@ -356,7 +356,7 @@ This will matter for long-term asset tracking.
 
 The next safest implementation PR should be:
 
-## Rename Pending Uploads to Pending Sync
+## Rename Pending Sync to Pending Sync
 
 Why first:
 
@@ -366,8 +366,8 @@ Why first:
 
 Expected changes:
 
-- Pending Uploads -> Pending Sync
-- Retry Pending -> Retry Sync
+- Pending Sync -> Pending Sync
+- Retry Sync -> Retry Sync
 - Pending badge can remain "Pending" or become "Sync"
 - Settings panel wording updated
 - Toast wording updated where easy
