@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="191";
+var FP_VERSION="192";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -436,12 +436,27 @@ function restoreCaptureDraft(d){
   if(d.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value=d.sections[id]||"";});
   updateDealUI();updateLocationUI();renderPhotoCards();checkGen();scheduleCaptureDraftSave();if(A.report)renderReport();badge("tb-photos",A.photos.length||"");
 }
+function captureDraftSummary(d,label){
+  var sections=d&&d.sections?Object.keys(d.sections).filter(function(k){return String(d.sections[k]||"").trim();}).length:0;
+  var notes=String(d&&d.voiceNotes||"").trim();
+  return [
+    "Restore unsaved CapStone capture draft saved "+label+"?",
+    "",
+    "Account/Deal: "+(d&&d.deal?dealHeaderText(d.deal):"No deal selected"),
+    "Technician: "+((d&&d.technician)||"Not selected"),
+    "GPS: "+(d&&d.location?"Captured":"Missing"),
+    "Photos: "+((d&&d.photos&&d.photos.length)||0),
+    "Voice Notes: "+(notes?"Present":"Missing"),
+    "Filled Sections: "+sections,
+    "Report: "+(d&&d.report?"Generated":"Not generated")
+  ].join("\n");
+}
 function maybeRestoreCaptureDraft(){
   var raw="";try{raw=localStorage.getItem("fp_capture_draft")||"";}catch(e){}
   if(!raw)return;
   var d=null;try{d=JSON.parse(raw);}catch(e){clearCaptureDraft();return;}
   var label=d&&d.savedAt?new Date(d.savedAt).toLocaleString():"recently";
-  if(confirm("Restore unsaved CapStone capture draft saved "+label+"?")){restoreCaptureDraft(d);A.draftRestored=true;showToast("Capture draft restored",3000);setCaptureDraftStatus("Draft restored");go("capture");}
+  if(confirm(captureDraftSummary(d,label))){restoreCaptureDraft(d);A.draftRestored=true;showToast("Capture draft restored",3000);setCaptureDraftStatus("Draft restored");go("capture");}
   else clearCaptureDraft();
 }
 function newProject(){
