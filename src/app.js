@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="173";
+var FP_VERSION="174";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1020,9 +1020,29 @@ async function saveDealAssetUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
+async function buildReportPdfPayload(){
+  if(!A.report)return null;
+  var pdfPhotos=A.reportPhotos&&A.reportPhotos.length>0?A.reportPhotos:A.photos;
+  if(A.inclPhotos&&pdfPhotos.length>0){await Promise.all(pdfPhotos.map(function(p){return new Promise(function(res){var img=new Image();img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};img.onerror=res;img.src=p.display;});}));}
+  var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location,currentTechnicianName());
+  var b64=(doc.output("datauristring").split(",")[1]||"").trim();
+  var acct=(A.sel?A.sel.Account_Name:"report").replace(/[^a-z0-9]/gi,"-").toLowerCase();
+  var fname="capstone-report-"+acct+"-"+new Date().toISOString().slice(0,10)+".pdf";
+  return b64?{b64:b64,filename:fname,dealId:A.sel&&A.sel.id,folderId:null}:null;
+}
+function enqueuePendingUpload(item){var items=getPendingUploads();item.id=item.id||("pu"+Date.now()+Math.random());item.created=item.created||new Date().toISOString();item.attempts=item.attempts||0;items.push(item);savePendingUploads(items);}
+function enqueueReportPdfUpload(type,payload,error){
+  if(!payload||!payload.b64)return;
+  var items=getPendingUploads();
+  var exists=items.some(function(i){return i.type===type&&i.dealId===payload.dealId&&i.filename===payload.filename;});
+  if(exists)return;
+  enqueuePendingUpload({type:type,dealId:payload.dealId,folderId:payload.folderId||null,filename:payload.filename,fileB64:payload.b64,mimeType:"application/pdf",assetLabel:type==="deal_pdf"?"Deal PDF attachment":"WorkDrive report PDF",error:error||""});
+}
+async function uploadPendingDealPdf(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:item.dealId,filename:item.filename,file_b64:item.fileB64,mime_type:item.mimeType||"application/pdf"})},90000);if(!r.ok){var txt=await r.text();throw new Error("Deal PDF "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingWorkDrivePdf(item){await refreshZohoToken();var folderId=item.folderId||WORKDRIVE_FOLDER;var link=await uploadToWorkDrive(item.fileB64,item.filename,item.mimeType||"application/pdf",folderId,90000);if(link)A.workdrivePdfUrl=link;}
 function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pending_uploads")||"[]");}catch(e){return[];}}
 function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending upload",5000);}renderPendingUploads();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
-function pendingUploadLabel(item){return (item.assetLabel||"Asset photo")+" — "+(item.filename||"photo");}
+function pendingUploadLabel(item){return (item.assetLabel||"Pending upload")+" — "+(item.filename||"file");}
 function enqueueAssetPhotoUpload(equipmentId,photo,filename,error){
   var items=getPendingUploads();
   var fingerprint=photo&&photo.fingerprint||"";
@@ -1049,7 +1069,7 @@ async function retryPendingUploads(opts){
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else throw new Error("Unknown pending upload type");}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else throw new Error("Unknown pending upload type");}
     catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
   }
   A.pendingRetrying=false;
@@ -1655,6 +1675,7 @@ async function saveNoteToZoho(opts){
       if(!attached&&!A.dealPdfAttached)uploadWarnings.push("Deal attachment: PDF too large or skipped");
     }catch(attErr){
       uploadWarnings.push("Deal attachment: "+(attErr&&attErr.message?attErr.message:String(attErr)));
+      try{var dealPdfPayload=await buildReportPdfPayload();enqueueReportPdfUpload("deal_pdf",dealPdfPayload,attErr&&attErr.message?attErr.message:String(attErr));}catch(qe){console.log("Queue deal PDF:",qe);}
       console.log("Continuing Zoho save after attachment warning:",attErr);
       showUploadStatus("Deal PDF attachment did not finish. Saving Zoho note now...",true);
     }
@@ -1873,6 +1894,7 @@ async function uploadReportPdfToWorkDrive(){
     }
   }catch(e){
     console.log("uploadReportPdfToWorkDrive:",e);
+    try{var wdPdfPayload=await buildReportPdfPayload();if(typeof dealFolder!=="undefined")wdPdfPayload.folderId=dealFolder;enqueueReportPdfUpload("workdrive_pdf",wdPdfPayload,e&&e.message?e.message:String(e));}catch(qe){console.log("Queue WorkDrive PDF:",qe);}
     showToast("PDF upload failed: "+e.message,8000);
   }
   return null;
