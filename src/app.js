@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="189";
+var FP_VERSION="190";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -2167,13 +2167,13 @@ function renderHistory(){
     html+=active.map(function(r){var i=hist.indexOf(r);var d=new Date(r.date);var ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})+" — "+d.toLocaleTimeString();
       return "<div class='hist-card'><div class='h-acct'>"+esc(r.account)+"</div><div class='h-meta'>"+ds+(r.stage?" — "+esc(r.stage):"")+" — "+r.photos+" photo"+(r.photos!==1?"s":"")+(r.location?"<br>"+esc(r.location.substring(0,60)):"")+
       "</div>"+(r.deal?"<div style='font-size:12px;color:var(--sub);margin-bottom:6px'>"+esc(r.deal)+"</div>":"")+historyStatusHtml(r)+
-      "<div class='h-acts'><button class='bp bsm' onclick='viewHist("+i+")'>View</button><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button><button class='bg bsm' onclick='archiveHist("+i+")'>Archive</button></div></div>";
+      "<div class='h-action-group'><div class='h-action-label'>Continue</div><div class='h-acts'><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bp bsm' onclick='viewHist("+i+")'>View</button></div><div class='h-action-label'>Share / Export</div><div class='h-acts'><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='bg bsm' onclick='archiveHist("+i+")'>Archive</button></div></div></div>";
     }).join("");
     if(archived.length){
       html+="<div style='font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--bdr)'>Archived ("+archived.length+")</div>";
       html+=archived.map(function(r){var i=hist.indexOf(r);var d=new Date(r.date);var ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+" — "+d.toLocaleTimeString();
         return "<div class='hist-card' style='opacity:.7;border-style:dashed'><div class='h-acct'>"+esc(r.account)+"</div><div class='h-meta'>"+ds+" — "+r.photos+" photo"+(r.photos!==1?"s":"")+"</div>"+historyStatusHtml(r)+
-        "<div class='h-acts'><button class='bp bsm' onclick='viewHist("+i+")'>View</button><button class='bs bsm' onclick='unarchiveHist("+i+")'>Restore</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button><button class='bd bsm' onclick='permDeleteHist("+i+")'>Delete</button></div></div>";
+        "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'><button class='bp bsm' onclick='viewHist("+i+")'>View</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='bs bsm' onclick='unarchiveHist("+i+")'>Restore</button><button class='bd bsm' onclick='permDeleteHist("+i+")'>Delete</button></div></div></div>";
       }).join("");
     }
   }

@@ -72,7 +72,6 @@ body.light .deal-card.sel{background:#d0f0ea}
 body.light .hist-card{background:#fff}
 .h-acct{font-family:"Barlow Condensed",sans-serif;font-size:15px;font-weight:700}
 .h-meta{font-size:11px;color:var(--dim);margin:3px 0 8px;line-height:1.5}
-.h-acts{display:flex;gap:6px;flex-wrap:wrap}
 .rpt-hdr{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:12px;margin-bottom:12px;color:#0f2420}
 .rh-row{font-size:12px;margin-bottom:3px}
 .rh-k{color:var(--dim)}
@@ -123,3 +122,4 @@ body.light .hist-card{background:#fff}
 .settings-group-title{font-family:"Barlow Condensed",sans-serif;font-size:11px;font-weight:800;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px}
 .replacement-card{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px;margin-top:6px;color:#2d6b60}.replacement-card-title{font-family:"Barlow Condensed",sans-serif;font-weight:800;color:var(--green);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}.replacement-row{font-size:12px;line-height:1.5}.replacement-row span{color:var(--dim)}
 .photo-sync-status{font-size:10px;font-family:"Barlow Condensed",sans-serif;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:10px;padding:2px 7px;margin-bottom:6px;display:inline-flex;border:1px solid #b2ddd6;background:#fff;color:#2d6b60}.photo-sync-status.pending,.photo-sync-status.failed{background:#fffbeb;border-color:#f59e0b;color:#92400e}.photo-sync-status.uploaded{background:#f0fdf4;border-color:#86efac;color:#14532d}
+.h-action-group{border-top:1px solid #b2ddd6;padding-top:8px;margin-top:8px}.h-action-label{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:800;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}.h-acts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
