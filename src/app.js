@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="176";
+var FP_VERSION="177";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1124,9 +1124,16 @@ function setupPendingUploadAutoRetry(){
   try{document.addEventListener("visibilitychange",function(){if(!document.hidden)schedulePendingUploadRetry("visible",3000);});}catch(e){}
   try{setInterval(function(){schedulePendingUploadRetry("interval",0);},120000);}catch(e){}
 }
+function renderPendingBadge(items){
+  items=items||getPendingUploads();
+  var tab=el("pending-sync-tab"),cnt=el("pending-sync-count");
+  if(cnt)cnt.textContent=items.length;
+  if(tab)tab.style.display=items.length?"block":"none";
+}
 function renderPendingUploads(){
   var box=el("pending-uploads-list"),count=el("pending-uploads-count");if(!box&&!count)return;
   var items=getPendingUploads();
+  renderPendingBadge(items);
   if(count)count.textContent=items.length+" pending";
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending uploads.</div>";
 }
