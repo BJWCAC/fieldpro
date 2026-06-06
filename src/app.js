@@ -1548,8 +1548,8 @@ function renderReportSaveConfirmation(){
   box.style.display="block";
   box.innerHTML="<div class='stitle' style='margin-bottom:8px;color:#166534'>Saved to Zoho</div>"+
     reportChecklistItem(!!r.note,"Deal note",r.note?"Created or updated on the selected Deal.":"Not confirmed.")+
-    reportChecklistItem(!!r.dealPdf,"Report PDF attached to Deal",r.dealPdf?"PDF attachment confirmed or already attached.":"Not confirmed; use Retry Uploads/PDF.")+
-    reportChecklistItem(!!r.workdrive,"WorkDrive files/links",r.workdrive?"PDF/photos/video uploaded or WorkDrive PDF link saved.":"No WorkDrive upload confirmed; use Retry Uploads/PDF.")+
+    reportChecklistItem(!!r.dealPdf,"Report PDF attached to Deal",r.dealPdf?"PDF attachment confirmed or already attached.":"Not confirmed; use Retry Report Sync.")+
+    reportChecklistItem(!!r.workdrive,"WorkDrive files/links",r.workdrive?"PDF/photos/video uploaded or WorkDrive PDF link saved.":"No WorkDrive upload confirmed; use Retry Report Sync.")+
     reportChecklistItem(true,"History updated","This report can be reopened from History.")+
     reportChecklistItem(true,"Asset update notes",r.assets?r.assets+" asset update"+(r.assets!==1?"s":"")+" saved this visit.":"No asset updates saved this visit.")+
     (r.warning?"<div class='rsc-note'><strong>Warning:</strong> "+esc(r.warning)+"</div>":"");
@@ -1689,7 +1689,7 @@ async function retryReportUploads(){
   if(!A.sel||!A.report){showToast("Select a deal and generate a report first",4000);return;}
   try{
     A.lastSaveIssue=null;renderReportRetryActions();
-    showUploadStatus("Retrying WorkDrive uploads and Deal PDF attachment...",false);
+    showUploadStatus("Retrying report sync items...",false);
     await refreshZohoToken();
     A.uploadPromise=uploadToWorkDriveAll();
     await A.uploadPromise;
@@ -1700,7 +1700,7 @@ async function retryReportUploads(){
     updateCurrentHistory({pdfSaved:true,zohoSaved:true,dealPdfAttached:!!A.dealPdfAttached,zohoNoteId:savedNoteId||A.zohoNoteId||null});
     A.lastSaveResult={note:true,dealPdf:!!A.dealPdfAttached,workdrive:!!(A.workdrivePdfUrl||A.workdriveUploadCount>0),assets:A.asset&&A.asset.savedItems?A.asset.savedItems.length:0,warning:""};
     renderReportSaveConfirmation();renderReportRetryActions();
-    showUploadStatus("Retry complete: uploads/PDF checked and Zoho note refreshed.",false);
+    showUploadStatus("Retry complete: report sync items checked and Zoho note refreshed.",false);
     showToast("Retry uploads complete",4000);
   }catch(e){
     A.lastSaveIssue="Retry uploads/PDF failed: "+e.message;
