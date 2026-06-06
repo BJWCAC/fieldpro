@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="174";
+var FP_VERSION="175";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1020,6 +1020,20 @@ async function saveDealAssetUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
+function enqueueReportNoteSave(payload,error){
+  if(!payload||!payload.deal_id||!payload.note_content)return;
+  var items=getPendingUploads();
+  var key=(payload.deal_id||"")+":"+(payload.note_id||"")+":"+(payload.note_title||"");
+  var exists=items.some(function(i){return i.type==="report_note"&&i.key===key;});
+  if(exists)return;
+  enqueuePendingUpload({type:"report_note",key:key,dealId:payload.deal_id,noteId:payload.note_id||null,noteTitle:payload.note_title,noteContent:payload.note_content,action:payload.action,assetLabel:"Zoho report note",filename:payload.note_title||"report note",error:error||""});
+}
+async function uploadPendingReportNote(item){
+  await refreshZohoToken();
+  var payload={action:item.noteId?"update_note":"save_note",token:A.zohoToken,deal_id:item.dealId,note_id:item.noteId||null,note_title:item.noteTitle,note_content:item.noteContent};
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
+  if(!r.ok){var txt=await r.text();throw new Error("Zoho note "+r.status+": "+txt.substring(0,120));}
+}
 async function buildReportPdfPayload(){
   if(!A.report)return null;
   var pdfPhotos=A.reportPhotos&&A.reportPhotos.length>0?A.reportPhotos:A.photos;
@@ -1069,7 +1083,7 @@ async function retryPendingUploads(opts){
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else throw new Error("Unknown pending upload type");}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else throw new Error("Unknown pending upload type");}
     catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
   }
   A.pendingRetrying=false;
@@ -1581,13 +1595,14 @@ async function zohoSave(){
       return noteId;
     }
     var e=await r.text();
-    if(r.status===401&&attempt===0){var ref=await refreshZohoToken();if(ref)continue;throw new Error("Token refresh failed");}
+    if(r.status===401&&attempt===0){var ref=await refreshZohoToken();if(ref)continue;enqueueReportNoteSave(payload,"Token refresh failed");throw new Error("Token refresh failed");}
     if(payload.action==="update_note"&&isStaleZohoNoteError(r.status,e)){
       console.log("Stored Zoho note was not found; creating a replacement note.",e);
       A.zohoNoteId=null;
       updateCurrentHistory({zohoNoteId:null,zohoSaved:false});
       continue;
     }
+    enqueueReportNoteSave(payload,"Proxy error "+r.status+": "+e.substring(0,100));
     throw new Error("Proxy error "+r.status+": "+e.substring(0,100));
   }
 }
