@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="186";
+var FP_VERSION="187";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -669,6 +669,23 @@ function assetReplacementHistoryEntries(){
   var txt=(A.asset.loadedOriginal&&A.asset.loadedOriginal.description)||assetInput("asset-description")||"";
   return String(txt).split(/\n\n+/).filter(function(block){return block.indexOf("Replacement recorded by CapStone")>=0;});
 }
+function parseReplacementBlock(block){
+  var o={date:"",previousModel:"",previousSerial:"",previousBrand:"",previousType:"",newModel:"",newSerial:"",newBrand:"",newType:""};
+  String(block||"").split("\n").forEach(function(line){
+    var idx=line.indexOf(":");
+    if(line.indexOf("Replacement recorded by CapStone on ")===0)o.date=line.replace("Replacement recorded by CapStone on ","").trim();
+    else if(idx>0){var k=line.slice(0,idx).trim(),v=line.slice(idx+1).trim();
+      if(k==="Previous Model")o.previousModel=v;if(k==="Previous Serial")o.previousSerial=v;if(k==="Previous Brand")o.previousBrand=v;if(k==="Previous Type")o.previousType=v;if(k==="New Model")o.newModel=v;if(k==="New Serial")o.newSerial=v;if(k==="New Brand")o.newBrand=v;if(k==="New Type")o.newType=v;
+    }
+  });
+  return o;
+}
+function replacementCardHtml(block){
+  var r=parseReplacementBlock(block);
+  return "<div class='replacement-card'><div class='replacement-card-title'>Replacement "+esc(r.date||"")+"</div>"+
+    "<div class='replacement-row'><span>Previous:</span> "+esc([r.previousBrand,r.previousType,r.previousModel?("Model "+r.previousModel):"",r.previousSerial?("Serial "+r.previousSerial):""].filter(Boolean).join(" — ")||"-")+"</div>"+
+    "<div class='replacement-row'><span>New:</span> "+esc([r.newBrand,r.newType,r.newModel?("Model "+r.newModel):"",r.newSerial?("Serial "+r.newSerial):""].filter(Boolean).join(" — ")||"-")+"</div></div>";
+}
 function renderAssetHistoryPanel(){
   var panel=el("asset-history-panel");if(!panel)return;
   var o=A.asset.loadedOriginal;
@@ -685,7 +702,7 @@ function renderAssetHistoryPanel(){
   panel.style.display="block";
   panel.innerHTML="<div class='stitle' style='margin-bottom:6px'>Asset History</div>"+
     rows.map(function(r){return"<div><span style='color:var(--dim)'>"+esc(r[0])+": </span><span style='color:#2d6b60'>"+esc(r[1])+"</span></div>";}).join("")+
-    (history.length?"<div style='margin-top:8px;color:var(--dim)'>Replacement Notes</div>"+history.map(function(h){return"<pre style='white-space:pre-wrap;background:#fff;border:1px solid #b2ddd6;border-radius:6px;padding:6px;color:#2d6b60;margin-top:4px'>"+esc(h)+"</pre>";}).join(""):"<div style='margin-top:8px;color:var(--dim)'>No replacement notes recorded yet.</div>");
+    (history.length?"<div style='margin-top:8px;color:var(--dim)'>Replacement History</div>"+history.map(replacementCardHtml).join(""):"<div style='margin-top:8px;color:var(--dim)'>No replacement notes recorded yet.</div>");
 }
 function replacementSummaryText(){
   var o=A.asset.loadedOriginal;if(!o)return"";
