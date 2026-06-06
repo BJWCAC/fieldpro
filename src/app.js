@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="181";
+var FP_VERSION="182";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1104,8 +1104,8 @@ function enqueueReportPdfUpload(type,payload,error){
 async function uploadPendingDealPdf(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:item.dealId,filename:item.filename,file_b64:item.fileB64,mime_type:item.mimeType||"application/pdf"})},90000);if(!r.ok){var txt=await r.text();throw new Error("Deal PDF "+r.status+": "+txt.substring(0,120));}}
 async function uploadPendingWorkDrivePdf(item){await refreshZohoToken();var folderId=item.folderId||WORKDRIVE_FOLDER;var link=await uploadToWorkDrive(item.fileB64,item.filename,item.mimeType||"application/pdf",folderId,90000);if(link)A.workdrivePdfUrl=link;}
 function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pending_uploads")||"[]");}catch(e){return[];}}
-function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending upload",5000);}renderPendingUploads();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
-function pendingUploadLabel(item){return (item.assetLabel||"Pending upload")+" — "+(item.filename||"file");}
+function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending sync item",5000);}renderPendingUploads();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
+function pendingUploadLabel(item){return (item.assetLabel||"Pending sync")+" — "+(item.filename||"file");}
 function enqueueAssetPhotoUpload(equipmentId,photo,filename,error){
   var items=getPendingUploads();
   var fingerprint=photo&&photo.fingerprint||"";
@@ -1115,7 +1115,7 @@ function enqueueAssetPhotoUpload(equipmentId,photo,filename,error){
   savePendingUploads(items);
 }
 async function uploadPendingAssetPhoto(item){
-  if(!item||!item.imageData||!item.equipmentId)throw new Error("Pending upload is missing data");
+  if(!item||!item.imageData||!item.equipmentId)throw new Error("Pending sync is missing data");
   var b64=await compressPhoto(item.imageData,1200,0.8);
   if(!b64)throw new Error("Could not compress pending photo");
   await refreshZohoToken();
@@ -1126,9 +1126,9 @@ async function retryPendingUploads(opts){
   opts=opts||{};
   if(A.pendingRetrying)return;
   var items=getPendingUploads();
-  if(!items.length){if(!opts.auto)showToast("No pending uploads",2500);return;}
+  if(!items.length){if(!opts.auto)showToast("No pending sync items",2500);return;}
   A.pendingRetrying=true;
-  if(!opts.auto)showToast("Retrying "+items.length+" pending upload(s)...",3000);
+  if(!opts.auto)showToast("Retrying "+items.length+" pending sync item(s)...",3000);
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
@@ -1137,7 +1137,7 @@ async function retryPendingUploads(opts){
   }
   A.pendingRetrying=false;
   savePendingUploads(remaining);
-  if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" upload(s) still pending":"All pending uploads complete",5000);
+  if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" sync item(s) still pending":"All pending sync items complete",5000);
 }
 function schedulePendingUploadRetry(reason,delayMs){
   if(!getPendingUploads().length||A.pendingRetrying)return;
@@ -1168,9 +1168,9 @@ function renderPendingUploads(){
   var items=getPendingUploads();
   renderPendingBadge(items);
   if(count)count.textContent=items.length+" pending";
-  if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending uploads.</div>";
+  if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
-function clearPendingUploads(){if(!confirm("Clear all pending uploads?"))return;savePendingUploads([]);showToast("Pending uploads cleared",2500);}
+function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;savePendingUploads([]);showToast("Pending sync cleared",2500);}
 function sanitizeAssetFilePart(s){return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"asset";}
 async function getEquipmentRecord(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_equipment",token:A.zohoToken,equipment_id:equipmentId})},30000);
