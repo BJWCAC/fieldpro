@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="175";
+var FP_VERSION="176";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1020,6 +1020,22 @@ async function saveDealAssetUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
+function enqueueDealAssetLink(equipmentId,error){
+  if(!A.sel||!A.sel.id||!equipmentId)return;
+  enqueuePendingUpload({type:"deal_asset_link",dealId:A.sel.id,equipmentId:equipmentId,description:assetDealDescription(),notes:assetDealNotes(),assetLabel:"Deal asset link",filename:assetInput("asset-name")||equipmentId,error:error||""});
+}
+function enqueueEquipmentNote(equipmentId,error){
+  if(!equipmentId)return;
+  enqueuePendingUpload({type:"equipment_note",equipmentId:equipmentId,noteTitle:"CapStone Asset Update — "+new Date().toLocaleDateString(),noteContent:assetUpdateNoteContent(),assetLabel:"Equipment asset note",filename:assetInput("asset-name")||equipmentId,error:error||""});
+}
+function enqueueDealAssetNote(equipmentId,error){
+  if(!A.sel||!A.sel.id||!equipmentId)return;
+  var assetLabel=(assetInput("asset-name")||assetInput("asset-model")||assetInput("asset-serial")||"Asset");
+  enqueuePendingUpload({type:"deal_asset_note",dealId:A.sel.id,equipmentId:equipmentId,noteTitle:zohoNoteTitleLimit("CapStone Asset Update — "+assetLabel+" — "+new Date().toLocaleDateString()),noteContent:assetUpdateNoteContent()+"\n\nZoho Equipment ID: "+equipmentId,assetLabel:"Deal asset note",filename:assetLabel,error:error||""});
+}
+async function uploadPendingDealAssetLink(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"link_equipment_to_deal",token:A.zohoToken,deal_id:item.dealId,equipment_id:item.equipmentId,description:item.description||"",notes:item.notes||""})},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset link "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingEquipmentNote(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_equipment_note",token:A.zohoToken,equipment_id:item.equipmentId,note_title:item.noteTitle,note_content:item.noteContent})},30000);if(!r.ok){var txt=await r.text();throw new Error("Equipment note "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingDealAssetNote(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:item.noteTitle,note_content:item.noteContent})},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}}
 function enqueueReportNoteSave(payload,error){
   if(!payload||!payload.deal_id||!payload.note_content)return;
   var items=getPendingUploads();
@@ -1083,7 +1099,7 @@ async function retryPendingUploads(opts){
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else throw new Error("Unknown pending upload type");}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else throw new Error("Unknown pending upload type");}
     catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
   }
   A.pendingRetrying=false;
@@ -1163,9 +1179,9 @@ async function saveAssetToZoho(){
     var dealNoteWarning="";
     var dealLinkWarning="";
     var dealLinked=false;
-    try{var linkResult=await linkEquipmentToSelectedDeal(equipmentId);dealLinked=!!linkResult.linked;}catch(linkErr){dealLinkWarning=linkErr&&linkErr.message?linkErr.message:String(linkErr);console.log("Asset saved but deal subform link failed:",linkErr);showToast("Asset saved, but deal link failed",7000);}
-    try{await saveEquipmentUpdateNote(equipmentId);}catch(noteErr){noteWarning=noteErr&&noteErr.message?noteErr.message:String(noteErr);console.log("Asset saved but update note failed:",noteErr);showToast("Asset saved, but note failed",7000);}
-    try{await saveDealAssetUpdateNote(equipmentId);}catch(dealNoteErr){dealNoteWarning=dealNoteErr&&dealNoteErr.message?dealNoteErr.message:String(dealNoteErr);console.log("Asset saved but deal update note failed:",dealNoteErr);showToast("Asset saved, but deal note failed",7000);}
+    try{var linkResult=await linkEquipmentToSelectedDeal(equipmentId);dealLinked=!!linkResult.linked;}catch(linkErr){dealLinkWarning=linkErr&&linkErr.message?linkErr.message:String(linkErr);enqueueDealAssetLink(equipmentId,dealLinkWarning);console.log("Asset saved but deal subform link failed:",linkErr);showToast("Asset saved, but deal link failed",7000);}
+    try{await saveEquipmentUpdateNote(equipmentId);}catch(noteErr){noteWarning=noteErr&&noteErr.message?noteErr.message:String(noteErr);enqueueEquipmentNote(equipmentId,noteWarning);console.log("Asset saved but update note failed:",noteErr);showToast("Asset saved, but note failed",7000);}
+    try{await saveDealAssetUpdateNote(equipmentId);}catch(dealNoteErr){dealNoteWarning=dealNoteErr&&dealNoteErr.message?dealNoteErr.message:String(dealNoteErr);enqueueDealAssetNote(equipmentId,dealNoteWarning);console.log("Asset saved but deal update note failed:",dealNoteErr);showToast("Asset saved, but deal note failed",7000);}
     var photosToUpload=assetPhotosToUpload();
     if(photosToUpload.length){
       try{
