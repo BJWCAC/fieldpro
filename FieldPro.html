@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=171"/>
+<link rel="stylesheet" href="src/styles.css?v=172"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v171</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v172</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -347,6 +347,15 @@
     <button class="bd bfull" onclick="clearAllHistory()">Clear All History</button>
   </div>
   <div class="card">
+    <div class="stitle">Pending Uploads</div>
+    <div id="pending-uploads-count" style="font-size:12px;color:var(--amber);margin-bottom:8px">0 pending</div>
+    <div id="pending-uploads-list" style="margin-bottom:10px"></div>
+    <div class="g2">
+      <button class="bp bfull" onclick="retryPendingUploads()">Retry Pending</button>
+      <button class="bg bfull" onclick="clearPendingUploads()">Clear Pending</button>
+    </div>
+  </div>
+  <div class="card">
     <div class="stitle">Troubleshooting</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
     <button class="bg bfull" onclick="resetAppCache()" style="margin-bottom:8px">Reset App Cache &amp; Reload</button>
@@ -369,7 +378,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">171</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">172</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -457,7 +466,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=171"></script>
+<script src="src/app.js?v=172"></script>
 
 </body>
 </html>

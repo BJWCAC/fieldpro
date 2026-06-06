@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="171";
+var FP_VERSION="172";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -60,7 +60,7 @@ function go(n){
   });
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();}
 }
 function badge(id,n){var e=el(id);if(!e)return;e.textContent=n||"";e.style.display=n?"inline":"none";}
 function esc(s){if(!s)return"";if(typeof s==="object")s=s.name||s.id||"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -330,6 +330,8 @@ window.go=go;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.confirmAssetPhotoDescription=confirmAssetPhotoDescription;
 window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
+window.retryPendingUploads=retryPendingUploads;
+window.clearPendingUploads=clearPendingUploads;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
@@ -1017,6 +1019,45 @@ async function saveDealAssetUpdateNote(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
+function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pending_uploads")||"[]");}catch(e){return[];}}
+function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending upload",5000);}renderPendingUploads();}
+function pendingUploadLabel(item){return (item.assetLabel||"Asset photo")+" — "+(item.filename||"photo");}
+function enqueueAssetPhotoUpload(equipmentId,photo,filename,error){
+  var items=getPendingUploads();
+  var fingerprint=photo&&photo.fingerprint||"";
+  var existing=items.some(function(i){return i.type==="asset_photo"&&i.equipmentId===equipmentId&&i.fingerprint===fingerprint;});
+  if(existing)return;
+  items.push({id:"pu"+Date.now()+Math.random(),type:"asset_photo",equipmentId:equipmentId,filename:filename,imageData:photo&&photo.data||"",fingerprint:fingerprint,assetLabel:assetInput("asset-name")||equipmentId,error:error||"",created:new Date().toISOString(),attempts:0});
+  savePendingUploads(items);
+}
+async function uploadPendingAssetPhoto(item){
+  if(!item||!item.imageData||!item.equipmentId)throw new Error("Pending upload is missing data");
+  var b64=await compressPhoto(item.imageData,1200,0.8);
+  if(!b64)throw new Error("Could not compress pending photo");
+  await refreshZohoToken();
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:item.equipmentId,filename:item.filename||"asset-photo.jpg",image_b64:b64})},45000);
+  if(!r.ok){var txt=await r.text();throw new Error("Photo upload "+r.status+": "+txt.substring(0,120));}
+}
+async function retryPendingUploads(){
+  var items=getPendingUploads();
+  if(!items.length){showToast("No pending uploads",2500);return;}
+  showToast("Retrying "+items.length+" pending upload(s)...",3000);
+  var remaining=[];
+  for(var i=0;i<items.length;i++){
+    var item=items[i];
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else throw new Error("Unknown pending upload type");}
+    catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;remaining.push(item);}
+  }
+  savePendingUploads(remaining);
+  showToast(remaining.length?remaining.length+" upload(s) still pending":"All pending uploads complete",5000);
+}
+function renderPendingUploads(){
+  var box=el("pending-uploads-list"),count=el("pending-uploads-count");if(!box&&!count)return;
+  var items=getPendingUploads();
+  if(count)count.textContent=items.length+" pending";
+  if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending uploads.</div>";
+}
+function clearPendingUploads(){if(!confirm("Clear all pending uploads?"))return;savePendingUploads([]);showToast("Pending uploads cleared",2500);}
 function sanitizeAssetFilePart(s){return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"asset";}
 async function getEquipmentRecord(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_equipment",token:A.zohoToken,equipment_id:equipmentId})},30000);
@@ -1077,9 +1118,15 @@ async function saveAssetToZoho(){
           var ap=photosToUpload[upi];
           var b64=await compressPhoto(ap.data,1200,0.8);
           if(!b64)throw new Error("Could not compress nameplate photo");
-          var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:await assetPhotoAttachmentName(assetFilePrefix,ap,upi),image_b64:b64})},45000);
-          if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
-          A.asset.lastUploadedPhotoFingerprints[ap.fingerprint]=true;
+          var photoFilename=await assetPhotoAttachmentName(assetFilePrefix,ap,upi);
+          try{
+            var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:photoFilename,image_b64:b64})},45000);
+            if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
+            A.asset.lastUploadedPhotoFingerprints[ap.fingerprint]=true;
+          }catch(onePhotoErr){
+            enqueueAssetPhotoUpload(equipmentId,ap,photoFilename,onePhotoErr.message||String(onePhotoErr));
+            throw onePhotoErr;
+          }
         }
       }catch(photoErr){
         photoWarning=photoErr&&photoErr.message?photoErr.message:String(photoErr);
