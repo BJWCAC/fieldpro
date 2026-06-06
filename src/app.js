@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="188";
+var FP_VERSION="189";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -330,6 +330,7 @@ window.closeKeyModal=closeKeyModal;
 window.dismissTechnicianPrompt=dismissTechnicianPrompt;
 window.saveTechnicianPrompt=saveTechnicianPrompt;
 window.go=go;
+window.retryCapturePhotoUpload=retryCapturePhotoUpload;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.confirmAssetPhotoDescription=confirmAssetPhotoDescription;
 window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
@@ -1447,6 +1448,23 @@ function photoSyncLabel(p){
   return"Not synced";
 }
 function setPhotoSyncStatus(p,status,msg){if(!p)return;p.syncStatus=status;p.syncMessage=msg||"";renderPhotoCards();scheduleCaptureDraftSave();}
+async function retryCapturePhotoUpload(photoId){
+  var p=A.photos.find(function(x){return x.id===photoId;})||(A.reportPhotos||[]).find(function(x){return x.id===photoId;});
+  if(!p){showToast("Photo not found",2500);return;}
+  if(!A.sel){showToast("Select a deal before retrying photo sync",4000);return;}
+  try{
+    setPhotoSyncStatus(p,"uploading","");
+    await refreshZohoToken();
+    var dealFolder=await resolveDealFolder();
+    var b64=await compressPhoto(p.display,1200,0.8);
+    if(!b64)throw new Error("Could not compress photo");
+    var idx=Math.max(0,A.photos.findIndex(function(x){return x.id===photoId;}));
+    var fname=workdrivePhotoFileName(p,idx);
+    await uploadToWorkDrive(b64,fname,"image/jpeg",dealFolder);
+    setPhotoSyncStatus(p,"uploaded","");
+    showToast("Photo synced",2500);
+  }catch(e){setPhotoSyncStatus(p,"failed",e.message);showToast("Photo retry failed: "+e.message,5000);}
+}
 function renderPhotoCards(){
   badge("tb-photos",A.photos.length||"");
   var c=el("photo-cards");if(!c)return;c.innerHTML="";
@@ -1460,6 +1478,11 @@ function renderPhotoCards(){
     var ta=document.createElement("textarea");ta.className="pc-desc";ta.setAttribute("inputmode","text");ta.id="ta-"+p.id;ta.placeholder="Tap to add description with Wispr...";ta.value=p.desc||"";
     (function(pid){ta.addEventListener("input",function(){updatePhotoDesc(pid,this.value);});})(p.id);
     var acts=document.createElement("div");acts.className="pc-acts";
+    if((p.syncStatus||"not_synced")==="failed"){
+      var retry=document.createElement("button");retry.className="bs bsm";retry.textContent="Retry Photo";
+      (function(pid){retry.onclick=function(){retryCapturePhotoUpload(pid);};})(p.id);
+      acts.appendChild(retry);
+    }
     var rm=document.createElement("button");rm.className="bd bsm";rm.textContent="Remove";
     (function(pid){rm.onclick=function(){removePhoto(pid);};})(p.id);
     acts.appendChild(rm);
