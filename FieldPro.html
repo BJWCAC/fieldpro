@@ -121,7 +121,7 @@ body.light .hist-card{background:#fff}
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v120</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v121</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -339,7 +339,7 @@ body.light .hist-card{background:#fff}
     <div class="stitle">Industrial Automation and Instrumentation Field Documentation System</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">120</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">121</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -384,6 +384,7 @@ var UPLOAD_FETCH_MS=50000;
 var UPLOAD_WAIT_MS=70000;
 var VIDEO_MAX_BYTES=2*1024*1024;
 var PROJECT_JSON_FILENAME="CapStone-Project.json";
+var REPORT_PDF_FILENAME="CapStone-Report.pdf";
 var PROJECT_JSON_MAX_B64=5500000;
 var ZOHO_FETCH_MS=20000;
 var SEC_LABELS=["1. Site Visit Summary","2. Equipment / Systems Serviced","3. Work Performed","4. Calibration Results & Readings","5. Findings & Observations","6. Issues / Deficiencies","7. Recommendations & Next Steps","8. Follow-Up Required","9. Materials / Parts Used"];
@@ -396,8 +397,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false};
-var FP_VERSION="120";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,savedProjectId:null,savedReportText:null,mediaUploadedForProject:null,zohoSavedForProject:null};
+var FP_VERSION="121";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/FieldPro.html";
 
 function appBaseUrl(){
@@ -603,6 +604,7 @@ function newProject(){
 }
 function clearCapture(){
   A.photos=[];A.reportPhotos=[];A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.workdrivePdfUrl=null;
+  A.savedProjectId=null;A.savedReportText=null;A.mediaUploadedForProject=null;A.zohoSavedForProject=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -901,8 +903,46 @@ function compressPhoto(dataUrl,maxW,quality){
 }
 
 // GENERATE
+function getActiveProjectId(){
+  var hist=getHistory();
+  return(hist.length>0&&hist[0].id)?hist[0].id:null;
+}
+function resetSaveTracking(){
+  A.savedProjectId=null;A.savedReportText=null;A.mediaUploadedForProject=null;A.zohoSavedForProject=null;
+}
+function markProjectSaved(projectId){
+  if(!projectId)return;
+  A.savedProjectId=projectId;
+  A.savedReportText=A.report||"";
+  A.zohoSavedForProject=projectId;
+  if(A.workdriveUploadCount>0||A.mediaUploadedForProject===projectId)A.mediaUploadedForProject=projectId;
+  updateSaveButtonUI();
+}
+function updateSaveButtonUI(){
+  var btn=el("save-btn");if(!btn||!A.report)return;
+  var pid=getActiveProjectId();
+  if(pid&&A.zohoSavedForProject===pid&&A.savedReportText===A.report){
+    btn.textContent="Saved to Zoho ✓";
+    btn.style.background="var(--green)";btn.style.color="#001a18";
+  }else{
+    btn.textContent="Save to Zoho";
+    btn.style.background="";btn.style.color="";
+  }
+}
+function reportChangedSinceSave(){
+  return A.savedReportText!==(A.report||"");
+}
+function mediaAlreadyUploaded(){
+  var pid=getActiveProjectId();
+  return!!(pid&&A.mediaUploadedForProject===pid&&A.workdriveUploadCount>0);
+}
+function zohoNoteAlreadySaved(){
+  var pid=getActiveProjectId();
+  return!!(pid&&A.zohoSavedForProject===pid&&!reportChangedSinceSave());
+}
 async function generate(){
   A.workdrivePdfUrl=null;
+  resetSaveTracking();
   var btn=el("gen-btn"),regen=el("regen-btn");
   if(btn){btn.disabled=true;btn.textContent="Generating...";}
   if(regen)regen.disabled=true;
@@ -939,7 +979,7 @@ async function generate(){
     }catch(e){}
     A.reportPhotos=savedPhotos;
     var meta={id:"r"+Date.now(),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,dealId:A.sel?A.sel.id:null};
-    saveHistory(meta);renderReport();go("report");
+    saveHistory(meta);renderReport();go("report");updateSaveButtonUI();
     if(A.sel){
       A.uploadPromise=uploadToWorkDriveAll();
       if(A.autoSaveZoho){
@@ -978,6 +1018,7 @@ function renderReport(){
   var rhr=el("rpt-hdr-rows");if(rhr)rhr.innerHTML=h;
   var ndl=el("no-deal-rpt");if(ndl)ndl.style.display=A.sel?"none":"flex";
   var sb=el("save-btn");if(sb)sb.disabled=!A.sel;
+  updateSaveButtonUI();
   var photos=A.reportPhotos;var rp=el("rpt-photos"),rg=el("rpt-photo-grid");
   if(photos.length>0&&rp&&rg){
     rp.style.display="block";
@@ -1031,11 +1072,13 @@ async function zohoSave(){
   }
 }
 async function saveNote(){
-  if(!A.sel||!A.report)return;
+  if(!A.sel){showToast("Select a deal first",4000);return;}
+  if(!A.report){showToast("Generate a report first",4000);return;}
   if(A.savingToZoho){showToast("Save already in progress",3000);return;}
   try{
-    await saveNoteToZoho({});
-    showToast("Saved to Zoho",4000);
+    var result=await saveNoteToZoho({});
+    if(result&&result.noteSkipped)showToast("WorkDrive updated — CRM note already saved",5000);
+    else showToast("Saved to Zoho",4000);
   }catch(e){
     var re=el("rpt-err");if(re){re.textContent="Save failed: "+e.message;re.style.display="block";}
     showToast("Save failed: "+e.message,7000);
@@ -1052,8 +1095,12 @@ async function saveNoteToZoho(opts){
   function setStatus(txt){if(btn)btn.textContent=txt;if(genBtn)genBtn.textContent=txt;}
   if(btn){btn.disabled=true;}
   if(regen)regen.disabled=true;
+  var projectId=getActiveProjectId();
+  var skipMedia=mediaAlreadyUploaded();
+  var skipNote=zohoNoteAlreadySaved();
+  var noteSkipped=false;
   try{
-    if(!A.uploadPromise&&A.sel)A.uploadPromise=uploadToWorkDriveAll();
+    if(!A.uploadPromise&&A.sel&&!skipMedia)A.uploadPromise=uploadToWorkDriveAll();
     if(A.uploadPromise){
       setStatus("Uploading...");
       showUploadStatus("Waiting for WorkDrive uploads (max ~70s)...",false);
@@ -1062,34 +1109,44 @@ async function saveNoteToZoho(opts){
         showUploadStatus("Upload still running — saving now with any links ready so far.",true);
         showToast("Stopped waiting for uploads — saving note with photos uploaded so far",8000);
       }
+      if(A.workdriveUploadCount>0&&projectId)A.mediaUploadedForProject=projectId;
+    }else if(skipMedia){
+      showUploadStatus("Photos already in WorkDrive — updating project file...",false);
     }
     setStatus("Uploading PDF...");
     showUploadStatus("Uploading report PDF to WorkDrive...",false);
     await refreshZohoToken();
-    await uploadReportPdfToWorkDrive();
+    await uploadReportPdfToWorkDrive(reportChangedSinceSave());
     setStatus("Saving project...");
     showUploadStatus("Saving project file to WorkDrive...",false);
     await uploadProjectJsonToWorkDrive();
-    setStatus("Saving to Zoho...");
-    showUploadStatus("Saving note to Zoho CRM...",false);
-    await zohoSave();
-    setStatus("Saved!");
-    if(btn){btn.style.background="var(--green)";btn.style.color="#001a18";}
-    showUploadStatus("Saved to Zoho — WorkDrive folder, PDF, project file, and CRM note.",false);
+    if(skipNote){
+      noteSkipped=true;
+      setStatus("Saved!");
+      showUploadStatus("WorkDrive updated — CRM note already saved for this report.",false);
+    }else{
+      setStatus("Saving to Zoho...");
+      showUploadStatus("Saving note to Zoho CRM...",false);
+      await zohoSave();
+      setStatus("Saved!");
+      showUploadStatus("Saved to Zoho — WorkDrive folder, PDF, project file, and CRM note.",false);
+    }
+    markProjectSaved(projectId);
     if(A.workdriveUploadCount>0){
       var reOk=el("rpt-err");if(reOk){reOk.style.display="none";}
-    }else if(A.reportPhotos&&A.reportPhotos.length>0){
+    }else if(A.reportPhotos&&A.reportPhotos.length>0&&!skipMedia){
       var reWarn=el("rpt-err");if(reWarn){reWarn.textContent="Note saved, but no files confirmed in WorkDrive. Open the deal folder in WorkDrive.";reWarn.style.display="block";}
     }
-    var hh=getHistory();if(hh.length>0){hh[0].pdfSaved=true;hh[0].zohoSaved=true;localStorage.setItem("fp_history",JSON.stringify(hh));}
+    var hh=getHistory();if(hh.length>0){hh[0].pdfSaved=true;if(!noteSkipped)hh[0].zohoSaved=true;localStorage.setItem("fp_history",JSON.stringify(hh));}
     if(btn&&!opts.fromGenerate){
-      setTimeout(function(){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;},3000);
+      setTimeout(function(){updateSaveButtonUI();btn.disabled=false;},3000);
     }
   }finally{
     A.savingToZoho=false;
-    if(btn&&opts.fromGenerate){btn.textContent="Save to Zoho";btn.style.background="";btn.style.color="";btn.disabled=false;}
+    if(btn&&opts.fromGenerate){updateSaveButtonUI();btn.disabled=false;}
     if(regen)regen.disabled=false;
   }
+  return{noteSkipped:noteSkipped};
 }
 function sanitizeWdFolderName(s){
   return String(s||"").replace(/[\\/:*?"<>|]/g,"-").replace(/\s+/g," ").trim().slice(0,120);
@@ -1222,6 +1279,8 @@ async function uploadToWorkDriveAll(){
       try{await uploadReportPdfToWorkDrive();}catch(pe){console.log("PDF upload:",pe);}
     }
     if(ok>0){
+      var pid=getActiveProjectId();
+      if(pid)A.mediaUploadedForProject=pid;
       showUploadStatus(summary+" Folder link will be in Zoho note.",false);
       showToast(summary,6000);
     }else{
@@ -1341,8 +1400,7 @@ async function uploadProjectJsonToWorkDrive(){
     var dealFolder=await resolveDealFolder();
     var link=await uploadToWorkDrive(b64,PROJECT_JSON_FILENAME,"application/json",dealFolder,90000);
     if(link){
-      A.workdriveUploadCount=(A.workdriveUploadCount||0)+1;
-      showToast("Project saved to WorkDrive",4000);
+      showToast("Project file saved to WorkDrive",4000);
       return link;
     }
   }catch(e){
@@ -1352,9 +1410,9 @@ async function uploadProjectJsonToWorkDrive(){
   return null;
 }
 
-async function uploadReportPdfToWorkDrive(){
+async function uploadReportPdfToWorkDrive(force){
   if(!A.sel||!A.report)return null;
-  if(A.workdrivePdfUrl)return A.workdrivePdfUrl;
+  if(A.workdrivePdfUrl&&!force)return A.workdrivePdfUrl;
   try{
     var dealFolder=await resolveDealFolder();
     var pdfPhotos=A.reportPhotos&&A.reportPhotos.length>0?A.reportPhotos:A.photos;
@@ -1375,9 +1433,7 @@ async function uploadReportPdfToWorkDrive(){
       showToast("PDF too large to upload from phone — use Download PDF; photos are in WorkDrive",9000);
       return null;
     }
-    var stamp=new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
-    var fname=workdriveFilePrefix()+"Report-"+stamp+".pdf";
-    var link=await uploadToWorkDrive(b64,fname,"application/pdf",dealFolder,90000);
+    var link=await uploadToWorkDrive(b64,REPORT_PDF_FILENAME,"application/pdf",dealFolder,90000);
     if(link){
       A.workdrivePdfUrl=link;
       A.workdriveUploadCount=(A.workdriveUploadCount||0)+1;
