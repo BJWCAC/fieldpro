@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=192"/>
+<link rel="stylesheet" href="src/styles.css?v=193"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v192</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v193</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -80,13 +80,14 @@
 <div class="pane" id="p-capture">
   <div id="no-deal-bar" class="no-deal-bar"><span>No deal linked</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
   <div id="capture-draft-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#2d6b60"></div>
+  <div id="capture-mode-status" class="capture-mode-status"></div>
   <div class="workflow-card">
     <div class="stitle">Capture Workflow</div>
     <ol>
       <li>Confirm active Deal, technician, and GPS.</li>
       <li>Capture notes, photos, video, and report section details.</li>
       <li>Review the draft status and generate the AI report.</li>
-      <li>Save to Zoho; CapStone queues failed uploads for retry.</li>
+      <li>Save Report to Zoho; CapStone queues failed sync for retry.</li>
     </ol>
   </div>
   <div id="deal-bar" class="card" style="background:#fff;border:1px solid #b2ddd6;display:none;margin-bottom:10px;color:#0f2420">
@@ -288,9 +289,18 @@
     <button class="bp" onclick="go('capture')">Go to Capture</button>
   </div>
   <div id="rpt-content" style="display:none">
+    <div class="workflow-card" id="report-workflow-card">
+      <div class="stitle">Report Workflow</div>
+      <ol>
+        <li>Review the report text, photos, and header details.</li>
+        <li>Check the save checklist before saving to Zoho.</li>
+        <li>Save Report to Zoho to update the Deal note, attach the PDF, and sync WorkDrive files.</li>
+        <li>Use Retry options if any step did not complete.</li>
+      </ol>
+    </div>
     <div id="report-save-checklist" class="report-save-checklist"></div>
     <div class="g2" style="margin-bottom:8px">
-      <button id="save-btn" class="bp" onclick="saveNote()">Save to Zoho</button>
+      <button id="save-btn" class="bp" onclick="saveNote()">Save Report to Zoho</button>
       <button class="bpu" onclick="openShare()">Share</button>
     </div>
     <div class="pdf-opts">
@@ -307,8 +317,8 @@
       <div class="stitle" style="margin-bottom:6px;color:#f59e0b">Retry Options</div>
       <div id="report-retry-message" style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px"></div>
       <div class="g2">
-        <button type="button" class="bs" onclick="retryReportSave()">Retry Save to Zoho</button>
-        <button type="button" class="bg" onclick="retryReportUploads()">Retry Report Sync</button>
+        <button type="button" class="bs" onclick="retryReportSave()">Retry Report Save</button>
+        <button type="button" class="bg" onclick="retryReportUploads()">Retry File Sync</button>
       </div>
     </div>
     <div id="report-save-confirmation" class="report-save-confirmation" style="display:none"></div>
@@ -322,6 +332,15 @@
 
 <!-- HISTORY -->
 <div class="pane" id="p-history">
+  <div class="workflow-card">
+    <div class="stitle">History Workflow</div>
+    <ol>
+      <li>Open + Continue restores Capture fields, photos, and notes for the same report.</li>
+      <li>View opens the generated report without changing Capture.</li>
+      <li>Continuing a saved report updates the same Zoho note instead of creating a duplicate.</li>
+      <li>Check status chips for Zoho, PDF, technician, and pending sync before leaving the site.</li>
+    </ol>
+  </div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800">Report History</div>
     <span id="hist-count" style="font-size:11px;color:var(--dim)"></span>
@@ -380,7 +399,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=186</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=193</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -419,7 +438,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">192</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">193</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -507,7 +526,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=192"></script>
+<script src="src/app.js?v=193"></script>
 
 </body>
 </html>
