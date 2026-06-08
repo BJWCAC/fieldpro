@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=193"/>
+<link rel="stylesheet" href="src/styles.css?v=194"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v193</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v194</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -43,6 +43,18 @@
 
 <!-- DEALS -->
 <div class="pane on" id="p-deals">
+  <details class="help-box" data-help-id="deals-tab">
+    <summary>Help: Deals</summary>
+    <div class="help-box-body">
+      <p>The Deals tab connects CapStone to your active Zoho CRM deal. Every report, asset save, and WorkDrive upload uses the deal you select here.</p>
+      <ul>
+        <li>Tap <strong>Refresh from Zoho</strong> before field work so the list is current.</li>
+        <li>Search or filter to find the correct account, deal, or stage.</li>
+        <li>Select a deal card to make it the active visit.</li>
+        <li>Confirm the header shows the right account and deal before moving to Capture or Assets.</li>
+      </ul>
+    </div>
+  </details>
   <div class="workflow-card">
     <div class="stitle">Deal Selection Workflow</div>
     <ol>
@@ -78,6 +90,18 @@
 
 <!-- CAPTURE -->
 <div class="pane" id="p-capture">
+  <details class="help-box" data-help-id="capture-tab">
+    <summary>Help: Capture</summary>
+    <div class="help-box-body">
+      <p>Capture is where you document the site visit: GPS, notes, photos, video, and optional report sections. CapStone autosaves a draft locally so you can reload without losing work.</p>
+      <ul>
+        <li>Confirm the active deal, technician, and GPS before documenting.</li>
+        <li>Add photos, voice notes, and only the report sections that apply.</li>
+        <li>Review the field checklist, then tap <strong>Generate AI Report</strong>.</li>
+        <li>After generating, open Report to review and save to Zoho.</li>
+      </ul>
+    </div>
+  </details>
   <div id="no-deal-bar" class="no-deal-bar"><span>No deal linked</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
   <div id="capture-draft-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#2d6b60"></div>
   <div id="capture-mode-status" class="capture-mode-status"></div>
@@ -113,6 +137,17 @@
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Video Walkthrough</div>
+    <details class="help-box nested" data-help-id="capture-video">
+      <summary>Help: Video &amp; Voice Notes</summary>
+      <div class="help-box-body">
+        <p>Record a walkthrough video when a moving view of the site is useful. Voice notes can be typed or dictated with Wispr while recording or from the idle notes box.</p>
+        <ul>
+          <li>Turn on <strong>Record audio in video</strong> only when you want sound in the video file.</li>
+          <li>Use <strong>Snap Photo</strong> during recording for quick still images.</li>
+          <li>Save the video to Downloads if you want a local copy before generating the report.</li>
+        </ul>
+      </div>
+    </details>
     <div id="vid-wrap">
       <video id="vid-el" playsinline muted></video>
       <div id="vid-ph"><div style="font-size:40px;opacity:.25;margin-bottom:8px">&#127916;</div><div style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;opacity:.5">Tap Start Recording</div></div>
@@ -160,11 +195,33 @@
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Add Photos from Gallery</div>
+    <details class="help-box nested" data-help-id="capture-photos">
+      <summary>Help: Photos</summary>
+      <div class="help-box-body">
+        <p>Photos become part of the report, WorkDrive upload, and PDF. Add a short label and description so CapStone and the AI understand what each image shows.</p>
+        <ul>
+          <li>Labels appear in stable WorkDrive filenames.</li>
+          <li>Descriptions help the AI write accurate report content.</li>
+          <li>Failed uploads show <strong>Pending Sync</strong> and can be retried individually or from Settings.</li>
+        </ul>
+      </div>
+    </details>
     <label class="fbtn bb-lg" style="margin-bottom:8px">Add Photos<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(this)"/></label>
     <div id="photo-cards"></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Report Sections</div>
+    <details class="help-box nested" data-help-id="capture-sections">
+      <summary>Help: Report Sections</summary>
+      <div class="help-box-body">
+        <p>These nine fields are optional structured notes. Fill in only what applies to this visit. Empty sections are left out of the generated report.</p>
+        <ul>
+          <li>Use them to force important details into the right part of the report.</li>
+          <li>Voice notes still work if you prefer free-form dictation.</li>
+          <li>Sections are saved in the Capture draft and History.</li>
+        </ul>
+      </div>
+    </details>
     <div style="font-size:11px;color:var(--dim);margin-bottom:12px">Fill in what applies — empty sections are excluded.</div>
     <div style="margin-bottom:10px"><label class="lbl">1. Site Visit Summary</label><textarea id="sec1" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">2. Equipment / Systems Serviced</label><textarea id="sec2" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
@@ -186,6 +243,18 @@
 
 <!-- ASSETS -->
 <div class="pane" id="p-assets">
+  <details class="help-box" data-help-id="assets-tab">
+    <summary>Help: Assets</summary>
+    <div class="help-box-body">
+      <p>The Assets tab saves equipment to Zoho <strong>Equipments</strong>, links the asset to the active Deal, and records update notes on both records.</p>
+      <ul>
+        <li>Choose <strong>Add New Asset</strong> only when the equipment is not already in Zoho.</li>
+        <li>Choose <strong>Update Existing Asset</strong> and search first when the equipment may already exist.</li>
+        <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
+        <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
+      </ul>
+    </div>
+  </details>
   <div id="no-deal-assets" class="no-deal-bar"><span>Select a deal before adding an asset</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
   <div class="card">
     <div class="stitle">Add Asset to Zoho</div>
@@ -217,6 +286,17 @@
     </div>
     <div id="asset-search-card" style="background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px">
       <div class="stitle" style="margin-bottom:6px">Find Existing Asset</div>
+      <details class="help-box nested" data-help-id="assets-search">
+        <summary>Help: Search &amp; Update</summary>
+        <div class="help-box-body">
+          <p>Search first whenever the instrument may already exist in Zoho. Loading a match fills the form for update instead of creating a duplicate record.</p>
+          <ul>
+            <li>Search by CAC/AMD ID, serial, model, name, building, or designator.</li>
+            <li>Matching serial + account triggers an update confirmation before save.</li>
+            <li>Use <strong>Replace Instrument</strong> when documenting a swap to a new unit.</li>
+          </ul>
+        </div>
+      </details>
       <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Search before saving whenever the asset may already exist. Loading an existing asset switches this form into update mode and helps avoid duplicates.</div>
       <div class="g2" style="margin-bottom:8px">
         <input id="asset-search" placeholder="CAC ID, serial, model, name, building, designator"/>
@@ -234,6 +314,17 @@
       </div>
     </div>
     <div id="asset-mode-banner" style="display:none;margin-bottom:10px;border-radius:8px;padding:10px;font-size:12px;line-height:1.5"></div>
+    <details class="help-box nested" data-help-id="assets-photos">
+      <summary>Help: Nameplate Photos &amp; AI Extract</summary>
+      <div class="help-box-body">
+        <p>Take or upload nameplate photos, then optionally let AI read model, serial, brand, and other visible details into the form.</p>
+        <ul>
+          <li>Review every extracted value before saving.</li>
+          <li>Add a short photo description when prompted; it is used in the Zoho attachment filename.</li>
+          <li>Photo attachment failures are queued in <strong>Pending Sync</strong> without blocking the asset save.</li>
+        </ul>
+      </div>
+    </details>
     <div class="g2" style="margin-bottom:8px">
       <label class="fbtn bb-lg">Take Nameplate Photo<input id="asset-photo-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="assetPhotoSelected(this)"/></label>
       <label class="fbtn bb-lg">Upload Nameplate Photos<input id="asset-photo-upload-input" type="file" accept="image/*" multiple style="display:none" onchange="assetPhotoSelected(this)"/></label>
@@ -282,6 +373,18 @@
 
 <!-- REPORT -->
 <div class="pane" id="p-report">
+  <details class="help-box" data-help-id="report-tab">
+    <summary>Help: Report</summary>
+    <div class="help-box-body">
+      <p>The Report tab shows the AI-generated field service report after you generate it on Capture. Review everything here before saving to Zoho.</p>
+      <ul>
+        <li>Check the save checklist for deal, technician, GPS, photos, and assets.</li>
+        <li><strong>Save Report to Zoho</strong> updates the existing Deal note for this report instead of creating duplicates.</li>
+        <li>CapStone also attaches the PDF to the Deal and uploads files to WorkDrive.</li>
+        <li>Use <strong>Retry Report Save</strong> or <strong>Retry File Sync</strong> if any step fails.</li>
+      </ul>
+    </div>
+  </details>
   <div id="rpt-empty" class="empty">
     <div class="e-icon">&#128196;</div>
     <div class="e-title">No Report Yet</div>
@@ -332,6 +435,18 @@
 
 <!-- HISTORY -->
 <div class="pane" id="p-history">
+  <details class="help-box" data-help-id="history-tab">
+    <summary>Help: History</summary>
+    <div class="help-box-body">
+      <p>History stores reports on this device so you can continue work later without starting over.</p>
+      <ul>
+        <li><strong>Open + Continue</strong> restores Capture fields, photos, notes, and sections.</li>
+        <li><strong>View</strong> opens the generated report only.</li>
+        <li>Status chips show Zoho save, PDF attachment, technician, and pending sync.</li>
+        <li>Continuing a saved report updates the same Zoho note when you save again.</li>
+      </ul>
+    </div>
+  </details>
   <div class="workflow-card">
     <div class="stitle">History Workflow</div>
     <ol>
@@ -350,6 +465,18 @@
 
 <!-- SETTINGS -->
 <div class="pane" id="p-settings">
+  <details class="help-box" data-help-id="settings-tab">
+    <summary>Help: Settings</summary>
+    <div class="help-box-body">
+      <p>Settings controls technician identity, sync recovery, save behavior, storage, troubleshooting, and your Anthropic API key.</p>
+      <ul>
+        <li>Select the technician using CapStone on this device.</li>
+        <li>Check <strong>Pending Sync</strong> when uploads or Zoho steps failed in the field.</li>
+        <li>Use troubleshooting reset options only when tabs or buttons stop responding.</li>
+        <li>Export History before clearing storage on a shared device.</li>
+      </ul>
+    </div>
+  </details>
   <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:16px">Settings</div>
   <div class="settings-group-title">User / Technician</div>
   <div class="card">
@@ -399,7 +526,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=193</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=194</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -438,7 +565,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">193</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">194</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -526,7 +653,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=193"></script>
+<script src="src/app.js?v=194"></script>
 
 </body>
 </html>

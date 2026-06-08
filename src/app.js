@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="193";
+var FP_VERSION="194";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -62,6 +62,19 @@ function go(n){
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();}
+}
+function bindHelpBoxes(){
+  var boxes=document.querySelectorAll("details.help-box[data-help-id]");
+  for(var i=0;i<boxes.length;i++){
+    (function(box){
+      var id=box.getAttribute("data-help-id");
+      if(!id)return;
+      try{if(localStorage.getItem("fp_help_"+id)==="1")box.open=true;}catch(e){}
+      box.addEventListener("toggle",function(){
+        try{localStorage.setItem("fp_help_"+id,box.open?"1":"0");}catch(e){}
+      });
+    })(boxes[i]);
+  }
 }
 function requireOnline(actionLabel){
   if(typeof navigator!=="undefined"&&navigator.onLine===false)throw new Error("Device appears offline. "+actionLabel+" will queue for Pending Sync when connection returns.");
@@ -326,6 +339,7 @@ function bootApp(){
     var hv=el("hdr-ver");if(hv)hv.textContent="v"+FP_VERSION;
     maybePromptForTechnician();
     updateCaptureModeStatus();
+    bindHelpBoxes();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
