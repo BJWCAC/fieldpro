@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="195";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="196";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -170,21 +170,46 @@ function currentHistoryIndex(){
   for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId)return i;}
   return -1;
 }
+function stripHistoryPhotoDisplay(photo){
+  return{id:photo.id,display:"",label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||""};
+}
+function persistHistoryRecords(h,keepPhotosIndex){
+  var saved=false,out=h;
+  try{localStorage.setItem("fp_history",JSON.stringify(h));saved=true;}catch(e){}
+  if(!saved){
+    var trimmed=h.map(function(r,i){
+      if(typeof keepPhotosIndex==="number"&&i===keepPhotosIndex)return r;
+      var s=Object.assign({},r);
+      if(s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
+      return s;
+    });
+    try{localStorage.setItem("fp_history",JSON.stringify(trimmed));saved=true;out=trimmed;}catch(e){}
+  }
+  if(!saved){
+    var minimal=h.slice(0,5).map(function(r,i){
+      var s=Object.assign({},r);
+      if(i!==0)s.photoData=[];
+      return s;
+    });
+    try{localStorage.setItem("fp_history",JSON.stringify(minimal));saved=true;out=minimal;}catch(e){}
+  }
+  return{saved:saved,records:out};
+}
 function saveOrUpdateHistory(meta){
   if(A.currentHistoryId){
     var h=getHistory(),idx=-1;
     for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){idx=i;break;}}
     if(idx>=0){
       h[idx]=Object.assign({},h[idx],meta,{id:A.currentHistoryId,zohoNoteId:A.zohoNoteId||meta.zohoNoteId||h[idx].zohoNoteId||null});
-      try{localStorage.setItem("fp_history",JSON.stringify(h));}catch(e){}
-      badge("tb-hist",h.filter(function(r){return!r.archived;}).length||"");
+      var pr=persistHistoryRecords(h,idx);
+      if(!pr.saved)return null;
+      badge("tb-hist",pr.records.filter(function(r){return!r.archived;}).length||"");
       renderHistory();
-      return h[idx];
+      return pr.records[idx]||h[idx];
     }
   }
   A.currentHistoryId=meta.id;
-  saveHistory(meta);
-  return meta;
+  return saveHistory(meta)?meta:null;
 }
 function updateCurrentHistory(fields){
   var h=getHistory(),idx=currentHistoryIndex();
@@ -193,8 +218,7 @@ function updateCurrentHistory(fields){
   h[idx]=Object.assign({},h[idx],fields);
   A.currentHistoryId=h[idx].id;
   if(Object.prototype.hasOwnProperty.call(fields,"zohoNoteId"))A.zohoNoteId=fields.zohoNoteId||null;
-  try{localStorage.setItem("fp_history",JSON.stringify(h));}catch(e){}
-  renderHistory();
+  if(persistHistoryRecords(h,idx).saved)renderHistory();
 }
 function zohoNoteIdFromResponse(d){
   var rec=d&&d.data&&d.data[0];
@@ -351,6 +375,11 @@ async function startCapStone(){
   setTimeout(maybeRestoreCaptureDraft,500);
   setTimeout(maybeRestoreAssetDraft,900);
   setupPendingUploadAutoRetry();
+  try{
+    document.addEventListener("visibilitychange",function(){
+      if(document.visibilityState==="hidden"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
+    });
+  }catch(e){}
 }
 window.onload=startCapStone;
 window.enterKey=enterKey;
@@ -379,6 +408,7 @@ window.setAssetMode=setAssetMode;
 window.startAssetReplacement=startAssetReplacement;
 window.retryReportSave=retryReportSave;
 window.retryReportUploads=retryReportUploads;
+window.saveCaptureWorkLocally=saveCaptureWorkLocally;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -454,11 +484,69 @@ function captureDraftHasWork(){
 function buildCaptureDraft(){
   return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};}),reportPhotos:A.reportPhotos||[],report:A.report||"",voiceNotes:(el("tx")||{value:""}).value||"",sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
 }
+function buildCaptureHistoryMeta(){
+  var vn=(el("tx")||{value:""}).value;
+  var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
+  var sp=A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
+  if(!A.currentHistoryId)A.currentHistoryId="r"+Date.now();
+  return{
+    id:A.currentHistoryId,
+    date:new Date().toISOString(),
+    account:A.sel?A.sel.Account_Name:"No deal",
+    deal:A.sel?(A.sel.Deal_Name||""):"",
+    stage:A.sel?(A.sel.Stage||""):"",
+    location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",
+    locationData:locationMeta(),
+    photos:sp.length,
+    photoData:sp,
+    sections:sd,
+    report:A.report||"",
+    voiceNotes:vn,
+    technician:currentTechnicianName(),
+    dealPdfAttached:!!A.dealPdfAttached,
+    dealId:A.sel?A.sel.id:null,
+    zohoNoteId:A.zohoNoteId||null,
+    zohoSaved:!!(A.lastSaveResult&&A.lastSaveResult.note),
+    captureInProgress:!A.report,
+    localSavedAt:new Date().toISOString()
+  };
+}
+function saveCaptureWorkLocally(opts){
+  opts=opts||{};
+  if(!captureDraftHasWork())return false;
+  var saved=!!saveOrUpdateHistory(buildCaptureHistoryMeta());
+  if(saved){
+    var t=new Date().toLocaleTimeString();
+    setCaptureDraftStatus("Saved locally to History "+t+" — Zoho can wait for better signal");
+    if(!opts.silent)showToast("Capture saved locally to History",3500);
+  }else{
+    setCaptureDraftStatus("Local History save failed — storage may be full. Export older History from Settings.",true);
+    if(!opts.silent)showToast("Could not save locally — storage may be full",7000);
+  }
+  return saved;
+}
+function scheduleCaptureHistorySave(){
+  if(A.draftRestored===false&&document.readyState==="loading")return;
+  if(A.historySaveTimer)clearTimeout(A.historySaveTimer);
+  A.historySaveTimer=setTimeout(function(){A.historySaveTimer=null;saveCaptureWorkLocally({silent:true});},5000);
+}
 function saveCaptureDraftNow(){
   if(!captureDraftHasWork())return;
-  try{localStorage.setItem("fp_capture_draft",JSON.stringify(buildCaptureDraft()));setCaptureDraftStatus("Draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("capture draft save",e);setCaptureDraftStatus("Draft save failed",true);}
+  try{
+    localStorage.setItem("fp_capture_draft",JSON.stringify(buildCaptureDraft()));
+    setCaptureDraftStatus("Draft saved "+new Date().toLocaleTimeString());
+  }catch(e){
+    console.log("capture draft save",e);
+    if(saveCaptureWorkLocally({silent:true}))setCaptureDraftStatus("Draft full — saved to History "+new Date().toLocaleTimeString());
+    else setCaptureDraftStatus("Local save failed — tap Save Locally or free History storage",true);
+  }
+  scheduleCaptureHistorySave();
 }
-function scheduleCaptureDraftSave(){if(A.draftRestored===false&&document.readyState==="loading")return;if(A.draftTimer)clearTimeout(A.draftTimer);A.draftTimer=setTimeout(function(){A.draftTimer=null;saveCaptureDraftNow();},800);}
+function scheduleCaptureDraftSave(){
+  if(A.draftRestored===false&&document.readyState==="loading")return;
+  if(A.draftTimer)clearTimeout(A.draftTimer);
+  A.draftTimer=setTimeout(function(){A.draftTimer=null;saveCaptureDraftNow();},800);
+}
 function clearCaptureDraft(){try{localStorage.removeItem("fp_capture_draft");}catch(e){}setCaptureDraftStatus("",false);}
 function restoreCaptureDraft(d){
   if(!d)return;
@@ -491,8 +579,8 @@ function maybeRestoreCaptureDraft(){
   else clearCaptureDraft();
 }
 function newProject(){
-  if((A.photos.length>0||(el("tx")&&el("tx").value.trim()))&&!confirm("Start new project? Current work saved to History."))return;
-  if(A.report)saveCurrentToHistory();
+  if((A.photos.length>0||(el("tx")&&el("tx").value.trim()))&&!confirm("Start new project? Current work will be saved to History first."))return;
+  if(captureDraftHasWork())saveCaptureWorkLocally({silent:true});
   clearCapture();go("capture");
 }
 function clearCapture(){
@@ -513,12 +601,7 @@ function clearCapture(){
   if(A.recording)stopCam();
   updateCaptureModeStatus();
 }
-function saveCurrentToHistory(){
-  var vn=(el("tx")||{value:""}).value;
-  var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
-  var sp=A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
-  saveOrUpdateHistory({id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:A.photos.length,photoData:sp,sections:sd,report:A.report,voiceNotes:vn,technician:currentTechnicianName(),dealPdfAttached:!!A.dealPdfAttached,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null});
-}
+function saveCurrentToHistory(){return saveCaptureWorkLocally({silent:true});}
 
 // ZOHO
 async function refreshZohoToken(){
@@ -1494,7 +1577,7 @@ function snap(){
   var v=el("vid-el"),c=document.createElement("canvas");
   c.width=v.videoWidth||640;c.height=v.videoHeight||480;c.getContext("2d").drawImage(v,0,0);
   A.photos.push({id:"p"+Date.now(),display:c.toDataURL("image/jpeg",.72),label:"",desc:"",syncStatus:"not_synced",syncMessage:"",time:new Date().toLocaleTimeString(),w:v.videoWidth||640,h:v.videoHeight||480});
-  renderPhotoCards();checkGen();
+  renderPhotoCards();checkGen();scheduleCaptureHistorySave();
   var vpc=el("vb-pc");if(vpc){vpc.textContent=A.photos.length+" photo"+(A.photos.length!==1?"s":"");vpc.style.display="block";}
   showToast("Photo "+A.photos.length+" captured",1500);
 }
@@ -1520,7 +1603,7 @@ async function addPhotos(input){
       reader.readAsDataURL(file);
     });
   }
-  input.value="";renderPhotoCards();checkGen();
+  input.value="";renderPhotoCards();checkGen();scheduleCaptureHistorySave();
 }
 function removePhoto(id){A.photos=A.photos.filter(function(p){return p.id!==id;});renderPhotoCards();checkGen();scheduleCaptureDraftSave();}
 function photoCardNode(pid){
@@ -1628,6 +1711,7 @@ function checkGen(){
   var hasSec=SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim().length>0;});
   var show=hasP||hasN||hasSec;
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
+  var lsb=el("local-save-btn");if(lsb)lsb.style.display=show?"flex":"none";
   var gs=el("gen-summary"),gt=el("gen-summary-txt");
   if(show&&gs&&gt){
     gs.style.display="block";
@@ -1672,6 +1756,7 @@ async function generate(){
   if(btn){btn.disabled=true;btn.textContent="Generating...";}
   if(regen)regen.disabled=true;
   var tx=el("tx");var txVal=tx?tx.value:"";
+  saveCaptureWorkLocally({silent:false});
   try{
     setReportTechnician(A.technician);
     var content=[];
@@ -1704,7 +1789,8 @@ async function generate(){
       }
     }catch(e){}
     A.reportPhotos=savedPhotos;
-    var meta={id:A.currentHistoryId||("r"+Date.now()),date:new Date().toISOString(),account:A.sel?A.sel.Account_Name:"No deal",deal:A.sel?(A.sel.Deal_Name||""):"",stage:A.sel?(A.sel.Stage||""):"",location:A.location?(A.location.address||A.location.lat.toFixed(4)+","+A.location.lng.toFixed(4)):"",locationData:locationMeta(),photos:savedPhotos.length,photoData:savedPhotos,sections:(function(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});return sd;})(),report:A.report,voiceNotes:txVal,technician:currentTechnicianName(),dealPdfAttached:!!A.dealPdfAttached,dealId:A.sel?A.sel.id:null,zohoNoteId:A.zohoNoteId||null};
+    var meta=buildCaptureHistoryMeta();
+    meta.photos=savedPhotos.length;meta.photoData=savedPhotos;meta.report=A.report;meta.voiceNotes=txVal;meta.captureInProgress=false;meta.localSavedAt=new Date().toISOString();
     A.lastSaveResult=null;A.lastSaveIssue=null;
     saveOrUpdateHistory(meta);saveCaptureDraftNow();renderReport();updateCaptureModeStatus();go("report");
     if(A.sel){
@@ -1732,7 +1818,11 @@ async function generate(){
         doc.save("capstone-"+acct+"-"+new Date().toISOString().slice(0,10)+".pdf");
       }catch(e){}
     }
-  }catch(e){var re=el("rpt-err");if(re){re.textContent="Report error: "+e.message;re.style.display="block";}alert("Report error: "+e.message);}
+  }catch(e){
+    saveCaptureWorkLocally({silent:false});
+    var re=el("rpt-err");if(re){re.textContent="Report error: "+e.message+". Your capture was saved locally to History — open History → Open + Continue.";re.style.display="block";}
+    alert("Report error: "+e.message+"\n\nYour capture was saved locally to History. Open History and tap Open + Continue to pick up where you left off.");
+  }
   if(btn){btn.disabled=false;btn.textContent="Generate AI Report";}if(regen)regen.disabled=false;
 }
 
@@ -1925,6 +2015,7 @@ async function saveNoteToZoho(opts){
   opts=opts||{};
   if(!A.sel||!A.report)throw new Error("Select a deal and generate a report first");
   if(A.savingToZoho)throw new Error("Save already in progress");
+  saveCaptureWorkLocally({silent:true});
   requireOnline("Report save");
   A.savingToZoho=true;
   var btn=el("save-btn");
@@ -2262,26 +2353,10 @@ async function autoSync(){
 // HISTORY
 function saveHistory(meta){
   var h=getHistory();h.unshift(meta);
-  var saved=false;
-  // Try full save
-  try{localStorage.setItem("fp_history",JSON.stringify(h));saved=true;}catch(e){}
-  // If full - strip photos from older entries
-  if(!saved){
-    var trimmed=h.map(function(r,i){
-      if(i===0)return r;
-      var s=Object.assign({},r);
-      if(s.photoData)s.photoData=s.photoData.map(function(p){return{id:p.id,display:"",label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
-      return s;
-    });
-    try{localStorage.setItem("fp_history",JSON.stringify(trimmed));saved=true;}catch(e){}
-  }
-  // Last resort - keep only 5 most recent without photos
-  if(!saved){
-    var minimal=h.slice(0,5).map(function(r){var s=Object.assign({},r);s.photoData=[];return s;});
-    try{localStorage.setItem("fp_history",JSON.stringify(minimal));}catch(e){}
-  }
-  badge("tb-hist",h.length);
+  var pr=persistHistoryRecords(h,0);
+  if(pr.saved)badge("tb-hist",pr.records.length);
   renderHistory();
+  return pr.saved;
 }
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
 function historyChip(label,ok){return "<span class='h-chip "+(ok?"ok":"warn")+"'>"+esc(label)+"</span>";}
@@ -2295,9 +2370,10 @@ function historyPendingCountForRecord(r){
 }
 function historyStatusHtml(r){
   var chips=[];
+  if(r.captureInProgress||(!r.report&&r.photos>0))chips.push(historyChip("Capture Saved Locally",true));
+  else if(r.report)chips.push(historyChip("Report Ready",true));
   chips.push(historyChip(r.zohoSaved?"Zoho Saved":"Zoho Pending",!!r.zohoSaved));
   chips.push(historyChip(r.dealPdfAttached||r.pdfSaved?"PDF Attached":"PDF Pending",!!(r.dealPdfAttached||r.pdfSaved)));
-  if(r.report)chips.push(historyChip("Report Ready",true));
   var pending=historyPendingCountForRecord(r);
   if(pending)chips.push(historyChip(pending+" Pending Sync",false));
   if(r.technician)chips.push("<span class='h-chip'>Tech: "+esc(r.technician)+"</span>");

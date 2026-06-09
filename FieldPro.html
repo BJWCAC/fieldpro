@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=195"/>
+<link rel="stylesheet" href="src/styles.css?v=196"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v195</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v196</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -93,12 +93,13 @@
   <details class="help-box" data-help-id="capture-tab">
     <summary>Help: Capture</summary>
     <div class="help-box-body">
-      <p>Capture is where you document the site visit: GPS, notes, photos, video, and optional report sections. CapStone autosaves a draft locally so you can reload without losing work.</p>
+      <p>Capture is where you document the site visit: GPS, notes, photos, video, and optional report sections. CapStone saves your work locally to History first, so poor cell service does not have to cost you a full visit.</p>
       <ul>
         <li>Confirm the active deal, technician, and GPS before documenting.</li>
+        <li>Tap <strong>Save Locally to History</strong> anytime — especially before generating or when signal is weak.</li>
         <li>Add photos, voice notes, and only the report sections that apply.</li>
         <li>Review the field checklist, then tap <strong>Generate AI Report</strong>.</li>
-        <li>After generating, open Report to review and save to Zoho.</li>
+        <li>After generating, open Report to review and save to Zoho when signal is better.</li>
       </ul>
     </div>
   </details>
@@ -237,6 +238,7 @@
     <div style="font-family:Barlow Condensed,sans-serif;font-weight:700;color:var(--green);margin-bottom:6px">Field Data Checklist Before Generate</div>
     <div id="gen-summary-txt" style="color:#2d6b60;line-height:1.6"></div>
   </div>
+  <button class="bp-lg" id="local-save-btn" onclick="saveCaptureWorkLocally()" style="display:none;margin-bottom:8px">Save Locally to History</button>
   <button class="bs-lg" id="gen-btn" onclick="generate()" style="display:none;margin-bottom:20px">Generate AI Report</button>
 </div>
 
@@ -526,7 +528,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=195</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=196</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -565,7 +567,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">195</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">196</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -653,7 +655,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=195"></script>
+<script src="src/app.js?v=196"></script>
 
 </body>
 </html>
