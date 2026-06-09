@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="194";
+var FP_VERSION="195";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -1523,8 +1523,51 @@ async function addPhotos(input){
   input.value="";renderPhotoCards();checkGen();
 }
 function removePhoto(id){A.photos=A.photos.filter(function(p){return p.id!==id;});renderPhotoCards();checkGen();scheduleCaptureDraftSave();}
+function photoCardNode(pid){
+  var cardWrap=el("photo-cards");if(!cardWrap)return null;
+  var nodes=cardWrap.querySelectorAll(".pcard");
+  for(var i=0;i<nodes.length;i++){if(nodes[i].getAttribute("data-photo-id")===pid)return nodes[i];}
+  return null;
+}
+function updatePhotoFilenamePreview(pid){
+  var p=A.photos.find(function(x){return x.id===pid;});var node=photoCardNode(pid);
+  if(!p||!node)return;
+  var idx=Math.max(0,A.photos.findIndex(function(x){return x.id===pid}));
+  var fn=node.querySelector(".pc-filename");
+  if(fn)fn.textContent="WorkDrive: "+workdrivePhotoFileName(p,idx);
+}
+function updatePhotoSyncStatusElement(pid){
+  var p=A.photos.find(function(x){return x.id===pid;});var node=photoCardNode(pid);
+  if(!p||!node)return;
+  var ps=node.querySelector(".photo-sync-status");
+  if(!ps)return;
+  ps.className="photo-sync-status "+(p.syncStatus||"not_synced");
+  ps.textContent=photoSyncLabel(p);
+  if(p.syncMessage)ps.title=p.syncMessage;else ps.removeAttribute("title");
+}
+function capturePhotoFocusState(){
+  var active=document.activeElement;
+  if(!active||!active.classList||(!active.classList.contains("pc-label")&&!active.classList.contains("pc-desc")))return null;
+  var card=active.closest?active.closest(".pcard"):null;
+  if(!card)return null;
+  return{id:card.getAttribute("data-photo-id"),field:active.classList.contains("pc-label")?"label":"desc",start:active.selectionStart,end:active.selectionEnd};
+}
+function restorePhotoFocusState(state){
+  if(!state||!state.id)return;
+  var node=photoCardNode(state.id);if(!node)return;
+  var target=node.querySelector(state.field==="label"?".pc-label":".pc-desc");
+  if(!target)return;
+  target.focus();
+  try{if(typeof state.start==="number")target.setSelectionRange(state.start,state.end);}catch(e){}
+}
 function updatePhotoDesc(pid,val){var p=A.photos.find(function(x){return x.id===pid;});if(p)p.desc=val;scheduleCaptureDraftSave();}
-function updatePhotoLabel(pid,val){var p=A.photos.find(function(x){return x.id===pid;});if(p){p.label=val;p.syncStatus="not_synced";p.syncMessage="";}scheduleCaptureDraftSave();renderPhotoCards();}
+function updatePhotoLabel(pid,val){
+  var p=A.photos.find(function(x){return x.id===pid;});if(!p)return;
+  p.label=val;
+  if((p.syncStatus||"not_synced")==="uploaded"){p.syncStatus="not_synced";p.syncMessage="";updatePhotoSyncStatusElement(pid);}
+  scheduleCaptureDraftSave();
+  updatePhotoFilenamePreview(pid);
+}
 function photoSyncLabel(p){
   var s=p&&p.syncStatus||"not_synced";
   if(s==="uploading")return"Uploading";
@@ -1552,10 +1595,11 @@ async function retryCapturePhotoUpload(photoId){
   }catch(e){setPhotoSyncStatus(p,"failed",e.message);enqueueCapturePhotoUpload(p,idx,dealFolder,e.message);showToast("Photo retry failed: "+e.message,5000);}
 }
 function renderPhotoCards(){
+  var focusState=capturePhotoFocusState();
   badge("tb-photos",A.photos.length||"");
   var c=el("photo-cards");if(!c)return;c.innerHTML="";
   A.photos.forEach(function(p,i){
-    var div=document.createElement("div");div.className="pcard";
+    var div=document.createElement("div");div.className="pcard";div.setAttribute("data-photo-id",p.id);
     var img=document.createElement("img");img.src=p.display;img.alt="Photo "+(i+1);
     var body=document.createElement("div");body.className="pc-body";
     var tm=document.createElement("div");tm.className="pc-time";tm.textContent="Photo "+(i+1)+" — "+p.time;
@@ -1576,6 +1620,7 @@ function renderPhotoCards(){
     var ps=document.createElement("div");ps.className="photo-sync-status "+(p.syncStatus||"not_synced");ps.textContent=photoSyncLabel(p);if(p.syncMessage)ps.title=p.syncMessage;body.appendChild(tm);body.appendChild(ps);body.appendChild(label);body.appendChild(fn);body.appendChild(ta);body.appendChild(acts);
     div.appendChild(img);div.appendChild(body);c.appendChild(div);
   });
+  restorePhotoFocusState(focusState);
 }
 function checkGen(){
   scheduleCaptureDraftSave();
