@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="196";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="197";
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -171,7 +171,7 @@ function currentHistoryIndex(){
   return -1;
 }
 function stripHistoryPhotoDisplay(photo){
-  return{id:photo.id,display:"",label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||""};
+  return{id:photo.id,display:"",label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||"",savedToPhone:!!photo.savedToPhone,phoneFileName:photo.phoneFileName||"",phoneSource:photo.phoneSource||""};
 }
 function persistHistoryRecords(h,keepPhotosIndex){
   var saved=false,out=h;
@@ -348,7 +348,10 @@ function bootApp(){
     if(localStorage.getItem("fp_theme")==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
     if(localStorage.getItem("fp_record_audio")==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
     A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
-    var az=el("tog-auto-zoho");if(az)az.classList.toggle("on",A.autoSaveZoho);setTechnicianUI();
+    A.autoSavePhonePhotos=localStorage.getItem("fp_auto_save_phone_photos")!=="0";
+    var az=el("tog-auto-zoho");if(az)az.classList.toggle("on",A.autoSaveZoho);
+    var ap=el("tog-auto-phone-photos");if(ap)ap.classList.toggle("on",A.autoSavePhonePhotos);
+    setTechnicianUI();
     if(typeof renderHistory==="function")renderHistory();
     try{
       var n=loadDealsFromCache();
@@ -409,6 +412,8 @@ window.startAssetReplacement=startAssetReplacement;
 window.retryReportSave=retryReportSave;
 window.retryReportUploads=retryReportUploads;
 window.saveCaptureWorkLocally=saveCaptureWorkLocally;
+window.saveCapturePhotoToPhone=saveCapturePhotoToPhone;
+window.saveAllCapturePhotosToPhone=saveAllCapturePhotosToPhone;
 function showUploadStatus(msg,isErr){
   var u=el("upload-status");if(!u)return;
   if(msg){u.textContent=msg;u.style.display="block";u.style.borderColor=isErr?"#ef4444":"#006050";u.style.color=isErr?"#fca5a5":"var(--amber)";}
@@ -455,6 +460,12 @@ function toggleAutoSaveZoho(){
   try{localStorage.setItem("fp_auto_save_zoho",A.autoSaveZoho?"1":"0");}catch(e){}
   showToast(A.autoSaveZoho?"Auto-save to Zoho ON":"Auto-save to Zoho OFF",2500);
 }
+function toggleAutoSavePhonePhotos(){
+  A.autoSavePhonePhotos=!A.autoSavePhonePhotos;
+  var t=el("tog-auto-phone-photos");if(t)t.classList.toggle("on",A.autoSavePhonePhotos);
+  try{localStorage.setItem("fp_auto_save_phone_photos",A.autoSavePhonePhotos?"1":"0");}catch(e){}
+  showToast(A.autoSavePhonePhotos?"Phone photo backup ON":"Phone photo backup OFF",2500);
+}
 function syncTx(){var t2=el("tx2"),t=el("tx");if(t2&&t)t.value=t2.value;checkGen();}
 function clearWorkDriveFolderCache(){
   try{
@@ -482,12 +493,12 @@ function captureDraftHasWork(){
   return !!(A.sel||A.location||tx||hasSec||A.photos.length||A.report);
 }
 function buildCaptureDraft(){
-  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};}),reportPhotos:A.reportPhotos||[],report:A.report||"",voiceNotes:(el("tx")||{value:""}).value||"",sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
+  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};}),reportPhotos:A.reportPhotos||[],report:A.report||"",voiceNotes:(el("tx")||{value:""}).value||"",sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
 }
 function buildCaptureHistoryMeta(){
   var vn=(el("tx")||{value:""}).value;
   var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
-  var sp=A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
+  var sp=A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
   if(!A.currentHistoryId)A.currentHistoryId="r"+Date.now();
   return{
     id:A.currentHistoryId,
@@ -1562,6 +1573,57 @@ function stopCam(){
   hideEl("vb-pc");A.recording=false;A.paused=false;
   checkGen();
 }
+function sanitizePhoneFilePart(s){
+  return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,60)||"field";
+}
+function capturePhonePhotoFileName(photo,index,source){
+  var acct=sanitizePhoneFilePart(A.sel&&A.sel.Account_Name||"field");
+  var day=new Date().toISOString().slice(0,10);
+  var n=String((index||0)+1).padStart(2,"0");
+  var tag=sanitizePhoneFilePart(photo&&photo.label)||source||"photo";
+  return "capstone-"+acct+"-"+day+"-"+tag+"-"+n+".jpg";
+}
+function downloadDataUrlToPhone(dataUrl,filename){
+  if(!dataUrl||!filename)return false;
+  try{
+    var parts=String(dataUrl).split(",");
+    if(parts.length<2)return false;
+    var mimeMatch=parts[0].match(/data:(.*?);/);
+    var mime=mimeMatch?mimeMatch[1]:"image/jpeg";
+    var bin=atob(parts[1]);
+    var len=bin.length;
+    var bytes=new Uint8Array(len);
+    for(var i=0;i<len;i++)bytes[i]=bin.charCodeAt(i);
+    var blob=new Blob([bytes],{type:mime});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},5000);
+    return true;
+  }catch(e){console.log("downloadDataUrlToPhone",e);return false;}
+}
+function saveCapturePhotoToPhone(photo,index,opts){
+  opts=opts||{};
+  if(!photo||!photo.display)return false;
+  var fname=capturePhonePhotoFileName(photo,index,opts.source||photo.phoneSource||"photo");
+  var ok=downloadDataUrlToPhone(photo.display,fname);
+  if(ok){
+    photo.savedToPhone=true;photo.phoneFileName=fname;if(opts.source)photo.phoneSource=opts.source;
+    if(!opts.silent)showToast("Photo saved to Downloads",2500);
+  }else if(!opts.silent){showToast("Could not save photo to Downloads",4000);}
+  return ok;
+}
+async function saveAllCapturePhotosToPhone(){
+  if(!A.photos.length){showToast("No photos to save",2500);return;}
+  var saved=0;
+  for(var i=0;i<A.photos.length;i++){
+    if(saveCapturePhotoToPhone(A.photos[i],i,{silent:true,source:A.photos[i].phoneSource||"photo"}))saved++;
+    if(i<A.photos.length-1)await waitMs(350);
+  }
+  renderPhotoCards();scheduleCaptureDraftSave();
+  showToast(saved+" photo"+(saved!==1?"s":"")+" saved to Downloads",4500);
+}
 function saveVideo(){
   if(!A.videoBlob){showToast("No video yet",2000);return;}
   var url=URL.createObjectURL(A.videoBlob);
@@ -1576,10 +1638,12 @@ function snap(){
   var f=el("vflash");if(f){f.style.display="block";setTimeout(function(){f.style.display="none";},150);}
   var v=el("vid-el"),c=document.createElement("canvas");
   c.width=v.videoWidth||640;c.height=v.videoHeight||480;c.getContext("2d").drawImage(v,0,0);
-  A.photos.push({id:"p"+Date.now(),display:c.toDataURL("image/jpeg",.72),label:"",desc:"",syncStatus:"not_synced",syncMessage:"",time:new Date().toLocaleTimeString(),w:v.videoWidth||640,h:v.videoHeight||480});
+  var photo={id:"p"+Date.now(),display:c.toDataURL("image/jpeg",.72),label:"",desc:"",syncStatus:"not_synced",syncMessage:"",time:new Date().toLocaleTimeString(),w:v.videoWidth||640,h:v.videoHeight||480,phoneSource:"snap",savedToPhone:false,phoneFileName:""};
+  A.photos.push(photo);
+  if(A.autoSavePhonePhotos)saveCapturePhotoToPhone(photo,A.photos.length-1,{silent:true,source:"snap"});
   renderPhotoCards();checkGen();scheduleCaptureHistorySave();
   var vpc=el("vb-pc");if(vpc){vpc.textContent=A.photos.length+" photo"+(A.photos.length!==1?"s":"");vpc.style.display="block";}
-  showToast("Photo "+A.photos.length+" captured",1500);
+  showToast("Photo "+A.photos.length+" captured"+(photo.savedToPhone?" — also on phone":""),2200);
 }
 
 // PHOTOS
@@ -1595,7 +1659,9 @@ async function addPhotos(input){
           var scale=Math.min(1,1280/img.width);var c=document.createElement("canvas");
           c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
           c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-          A.photos.push({id:"p"+Date.now()+Math.random(),display:c.toDataURL("image/jpeg",.72),label:"",desc:"",syncStatus:"not_synced",syncMessage:"",time:new Date().toLocaleTimeString(),w:img.width,h:img.height});
+          var photo={id:"p"+Date.now()+Math.random(),display:c.toDataURL("image/jpeg",.72),label:"",desc:"",syncStatus:"not_synced",syncMessage:"",time:new Date().toLocaleTimeString(),w:img.width,h:img.height,phoneSource:"gallery",savedToPhone:false,phoneFileName:""};
+          A.photos.push(photo);
+          if(A.autoSavePhonePhotos)saveCapturePhotoToPhone(photo,A.photos.length-1,{silent:true,source:"gallery"});
           resolve();
         };
         img.onerror=resolve;img.src=ev.target.result;
@@ -1696,11 +1762,17 @@ function renderPhotoCards(){
       (function(pid){retry.onclick=function(){retryCapturePhotoUpload(pid);};})(p.id);
       acts.appendChild(retry);
     }
+    var phoneBtn=document.createElement("button");phoneBtn.className="bg bsm";phoneBtn.textContent=p.savedToPhone?"On Phone":"Save to Phone";
+    (function(pid,idx){phoneBtn.onclick=function(){var ph=A.photos.find(function(x){return x.id===pid;});if(ph&&saveCapturePhotoToPhone(ph,idx,{source:ph.phoneSource||"photo"}))renderPhotoCards();};})(p.id,i);
+    acts.appendChild(phoneBtn);
     var rm=document.createElement("button");rm.className="bd bsm";rm.textContent="Remove";
     (function(pid){rm.onclick=function(){removePhoto(pid);};})(p.id);
     acts.appendChild(rm);
     var fn=document.createElement("div");fn.className="pc-filename";fn.textContent="WorkDrive: "+workdrivePhotoFileName(p,i);
-    var ps=document.createElement("div");ps.className="photo-sync-status "+(p.syncStatus||"not_synced");ps.textContent=photoSyncLabel(p);if(p.syncMessage)ps.title=p.syncMessage;body.appendChild(tm);body.appendChild(ps);body.appendChild(label);body.appendChild(fn);body.appendChild(ta);body.appendChild(acts);
+    var ps=document.createElement("div");ps.className="photo-sync-status "+(p.syncStatus||"not_synced");ps.textContent=photoSyncLabel(p);if(p.syncMessage)ps.title=p.syncMessage;
+    body.appendChild(tm);body.appendChild(ps);
+    if(p.savedToPhone){var pp=document.createElement("div");pp.className="photo-sync-status uploaded";pp.textContent="Saved on phone";if(p.phoneFileName)pp.title=p.phoneFileName;body.appendChild(pp);}
+    body.appendChild(label);body.appendChild(fn);body.appendChild(ta);body.appendChild(acts);
     div.appendChild(img);div.appendChild(body);c.appendChild(div);
   });
   restorePhotoFocusState(focusState);
@@ -1712,6 +1784,7 @@ function checkGen(){
   var show=hasP||hasN||hasSec;
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
   var lsb=el("local-save-btn");if(lsb)lsb.style.display=show?"flex":"none";
+  var psb=el("phone-save-all-btn");if(psb)psb.style.display=hasP?"flex":"none";
   var gs=el("gen-summary"),gt=el("gen-summary-txt");
   if(show&&gs&&gt){
     gs.style.display="block";
@@ -1768,7 +1841,7 @@ async function generate(){
     content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
-    var savedPhotos=photoSrc.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
+    var savedPhotos=photoSrc.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
     // AI captions in batches
     try{
       for(var bi=0;bi<savedPhotos.length;bi+=4){
@@ -2408,7 +2481,7 @@ function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistory
 function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;
   if(!confirm("Open this project to continue?"))return;
-  A.reportPhotos=r.photoData||[];A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||""};});
+  A.reportPhotos=r.photoData||[];A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
   A.report=r.report;
   setReportTechnician(r.technician||"");
   A.dealPdfAttached=!!r.dealPdfAttached;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
