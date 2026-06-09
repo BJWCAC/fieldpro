@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=196"/>
+<link rel="stylesheet" href="src/styles.css?v=197"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v196</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v197</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -199,15 +199,17 @@
     <details class="help-box nested" data-help-id="capture-photos">
       <summary>Help: Photos</summary>
       <div class="help-box-body">
-        <p>Photos become part of the report, WorkDrive upload, and PDF. Add a short label and description so CapStone and the AI understand what each image shows.</p>
+        <p>Photos become part of the report, WorkDrive upload, and PDF. CapStone also saves a copy to your phone Downloads folder as a backup.</p>
         <ul>
-          <li>Labels appear in stable WorkDrive filenames.</li>
-          <li>Descriptions help the AI write accurate report content.</li>
-          <li>Failed uploads show <strong>Pending Sync</strong> and can be retried individually or from Settings.</li>
+          <li>Video <strong>Snap Photo</strong> shots are saved to the phone automatically.</li>
+          <li>Gallery photos also get a CapStone copy in Downloads when phone backup is on.</li>
+          <li>Use <strong>Save All Photos to Phone</strong> or <strong>Save to Phone</strong> on any photo anytime.</li>
+          <li>Labels appear in stable WorkDrive and phone filenames.</li>
         </ul>
       </div>
     </details>
     <label class="fbtn bb-lg" style="margin-bottom:8px">Add Photos<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(this)"/></label>
+    <button class="bg-lg" id="phone-save-all-btn" onclick="saveAllCapturePhotosToPhone()" style="display:none;margin-bottom:8px">Save All Photos to Phone</button>
     <div id="photo-cards"></div>
   </div>
   <div class="card" style="margin-bottom:10px">
@@ -513,6 +515,13 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">Uploads WorkDrive files, attaches the report PDF, and saves/updates the CRM note when a deal is selected.</div>
       </div>
     </div>
+    <div class="tog-row" onclick="toggleAutoSavePhonePhotos()" style="margin-top:10px">
+      <div class="tog on" id="tog-auto-phone-photos"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-save capture photos to phone Downloads</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Video snapshots and added photos also save to the phone so you can re-add them later if needed.</div>
+      </div>
+    </div>
   </div>
   <div class="settings-group-title">Workflow Help</div>
   <div class="card">
@@ -528,7 +537,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=196</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=197</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -567,7 +576,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">196</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">197</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -655,7 +664,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=196"></script>
+<script src="src/app.js?v=197"></script>
 
 </body>
 </html>
