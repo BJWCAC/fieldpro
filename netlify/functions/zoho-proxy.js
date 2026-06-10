@@ -180,7 +180,14 @@ exports.handler = async function(event) {
         rows = Array.isArray(dealRec.Assets_and_Checklist) ? dealRec.Assets_and_Checklist : [];
       } catch (de) {}
       var exists = false;
-      for (var ri = 0; ri < rows.length; ri++) { if (subformAssetId(rows[ri]) === data.equipment_id) { exists = true; break; } }
+      for (var ri = 0; ri < rows.length; ri++) {
+        if (subformAssetId(rows[ri]) === data.equipment_id) {
+          exists = true;
+          if (data.description) rows[ri].Instrument_Description = data.description;
+          if (data.notes) rows[ri].If_not_completed_why = data.notes;
+          break;
+        }
+      }
       if (!exists) {
         rows.push({
           Assets: { id: data.equipment_id },
@@ -211,19 +218,20 @@ exports.handler = async function(event) {
     if (data.action === "search_equipment_assets") {
       var q = String(data.query || "").replace(/"/g, "").trim();
       if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
-      var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number"];
+      var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Description_Instructions,Location_Coordinates,Date";
       var seen = {};
       var hits = [];
-      for (var sfi = 0; sfi < searchFields.length; sfi++) {
-        var crit = encodeURIComponent("(" + searchFields[sfi] + ":equals:" + q + ")");
+      async function collectEquipmentSearch(field, operator) {
+        var crit = encodeURIComponent("(" + field + ":" + operator + ":" + q + ")");
         var searchResult = await req({
           hostname: "www.zohoapis.com",
-          path: "/crm/v3/Equipments/search?criteria=" + crit + "&fields=Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Description_Instructions,Location_Coordinates,Date",
+          path: "/crm/v3/Equipments/search?criteria=" + crit + "&fields=" + searchFieldList,
           method: "GET",
           headers: { "Authorization": "Zoho-oauthtoken " + token }
         });
-        if (searchResult.status === 204) continue;
-        if (searchResult.status < 200 || searchResult.status >= 300) continue;
+        if (searchResult.status === 204) return;
+        if (searchResult.status < 200 || searchResult.status >= 300) return;
         try {
           var foundRows = (JSON.parse(searchResult.body).data || []);
           for (var sri = 0; sri < foundRows.length; sri++) {
@@ -232,6 +240,11 @@ exports.handler = async function(event) {
             if (!seen[rec.id]) { seen[rec.id] = true; hits.push(rec); }
           }
         } catch (se) {}
+      }
+      for (var sfi = 0; sfi < searchFields.length; sfi++) await collectEquipmentSearch(searchFields[sfi], "equals");
+      if (!hits.length) {
+        var containsFields = ["Name", "Serial_Number", "Asset_Model_Number", "CAC_Asset_ID", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
+        for (var cfi = 0; cfi < containsFields.length; cfi++) await collectEquipmentSearch(containsFields[cfi], "contains");
       }
       return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: hits.slice(0, 20) }) };
     }

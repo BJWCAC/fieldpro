@@ -5,7 +5,9 @@
     "Use exact picklist actual_value strings when writing to Zoho.",
     "The -None- blank defaults are intentionally omitted; literal None remains where it is an actual selectable value.",
     "Equipments is CustomModule1 in Zoho CRM and uses layout Asset Main.",
-    "Subform_1 rows are nested under the parent Equipments record payload, not standalone records."
+    "Subform_1 rows are nested under the parent Equipments record payload, not standalone records.",
+    "CapStone asset search checks CAC_Asset_ID, Serial_Number, Asset_Model_Number, Name, Building, Additional_Designator, Customer_Asset_Number, Asset_Brand, Asset_Type, and Asset_Series with equals first, then contains fallback.",
+    "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
