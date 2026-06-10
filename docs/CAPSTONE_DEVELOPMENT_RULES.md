@@ -241,10 +241,13 @@ Relevant docs:
 
 ```text
 README.md
+docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md
 docs/CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md
 docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md
 docs/CAPSTONE_DEVELOPMENT_RULES.md
 ```
+
+Update `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md` on every feature PR, user defer/decline decision, or doc milestone — do not recreate status from chat history.
 
 ## Testing rules
 
