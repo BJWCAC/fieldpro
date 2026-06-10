@@ -90,8 +90,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR #88** — separate cloud login (v200) | **Do not merge** | Superseded — use Zoho Users field instead |
-| **PR pending** — Zoho technician list (v200) | Open | Load Internal_Assets.Users into Settings + startup |
+| **PR #89** — Zoho technician list (v200) | Ready for review | Load Internal_Assets.Users into Settings + startup |
+| **PR #88** — separate cloud login (v200) | **Close without merge** | Superseded by #89 |
 | **Field test on Android** | User action | Continue checklist at v200 |
 
 ---
