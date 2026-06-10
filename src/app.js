@@ -21,7 +21,9 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="197";
+var FP_VERSION="198";
+var CAPTURE_STORAGE_WARN_PHOTOS=8;
+var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
 
 function appBaseUrl(){
@@ -532,6 +534,7 @@ function saveCaptureWorkLocally(opts){
     if(!opts.silent)showToast("Capture saved locally to History",3500);
   }else{
     setCaptureDraftStatus("Local History save failed — storage may be full. Export older History from Settings.",true);
+    updateCaptureStorageWarning();
     if(!opts.silent)showToast("Could not save locally — storage may be full",7000);
   }
   return saved;
@@ -879,7 +882,7 @@ function startAssetReplacement(){
 }
 function replacementNote(){
   var o=A.asset.loadedOriginal;if(!A.asset.replacementMode||!o)return"";
-  var lines=["Replacement recorded by CapStone on "+new Date().toLocaleDateString(),"Previous Model: "+(o.model||""),"Previous Serial: "+(o.serial||""),"Previous Brand: "+(o.brand||""),"Previous Type: "+(o.type||""),"New Model: "+assetInput("asset-model"),"New Serial: "+assetInput("asset-serial"),"New Brand: "+assetInput("asset-brand"),"New Type: "+assetInput("asset-type")];
+  var lines=["Replacement recorded by CapStone on "+new Date().toLocaleDateString(),"Technician: "+(A.technician||"Not selected"),"Previous Model: "+(o.model||""),"Previous Serial: "+(o.serial||""),"Previous Brand: "+(o.brand||""),"Previous Type: "+(o.type||""),"New Model: "+assetInput("asset-model"),"New Serial: "+assetInput("asset-serial"),"New Brand: "+assetInput("asset-brand"),"New Type: "+assetInput("asset-type")];
   return lines.join("\n");
 }
 function renderAssetSearchResults(){
@@ -888,14 +891,14 @@ function renderAssetSearchResults(){
   box.style.display="block";
   box.innerHTML=A.asset.searchResults.map(function(r,i){
     var title=esc(r.CAC_Asset_ID||r.Name||"Asset");
-    var meta=[r.Name,r.Asset_Model_Number,r.Serial_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
+    var meta=[r.Asset_Brand,r.Asset_Type,r.Asset_Series,r.Name,r.Asset_Model_Number,r.Serial_Number,r.Customer_Asset_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
     return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
   }).join("");
 }
 async function searchExistingAssets(){
   try{
     if(!A.sel){assetStatus("Select a deal/account first.",true);return;}
-    var q=assetInput("asset-search");if(!q){assetStatus("Enter an AMD/CAC ID, serial, model, name, building, or designator.",true);return;}
+    var q=assetInput("asset-search");if(!q){assetStatus("Enter a CAC ID, serial, model, brand, type, name, building, or designator.",true);return;}
     await refreshZohoToken();
     assetStatus("Searching existing assets...",false);
     var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search_equipment_assets",token:A.zohoToken,account_id:A.sel.Account_Id||"",query:q})},30000);
@@ -1181,17 +1184,25 @@ async function saveEquipmentRecord(){
 }
 function assetDealDescription(){
   var parts=[];
-  var brandType=[assetInput("asset-brand"),assetInput("asset-type")].filter(Boolean).join(" ");
   if(assetInput("asset-name"))parts.push(assetInput("asset-name"));
+  var catFn=[assetInput("asset-category"),assetInput("asset-function")].filter(Boolean).join(" / ");
+  if(catFn)parts.push(catFn);
+  var brandType=[assetInput("asset-brand"),assetInput("asset-type")].filter(Boolean).join(" ");
   if(brandType)parts.push(brandType);
-  if(assetInput("asset-model"))parts.push("Model: "+assetInput("asset-model"));
-  if(assetInput("asset-serial"))parts.push("Serial: "+assetInput("asset-serial"));
+  if(assetInput("asset-series"))parts.push(assetInput("asset-series"));
+  if(assetInput("asset-model"))parts.push("Model "+assetInput("asset-model"));
+  if(assetInput("asset-serial"))parts.push("Serial "+assetInput("asset-serial"));
+  var loc=[assetInput("asset-building"),assetInput("asset-designator")].filter(Boolean).join(" / ");
+  if(loc)parts.push(loc);
   if(A.asset.replacementMode&&A.asset.loadedOriginal){
     var oldBits=[];
-    if(A.asset.loadedOriginal.model)oldBits.push("Previous Model "+A.asset.loadedOriginal.model);
-    if(A.asset.loadedOriginal.serial)oldBits.push("Previous Serial "+A.asset.loadedOriginal.serial);
-    if(oldBits.length)parts.push("Replacement: "+oldBits.join(", "));
+    if(A.asset.loadedOriginal.brand)oldBits.push(A.asset.loadedOriginal.brand);
+    if(A.asset.loadedOriginal.type)oldBits.push(A.asset.loadedOriginal.type);
+    if(A.asset.loadedOriginal.model)oldBits.push("Model "+A.asset.loadedOriginal.model);
+    if(A.asset.loadedOriginal.serial)oldBits.push("Serial "+A.asset.loadedOriginal.serial);
+    if(oldBits.length)parts.push("Replacement from "+oldBits.join(" "));
   }
+  if(A.technician)parts.push("Tech: "+A.technician);
   return parts.join(" — ");
 }
 function assetDealNotes(){
@@ -1776,6 +1787,8 @@ function renderPhotoCards(){
     div.appendChild(img);div.appendChild(body);c.appendChild(div);
   });
   restorePhotoFocusState(focusState);
+  var allBtn=el("phone-save-all-btn");if(allBtn)allBtn.style.display=A.photos.length?"block":"none";
+  updateCaptureStorageWarning();
 }
 function checkGen(){
   scheduleCaptureDraftSave();
@@ -2497,7 +2510,25 @@ async function dlHistPDF(i){var h=getHistory();var r=h[i];if(!r)return;var doc=b
 
 // SETTINGS STORAGE
 function getStorageSize(){var total=0;try{for(var k in localStorage){if(localStorage.hasOwnProperty(k))total+=localStorage[k].length+k.length;}}catch(e){}return(total*2/1024/1024).toFixed(2);}
-function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHistory();e.textContent=h.length+" reports — approx "+getStorageSize()+" MB used of 5 MB";}
+function estimateCapturePhotoStorageMB(){
+  var bytes=0;
+  A.photos.forEach(function(p){bytes+=String(p.display||"").length;});
+  return bytes*2/1024/1024;
+}
+function updateCaptureStorageWarning(){
+  var box=el("capture-storage-warning");if(!box)return;
+  var photoCount=A.photos.length;
+  var photoMB=estimateCapturePhotoStorageMB();
+  var totalMB=parseFloat(getStorageSize())||0;
+  var reasons=[];
+  if(photoCount>=CAPTURE_STORAGE_WARN_PHOTOS)reasons.push(photoCount+" photos in this capture");
+  if(photoMB>=2.5)reasons.push("~"+photoMB.toFixed(1)+" MB of photo data");
+  if(totalMB>=CAPTURE_STORAGE_WARN_MB)reasons.push(totalMB+" MB total browser storage used");
+  if(!reasons.length){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";
+  box.innerHTML="<strong>Storage getting full</strong> — "+reasons.join("; ")+". Use <strong>Save All Photos to Phone</strong>, export older History from Settings, or remove unused photos so poor signal does not block local saves.";
+}
+function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHistory();e.textContent=h.length+" reports — approx "+getStorageSize()+" MB used of 5 MB";updateCaptureStorageWarning();}
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}
 function exportHistory(){var h=getHistory();if(!h.length){alert("No history");return;}var data=JSON.stringify({app:"CapStone",exported:new Date().toISOString(),version:1,history:h},null,2);var blob=new Blob([data],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="capstone-history-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 function importHistory(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var data=JSON.parse(e.target.result);if(!data.history||!Array.isArray(data.history)){alert("Invalid file");return;}var existing=getHistory();var existingIds=new Set(existing.map(function(r){return r.id;}));var toAdd=data.history.filter(function(r){return!existingIds.has(r.id);});var merged=toAdd.concat(existing).sort(function(a,b){return new Date(b.date)-new Date(a.date);});localStorage.setItem("fp_history",JSON.stringify(merged));renderHistory();updateStorageInfo();alert("Imported "+toAdd.length+" reports.");}catch(err){alert("Could not read file");}};reader.readAsText(file);input.value="";}

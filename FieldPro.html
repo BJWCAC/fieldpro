@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v197</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v198</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -205,9 +205,11 @@
           <li>Gallery photos also get a CapStone copy in Downloads when phone backup is on.</li>
           <li>Use <strong>Save All Photos to Phone</strong> or <strong>Save to Phone</strong> on any photo anytime.</li>
           <li>Labels appear in stable WorkDrive and phone filenames.</li>
+          <li>CapStone warns when many photos may fill browser storage — use phone backup and export older History.</li>
         </ul>
       </div>
     </details>
+    <div id="capture-storage-warning" class="capture-storage-warning" style="display:none"></div>
     <label class="fbtn bb-lg" style="margin-bottom:8px">Add Photos<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(this)"/></label>
     <button class="bg-lg" id="phone-save-all-btn" onclick="saveAllCapturePhotosToPhone()" style="display:none;margin-bottom:8px">Save All Photos to Phone</button>
     <div id="photo-cards"></div>
@@ -295,7 +297,7 @@
         <div class="help-box-body">
           <p>Search first whenever the instrument may already exist in Zoho. Loading a match fills the form for update instead of creating a duplicate record.</p>
           <ul>
-            <li>Search by CAC/AMD ID, serial, model, name, building, or designator.</li>
+            <li>Search by CAC ID, serial, model, brand, type, series, name, building, or designator.</li>
             <li>Matching serial + account triggers an update confirmation before save.</li>
             <li>Use <strong>Replace Instrument</strong> when documenting a swap to a new unit.</li>
           </ul>
@@ -303,7 +305,7 @@
       </details>
       <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Search before saving whenever the asset may already exist. Loading an existing asset switches this form into update mode and helps avoid duplicates.</div>
       <div class="g2" style="margin-bottom:8px">
-        <input id="asset-search" placeholder="CAC ID, serial, model, name, building, designator"/>
+        <input id="asset-search" placeholder="CAC ID, serial, model, brand, type, name, building"/>
         <button class="bb-lg" onclick="searchExistingAssets()">Search Assets</button>
       </div>
       <div class="g2" style="margin-bottom:8px">
