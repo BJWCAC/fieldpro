@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=197"/>
+<link rel="stylesheet" href="src/styles.css?v=200"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v199</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v200</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -486,8 +486,37 @@
   <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:16px">Settings</div>
   <div class="settings-group-title">User / Technician</div>
   <div class="card">
+    <div class="stitle">Cloud Account (Beta)</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Optional login for cross-device History backup. Local History still saves first on this phone. Photos sync as metadata in Phase 1; full photo cloud backup comes in Phase 2.</div>
+    <div id="cloud-sync-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#2d6b60"></div>
+    <div id="cloud-auth-panel">
+      <div style="margin-bottom:8px"><label class="lbl" for="cloud-name">Display name</label><input id="cloud-name" type="text" placeholder="Technician name"/></div>
+      <div style="margin-bottom:8px"><label class="lbl" for="cloud-email">Email</label><input id="cloud-email" type="email" placeholder="you@company.com"/></div>
+      <div style="margin-bottom:8px"><label class="lbl" for="cloud-password">Password</label><input id="cloud-password" type="password" placeholder="At least 8 characters"/></div>
+      <div style="margin-bottom:8px"><label class="lbl" for="cloud-invite">Team invite code</label><input id="cloud-invite" type="text" placeholder="From Netlify CAPSTONE_INVITE_CODE"/></div>
+      <div class="g2" style="margin-bottom:8px">
+        <button type="button" class="bp bfull" onclick="cloudLogin()">Sign In</button>
+        <button type="button" class="bg bfull" onclick="cloudRegister()">Create Account</button>
+      </div>
+    </div>
+    <div id="cloud-account-panel" style="display:none">
+      <div id="cloud-user-label" style="font-size:12px;color:#2d6b60;margin-bottom:8px"></div>
+      <div class="tog-row" onclick="toggleCloudSync()" style="margin-bottom:10px">
+        <div class="tog" id="tog-cloud-sync"><div class="tog-thumb"></div></div>
+        <div>
+          <div style="font-size:14px;font-weight:500">Auto cloud backup</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">Push local History metadata to CapStone Cloud after saves.</div>
+        </div>
+      </div>
+      <div class="g2">
+        <button type="button" class="bp bfull" onclick="cloudSyncNow()">Sync Now</button>
+        <button type="button" class="bg bfull" onclick="cloudLogout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
     <div class="stitle">Technician</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Used in CapStone asset update notes until multi-user login is added.</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Used in CapStone notes. Cloud sign-in can set this automatically.</div>
     <select id="tech-select" onchange="saveTechnicianSetting(this.value)">
       <option value="">Select technician</option>
       <option value="Brad White">Brad White</option>
@@ -539,7 +568,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=197</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=200</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -578,7 +607,7 @@
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">
       <div><strong style="color:var(--text)">CapStone</strong> by Calibrations &amp; Controls</div>
-      <div>Version <span id="fp-ver">197</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
+      <div>Version <span id="fp-ver">200</span> &nbsp;|&nbsp; Water/wastewater treatment field documentation</div>
     </div>
   </div>
 </div>
@@ -666,7 +695,8 @@
   </div>
 </div>
 
-<script src="src/app.js?v=197"></script>
+<script src="src/capstone-cloud.js?v=200"></script>
+<script src="src/app.js?v=200"></script>
 
 </body>
 </html>

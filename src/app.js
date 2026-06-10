@@ -21,7 +21,7 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="199";
+var FP_VERSION="200";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -63,7 +63,7 @@ function go(n){
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof CapstoneCloud!=="undefined"&&CapstoneCloud.renderCloudSettingsUI)CapstoneCloud.renderCloudSettingsUI();}
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -377,6 +377,7 @@ function bootApp(){
 async function startCapStone(){
   if(await checkForAppUpdate())return;
   bootApp();
+  if(typeof CapstoneCloud!=="undefined"&&CapstoneCloud.init)CapstoneCloud.init().catch(function(e){console.log("CapstoneCloud init",e);});
   setTimeout(maybeRestoreCaptureDraft,500);
   setTimeout(maybeRestoreAssetDraft,900);
   setupPendingUploadAutoRetry();
@@ -532,6 +533,7 @@ function saveCaptureWorkLocally(opts){
     var t=new Date().toLocaleTimeString();
     setCaptureDraftStatus("Saved locally to History "+t+" — Zoho can wait for better signal");
     if(!opts.silent)showToast("Capture saved locally to History",3500);
+    if(typeof CapstoneCloud!=="undefined"&&CapstoneCloud.schedulePush)CapstoneCloud.schedulePush();
   }else{
     setCaptureDraftStatus("Local History save failed — storage may be full. Export older History from Settings.",true);
     updateCaptureStorageWarning();
