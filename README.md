@@ -8,35 +8,39 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v182**
+Current milestone build: **v198**
+
+Status and roadmap: `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md`
 
 ## Current milestone: CapStone Android field workflow
 
-Build v182 brings together the current Android field workflow:
+Build v198 brings together the Android field workflow with reliability hardening for poor cell service:
 
 - technician selection on each device
-- Zoho deal selection
+- Zoho deal selection with Deal Selection Workflow card
 - GPS capture
-- photo and video field documentation
-- equipment asset save/update workflow
-- search-first asset update flow to help avoid duplicate equipment records
+- photo and video field documentation with labels, sync status, and phone Downloads backup
+- local History save **before** Zoho/network steps
+- storage warning when many photos may fill browser storage
+- equipment asset save/update workflow with draft autosave
+- search-first asset update (CAC ID, serial, model, brand, type, series, name, building, designator)
 - separate Add New Asset and Update Existing Asset paths
+- Replace Instrument workflow with in-app replacement history cards
 - Saved This Visit reopen action for recently saved assets
+- collapsible help boxes on all tabs
 - in-app Quick Start help from the header
-- report review checklist before saving to Zoho
-- organized Settings tab for technician, workflow, save behavior, storage, troubleshooting, appearance, API key, and app info
-- report retry actions for failed or partial Zoho/WorkDrive saves
-- pre-generate field data checklist for Deal, technician, GPS, notes, photos, sections, and assets
-- AI report generation
+- report and asset save checklists
+- organized Settings tab (technician, sync, storage, troubleshooting, appearance, API key, app info)
+- Pending Sync badge and retry for failed Zoho/WorkDrive/asset operations
+- AI report generation with optional nine structured fields
 - Zoho deal note update/recovery behavior
 - direct report PDF attachment to the Zoho deal
 - asset update notes on both Equipment and Deal records
-- WorkDrive file replacement behavior
+- richer Deal `Instrument_Description` when assets are linked or updated
+- WorkDrive file replacement behavior with stable filenames
 - local History for continuing reports
-- white-background report creation and review screens for better readability on mobile
-- first code-structure cleanup step, with CSS and JavaScript moved out of the single HTML file
-
-This milestone is intended to make CapStone usable as a practical Android field reporting tool rather than only a prototype.
+- white-background workflow cards for readability on mobile
+- modular shell (`FieldPro.html` + `src/app.js` + `src/styles.css`)
 
 ## Recommended Android setup
 
@@ -46,7 +50,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=182
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
    ```
 
 3. Tap the Chrome menu.
@@ -74,17 +78,28 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 3. Refresh deals from Zoho.
 4. Select the correct Zoho deal.
 5. Capture GPS location.
-6. Record video if needed.
-7. Add photos.
-8. Add photo descriptions.
+6. Record video if needed; use Snap Photo for stills.
+7. Add photos from gallery or video snaps.
+8. Add photo labels and descriptions.
 9. Dictate or type field notes.
 10. Optionally fill in any of the nine structured report fields.
 11. Generate the AI report.
 12. Review the report.
 13. Regenerate if details need correction.
-14. Save/update the Zoho deal note.
+14. Save Report to Zoho when signal allows.
 15. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
 16. Use History if the report needs to be continued later.
+
+## Reliability on poor cell service
+
+CapStone is designed so field work is not lost when Zoho or network steps fail:
+
+- Capture work saves to local **History** automatically and before generate/Zoho steps.
+- Use **Save Locally** on Capture if you want an immediate History save.
+- Capture photos can auto-save to phone **Downloads** (Settings toggle).
+- Use **Save to Phone** or **Save All Photos to Phone** anytime as backup.
+- An amber **storage warning** appears at 8+ photos or high storage use — export older History from Settings if needed.
+- Failed Zoho/WorkDrive steps queue in **Pending Sync** for retry.
 
 ## The nine report fields
 
@@ -128,16 +143,20 @@ Current behavior:
 
 - required asset fields are highlighted before save
 - technicians are prompted to search before creating a new asset
+- search supports CAC ID, serial, model, brand, type, series, name, building, and designator
 - Add New Asset and Update Existing Asset paths keep creation and update workflows clear
+- asset draft autosave and restore after Android reload
+- Replace Instrument updates the same Equipment record and appends structured replacement history
 - serial/model quick-search buttons help find existing assets faster
 - Saved This Visit lets technicians reopen a saved asset for review or another update without searching again
 - an existing asset can be updated instead of creating a duplicate
-- the asset can be linked to the selected Zoho deal
+- the asset can be linked to the selected Zoho deal with a rich `Instrument_Description`
+- re-saving an already-linked asset refreshes the Deal checklist description
 - each asset save creates a new CapStone Asset Update note on the Equipment record
 - the same asset update note is also saved to the selected Deal notes
 - the Deal note includes the Zoho Equipment ID for traceability
 
-Keeping a new note for each asset update creates a service history when an asset is updated more than once.
+Replacement history stays on the Equipment record (`Description_Instructions` + update notes). CapStone does **not** use a separate Zoho replacement subform.
 
 ## WorkDrive behavior
 
@@ -147,8 +166,9 @@ Current behavior:
 
 - files use stable names for the same report
 - regenerated PDFs use the same report filename
-- regenerated photos use the same photo filenames
+- regenerated photos use the same photo filenames (with labels when set)
 - regenerated video uses the same video filename
+- capture photos show per-photo sync status with retry
 - WorkDrive upload requests use name override behavior
 
 This means future regenerations of the same report should replace matching files instead of creating repeated timestamped duplicates.
@@ -167,17 +187,29 @@ History lets a technician:
 - save/update the Zoho note again
 - download a PDF
 
-Important Android note: clearing Chrome site data can remove local CapStone History.
+Important Android note: clearing Chrome site data can remove local CapStone History. Export History from Settings before clearing storage on a shared device.
 
 ## Testing after updates
 
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=182
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
 ```
 
 Update the version number when a later build is released.
+
+Use the full checklist:
+
+```text
+docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md
+```
+
+Log results in:
+
+```text
+docs/CAPSTONE_FIELD_TEST_LOG.md
+```
 
 Recommended Android smoke test:
 
@@ -186,19 +218,26 @@ Recommended Android smoke test:
 3. Select a test deal.
 4. Capture GPS.
 5. Add one field note.
-6. Add one test photo.
-7. Generate an AI report.
-8. Save to Zoho.
-9. Confirm the Zoho deal note exists.
-10. Confirm the report PDF is attached directly to the Zoho deal.
-11. Confirm WorkDrive does not create new timestamped duplicates for the same report.
-12. Save or update one test asset.
-13. Confirm the Equipment record has a CapStone Asset Update note.
-14. Confirm the Deal has the same CapStone Asset Update note.
-15. Reopen the report from History.
-16. Change a note or field.
-17. Generate again.
-18. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
+6. Add one test photo with a label.
+7. Confirm draft/local save status appears.
+8. Generate an AI report.
+9. Save Report to Zoho (or confirm work remains in History if offline).
+10. Confirm the Zoho deal note exists when online.
+11. Confirm the report PDF is attached directly to the Zoho deal.
+12. Save or update one test asset; search by brand or partial serial if testing v198 search.
+13. Confirm Equipment and Deal asset update notes.
+14. Reopen the report from History.
+15. Change a note or field.
+16. Generate again.
+17. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
+
+Stress test (poor signal):
+
+1. Capture 10–15 photos with labels on a weak cell connection.
+2. Confirm local History save succeeds before Zoho.
+3. Confirm phone Downloads backup works.
+4. Confirm storage warning appears at 8+ photos.
+5. Confirm Pending Sync queues failed uploads for retry.
 
 ## Troubleshooting on Android
 
@@ -207,7 +246,7 @@ Recommended Android smoke test:
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=182
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
 ```
 
 If needed, close Chrome fully and reopen CapStone.
@@ -228,9 +267,16 @@ Check Android permissions:
 
 ### Save to Zoho fails
 
-- Try Save to Zoho again.
+- Work is still in local History — reopen from History tab.
+- Try Save Report to Zoho again when signal improves.
+- Check Pending Sync in Settings for queued retries.
 - If the prior note was deleted in Zoho, CapStone should create a replacement note.
-- WorkDrive/PDF upload timeouts should not block the Zoho note save.
+
+### Local save or storage issues
+
+- Export older History from Settings.
+- Use Save All Photos to Phone as backup.
+- Clear photos from reports older than 7 days in Settings if storage is full.
 
 ### WorkDrive has duplicates
 
@@ -238,10 +284,14 @@ Future reports should use stable filenames. Older duplicate files may need to be
 
 ## Training materials
 
-Android training script:
+Android training script (recording on hold — script updated for v198):
 
 ```text
 docs/CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md
 ```
 
-This script includes narration, screen actions, a short version, and a recording checklist for creating an Android training video.
+Program status and roadmap:
+
+```text
+docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md
+```

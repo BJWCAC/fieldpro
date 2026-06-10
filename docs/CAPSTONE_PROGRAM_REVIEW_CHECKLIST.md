@@ -2,6 +2,10 @@
 
 Use this checklist periodically after a group of CapStone changes. The goal is to make sure all parts of the program stay consistent, reliable, and aligned as new tabs and workflows are added.
 
+**Test build:** `https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198`
+
+**Log results in:** `docs/CAPSTONE_FIELD_TEST_LOG.md`
+
 Recommended review cadence:
 
 - after several feature PRs
@@ -68,10 +72,16 @@ Check:
 - [ ] GPS displays consistently.
 - [ ] Voice notes save into draft/history.
 - [ ] Section fields save into draft/history.
-- [ ] Capture photo labels work.
-- [ ] Capture photo descriptions work.
+- [ ] Capture photo labels work (keyboard stays open while typing).
+- [ ] Capture photo descriptions work (keyboard stays open while typing).
+- [ ] Collapsible Capture help boxes work.
+- [ ] Local History save appears (draft status / Save Locally).
+- [ ] Save Locally writes to History before Zoho.
+- [ ] Phone photo backup works (auto and Save to Phone / Save All).
+- [ ] Storage warning appears at 8+ photos or high storage use.
+- [ ] Per-photo sync status and Retry Photo work.
 - [ ] Remove photo works.
-- [ ] Generate AI Report works.
+- [ ] Generate AI Report works (local save before network).
 - [ ] Capture state does not leak across new projects.
 
 Notes:
@@ -90,6 +100,8 @@ Check:
 - [ ] Update Existing Asset mode works.
 - [ ] Find Existing Asset works by CAC/AMD ID.
 - [ ] Find Existing Asset works by serial/model when applicable.
+- [ ] Find Existing Asset works by brand/type/series (partial match).
+- [ ] Deal Instrument_Description refreshes when asset already linked.
 - [ ] Loading an existing asset populates form fields.
 - [ ] Replace Instrument workflow works.
 - [ ] Asset History panel displays loaded asset data.

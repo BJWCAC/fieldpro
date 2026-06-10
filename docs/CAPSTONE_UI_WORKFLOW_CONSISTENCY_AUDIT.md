@@ -2,7 +2,14 @@
 
 This audit reviews the current CapStone screens so the Capture/Report and Assets portions can feel like one consistent program before larger roadmap items continue.
 
-Current reviewed build: v182
+```text
+Audit originally written for: v182
+Last audit review: v198 (2026-06-08)
+Status: Phase 1–3 items largely complete — see CAPSTONE_CHANGELOG_AND_ROADMAP.md for current status
+Remaining optional polish: Capture photo type labels (only if field testing requests)
+```
+
+Current reviewed build: **v198** (historical recommendations below; many are now shipped)
 
 ## Goal
 
@@ -352,26 +359,23 @@ This will matter for long-term asset tracking.
 12. Full offline mode.
 13. Continued code modularization.
 
-## Recommended next PR
+## Audit completion status (v198)
 
-The next safest implementation PR should be:
-
-## Rename Pending Sync to Pending Sync
-
-Why first:
-
-- It is small.
-- It matches the new reality of the queue.
-- It improves every workflow without changing behavior.
-
-Expected changes:
-
-- Pending Sync -> Pending Sync
-- Retry Sync -> Retry Sync
-- Pending badge can remain "Pending" or become "Sync"
-- Settings panel wording updated
-- Toast wording updated where easy
+| # | Recommendation | Status |
+|---|----------------|--------|
+| 1 | Pending Sync naming | Done (PR #65, #67) |
+| 2 | Deal Selection Workflow card | Done (PR #66) |
+| 3 | Standardize save/retry labels | Done (PR #67, #80) |
+| 4 | Asset Save Checklist | Done (PR #68) |
+| 5 | Asset Draft Autosave | Done (PR #69) |
+| 6 | Capture photo naming/status | Mostly done (labels, sync status, phone backup) — optional type labels remain |
+| 7 | History card status display | Done (PR #71, #76) |
+| 8 | Reorganize Settings | Done (PR #72) |
+| 9 | Replacement history display | Done in-app (PR #73) — no Zoho subform (declined) |
+| — | Collapsible help boxes | Done (PR #81, v194) |
+| — | Capture mode status line | Done (PR #80, v193) |
+| — | Local save / phone backup / storage warning | Done (PR #83–#85, v196–v198) |
 
 ## Notes
 
-Do not combine too many of these changes at once. The best path is a series of small PRs so each screen can be tested on Android after every change.
+Do not combine too many of these changes at once. The best path is a series of small PRs so each screen can be tested on Android after every change. For what to build next, use `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md`.

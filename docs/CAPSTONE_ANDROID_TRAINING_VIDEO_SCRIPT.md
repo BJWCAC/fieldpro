@@ -2,7 +2,9 @@
 
 This document is a recording-ready script for a CapStone Android training video. It is written for a technician using CapStone on an Android phone in Chrome or from an Android home screen shortcut.
 
-Recommended video length: 12 to 18 minutes.
+**Script version: v198** — recording is **on hold** until field testing is complete. Update this script again if field tests require workflow changes.
+
+Recommended video length: 14 to 20 minutes (added reliability sections).
 
 ## Purpose of the video
 
@@ -18,6 +20,9 @@ The video should teach a technician how to use CapStone in the field from start 
 - save/update Zoho deal notes and attach the report PDF to the deal
 - understand WorkDrive uploads
 - continue a report from History
+- save work locally before Zoho when signal is poor
+- back up photos to phone Downloads
+- use collapsible help and Pending Sync retry
 
 ## Opening message
 
@@ -38,7 +43,7 @@ Screen action:
 - Enter the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=182
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
 ```
 
 - Optionally show Add to Home screen.
@@ -100,7 +105,7 @@ Screen action:
 - Go to the Assets tab.
 - Confirm the account/deal context.
 - Choose Add New Asset or Update Existing Asset.
-- Search for the asset by serial, model, CAC ID, name, building, or designator.
+- Search for the asset by CAC ID, serial, model, brand, type, series, name, building, or designator.
 - Load the existing asset if a match is found.
 - Complete required fields.
 - Tap Save Asset to Zoho.
@@ -160,8 +165,16 @@ Use clear facts. Do not rely on the AI to guess missing details.
 
 Screen action:
 
-- Add one or two photos.
-- Add a description under each photo.
+- Add one or two photos from gallery or Snap Photo during video.
+- Add a **label** and description under each photo.
+- Show **Save to Phone** or **Save All Photos to Phone**.
+- Optionally show the amber storage warning after several photos.
+
+Example labels:
+
+- panel-overview
+- corrosion-terminal
+- pump-status
 
 Example descriptions:
 
@@ -171,7 +184,7 @@ Example descriptions:
 
 Narration:
 
-> Add photos from the camera or gallery. Add a short description to explain why each photo matters. These descriptions help CapStone understand the field evidence.
+> Add photos from the camera, gallery, or Snap Photo during video. Add a short label for filenames and a description to explain why each photo matters. CapStone can save copies to your phone Downloads folder as backup — turn that on in Settings. If you add many photos, CapStone warns when browser storage is getting full. Export older History from Settings if needed so local saves keep working on poor cell service.
 
 ## Section 7: Explain the nine optional fields
 
@@ -237,17 +250,36 @@ Review checklist:
 - correct findings
 - correct recommendations
 
+## Section 9A: Local save before Zoho (poor signal)
+
+Screen action:
+
+- Show Capture draft / local save status after edits.
+- Tap **Save Locally** if shown.
+- Open History and confirm the in-progress capture appears.
+- Optionally turn off signal briefly to show work is not lost.
+
+Narration:
+
+> CapStone saves your capture to local History before Zoho and network steps. On poor cell service, your notes and photos stay in History even if Save Report to Zoho fails. Check History and Pending Sync in Settings when you regain signal.
+
+On-screen callout:
+
+```text
+Local History first — Zoho can wait for better signal.
+```
+
 ## Section 10: Save or update the Zoho note
 
 Screen action:
 
-- Tap Save to Zoho if needed.
-- Show status messages.
+- Tap Save Report to Zoho if needed.
+- Show status messages and Pending Sync if a step fails.
 - Optionally open the Zoho deal notes on another screen after recording.
 
 Narration:
 
-> Saving to Zoho creates or updates the deal note. CapStone is designed to avoid duplicate notes for the same report. The first save creates the note. Later saves update that note. CapStone also attaches the report PDF directly to the Zoho Deal and uploads report files to WorkDrive.
+> Saving to Zoho creates or updates the deal note. CapStone is designed to avoid duplicate notes for the same report. The first save creates the note. Later saves update that note. CapStone also attaches the report PDF directly to the Zoho Deal and uploads report files to WorkDrive. Failed uploads queue in Pending Sync for retry.
 
 Explain:
 
@@ -258,6 +290,7 @@ On-screen callout:
 ```text
 Same report = update existing Zoho note.
 Deleted note = create replacement note.
+Failed sync = Pending Sync retry.
 ```
 
 ## Section 11: WorkDrive files and Deal PDF attachment
@@ -304,24 +337,27 @@ Warning:
 
 > History is stored in Android browser storage. Clearing Chrome site data can remove CapStone History.
 
-## Section 14: Android troubleshooting
+## Section 14: Help, Settings, and troubleshooting
 
 Screen action:
 
-- Show Settings.
-- Show troubleshooting buttons if appropriate.
+- Tap a collapsible **Help** box on Capture or Assets.
+- Show Settings groups: technician, sync, storage, troubleshooting.
+- Show Pending Sync panel and phone photo backup toggle.
+- Show storage MB line and Export History.
 
 Narration:
 
-> If something does not work, first confirm Android permissions. Camera, location, microphone, and file picker access are controlled by Android and Chrome. If the app did not update, use the latest versioned URL.
+> Each tab has collapsible help. Settings groups technician, sync recovery, storage, and troubleshooting. Pending Sync shows failed uploads and Zoho steps waiting for retry. Turn on phone photo backup so capture photos also save to Downloads. Export History before clearing browser data on a shared device.
 
 Troubleshooting points:
 
-- App not updated: open latest `?v=` URL.
+- App not updated: open latest `?v=198` URL.
 - GPS not working: allow Chrome location permission.
 - Camera not working: allow Chrome camera permission.
 - Deals stale: refresh from Zoho or clear cached deals.
-- Zoho note missing: save again; CapStone should create a replacement.
+- Zoho save failed: work is in History — retry from Report or Pending Sync.
+- Storage full warning: Save photos to phone, export or trim History.
 - WorkDrive duplicates: old duplicates may need manual cleanup.
 - Asset update missing on Deal: verify the correct active Deal was selected before saving the asset.
 
@@ -341,7 +377,7 @@ Use this for a 3 to 5 minute quick-start video.
 
 Narration:
 
-> CapStone is the Android field documentation system for Calibrations & Controls. Open CapStone in Chrome or from the Android home screen. Select the technician, refresh Zoho deals, and select the correct deal. Use Assets when equipment is added or updated. Capture GPS, add notes, add photos, and fill in optional report fields only when needed. Tap Generate AI Report, review the report, and save it to Zoho. CapStone updates the existing Zoho note for the same report, attaches the report PDF to the Deal, creates asset update notes on both the Equipment and Deal, and uses stable WorkDrive filenames to reduce duplicate files. Use History to continue a report later.
+> CapStone is the Android field documentation system for Calibrations & Controls. Open CapStone in Chrome or from the Android home screen. Select the technician, refresh Zoho deals, and select the correct deal. Use Assets when equipment is added or updated — search first by serial, brand, or model. Capture GPS, add notes, add labeled photos with phone backup, and fill in optional report fields only when needed. CapStone saves locally to History before Zoho. Tap Generate AI Report, review the report, and save it to Zoho when signal allows. CapStone updates the existing Zoho note for the same report, attaches the report PDF to the Deal, queues failed sync for retry, and uses stable WorkDrive filenames. Use History to continue a report later.
 
 ## Recording checklist
 
