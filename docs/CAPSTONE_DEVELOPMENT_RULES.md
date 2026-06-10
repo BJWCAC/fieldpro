@@ -180,12 +180,12 @@ If a workflow has meaningful user-entered data, evaluate draft autosave.
 Current examples:
 
 - Capture/Report draft autosave exists.
+- Asset form draft autosave and restore exists.
 
 Future candidates:
 
-- Asset form draft autosave
 - future new tabs with field data
-- offline report/asset sessions
+- offline report/asset sessions beyond local History
 
 Drafts should:
 
@@ -242,6 +242,8 @@ Relevant docs:
 ```text
 README.md
 docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md
+docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md
+docs/CAPSTONE_FIELD_TEST_LOG.md
 docs/CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md
 docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md
 docs/CAPSTONE_DEVELOPMENT_RULES.md
@@ -291,17 +293,18 @@ If yes, either implement it now or add it to the improvement list.
 
 ## Current next consistency priorities
 
-From the UI / Workflow Consistency Audit:
+Audit Phase 1–3 items are largely complete as of v198. See `docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md` completion table and `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md` for status.
 
-1. Rename Pending Sync to Pending Sync.
-2. Add Deal Selection Workflow card.
-3. Standardize save/retry button labels.
-4. Add Asset Save Checklist.
-5. Add Asset Draft Autosave.
-6. Align Capture photo naming/status closer to Assets.
-7. Improve History card status display.
-8. Reorganize Settings into grouped sections.
-9. Improve replacement history display.
+Optional remaining polish (only if field testing requests):
+
+1. Capture photo type labels.
+2. Further Capture/Assets photo parity.
+
+Current doc/testing priorities:
+
+1. Keep README and training script aligned with `FP_VERSION`.
+2. Run `docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on Android; log in `docs/CAPSTONE_FIELD_TEST_LOG.md`.
+3. Update `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md` on every PR.
 
 ## Long-term direction
 

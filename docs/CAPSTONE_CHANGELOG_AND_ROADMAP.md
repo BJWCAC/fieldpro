@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current code version: v198 (branch cursor/storage-zoho-enhancements-7ea5, PR #85)
+Current code version: v198 (PR #85 awaiting merge; docs PR in progress)
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
 ```
 
@@ -23,7 +23,8 @@ Related docs (detail, not status):
 
 - `docs/CAPSTONE_DEVELOPMENT_RULES.md` — how to build and review
 - `docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` — periodic field QA
-- `docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md` — polish audit (partially stale; see Completed)
+- `docs/CAPSTONE_FIELD_TEST_LOG.md` — log Android test results
+- `docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md` — polish audit (largely complete; see status table)
 
 ---
 
@@ -66,13 +67,20 @@ Related docs (detail, not status):
 | Version | PR | What shipped |
 |---------|-----|--------------|
 | v198 | #85 | Asset search: brand, type, series; `contains` fallback; richer Deal `Instrument_Description`; refresh description when asset already linked; technician in replacement blocks |
-| Earlier | — | Equipment create/update, deal asset link, equipment + deal update notes, asset search by CAC/serial/model/name/building/designator, replace-instrument workflow, replacement notes in `Description_Instructions`, replacement cards in Asset History panel |
+| Earlier | — | Equipment create/update, deal asset link, equipment + deal update notes, asset search, replace-instrument workflow, replacement notes in `Description_Instructions`, replacement cards in Asset History panel |
 
-### Structure & docs (earlier milestone)
+### Docs & process
 
-| Version | PR | What shipped |
-|---------|-----|--------------|
-| v182 era | — | CSS/JS split from monolith; Deals, Capture, Assets, Report, History, Settings tabs; AI report; Zoho notes + PDF; WorkDrive; local History; technician selection; GPS; equipment asset workflow |
+| Date | What shipped |
+|------|--------------|
+| 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
+| 2026-06-08 | Docs refresh to v198: README, training script, audit status, dev rules, checklist, field test log |
+
+### Structure (earlier milestone)
+
+| Version | What shipped |
+|---------|--------------|
+| v182 era | CSS/JS split from monolith; Deals, Capture, Assets, Report, History, Settings tabs; AI report; Zoho notes + PDF; WorkDrive; local History; technician selection; GPS; equipment asset workflow |
 
 ---
 
@@ -81,6 +89,7 @@ Related docs (detail, not status):
 | Item | Status | Notes |
 |------|--------|-------|
 | PR #85 — storage warning + Zoho enhancements (v198) | Open (draft) | Awaiting merge to `main` |
+| **Field test on Android** | User action | Use checklist + `CAPSTONE_FIELD_TEST_LOG.md` at `?v=198` |
 
 ---
 
@@ -88,17 +97,14 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | **Docs refresh to current version** | `README.md` still says v182; training script and audit header stale; dev rules still list asset draft as “future” |
-| High | **Field test on Android** | Run `docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on device at current `?v=` build; log bugs as small PRs |
-| Medium | **Training video** | Record from updated `CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md` after script refresh (user action) |
-| Low | **Optional Capture photo parity** | Photo type labels; further alignment with Assets naming patterns — only if field testing asks for it |
-| Low | **Close or refresh stale doc PRs** | e.g. old open docs PR #8 if still relevant |
+| High | **Field test completion** | Poor-signal + 10–15 photo scenarios; log findings in field test log |
+| Medium | **Fix bugs from field test** | Small PRs per finding |
+| On hold | **Training video recording** | User deferred — script updated to v198; record after field test |
+| Low | **Optional Capture photo parity** | Photo type labels — only if field testing requests |
 
 ---
 
 ## Deferred (maybe later — not committed)
-
-These are **not declined**. Revisit only after the field workflow is stable and docs/testing are current.
 
 | Item | Why deferred |
 |------|----------------|
@@ -113,11 +119,17 @@ These are **not declined**. Revisit only after the field workflow is stable and 
 
 ## Declined (will not do)
 
-Explicit product decisions. **Do not re-propose without user asking.**
-
 | Item | Decision date | Reason |
 |------|---------------|--------|
-| **Dedicated Zoho replacement subform or separate replacement history module** | 2026-06-08 | User: replacing the existing asset and making a note is good enough. CapStone already updates the same Equipment record, appends structured replacement text to `Description_Instructions`, and writes equipment + deal update notes. No separate CRM module needed. |
+| **Dedicated Zoho replacement subform or separate replacement history module** | 2026-06-08 | User: replacing the existing asset and making a note is good enough. CapStone updates the same Equipment record, appends structured replacement text to `Description_Instructions`, and writes equipment + deal update notes. |
+
+---
+
+## Housekeeping
+
+| Item | Action |
+|------|--------|
+| **PR #8** — “Document CapStone workflow and training script” (v182 era) | **Close** — superseded by ongoing doc updates on `main` and this v198 docs pass. Do not merge. |
 
 ---
 
@@ -125,8 +137,8 @@ Explicit product decisions. **Do not re-propose without user asking.**
 
 | Item | Notes |
 |------|-------|
-| Field test results | Poor-signal + 10–15 photo scenarios on real Android hardware |
-| Training video timing | After script is updated to cover v196–v198 behavior |
+| Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
+| Training video | On hold until field test complete |
 
 ---
 
