@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=197"/>
+<link rel="stylesheet" href="src/styles.css?v=200"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v199</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v200</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -487,14 +487,12 @@
   <div class="settings-group-title">User / Technician</div>
   <div class="card">
     <div class="stitle">Technician</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Used in CapStone asset update notes until multi-user login is added.</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Loaded from Zoho CRM <strong>Internal_Assets.Users</strong> (Current User picklist). Same list your CRM uses for technicians — not a separate CapStone account.</div>
+    <div id="tech-load-status" style="font-size:11px;color:var(--amber);margin-bottom:8px">Loading technicians from Zoho...</div>
     <select id="tech-select" onchange="saveTechnicianSetting(this.value)">
       <option value="">Select technician</option>
-      <option value="Brad White">Brad White</option>
-      <option value="Daniel Olson">Daniel Olson</option>
-      <option value="Garrett White">Garrett White</option>
-      <option value="Greg Freie">Greg Freie</option>
     </select>
+    <button type="button" class="bg bfull" onclick="loadTechniciansFromZoho()" style="margin-top:8px">Refresh Technicians from Zoho</button>
   </div>
   <div class="settings-group-title">Sync / Pending</div>
   <div class="card">
@@ -539,7 +537,7 @@
         <li>Use History to continue or regenerate the same report instead of starting over.</li>
       </ol>
       <button type="button" class="bp bfull" onclick="openQuickStart()" style="margin-bottom:10px">Open Quick Start</button>
-      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=197</div>
+      <div style="color:var(--amber);font-size:11px">Latest update URL: FieldPro.html?v=200</div>
     </div>
   </div>
   <div class="settings-group-title">Storage / History</div>
@@ -610,14 +608,10 @@
 <div id="techmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)dismissTechnicianPrompt()">
   <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Select Technician</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">Choose the technician using CapStone on this device. This will be included in asset update notes.</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">Choose the technician using CapStone on this device. Names come from Zoho CRM Internal_Assets.Users.</div>
     <label class="lbl" for="tech-prompt-select">Technician</label>
     <select id="tech-prompt-select" style="margin-bottom:8px">
       <option value="">Select technician</option>
-      <option value="Brad White">Brad White</option>
-      <option value="Daniel Olson">Daniel Olson</option>
-      <option value="Garrett White">Garrett White</option>
-      <option value="Greg Freie">Greg Freie</option>
     </select>
     <div id="tech-prompt-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
     <div class="g2">
@@ -666,7 +660,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=197"></script>
+<script src="src/app.js?v=200"></script>
 
 </body>
 </html>

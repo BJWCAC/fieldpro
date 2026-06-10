@@ -25,6 +25,48 @@ exports.handler = async function(event) {
     var data = JSON.parse(event.body);
     var token = data.token;
 
+    if (data.action === "get_technicians") {
+      var fieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Internal_Assets",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (fieldsResult.status < 200 || fieldsResult.status >= 300) {
+        return { statusCode: fieldsResult.status, headers: h, body: fieldsResult.body };
+      }
+      var technicians = [];
+      var fieldApi = String(data.field_api_name || "Users");
+      try {
+        var fieldRows = (JSON.parse(fieldsResult.body).fields || []);
+        var usersField = null;
+        for (var fi = 0; fi < fieldRows.length; fi++) {
+          if (fieldRows[fi].api_name === fieldApi) { usersField = fieldRows[fi]; break; }
+        }
+        if (usersField && Array.isArray(usersField.pick_list_values)) {
+          usersField.pick_list_values.forEach(function (opt) {
+            if (!opt) return;
+            if (opt.type === "unused") return;
+            var name = String(opt.display_value || opt.actual_value || "").trim();
+            if (!name || name === "-None-") return;
+            if (technicians.indexOf(name) < 0) technicians.push(name);
+          });
+        }
+      } catch (fe) {}
+      technicians.sort(function (a, b) { return a.localeCompare(b); });
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({
+          ok: true,
+          source: "zoho",
+          module: "Internal_Assets",
+          field_api_name: fieldApi,
+          technicians: technicians
+        })
+      };
+    }
+
     if (data.action === "get_deals") {
       var result = await req({
         hostname: "www.zohoapis.com",

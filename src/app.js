@@ -20,8 +20,8 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="199";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="200";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -252,8 +252,74 @@ function showToast(msg,ms){
   toastTimer=setTimeout(function(){t.classList.remove("show");toastTimer=null;},ms||3500);
 }
 function setTechnicianUI(){
+  renderTechnicianSelects(getTechnicianNames());
   ["tech-select","tech-prompt-select"].forEach(function(id){var e=el(id);if(e)e.value=A.technician||"";});
   var err=el("tech-prompt-err");if(err)err.textContent="";
+}
+function getTechnicianNames(){
+  if(A.technicians&&A.technicians.length)return A.technicians.slice();
+  return getTechnicianCache();
+}
+function getTechnicianCache(){
+  try{
+    var raw=localStorage.getItem("fp_technicians")||"";
+    if(!raw)return[];
+    var d=JSON.parse(raw);
+    return Array.isArray(d)?d:(d.technicians||[]);
+  }catch(e){return[];}
+}
+function saveTechnicianCache(names){
+  A.technicians=names||[];
+  try{localStorage.setItem("fp_technicians",JSON.stringify({savedAt:new Date().toISOString(),technicians:A.technicians}));}catch(e){}
+}
+function renderTechnicianSelects(names){
+  names=names||[];
+  ["tech-select","tech-prompt-select"].forEach(function(id){
+    var e=el(id);if(!e)return;
+    var cur=e.value||A.technician||"";
+    e.innerHTML="<option value=''>Select technician</option>"+names.map(function(n){return"<option value='"+esc(n)+"'>"+esc(n)+"</option>";}).join("");
+    if(cur&&(names.indexOf(cur)>=0||cur))e.value=cur;
+  });
+  var st=el("tech-load-status");
+  if(st)st.textContent=names.length?names.length+" technicians from Zoho Internal_Assets.Users":"No technicians loaded — tap Refresh from Zoho";
+}
+async function techniciansFromLocalConfig(){
+  try{
+    var cfg=await loadEquipmentConfig();
+    var users=cfg&&cfg.modules&&cfg.modules.Internal_Assets&&cfg.modules.Internal_Assets.picklists&&cfg.modules.Internal_Assets.picklists.Users;
+    var active=(users&&users.active_values)||[];
+    return active.filter(function(n){return n&&n!=="Spare";});
+  }catch(e){return[];}
+}
+async function loadTechniciansFromZoho(opts){
+  opts=opts||{};
+  var cached=getTechnicianCache();
+  if(cached.length&&!opts.force)renderTechnicianSelects(cached);
+  try{
+    await refreshZohoToken();
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_technicians",token:A.zohoToken,field_api_name:"Users"})},30000);
+    var txt=await r.text();
+    if(!r.ok)throw new Error("Technician list "+r.status+": "+txt.substring(0,120));
+    var d={};try{d=JSON.parse(txt);}catch(e){}
+    var names=(d.technicians||[]).filter(function(n){return n&&n!=="Spare";});
+    if(!names.length)throw new Error("Zoho returned no active technicians.");
+    saveTechnicianCache(names);
+    renderTechnicianSelects(names);
+    setTechnicianUI();
+    if(!opts.silent)showToast("Technicians updated from Zoho",2500);
+    return names;
+  }catch(e){
+    var fallback=await techniciansFromLocalConfig();
+    if(fallback.length){
+      saveTechnicianCache(fallback);
+      renderTechnicianSelects(fallback);
+      setTechnicianUI();
+      if(!opts.silent)showToast("Using cached technician list",3000);
+      return fallback;
+    }
+    if(!opts.silent)showToast("Could not load technicians: "+e.message,6000);
+    throw e;
+  }
 }
 function saveTechnicianSetting(v){
   A.technician=v||"";
@@ -369,6 +435,7 @@ function bootApp(){
     maybePromptForTechnician();
     updateCaptureModeStatus();
     bindHelpBoxes();
+    loadTechniciansFromZoho({silent:true}).catch(function(){});
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -397,6 +464,7 @@ window.saveTechnicianPrompt=saveTechnicianPrompt;
 window.go=go;
 window.retryCapturePhotoUpload=retryCapturePhotoUpload;
 window.saveTechnicianSetting=saveTechnicianSetting;
+window.loadTechniciansFromZoho=loadTechniciansFromZoho;
 window.confirmAssetPhotoDescription=confirmAssetPhotoDescription;
 window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
 window.retryPendingUploads=retryPendingUploads;

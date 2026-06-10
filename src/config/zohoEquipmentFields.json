@@ -750,6 +750,7 @@
         "Users": {
           "label": "Current User",
           "type": "picklist",
+          "capstone_usage": "CapStone technician dropdown loads active values from this field via zoho-proxy get_technicians.",
           "active_values": [
             "Brad White",
             "Daniel Olson",
