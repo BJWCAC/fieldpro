@@ -6,8 +6,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current code version: v199 (PR pending — History reopen autosave fix)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
+Current live version: v200 (Phase 1 cloud backend — PR pending)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=200
+Cloud API: https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/capstone-api
 ```
 
 ---
@@ -21,6 +22,7 @@ Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
 
 Related docs (detail, not status):
 
+- `docs/CAPSTONE_BACKEND_ARCHITECTURE.md` — cloud/backend phases
 - `docs/CAPSTONE_DEVELOPMENT_RULES.md` — how to build and review
 - `docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` — periodic field QA
 - `docs/CAPSTONE_FIELD_TEST_LOG.md` — log Android test results
@@ -37,6 +39,8 @@ Related docs (detail, not status):
 | v196 | #83 | Save Capture to local History **before** Zoho/network; Save Locally button; auto-save on visibility change; quota fallback |
 | v197 | #84 | Auto-save capture photos to phone Downloads; Save to Phone / Save All; Settings toggle `fp_auto_save_phone_photos` |
 | v198 | #85 | Early storage warning on Capture (8+ photos, high photo MB, ~4 MB total); warning after failed local save |
+| v199 | #87 | History reopen autosave status + resume timers when continuing offline capture |
+| v200 | pending | Cloud API, login/register, History metadata sync (Phase 1 backend) |
 
 ### UI / workflow polish
 
@@ -88,9 +92,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| PR #85 — storage warning + Zoho enhancements (v198) | Open (draft) | Awaiting merge to `main` |
-| **Field test on Android** | User action — in progress | First finding logged: History reopen autosave UX; fix in v199 PR |
-| PR #199 — History reopen autosave | Open | After merge, retest offline reopen flow |
+| **Phase 1 backend / cloud sync (v200)** | PR pending | Login, register, History metadata push/pull — `CAPSTONE_BACKEND_ARCHITECTURE.md` |
+| **Field test on Android** | User action | Continue checklist; retest v199 offline reopen |
 
 ---
 
@@ -98,10 +101,12 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | **Field test completion** | Poor-signal + 10–15 photo scenarios; log findings in field test log |
+| High | **Netlify env setup** | Set `CAPSTONE_INVITE_CODE` on Netlify site for team registration |
+| High | **Field test completion** | Poor-signal + 10–15 photo scenarios |
+| Medium | **Phase 2 cloud** | Photo blob storage, conflict UI, admin users |
 | Medium | **Fix bugs from field test** | Small PRs per finding |
-| On hold | **Training video recording** | User deferred — script updated to v198; record after field test |
-| Low | **Optional Capture photo parity** | Photo type labels — only if field testing requests |
+| On hold | **Training video recording** | After field test |
+| Low | **Optional Capture photo parity** | Only if field testing requests |
 
 ---
 
@@ -109,12 +114,12 @@ Related docs (detail, not status):
 
 | Item | Why deferred |
 |------|----------------|
-| Backend + database | Large architecture change |
-| User login / multi-user | Requires backend |
-| Full offline mode with cross-device sync | Requires backend + auth |
-| Further `src/app.js` modularization | Useful but not blocking field use |
-| Native Android app | PWA + Add to Home screen may be sufficient |
-| Refresh `zohoEquipmentFields.json` from Zoho | Only when CRM layout actually changes |
+| Phase 3: cloud pending-sync queue + asset draft sync | After Phase 2 photo storage |
+| Phase 4: Native Android app (TWA/Capacitor) | PWA may be sufficient |
+| Refresh `zohoEquipmentFields.json` from Zoho | Only when CRM layout changes |
+
+**Phase 1 started (v200):** backend API, login, multi-user accounts, History metadata sync.  
+**Still deferred within backend roadmap:** full offline-first sync with photo blobs, admin portal, native shell.
 
 ---
 
@@ -154,3 +159,5 @@ Related docs (detail, not status):
 | v196 | Local History save before Zoho |
 | v197 | Phone Downloads photo backup |
 | v198 | Storage warning + Zoho search/deal description enhancements |
+| v199 | History reopen autosave when continuing offline |
+| v200 | Cloud login + History metadata sync (Phase 1 backend) |
