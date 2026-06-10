@@ -8,7 +8,7 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
 Test date:
 Signal conditions: (good / poor / offline portions)
 ```
@@ -81,6 +81,13 @@ Run these even if the full checklist is done in multiple sessions.
 ---
 
 ## Findings (bugs and gaps)
+
+### [x] History reopen — autosave status unclear offline (v198)
+- Tab/screen: History → Open + Continue → Capture
+- Steps: offline → Save Locally → reopen via Open + Continue → edit without tapping Save Locally
+- Expected: status shows work is in History; edits autosave within a few seconds
+- Actual (v198): reopen did not show autosave until Save Locally tapped
+- Fix: v199 — show “Opened from History” status and start draft/History autosave on continue
 
 Add one block per issue:
 

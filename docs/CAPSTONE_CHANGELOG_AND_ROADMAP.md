@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current code version: v198 (PR #85 awaiting merge; docs PR in progress)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
+Current code version: v199 (PR pending — History reopen autosave fix)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
 ```
 
 ---
@@ -89,7 +89,8 @@ Related docs (detail, not status):
 | Item | Status | Notes |
 |------|--------|-------|
 | PR #85 — storage warning + Zoho enhancements (v198) | Open (draft) | Awaiting merge to `main` |
-| **Field test on Android** | User action | Use checklist + `CAPSTONE_FIELD_TEST_LOG.md` at `?v=198` |
+| **Field test on Android** | User action — in progress | First finding logged: History reopen autosave UX; fix in v199 PR |
+| PR #199 — History reopen autosave | Open | After merge, retest offline reopen flow |
 
 ---
 
