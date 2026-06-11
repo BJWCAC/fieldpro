@@ -8,7 +8,7 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
 Test date:
 Signal conditions: (good / poor / offline portions)
 ```
@@ -68,7 +68,14 @@ Run these even if the full checklist is done in multiple sessions.
 | Load existing asset — form populates | | |
 | Save update — Deal Instrument_Description refreshes | | |
 
-### E. Replace instrument
+### [x] Field → AI spins and fails on weak basement signal (v200)
+- Tab/screen: Capture → Report Sections / Voice Notes → → AI
+- Steps: dictate with Wispr in basement (weak/no cell) → tap → AI on a field
+- Expected: AI polishes text or queues for later without losing dictated content
+- Actual (v200): spinner runs long then fails; raw dictation kept but no queue/retry
+- Fix: v201 — → AI buttons + Pending AI queue (Settings → Retry AI when back online)
+
+### F. Pending AI (v201)
 
 | Step | Pass | Notes |
 |------|------|-------|

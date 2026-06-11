@@ -20,8 +20,9 @@ var VOICE_CORRECTIONS=[
 ];
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="200";
+var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="201";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -63,7 +64,7 @@ function go(n){
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();}
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -436,6 +437,8 @@ function bootApp(){
     updateCaptureModeStatus();
     bindHelpBoxes();
     loadTechniciansFromZoho({silent:true}).catch(function(){});
+    setupAssetFieldAiButtons();
+    restoreFieldAiUiFromQueue();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -447,6 +450,7 @@ async function startCapStone(){
   setTimeout(maybeRestoreCaptureDraft,500);
   setTimeout(maybeRestoreAssetDraft,900);
   setupPendingUploadAutoRetry();
+  setupPendingAiAutoRetry();
   try{
     document.addEventListener("visibilitychange",function(){
       if(document.visibilityState==="hidden"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
@@ -469,6 +473,9 @@ window.confirmAssetPhotoDescription=confirmAssetPhotoDescription;
 window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
 window.retryPendingUploads=retryPendingUploads;
 window.clearPendingUploads=clearPendingUploads;
+window.runFieldPolishAi=runFieldPolishAi;
+window.retryPendingAi=retryPendingAi;
+window.clearPendingAi=clearPendingAi;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
@@ -559,11 +566,12 @@ function setCaptureDraftStatus(msg,isErr){var e=el("capture-draft-status");if(!e
 function captureDraftSections(){var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value||"";});return sd;}
 function captureDraftHasWork(){
   var tx=(el("tx")||{value:""}).value.trim();
+  var tx2=(el("tx2")||{value:""}).value.trim();
   var hasSec=SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim();});
-  return !!(A.sel||A.location||tx||hasSec||A.photos.length||A.report);
+  return !!(A.sel||A.location||tx||tx2||hasSec||A.photos.length||A.report);
 }
 function buildCaptureDraft(){
-  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};}),reportPhotos:A.reportPhotos||[],report:A.report||"",voiceNotes:(el("tx")||{value:""}).value||"",sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
+  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};}),reportPhotos:A.reportPhotos||[],report:A.report||"",voiceNotes:getVoiceNotesValue(),sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
 }
 function buildCaptureHistoryMeta(){
   var vn=(el("tx")||{value:""}).value;
@@ -862,6 +870,8 @@ function renderAssetForm(){
   renderSavedAssets();
   renderAssetModeControls();
   renderAssetModeBanner();
+  setupAssetFieldAiButtons();
+  restoreFieldAiUiFromQueue();
   var next=el("asset-next-btn");if(next)next.style.display=A.asset.saved?"flex":"none";
 }
 function renderAssetModeControls(){
@@ -1100,8 +1110,26 @@ async function extractAssetFromPhoto(){
     var data=await callAPI({content:content,maxTok:600,ms:45000});
     var txt=getText(data);
     applyAssetExtraction(await parseAssetJsonWithRepair(txt));
+    removePendingAiByTypeTarget("asset_extract","asset");
     assetStatus("AI extraction complete. Review all required fields before saving.",false);
-  }catch(e){assetStatus("Asset extraction failed: "+e.message,true);}
+  }catch(e){
+    if(shouldQueueAiError(e)&&A.asset.photos.length){
+      (async function(){
+        var photos=[];
+        for(var pi=0;pi<Math.min(3,A.asset.photos.length);pi++){
+          var b64=await compressPhoto(A.asset.photos[pi].data,900,0.55);
+          if(b64)photos.push(b64);
+        }
+        if(photos.length){
+          enqueuePendingAi({type:"asset_extract",target:"asset",photos:photos,label:"Asset photo extraction",error:e.message||String(e)});
+          assetStatus("Extraction queued — will retry when connection improves.",false);
+          showToast("Asset extraction queued for when signal returns",4500);
+          return;
+        }
+        assetStatus("Asset extraction failed: "+e.message,true);
+      })();
+    }else assetStatus("Asset extraction failed: "+e.message,true);
+  }
 }
 function assetRequiredFields(){return [
   ["asset-name","Asset Name"],
@@ -1458,11 +1486,14 @@ function setupPendingUploadAutoRetry(){
   try{document.addEventListener("visibilitychange",function(){if(!document.hidden)schedulePendingUploadRetry("visible",3000);});}catch(e){}
   try{setInterval(function(){schedulePendingUploadRetry("interval",0);},120000);}catch(e){}
 }
-function renderPendingBadge(items){
-  items=items||getPendingUploads();
+function updatePendingTabBadge(){
+  var total=getPendingUploads().length+getPendingAi().length;
   var tab=el("pending-sync-tab"),cnt=el("pending-sync-count");
-  if(cnt)cnt.textContent=items.length;
-  if(tab)tab.style.display=items.length?"block":"none";
+  if(cnt)cnt.textContent=total;
+  if(tab)tab.style.display=total?"block":"none";
+}
+function renderPendingBadge(items){
+  updatePendingTabBadge();
 }
 function renderPendingUploads(){
   var box=el("pending-uploads-list"),count=el("pending-uploads-count");if(!box&&!count)return;
@@ -1473,6 +1504,276 @@ function renderPendingUploads(){
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
 function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;savePendingUploads([]);showToast("Pending sync cleared",2500);}
+function shouldQueueAiError(err){
+  var msg=String(err&&err.message||err||"").toLowerCase();
+  if(err&&err.name==="AbortError")return true;
+  if(msg.indexOf("failed to fetch")>=0||msg.indexOf("network")>=0||msg.indexOf("offline")>=0||msg.indexOf("timeout")>=0||msg.indexOf("aborted")>=0)return true;
+  if(/^api 5/.test(msg)||msg.indexOf("api 429")>=0)return true;
+  return false;
+}
+function fieldAiLabel(target){
+  if(target==="voice")return "Voice notes";
+  if(target.indexOf("photo:")===0)return "Photo description";
+  if(target.indexOf("asset:")===0){
+    var id=target.slice(6);
+    if(id==="asset-description")return "Asset description";
+    if(id==="asset-deal-notes")return "Deal asset notes";
+    if(id==="asset-building")return "Building";
+    if(id==="asset-designator")return "Designator";
+    return "Asset field";
+  }
+  var idx=SEC_IDS.indexOf(target);
+  if(idx>=0)return SEC_LABELS[idx];
+  if(target==="report")return "Generate AI Report";
+  if(target==="asset")return "Asset photo extraction";
+  return target;
+}
+function getVoiceNotesValue(){
+  var t2=el("tx2"),t=el("tx");
+  if(t2&&t2.offsetParent!==null)return t2.value||"";
+  return t? t.value||"":"";
+}
+function setVoiceNotesValue(v){
+  var t=el("tx"),t2=el("tx2");
+  if(t)t.value=v;
+  if(t2)t2.value=v;
+  if(typeof checkGen==="function")checkGen();
+  if(typeof scheduleCaptureDraftSave==="function")scheduleCaptureDraftSave();
+}
+function getFieldTargetValue(target){
+  if(target==="voice")return getVoiceNotesValue();
+  if(target.indexOf("photo:")===0){
+    var pid=target.slice(6);
+    var p=A.photos.find(function(x){return x.id===pid;});
+    return p?p.desc||"":"";
+  }
+  if(target.indexOf("asset:")===0){var node=el(target.slice(6));return node?node.value||"" :"";}
+  var node=el(target);
+  return node?node.value||"":"";
+}
+function setFieldTargetValue(target,val){
+  if(target==="voice"){setVoiceNotesValue(val);return;}
+  if(target.indexOf("photo:")===0){
+    var pid=target.slice(6);
+    var p=A.photos.find(function(x){return x.id===pid;});
+    if(p){p.desc=val;if(typeof scheduleCaptureDraftSave==="function")scheduleCaptureDraftSave();if(typeof renderPhotoCards==="function")renderPhotoCards();}
+    return;
+  }
+  if(target.indexOf("asset:")===0){var an=el(target.slice(6));if(an){an.value=val;if(typeof scheduleAssetDraftSave==="function")scheduleAssetDraftSave();if(typeof updateAssetSaveState==="function")updateAssetSaveState();}return;}
+  var node=el(target);
+  if(node){node.value=val;if(typeof checkGen==="function")checkGen();if(typeof scheduleCaptureDraftSave==="function")scheduleCaptureDraftSave();}
+}
+function fieldAiStatusNode(target){
+  if(target.indexOf("photo:")===0)return el("field-ai-status-"+target.slice(6));
+  return el("field-ai-status-"+fieldAiTargetKey(target));
+}
+function setFieldAiUi(target,state,msg){
+  var st=fieldAiStatusNode(target);
+  if(!st)return;
+  var labels={idle:"",processing:"AI working...",queued:"Pending AI — will retry when online",done:"AI updated",failed:"AI failed"};
+  st.className="field-ai-status"+(state&&state!=="idle"?" field-ai-"+state:"");
+  st.textContent=msg||(labels[state]||"");
+  var btn=document.querySelector('[data-field-ai-target="'+target+'"]');
+  if(btn){
+    btn.disabled=state==="processing";
+    btn.classList.toggle("field-ai-spin",state==="processing");
+  }
+}
+function restoreFieldAiUiFromQueue(){
+  getPendingAi().forEach(function(item){
+    if(item.type==="field_polish"&&item.target)setFieldAiUi(item.target,"queued");
+  });
+}
+function getPendingAi(){try{return JSON.parse(localStorage.getItem("fp_pending_ai")||"[]");}catch(e){return[];}}
+function savePendingAi(items){
+  try{localStorage.setItem("fp_pending_ai",JSON.stringify(items));}catch(e){showToast("Could not save pending AI item",5000);}
+  renderPendingAi();
+  if(items&&items.length)schedulePendingAiRetry("queue_saved",5000);
+}
+function pendingAiLabel(item){
+  if(item.type==="field_polish")return "Field AI — "+(item.label||fieldAiLabel(item.target||""));
+  if(item.type==="report_generate")return "Generate AI Report";
+  if(item.type==="asset_extract")return "Asset photo extraction";
+  return item.label||"Pending AI";
+}
+function removePendingAiByTarget(target){
+  savePendingAi(getPendingAi().filter(function(i){return!(i.target===target&&i.type==="field_polish");}));
+}
+function removePendingAiByTypeTarget(type,target){
+  savePendingAi(getPendingAi().filter(function(i){return!(i.type===type&&i.target===target);}));
+}
+function fieldAiTargetKey(target){return String(target||"").replace(/:/g,"-");}
+function removePendingAiById(id){
+  savePendingAi(getPendingAi().filter(function(i){return i.id!==id;}));
+}
+function enqueuePendingAi(item){
+  var items=getPendingAi();
+  item.id=item.id||("pai"+Date.now()+Math.random());
+  item.created=item.created||new Date().toISOString();
+  item.attempts=item.attempts||0;
+  item.label=item.label||fieldAiLabel(item.target||"");
+  var dupIdx=-1;
+  for(var i=0;i<items.length;i++){
+    if(items[i].type===item.type&&items[i].target===item.target){dupIdx=i;break;}
+  }
+  if(dupIdx>=0){item.id=items[dupIdx].id;items[dupIdx]=item;}else items.push(item);
+  savePendingAi(items);
+}
+async function requestFieldPolish(rawText,label,target){
+  if(!API_KEY)throw new Error("Add your Anthropic API key in Settings first.");
+  var context="water/wastewater treatment field service documentation";
+  if(target.indexOf("asset:")===0)context="equipment asset record for Zoho CRM";
+  if(target.indexOf("photo:")===0)context="photo description for a field service report";
+  var prompt="Convert this rough voice-dictated note into clear, professional "+context+" language. Keep every factual detail from the original. Do not invent equipment, readings, or actions. Return only the polished text — no headings, labels, or markdown.\n\nField: "+label+"\n\nRaw note:\n"+rawText;
+  var data=await callAPI({content:[{type:"text",text:prompt}],maxTok:500,ms:25000});
+  var out=getText(data).trim();
+  if(!out)throw new Error("AI returned empty text");
+  return out;
+}
+async function runFieldPolishAi(targetId,opts){
+  opts=opts||{};
+  var raw=getFieldTargetValue(targetId).trim();
+  if(!raw){if(!opts.silent)showToast("Dictate or type text first, then tap → AI",3000);return;}
+  if(!API_KEY&&!opts.fromQueue){enterKey();if(!opts.silent)showToast("Add API key, then tap → AI again",3000);return;}
+  setFieldAiUi(targetId,"processing");
+  try{
+    var polished=await requestFieldPolish(raw,fieldAiLabel(targetId),targetId);
+    setFieldTargetValue(targetId,polished);
+    removePendingAiByTarget(targetId);
+    setFieldAiUi(targetId,"done");
+    if(!opts.silent)showToast("Field updated with AI",2500);
+    setTimeout(function(){setFieldAiUi(targetId,"idle");},4000);
+    return polished;
+  }catch(e){
+    if(shouldQueueAiError(e)){
+      enqueuePendingAi({type:"field_polish",target:targetId,rawText:raw,label:fieldAiLabel(targetId),error:e.message||String(e)});
+      setFieldAiUi(targetId,"queued");
+      if(!opts.silent)showToast("AI queued — will retry when connection improves",4500);
+    }else{
+      setFieldAiUi(targetId,"failed",e.message||String(e));
+      if(!opts.silent)showToast("AI failed: "+(e.message||e),6000);
+    }
+    throw e;
+  }
+}
+async function retryQueuedReportGenerate(item){
+  if(item.historyId&&A.currentHistoryId!==item.historyId){
+    var h=getHistory(),r=null;
+    for(var hi=0;hi<h.length;hi++){if(h[hi].id===item.historyId){r=h[hi];break;}}
+    if(r){
+      A.reportPhotos=r.photoData||[];
+      A.photos=(r.photoData||[]).map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
+      A.report=r.report||"";
+      setReportTechnician(r.technician||"");
+      A.dealPdfAttached=!!r.dealPdfAttached;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);
+      updateDealUI();updateLocationUI();
+      if(r.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});
+      if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;if(el("tx2"))el("tx2").value=r.voiceNotes;}
+      renderPhotoCards();checkGen();
+    }
+  }
+  await generate();
+}
+async function retryQueuedAssetExtract(item){
+  if(!item.photos||!item.photos.length)throw new Error("Queued extraction missing photos");
+  if(!API_KEY)throw new Error("API key required");
+  assetStatus("Retrying asset extraction...",false);
+  var content=[];
+  item.photos.forEach(function(b64){if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});});
+  content.push({type:"text",text:"Extract equipment nameplate details from these photos for a Zoho equipment asset. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text. All values must be strings or null. Do not guess."});
+  var data=await callAPI({content:content,maxTok:600,ms:45000});
+  applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
+  assetStatus("AI extraction complete. Review all required fields before saving.",false);
+}
+async function processPendingAiItem(item){
+  if(item.type==="field_polish"){
+    var raw=(getFieldTargetValue(item.target)||item.rawText||"").trim();
+    if(!raw&&item.rawText)raw=item.rawText;
+    if(!raw)throw new Error("Field text missing");
+    item.rawText=raw;
+    var polished=await requestFieldPolish(raw,item.label||fieldAiLabel(item.target),item.target);
+    setFieldTargetValue(item.target,polished);
+    setFieldAiUi(item.target,"done");
+    setTimeout(function(){setFieldAiUi(item.target,"idle");},4000);
+    return;
+  }
+  if(item.type==="report_generate"){await retryQueuedReportGenerate(item);return;}
+  if(item.type==="asset_extract"){await retryQueuedAssetExtract(item);return;}
+  throw new Error("Unknown pending AI type");
+}
+async function retryPendingAi(opts){
+  opts=opts||{};
+  if(A.pendingAiRetrying)return;
+  var items=getPendingAi();
+  if(!items.length){if(!opts.auto)showToast("No pending AI items",2500);return;}
+  if(!API_KEY){if(!opts.auto)showToast("Add API key before retrying AI",4000);return;}
+  A.pendingAiRetrying=true;
+  if(!opts.auto)showToast("Retrying "+items.length+" pending AI item(s)...",3000);
+  var remaining=[];
+  for(var i=0;i<items.length;i++){
+    var item=items[i];
+    try{
+      if(item.type==="field_polish")setFieldAiUi(item.target,"processing");
+      await processPendingAiItem(item);
+    }catch(e){
+      item.error=e.message||String(e);
+      item.attempts=(item.attempts||0)+1;
+      item.lastAttempt=new Date().toISOString();
+      remaining.push(item);
+      if(item.type==="field_polish"&&item.target)setFieldAiUi(item.target,"queued",item.error);
+    }
+  }
+  A.pendingAiRetrying=false;
+  savePendingAi(remaining);
+  if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" AI item(s) still pending":"All pending AI items complete",5000);
+}
+function schedulePendingAiRetry(reason,delayMs){
+  if(!getPendingAi().length||A.pendingAiRetrying)return;
+  if(A.pendingAiRetryTimer)clearTimeout(A.pendingAiRetryTimer);
+  A.pendingAiRetryTimer=setTimeout(function(){A.pendingAiRetryTimer=null;autoRetryPendingAi(reason);},delayMs||15000);
+}
+function autoRetryPendingAi(reason){
+  var now=Date.now();
+  if(A.pendingAiRetrying||!getPendingAi().length||!API_KEY)return;
+  if(now-A.lastPendingAiAutoRetry<30000){schedulePendingAiRetry(reason,30000);return;}
+  A.lastPendingAiAutoRetry=now;
+  retryPendingAi({auto:true,reason:reason});
+}
+function setupPendingAiAutoRetry(){
+  schedulePendingAiRetry("startup",15000);
+  try{window.addEventListener("online",function(){schedulePendingAiRetry("online",2000);});}catch(e){}
+  try{document.addEventListener("visibilitychange",function(){if(!document.hidden)schedulePendingAiRetry("visible",3000);});}catch(e){}
+  try{setInterval(function(){schedulePendingAiRetry("interval",0);},120000);}catch(e){}
+}
+function renderPendingAi(){
+  var box=el("pending-ai-list"),count=el("pending-ai-count");
+  var items=getPendingAi();
+  updatePendingTabBadge();
+  if(count)count.textContent=items.length+" pending";
+  if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingAiLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending AI items.</div>";
+}
+function clearPendingAi(){if(!confirm("Clear all pending AI items?"))return;savePendingAi([]);SEC_IDS.forEach(function(id){setFieldAiUi(id,"idle");});setFieldAiUi("voice","idle");showToast("Pending AI cleared",2500);}
+function setupAssetFieldAiButtons(){
+  ASSET_AI_FIELD_IDS.forEach(function(id){
+    var input=el(id);if(!input||input.getAttribute("data-ai-ready"))return;
+    var wrap=input.parentElement;
+    if(!wrap||wrap.querySelector("[data-field-ai-target='asset:"+id+"']"))return;
+    var row=document.createElement("div");
+    row.className="field-ai-row";
+    var lbl=wrap.querySelector(".lbl");
+    if(lbl){row.appendChild(lbl);}
+    else{var lab=document.createElement("label");lab.className="lbl";lab.style.marginBottom="0";lab.textContent=id.replace("asset-","").replace(/-/g," ");row.appendChild(lab);}
+    var btn=document.createElement("button");
+    btn.type="button";btn.className="field-ai-btn bg bsm";btn.setAttribute("data-field-ai-target","asset:"+id);
+    btn.title="Polish dictated text with AI";btn.textContent="→ AI";
+    btn.onclick=function(){runFieldPolishAi("asset:"+id);};
+    row.appendChild(btn);
+    var st=document.createElement("div");st.className="field-ai-status";st.id="field-ai-status-"+fieldAiTargetKey("asset:"+id);
+    wrap.insertBefore(row,input);
+    wrap.insertBefore(st,input);
+    input.setAttribute("data-ai-ready","1");
+  });
+}
 function sanitizeAssetFilePart(s){return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"asset";}
 async function getEquipmentRecord(equipmentId){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_equipment",token:A.zohoToken,equipment_id:equipmentId})},30000);
@@ -1835,6 +2136,13 @@ function renderPhotoCards(){
     (function(pid){label.addEventListener("input",function(){updatePhotoLabel(pid,this.value);});})(p.id);
     var ta=document.createElement("textarea");ta.className="pc-desc";ta.setAttribute("inputmode","text");ta.id="ta-"+p.id;ta.placeholder="Tap to add description with Wispr...";ta.value=p.desc||"";
     (function(pid){ta.addEventListener("input",function(){updatePhotoDesc(pid,this.value);});})(p.id);
+    var aiRow=document.createElement("div");aiRow.className="field-ai-row";
+    var aiLbl=document.createElement("span");aiLbl.className="pc-ai-lbl";aiLbl.textContent="Description (Wispr)";
+    var aiBtn=document.createElement("button");aiBtn.type="button";aiBtn.className="field-ai-btn bg bsm";aiBtn.setAttribute("data-field-ai-target","photo:"+p.id);aiBtn.title="Polish dictated text with AI";aiBtn.textContent="→ AI";
+    (function(pid){aiBtn.onclick=function(){runFieldPolishAi("photo:"+pid);};})(p.id);
+    aiRow.appendChild(aiLbl);aiRow.appendChild(aiBtn);
+    var aiSt=document.createElement("div");aiSt.className="field-ai-status";aiSt.id="field-ai-status-"+p.id;
+    if(getPendingAi().some(function(i){return i.type==="field_polish"&&i.target==="photo:"+p.id;}))aiSt.className="field-ai-status field-ai-queued",aiSt.textContent="Pending AI — will retry when online";
     var acts=document.createElement("div");acts.className="pc-acts";
     if((p.syncStatus||"not_synced")==="failed"){
       var retry=document.createElement("button");retry.className="bs bsm";retry.textContent="Retry Photo";
@@ -1851,7 +2159,7 @@ function renderPhotoCards(){
     var ps=document.createElement("div");ps.className="photo-sync-status "+(p.syncStatus||"not_synced");ps.textContent=photoSyncLabel(p);if(p.syncMessage)ps.title=p.syncMessage;
     body.appendChild(tm);body.appendChild(ps);
     if(p.savedToPhone){var pp=document.createElement("div");pp.className="photo-sync-status uploaded";pp.textContent="Saved on phone";if(p.phoneFileName)pp.title=p.phoneFileName;body.appendChild(pp);}
-    body.appendChild(label);body.appendChild(fn);body.appendChild(ta);body.appendChild(acts);
+    body.appendChild(label);body.appendChild(fn);body.appendChild(aiRow);body.appendChild(aiSt);body.appendChild(ta);body.appendChild(acts);
     div.appendChild(img);div.appendChild(body);c.appendChild(div);
   });
   restorePhotoFocusState(focusState);
@@ -1860,7 +2168,8 @@ function renderPhotoCards(){
 }
 function checkGen(){
   scheduleCaptureDraftSave();
-  var tx=el("tx");var hasP=A.photos.length>0,hasN=tx&&tx.value.trim().length>0;
+  var tx=el("tx");var t2=el("tx2");
+  var hasP=A.photos.length>0,hasN=(tx&&tx.value.trim().length>0)||(t2&&t2.value.trim().length>0);
   var hasSec=SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim().length>0;});
   var show=hasP||hasN||hasSec;
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
@@ -1909,7 +2218,7 @@ async function generate(){
   var btn=el("gen-btn"),regen=el("regen-btn");
   if(btn){btn.disabled=true;btn.textContent="Generating...";}
   if(regen)regen.disabled=true;
-  var tx=el("tx");var txVal=tx?tx.value:"";
+  var tx=el("tx");var txVal=getVoiceNotesValue();
   saveCaptureWorkLocally({silent:false});
   try{
     setReportTechnician(A.technician);
@@ -1947,6 +2256,7 @@ async function generate(){
     meta.photos=savedPhotos.length;meta.photoData=savedPhotos;meta.report=A.report;meta.voiceNotes=txVal;meta.captureInProgress=false;meta.localSavedAt=new Date().toISOString();
     A.lastSaveResult=null;A.lastSaveIssue=null;
     saveOrUpdateHistory(meta);saveCaptureDraftNow();renderReport();updateCaptureModeStatus();go("report");
+    removePendingAiByTypeTarget("report_generate","report");
     if(A.sel){
       A.uploadPromise=uploadToWorkDriveAll();
       if(A.autoSaveZoho){
@@ -1974,8 +2284,14 @@ async function generate(){
     }
   }catch(e){
     saveCaptureWorkLocally({silent:false});
-    var re=el("rpt-err");if(re){re.textContent="Report error: "+e.message+". Your capture was saved locally to History — open History → Open + Continue.";re.style.display="block";}
-    alert("Report error: "+e.message+"\n\nYour capture was saved locally to History. Open History and tap Open + Continue to pick up where you left off.");
+    if(shouldQueueAiError(e)){
+      enqueuePendingAi({type:"report_generate",target:"report",historyId:A.currentHistoryId||null,label:"Generate AI Report",error:e.message||String(e)});
+      showToast("Report generation queued — capture saved locally",5000);
+      var reQ=el("rpt-err");if(reQ){reQ.textContent="Weak signal — report generation queued. Your capture is in History. Pending AI retries automatically when connection improves.";reQ.style.display="block";}
+    }else{
+      var re=el("rpt-err");if(re){re.textContent="Report error: "+e.message+". Your capture was saved locally to History — open History → Open + Continue.";re.style.display="block";}
+      alert("Report error: "+e.message+"\n\nYour capture was saved locally to History. Open History and tap Open + Continue to pick up where you left off.");
+    }
   }
   if(btn){btn.disabled=false;btn.textContent="Generate AI Report";}if(regen)regen.disabled=false;
 }
