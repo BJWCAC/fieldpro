@@ -68,13 +68,6 @@ Run these even if the full checklist is done in multiple sessions.
 | Load existing asset — form populates | | |
 | Save update — Deal Instrument_Description refreshes | | |
 
-### [x] Field → AI spins and fails on weak basement signal (v200)
-- Tab/screen: Capture → Report Sections / Voice Notes → → AI
-- Steps: dictate with Wispr in basement (weak/no cell) → tap → AI on a field
-- Expected: AI polishes text or queues for later without losing dictated content
-- Actual (v200): spinner runs long then fails; raw dictation kept but no queue/retry
-- Fix: v201 — → AI buttons + Pending AI queue (Settings → Retry AI when back online)
-
 ### E. Replace instrument
 
 | Step | Pass | Notes |
