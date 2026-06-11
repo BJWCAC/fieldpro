@@ -75,7 +75,7 @@ Run these even if the full checklist is done in multiple sessions.
 - Actual (v200): spinner runs long then fails; raw dictation kept but no queue/retry
 - Fix: v201 — → AI buttons + Pending AI queue (Settings → Retry AI when back online)
 
-### F. Pending AI (v201)
+### E. Replace instrument
 
 | Step | Pass | Notes |
 |------|------|-------|
@@ -84,6 +84,16 @@ Run these even if the full checklist is done in multiple sessions.
 | Save — same Equipment record updated | | |
 | Replacement card visible in Asset History panel | | |
 | Equipment + Deal update notes created | | |
+
+### F. Pending AI (v201)
+
+| Step | Pass | Notes |
+|------|------|-------|
+| Dictate into Capture section on weak signal | | |
+| Tap → AI — queues instead of spinning forever | | |
+| Return online — field updates or Retry AI works | | |
+| Generate AI Report on weak signal — queues + retries | | |
+| Extract with AI on Assets — queues + retries | | |
 
 ---
 
@@ -123,8 +133,9 @@ Add one block per issue:
 | 6. History | | | | |
 | 7. Settings | | | | |
 | 8. Pending Sync | | | | |
-| 9. Cross-tab consistency | | | | |
-| 10. Android-specific | | | | |
+| 9. Pending AI | | | | |
+| 10. Cross-tab consistency | | | | |
+| 11. Android-specific | | | | |
 
 ---
 
