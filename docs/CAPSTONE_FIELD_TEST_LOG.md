@@ -8,7 +8,7 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=199
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
 Test date:
 Signal conditions: (good / poor / offline portions)
 ```
@@ -78,6 +78,16 @@ Run these even if the full checklist is done in multiple sessions.
 | Replacement card visible in Asset History panel | | |
 | Equipment + Deal update notes created | | |
 
+### F. Pending AI (v201)
+
+| Step | Pass | Notes |
+|------|------|-------|
+| Dictate into Capture section on weak signal | | |
+| Tap → AI — queues instead of spinning forever | | |
+| Return online — field updates or Retry AI works | | |
+| Generate AI Report on weak signal — queues + retries | | |
+| Extract with AI on Assets — queues + retries | | |
+
 ---
 
 ## Findings (bugs and gaps)
@@ -116,8 +126,9 @@ Add one block per issue:
 | 6. History | | | | |
 | 7. Settings | | | | |
 | 8. Pending Sync | | | | |
-| 9. Cross-tab consistency | | | | |
-| 10. Android-specific | | | | |
+| 9. Pending AI | | | | |
+| 10. Cross-tab consistency | | | | |
+| 11. Android-specific | | | | |
 
 ---
 

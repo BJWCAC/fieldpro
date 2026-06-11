@@ -168,10 +168,11 @@
       </div>
       <button class="bp-lg" onclick="startCam()" style="margin-bottom:10px">Start Recording</button>
       <div style="border-top:1px solid var(--bdr);padding-top:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:6px;flex-wrap:wrap">
           <div class="stitle" style="margin-bottom:0">Voice Notes</div>
-          <button class="bg bsm" onclick="el('tx').value='';checkGen()">CLEAR</button>
+          <div style="display:flex;gap:6px"><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="voice" title="Polish dictated text with AI" onclick="runFieldPolishAi('voice')">→ AI</button><button class="bg bsm" onclick="el('tx').value='';if(el('tx2'))el('tx2').value='';checkGen()">CLEAR</button></div>
         </div>
+        <div class="field-ai-status" id="field-ai-status-voice"></div>
         <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Tap below — use Wispr to dictate while video records</div>
         <textarea id="tx" inputmode="text" rows="4" placeholder="Tap here and use Wispr to dictate notes..." oninput="checkGen()"></textarea>
       </div>
@@ -183,9 +184,9 @@
       </div>
       <button class="bd-lg" onclick="stopCam()" style="margin-bottom:10px">Stop Recording</button>
       <div style="border-top:1px solid var(--bdr);padding-top:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:6px;flex-wrap:wrap">
           <div class="stitle" style="margin-bottom:0">Voice Notes</div>
-          <button class="bg bsm" onclick="el('tx').value='';checkGen()">CLEAR</button>
+          <div style="display:flex;gap:6px"><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="voice" title="Polish dictated text with AI" onclick="runFieldPolishAi('voice')">→ AI</button><button class="bg bsm" onclick="el('tx').value='';if(el('tx2'))el('tx2').value='';checkGen()">CLEAR</button></div>
         </div>
         <textarea id="tx2" inputmode="text" rows="4" placeholder="Tap here — Wispr dictates while video records..." oninput="syncTx()" style="font-size:13px"></textarea>
       </div>
@@ -221,22 +222,23 @@
       <div class="help-box-body">
         <p>These nine fields are optional structured notes. Fill in only what applies to this visit. Empty sections are left out of the generated report.</p>
         <ul>
-          <li>Use them to force important details into the right part of the report.</li>
+          <li>Dictate with Wispr, then tap <strong>→ AI</strong> on each field to polish the text.</li>
+          <li>On weak or no signal, AI work queues as <strong>Pending AI</strong> and retries automatically.</li>
           <li>Voice notes still work if you prefer free-form dictation.</li>
           <li>Sections are saved in the Capture draft and History.</li>
         </ul>
       </div>
     </details>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">Fill in what applies — empty sections are excluded.</div>
-    <div style="margin-bottom:10px"><label class="lbl">1. Site Visit Summary</label><textarea id="sec1" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">2. Equipment / Systems Serviced</label><textarea id="sec2" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">3. Work Performed</label><textarea id="sec3" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">4. Calibration Results &amp; Readings</label><textarea id="sec4" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">5. Findings &amp; Observations</label><textarea id="sec5" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">6. Issues / Deficiencies</label><textarea id="sec6" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">7. Recommendations &amp; Next Steps</label><textarea id="sec7" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">8. Follow-Up Required</label><textarea id="sec8" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div><label class="lbl">9. Materials / Parts Used</label><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:12px">Dictate with Wispr, then tap <strong>→ AI</strong> on each field. Weak signal queues AI for later — same as Pending Sync.</div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">1. Site Visit Summary</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec1" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec1')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec1"></div><textarea id="sec1" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">2. Equipment / Systems Serviced</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec2" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec2')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec2"></div><textarea id="sec2" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">3. Work Performed</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec3" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec3')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec3"></div><textarea id="sec3" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">4. Calibration Results &amp; Readings</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec4" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec4')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec4"></div><textarea id="sec4" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">5. Findings &amp; Observations</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec5" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec5')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec5"></div><textarea id="sec5" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">6. Issues / Deficiencies</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec6" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec6')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec6"></div><textarea id="sec6" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">7. Recommendations &amp; Next Steps</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec7" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec7')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec7"></div><textarea id="sec7" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">8. Follow-Up Required</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec8" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec8')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec8"></div><textarea id="sec8" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">9. Materials / Parts Used</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec9" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec9')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec9"></div><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
   </div>
   <div id="gen-summary" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#0f2420">
     <div style="font-family:Barlow Condensed,sans-serif;font-weight:700;color:var(--green);margin-bottom:6px">Field Data Checklist Before Generate</div>
@@ -503,6 +505,16 @@
     <div class="g2">
       <button class="bp bfull" onclick="retryPendingUploads()">Retry Sync</button>
       <button class="bg bfull" onclick="clearPendingUploads()">Clear Sync</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="stitle">Pending AI</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Field → AI polish, report generation, and asset extraction queue here when signal is weak. Retries automatically when CapStone comes online — same pattern as Pending Sync.</div>
+    <div id="pending-ai-count" style="font-size:12px;color:var(--amber);margin-bottom:8px">0 pending</div>
+    <div id="pending-ai-list" style="margin-bottom:10px"></div>
+    <div class="g2">
+      <button class="bp bfull" onclick="retryPendingAi()">Retry AI</button>
+      <button class="bg bfull" onclick="clearPendingAi()">Clear AI</button>
     </div>
   </div>
   <div class="settings-group-title">Zoho + Save Behavior</div>

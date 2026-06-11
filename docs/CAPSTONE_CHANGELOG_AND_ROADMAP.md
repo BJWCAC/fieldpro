@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v200 (PR pending — Zoho technician list)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=200
+Current live version: v201 (PR pending — offline field AI queue)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
 ```
 
 ---
@@ -38,7 +38,8 @@ Related docs (detail, not status):
 | v197 | #84 | Auto-save capture photos to phone Downloads; Save to Phone / Save All; Settings toggle `fp_auto_save_phone_photos` |
 | v198 | #85 | Early storage warning; Zoho asset search/deal description enhancements |
 | v199 | #87 | History reopen autosave when continuing offline capture |
-| v200 | pending | Technicians from Zoho Internal_Assets.Users (no separate login list) |
+| v200 | #89 | Technicians from Zoho Internal_Assets.Users (no separate login list) |
+| v201 | pending | Per-field → AI with offline Pending AI queue (Capture, Assets, photos, report generate, asset extract) |
 
 ### UI / workflow polish
 
@@ -90,9 +91,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR #89** — Zoho technician list (v200) | Ready for review | Load Internal_Assets.Users into Settings + startup |
-| **PR #88** — separate cloud login (v200) | **Close without merge** | Superseded by #89 |
-| **Field test on Android** | User action | Continue checklist at v200 |
+| **PR pending** — offline field AI queue (v201) | Open | → AI per field; Pending AI retries when online |
+| **Field test on Android** | User action | Continue checklist at v201 |
 
 ---
 
@@ -158,3 +158,4 @@ Related docs (detail, not status):
 | v198 | Storage warning + Zoho search/deal description enhancements |
 | v199 | History reopen autosave when continuing offline |
 | v200 | Technicians loaded from Zoho Internal_Assets.Users |
+| v201 | Per-field → AI with offline Pending AI queue |
