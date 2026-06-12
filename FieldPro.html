@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=200"/>
+<link rel="stylesheet" href="src/styles.css?v=202"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v200</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v202</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -35,6 +35,7 @@
   <div class="tab on" id="t-deals" onclick="go('deals')">Deals <span class="tbadge" id="tb-deals" style="display:none"></span></div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
   <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
+  <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
   <div class="tab" id="t-settings" onclick="go('settings')">Settings</div>
@@ -441,6 +442,38 @@
   </div>
 </div>
 
+<!-- INBOX -->
+<div class="pane" id="p-inbox">
+  <details class="help-box" data-help-id="inbox-tab">
+    <summary>Help: Inbox</summary>
+    <div class="help-box-body">
+      <p>Inbox holds <strong>unassigned voice</strong> — Plaud recordings, phone calls, or manual notes — until you link them to a Zoho deal and file a field note.</p>
+      <ul>
+        <li><strong>Capture</strong> remains for intentional walkthroughs when the deal is already selected.</li>
+        <li>Upload audio here or add a manual note while Plaud Stage 0 MCP is in use.</li>
+        <li>Link to deal → generate summary → save to Zoho (same pipeline as reports).</li>
+        <li>See <code>docs/PLAUD_INTEGRATION.md</code> for the full Plaud Note Pro plan.</li>
+      </ul>
+    </div>
+  </details>
+  <div class="workflow-card">
+    <div class="stitle">Inbox Workflow</div>
+    <ol>
+      <li>Recording lands here (upload, Plaud pull later, or manual note).</li>
+      <li>Review transcript — paste from Stage 0 MCP or wait for AssemblyAI when configured.</li>
+      <li><strong>Link to deal</strong> — search your Zoho deals list.</li>
+      <li><strong>Generate summary</strong> — Claude turns transcript into a structured field note.</li>
+      <li><strong>Save to Zoho</strong> — writes a deal note; Pending Sync retries if needed.</li>
+    </ol>
+  </div>
+  <div class="g2" style="margin-bottom:10px">
+    <label class="fbtn bb-lg">Upload Audio<input id="inbox-audio-input" type="file" accept="audio/*,.webm,.mp3,.m4a,.wav" style="display:none" onchange="inboxAudioSelected(this)"/></label>
+    <button type="button" class="bg-lg" onclick="addInboxManualNote()">Add Manual Note</button>
+  </div>
+  <div id="inbox-status" style="font-size:12px;color:var(--dim);margin-bottom:10px"></div>
+  <div id="inbox-list"></div>
+</div>
+
 <!-- HISTORY -->
 <div class="pane" id="p-history">
   <details class="help-box" data-help-id="history-tab">
@@ -672,7 +705,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=200"></script>
+<script src="src/app.js?v=202"></script>
 
 </body>
 </html>

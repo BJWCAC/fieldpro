@@ -11,9 +11,9 @@ Design and phased build plan for combining CapStone (intentional deal walkthroug
 - `docs/CAPSTONE_FIELD_TEST_LOG.md` — field validation before Fork A build
 
 ```text
-Last updated: 2026-06-08
-Tab name (proposed): Inbox
-Fork A target: v202+ (after v201 field test)
+Last updated: 2026-06-12
+Tab name: Inbox
+Fork A: v202 Stage 1 in progress (Inbox UI + pipeline skeleton)
 Fork B: deferred — see changelog
 ```
 
@@ -189,13 +189,13 @@ Order small PRs; bump `FP_VERSION` per behavior change.
 
 | Phase | Deliverable |
 |-------|-------------|
-| A1 | This doc + changelog updates |
-| A2 | `docs/PLAUD_INTEGRATION.md` Stage 1 checklist; Netlify `submit-recording` + `transcript-ready` skeleton |
-| A3 | Inbox tab shell — workflow card, empty list, badge |
-| A4 | Link-to-deal UI + local staging record |
-| A5 | AssemblyAI integration + Pending Sync for failed steps |
-| A6 | Claude summarize + reuse Zoho save path from Report |
-| A7 | Field test Inbox path; program review checklist section |
+| A1 | This doc + changelog updates | Done (#91) |
+| A2 | Netlify `submit-recording` + `transcript-ready` skeleton | Done (v202 PR) |
+| A3 | Inbox tab shell — workflow card, list, badge | Done (v202 PR) |
+| A4 | Link-to-deal UI + local staging record | Done (v202 PR) |
+| A5 | AssemblyAI integration + Pending Sync for failed steps | Planned |
+| A6 | Claude summarize + Zoho save from Inbox | Partial (v202 — manual transcript + summary) |
+| A7 | Field test Inbox path; program review checklist section | After v202 merge |
 
 ### Fork B (deferred)
 
