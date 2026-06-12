@@ -44,16 +44,17 @@ Before a PR is considered complete, check:
 
 1. Does this change affect Capture?
 2. Does this change affect Assets?
-3. Does this change affect Report?
-4. Does this change affect Deals?
-5. Does this change affect History?
-6. Does this change affect Settings?
-7. Does this change need Pending Sync support?
-8. Does this change need local draft/recovery support?
-9. Does this change need a status badge, warning, or confirmation?
-10. Does this change need README or training documentation updates?
-11. Does this change need a version bump and cache-busting update?
-12. Does this change need a backup branch before work begins?
+3. Does this change affect Inbox?
+4. Does this change affect Report?
+5. Does this change affect Deals?
+6. Does this change affect History?
+7. Does this change affect Settings?
+8. Does this change need Pending Sync support?
+9. Does this change need local draft/recovery support?
+10. Does this change need a status badge, warning, or confirmation?
+11. Does this change need README or training documentation updates?
+12. Does this change need a version bump and cache-busting update?
+13. Does this change need a backup branch before work begins?
 
 ## Backup rules
 

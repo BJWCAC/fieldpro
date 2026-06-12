@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-06-08
-Current live version: v201
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
+Last updated: 2026-06-12
+Current live version: v202 (PR pending — Inbox tab Stage 1)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=202
 ```
 
 ---
@@ -40,6 +40,7 @@ Related docs (detail, not status):
 | v199 | #87 | History reopen autosave when continuing offline capture |
 | v200 | #89 | Technicians from Zoho Internal_Assets.Users (no separate login list) |
 | v201 | #90 | Per-field → AI with offline Pending AI queue (Capture, Assets, photos, report generate, asset extract) |
+| v202 | pending | **Inbox tab** — unassigned voice staging, link to deal, summary, Zoho save; Netlify recording pipeline skeleton |
 
 ### UI / workflow polish
 
@@ -91,7 +92,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **Field test on Android** | User action | v201 checklist including Pending AI weak-signal scenarios |
+| **PR pending** — Inbox tab Stage 1 (v202) | Open | Upload/manual note, link deal, summarize, save to Zoho |
+| **Field test on Android** | User action | v201 + Inbox scenarios when v202 merges |
 
 ---
 
@@ -101,7 +103,7 @@ Related docs (detail, not status):
 |----------|------|-------|
 | High | **Field test completion** | Poor-signal + 10–15 photo scenarios; Pending AI section F |
 | Medium | **Plaud Fork A — Stage 0** | Note Pro setup + MCP validate summarize → Zoho before code — see `PLAUD_INTEGRATION.md` |
-| Medium | **Plaud Fork A — Stage 1 (Inbox tab)** | v202+ — unassigned voice staging, link to deal, shared transcribe/summarize pipeline |
+| Medium | **Plaud Fork A — Stage 1 (Inbox tab)** | v202 in progress — AssemblyAI + Plaud pull in later PRs |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name — after field test, not separate accounts |
 | Medium | **Fix bugs from field test** | Small PRs per finding |
 | On hold | **Training video** | After field test |
@@ -163,4 +165,4 @@ Related docs (detail, not status):
 | v199 | History reopen autosave when continuing offline |
 | v200 | Technicians loaded from Zoho Internal_Assets.Users |
 | v201 | Per-field → AI with offline Pending AI queue |
-| v202+ | Plaud Fork A — Inbox tab + voice pipeline (planned) |
+| v202 | Inbox tab — Plaud Fork A Stage 1 (unassigned voice staging) |

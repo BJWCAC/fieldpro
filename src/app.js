@@ -22,7 +22,8 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="201";
+var FP_VERSION="202";
+var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -56,13 +57,14 @@ async function checkForAppUpdate(){
 }
 function el(id){return document.getElementById(id);}
 function go(n){
-  ["deals","capture","assets","report","history","settings"].forEach(function(x){
+  ["deals","capture","assets","inbox","report","history","settings"].forEach(function(x){
     var p=el("p-"+x),t=el("t-"+x);
     if(p)p.classList.toggle("on",x===n);
     if(t)t.classList.toggle("on",x===n);
   });
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
+  if(n==="inbox"&&typeof renderInbox==="function")renderInbox();
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();}
 }
@@ -439,6 +441,7 @@ function bootApp(){
     loadTechniciansFromZoho({silent:true}).catch(function(){});
     setupAssetFieldAiButtons();
     restoreFieldAiUiFromQueue();
+    renderInboxBadge();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -476,6 +479,13 @@ window.clearPendingUploads=clearPendingUploads;
 window.runFieldPolishAi=runFieldPolishAi;
 window.retryPendingAi=retryPendingAi;
 window.clearPendingAi=clearPendingAi;
+window.inboxAudioSelected=inboxAudioSelected;
+window.addInboxManualNote=addInboxManualNote;
+window.editInboxTranscript=editInboxTranscript;
+window.linkInboxToDealPrompt=linkInboxToDealPrompt;
+window.generateInboxSummary=generateInboxSummary;
+window.saveInboxToZoho=saveInboxToZoho;
+window.deleteInboxItem=deleteInboxItem;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
@@ -2829,6 +2839,185 @@ function saveHistory(meta){
   return pr.saved;
 }
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
+function getInboxItems(){try{return JSON.parse(localStorage.getItem("fp_inbox")||"[]");}catch(e){return[];}}
+function saveInboxItems(items){try{localStorage.setItem("fp_inbox",JSON.stringify(items));}catch(e){showToast("Could not save Inbox item",5000);}renderInboxBadge();if(typeof renderInbox==="function")renderInbox();}
+function inboxStatusLabel(s){
+  if(s==="transcribing")return"Transcribing";
+  if(s==="ready")return"Ready for review";
+  if(s==="linked")return"Deal linked";
+  if(s==="synced")return"Saved to Zoho";
+  if(s==="received")return"Received";
+  return"New";
+}
+function inboxStatusChip(item){
+  var warn=item.status!=="synced"&&item.status!=="linked";
+  return "<span class='h-chip "+(warn?"warn":"ok")+"'>"+esc(inboxStatusLabel(item.status))+"</span>";
+}
+function renderInboxBadge(){
+  var unlinked=getInboxItems().filter(function(i){return!i.dealId&&i.status!=="synced";}).length;
+  badge("tb-inbox",unlinked||"");
+}
+function renderInbox(){
+  var box=el("inbox-list"),st=el("inbox-status");
+  var items=getInboxItems().slice().sort(function(a,b){return new Date(b.created)-new Date(a.created);});
+  renderInboxBadge();
+  if(st)st.textContent=items.length?items.length+" inbox item"+(items.length!==1?"s":""):"No recordings yet — upload audio or add a manual note.";
+  if(!box)return;
+  if(!items.length){box.innerHTML="<div class='empty'><div class='e-icon'>&#128236;</div><div class='e-title'>Inbox Empty</div><div class='e-sub'>Plaud calls and unassigned voice land here</div></div>";return;}
+  box.innerHTML=items.map(function(item){
+    var ds=new Date(item.created).toLocaleString();
+    var dealLine=item.dealId?(esc(item.accountName||"")+" — "+esc(item.dealName||"Deal")):"<span style='color:#92400e'>No deal linked</span>";
+    var transcript=(item.transcript||"").trim();
+    var preview=transcript?esc(transcript.substring(0,180))+(transcript.length>180?"…":""):"<span style='color:var(--dim);font-style:italic'>No transcript yet — paste from Plaud MCP or upload audio</span>";
+    var summary=(item.summary||"").trim();
+    return "<div class='hist-card inbox-card' data-inbox-id='"+esc(item.id)+"'>"+
+      "<div class='h-acct'>"+esc(item.title||item.filename||"Recording")+"</div>"+
+      "<div class='h-meta'>"+ds+" — "+esc(item.source||"upload")+"</div>"+
+      "<div style='font-size:12px;margin:6px 0'>"+dealLine+"</div>"+
+      "<div class='h-status'>"+inboxStatusChip(item)+"</div>"+
+      "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
+      (summary?"<div style='font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap'>"+esc(summary.substring(0,400))+(summary.length>400?"…":"")+"</div>":"")+
+      "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'>"+
+      "<button class='bg bsm' onclick='editInboxTranscript(\""+esc(item.id)+"\")'>Edit Transcript</button>"+
+      (item.dealId?"":"<button class='bb bsm' onclick='linkInboxToDealPrompt(\""+esc(item.id)+"\")'>Link to Deal</button>")+
+      (transcript?"<button class='bs bsm' onclick='generateInboxSummary(\""+esc(item.id)+"\")'>Generate Summary</button>":"")+
+      (item.dealId&&(item.summary||transcript)?"<button class='bp bsm' onclick='saveInboxToZoho(\""+esc(item.id)+"\")'>Save to Zoho</button>":"")+
+      "<button class='bd bsm' onclick='deleteInboxItem(\""+esc(item.id)+"\")'>Remove</button>"+
+      "</div></div></div>";
+  }).join("");
+}
+function addInboxManualNote(){
+  var title=prompt("Manual note title (e.g. Phone call with customer):","Manual note");
+  if(title===null)return;
+  var transcript=prompt("Paste transcript or rough notes:","");
+  if(transcript===null)return;
+  var items=getInboxItems();
+  var id="inbox"+Date.now();
+  items.push({id:id,created:new Date().toISOString(),source:"manual",status:"ready",title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",dealId:null,dealName:"",accountName:"",summary:"",error:""});
+  saveInboxItems(items);
+  showToast("Manual note added to Inbox",2500);
+  go("inbox");
+}
+async function inboxAudioSelected(input){
+  var file=input&&input.files&&input.files[0];
+  if(!file)return;
+  input.value="";
+  if(file.size>25*1024*1024){showToast("Audio file too large (max 25 MB for Stage 1)",6000);return;}
+  showToast("Uploading audio to pipeline...",3000);
+  try{
+    var b64=await new Promise(function(res,rej){
+      var r=new FileReader();
+      r.onload=function(){var p=String(r.result||"");res(p.indexOf(",")>=0?p.split(",")[1]:p);};
+      r.onerror=rej;
+      r.readAsDataURL(file);
+    });
+    var r=await fetch(INBOX_SUBMIT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({filename:file.name,source:"upload",audio_b64:b64})});
+    var txt=await r.text();
+    var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok)throw new Error(d.error||("Upload failed "+r.status));
+    var items=getInboxItems();
+    items.push({
+      id:d.id||("inbox"+Date.now()),
+      created:new Date().toISOString(),
+      source:"upload",
+      status:d.status||"received",
+      title:file.name,
+      filename:file.name,
+      transcript:d.transcript||"",
+      dealId:null,dealName:"",accountName:"",summary:"",
+      error:"",pipelineMessage:d.message||""
+    });
+    saveInboxItems(items);
+    showToast(d.message||"Audio added to Inbox",4000);
+    go("inbox");
+  }catch(e){showToast("Upload failed: "+e.message,7000);}
+}
+function editInboxTranscript(itemId){
+  var items=getInboxItems();
+  var item=items.find(function(i){return i.id===itemId;});
+  if(!item)return;
+  var t=prompt("Edit transcript:",item.transcript||"");
+  if(t===null)return;
+  item.transcript=t.trim();
+  item.status=item.transcript?"ready":item.status;
+  saveInboxItems(items);
+}
+function linkInboxToDealPrompt(itemId){
+  if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
+  var names=A.deals.map(function(d,i){return (i+1)+". "+dealHeaderText(d);}).join("\n");
+  var pick=prompt("Enter deal number to link:\n\n"+names+"\n\nOr type account/deal name fragment:");
+  if(!pick)return;
+  var deal=null;
+  var num=parseInt(pick,10);
+  if(num>=1&&num<=A.deals.length)deal=A.deals[num-1];
+  else{
+    var q=pick.toLowerCase();
+    deal=A.deals.find(function(d){var t=dealHeaderText(d).toLowerCase();return t.indexOf(q)>=0;});
+  }
+  if(!deal){showToast("Deal not found",3000);return;}
+  linkInboxToDeal(itemId,deal.id);
+}
+function linkInboxToDeal(itemId,dealId){
+  var items=getInboxItems();
+  var item=items.find(function(i){return i.id===itemId;});
+  var deal=A.deals.find(function(d){return d.id===dealId;});
+  if(!item||!deal)return;
+  item.dealId=deal.id;
+  item.dealName=deal.Deal_Name||"";
+  item.accountName=typeof deal.Account_Name==="object"?deal.Account_Name.name||"":deal.Account_Name||"";
+  item.status="linked";
+  saveInboxItems(items);
+  showToast("Linked to "+dealHeaderText(deal),3000);
+}
+async function generateInboxSummary(itemId){
+  var items=getInboxItems();
+  var item=items.find(function(i){return i.id===itemId;});
+  if(!item||!(item.transcript||"").trim()){showToast("Add a transcript first",3000);return;}
+  if(!API_KEY){enterKey();return;}
+  showToast("Generating summary...",3000);
+  try{
+    var promptText="Turn this field-service transcript into a concise structured note for a Zoho CRM deal. Use professional language. Include: visit summary, work discussed, findings, and next steps if present. Do not invent facts.\n\nTranscript:\n"+item.transcript;
+    var data=await callAPI({content:[{type:"text",text:promptText}],maxTok:1200,ms:60000});
+    item.summary=getText(data).trim();
+    saveInboxItems(items);
+    showToast("Summary generated",2500);
+    renderInbox();
+  }catch(e){showToast("Summary failed: "+e.message,6000);}
+}
+async function saveInboxToZoho(itemId){
+  var items=getInboxItems();
+  var item=items.find(function(i){return i.id===itemId;});
+  if(!item||!item.dealId){showToast("Link to a deal first",3000);return;}
+  var body=(item.summary||item.transcript||"").trim();
+  if(!body){showToast("Generate a summary or add a transcript first",3000);return;}
+  showToast("Saving to Zoho...",3000);
+  try{
+    await refreshZohoToken();
+    var title="CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString();
+    var content=body+"\n\n---\nSource: "+(item.source||"inbox")+"\nInbox item: "+item.id;
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:title,note_content:content})},30000);
+    if(!r.ok){var err=await r.text();throw new Error("Zoho save "+r.status+": "+err.substring(0,120));}
+    item.status="synced";
+    item.zohoSavedAt=new Date().toISOString();
+    saveInboxItems(items);
+    showToast("Inbox note saved to Zoho deal",4000);
+  }catch(e){
+    item.error=e.message;
+    saveInboxItems(items);
+    enqueueReportNoteSave({
+      action:"save_note",
+      deal_id:item.dealId,
+      note_title:"CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString(),
+      note_content:(item.summary||item.transcript||"")+"\n\nInbox: "+item.id
+    },e.message);
+    showToast("Queued for Pending Sync — retry in Settings",6000);
+  }
+}
+function deleteInboxItem(itemId){
+  if(!confirm("Remove this inbox item?"))return;
+  saveInboxItems(getInboxItems().filter(function(i){return i.id!==itemId;}));
+  showToast("Inbox item removed",2000);
+}
 function historyChip(label,ok){return "<span class='h-chip "+(ok?"ok":"warn")+"'>"+esc(label)+"</span>";}
 function historyPendingCountForRecord(r){
   if(!r)return 0;
