@@ -36,6 +36,8 @@ Any new tab or major screen must include:
 
 Do not add a new tab as a one-off design. New tabs should feel like the existing Capture and Assets workflows.
 
+For the planned **Inbox** tab (Plaud Note Pro / unassigned voice), read `docs/PLAUD_INTEGRATION.md` before implementation.
+
 ## Consistency checklist for every PR
 
 Before a PR is considered complete, check:

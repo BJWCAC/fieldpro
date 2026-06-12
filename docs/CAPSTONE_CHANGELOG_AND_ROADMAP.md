@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v201 (PR pending — offline field AI queue)
+Current live version: v201
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
 ```
 
@@ -24,7 +24,7 @@ Related docs (detail, not status):
 - `docs/CAPSTONE_DEVELOPMENT_RULES.md` — how to build and review
 - `docs/CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` — periodic field QA
 - `docs/CAPSTONE_FIELD_TEST_LOG.md` — log Android test results
-- `docs/CAPSTONE_UI_WORKFLOW_CONSISTENCY_AUDIT.md` — polish audit (largely complete; see status table)
+- `docs/PLAUD_INTEGRATION.md` — Plaud Note Pro + Inbox tab design and build phases
 
 ---
 
@@ -39,7 +39,7 @@ Related docs (detail, not status):
 | v198 | #85 | Early storage warning; Zoho asset search/deal description enhancements |
 | v199 | #87 | History reopen autosave when continuing offline capture |
 | v200 | #89 | Technicians from Zoho Internal_Assets.Users (no separate login list) |
-| v201 | pending | Per-field → AI with offline Pending AI queue (Capture, Assets, photos, report generate, asset extract) |
+| v201 | #90 | Per-field → AI with offline Pending AI queue (Capture, Assets, photos, report generate, asset extract) |
 
 ### UI / workflow polish
 
@@ -77,7 +77,7 @@ Related docs (detail, not status):
 | Date | What shipped |
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
-| 2026-06-08 | Docs refresh to v198: README, training script, audit status, dev rules, checklist, field test log |
+| 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
 
 ### Structure (earlier milestone)
 
@@ -91,8 +91,7 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR pending** — offline field AI queue (v201) | Open | → AI per field; Pending AI retries when online |
-| **Field test on Android** | User action | Continue checklist at v201 |
+| **Field test on Android** | User action | v201 checklist including Pending AI weak-signal scenarios |
 
 ---
 
@@ -100,7 +99,9 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | **Field test completion** | Poor-signal + 10–15 photo scenarios |
+| High | **Field test completion** | Poor-signal + 10–15 photo scenarios; Pending AI section F |
+| Medium | **Plaud Fork A — Stage 0** | Note Pro setup + MCP validate summarize → Zoho before code — see `PLAUD_INTEGRATION.md` |
+| Medium | **Plaud Fork A — Stage 1 (Inbox tab)** | v202+ — unassigned voice staging, link to deal, shared transcribe/summarize pipeline |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name — after field test, not separate accounts |
 | Medium | **Fix bugs from field test** | Small PRs per finding |
 | On hold | **Training video** | After field test |
@@ -112,6 +113,7 @@ Related docs (detail, not status):
 
 | Item | Why deferred |
 |------|----------------|
+| **Plaud Fork B — diary / RAG** | Ambient search, embeddings, pgvector, nightly digest — after Fork A Inbox is routine |
 | Separate CapStone email/password accounts | Declined — use Zoho Users picklist for technician identity |
 | Phase 2+ cloud photo storage, native app | See backend architecture when revised |
 | Further `src/app.js` modularization | Not blocking field use |
@@ -133,6 +135,7 @@ Related docs (detail, not status):
 |------|--------|
 | **PR #8** — old docs PR | **Close** — superseded |
 | **PR #88** — separate cloud login | **Close** — superseded by Zoho Users technician approach |
+| **Note Pro hardware** | **Order when ready** — first-day checklist in `PLAUD_INTEGRATION.md` |
 
 ---
 
@@ -141,7 +144,8 @@ Related docs (detail, not status):
 | Item | Notes |
 |------|-------|
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
-| Training video | On hold until field test complete |
+| Plaud Stage 0 validation | Run MCP flow in Claude chat after Note Pro setup |
+| Inbox tab naming | Default **Inbox** — confirm before Stage 1 UI build |
 
 ---
 
@@ -159,3 +163,4 @@ Related docs (detail, not status):
 | v199 | History reopen autosave when continuing offline |
 | v200 | Technicians loaded from Zoho Internal_Assets.Users |
 | v201 | Per-field → AI with offline Pending AI queue |
+| v202+ | Plaud Fork A — Inbox tab + voice pipeline (planned) |
