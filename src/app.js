@@ -21,8 +21,8 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="202";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="203";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
@@ -145,6 +145,21 @@ function updateDealUI(){
   setHeaderDeal(A.sel);
   updateReportContext();
   if(el("asset-account")){setAssetInput("asset-account",A.sel?A.sel.Account_Name:"");}
+  updateInboxDealUI();
+}
+function updateInboxDealUI(){
+  var nd=el("no-deal-inbox"),bar=el("inbox-deal-bar"),da=el("idb-acct"),di=el("idb-info");
+  if(!nd&&!bar)return;
+  if(A.sel){
+    if(bar)bar.style.display="block";
+    if(nd)nd.style.display="none";
+    if(da)da.textContent=A.sel.Account_Name||"";
+    if(di)di.textContent=(A.sel.Deal_Name||"")+(A.sel.Stage?" — "+A.sel.Stage:"")+(A.sel.Closing_Date?" — "+A.sel.Closing_Date:"");
+  }else{
+    if(bar)bar.style.display="none";
+    if(nd)nd.style.display="flex";
+    if(da)da.textContent="";if(di)di.textContent="";
+  }
 }
 function locationMeta(){
   return A.location?{lat:A.location.lat,lng:A.location.lng,accuracy:A.location.accuracy||null,address:A.location.address||null}:null;
@@ -483,6 +498,10 @@ window.inboxAudioSelected=inboxAudioSelected;
 window.addInboxManualNote=addInboxManualNote;
 window.editInboxTranscript=editInboxTranscript;
 window.linkInboxToDealPrompt=linkInboxToDealPrompt;
+window.openInboxDealPicker=openInboxDealPicker;
+window.closeInboxDealPicker=closeInboxDealPicker;
+window.applyInboxDealPickerFilters=applyInboxDealPickerFilters;
+window.linkInboxToActiveDeal=linkInboxToActiveDeal;
 window.generateInboxSummary=generateInboxSummary;
 window.saveInboxToZoho=saveInboxToZoho;
 window.deleteInboxItem=deleteInboxItem;
@@ -767,7 +786,8 @@ function applyFilters(){
   });
 }
 function setSort(f){if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";else{A.sortF=f;A.sortD="asc";}renderDeals();}
-function selectDeal(id){
+function selectDeal(id,opts){
+  opts=opts||{};
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
   var prevDealId=A.sel&&A.sel.id;
   if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;}
@@ -781,6 +801,20 @@ function selectDeal(id){
   updateDealUI();
   applyFilters();
   updateCaptureModeStatus();
+  if(opts.linkInboxItemId){
+    linkInboxToDeal(opts.linkInboxItemId,d.id);
+    closeInboxDealPicker();
+    return;
+  }
+  var tab=opts.stayOnTab||"capture";
+  if(tab==="inbox"){
+    go("inbox");
+    return;
+  }
+  if(tab==="deals"){
+    go("deals");
+    return;
+  }
   go("capture");
   setTimeout(function(){window.scrollTo({top:0,behavior:"smooth"});},50);
 }
@@ -2841,6 +2875,100 @@ function saveHistory(meta){
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
 function getInboxItems(){try{return JSON.parse(localStorage.getItem("fp_inbox")||"[]");}catch(e){return[];}}
 function saveInboxItems(items){try{localStorage.setItem("fp_inbox",JSON.stringify(items));}catch(e){showToast("Could not save Inbox item",5000);}renderInboxBadge();if(typeof renderInbox==="function")renderInbox();}
+function inboxDealFieldsFromSel(){
+  if(!A.sel)return{dealId:null,dealName:"",accountName:"",status:"ready"};
+  var acct=A.sel.Account_Name;
+  return{
+    dealId:A.sel.id,
+    dealName:A.sel.Deal_Name||"",
+    accountName:typeof acct==="object"?acct.name||"":acct||"",
+    status:"linked"
+  };
+}
+function openInboxDealPicker(itemId){
+  if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
+  A.inboxPickerItemId=itemId||null;
+  var title=el("inbox-deal-picker-title");
+  if(title)title.textContent=A.inboxPickerItemId?"Link to Deal":"Select Deal";
+  var accounts=Array.from(new Set(A.deals.map(function(d){return d.Account_Name;}).filter(Boolean))).sort();
+  var stages=Array.from(new Set(A.deals.map(function(d){return d.Stage;}).filter(Boolean))).sort();
+  var fA=el("inbox-d-acct"),fS=el("inbox-d-stage"),fQ=el("inbox-d-search");
+  var ca=fA?fA.value:"",cs=fS?fS.value:"",cq=fQ?fQ.value:"";
+  if(fA)fA.innerHTML="<option value=''>All Accounts</option>"+accounts.map(function(a){return"<option value='"+esc(a)+"'>"+esc(a)+"</option>";}).join("");
+  if(fS)fS.innerHTML="<option value=''>All Stages</option>"+stages.map(function(s){return"<option value='"+esc(s)+"'>"+esc(s)+"</option>";}).join("");
+  if(fA)fA.value=ca;if(fS)fS.value=cs;if(fQ)fQ.value=cq;
+  var sb=el("inbox-d-sort-bar");
+  if(sb){
+    sb.innerHTML="";
+    SORT_FIELDS.forEach(function(f){
+      var btn=document.createElement("button");
+      btn.className="sbtn"+(A.sortF===f.k?" on":"");
+      btn.textContent=f.l+(A.sortF===f.k?(A.sortD==="asc"?" A":" D"):"");
+      (function(fk){btn.onclick=function(){setInboxDealSort(fk);};})(f.k);
+      sb.appendChild(btn);
+    });
+  }
+  applyInboxDealPickerFilters();
+  var m=el("inboxdealmodal");if(m)m.style.display="flex";
+}
+function closeInboxDealPicker(){
+  A.inboxPickerItemId=null;
+  var m=el("inboxdealmodal");if(m)m.style.display="none";
+}
+function setInboxDealSort(f){
+  if(A.sortF===f)A.sortD=A.sortD==="asc"?"desc":"asc";
+  else{A.sortF=f;A.sortD="asc";}
+  var sb=el("inbox-d-sort-bar");
+  if(sb){
+    sb.innerHTML="";
+    SORT_FIELDS.forEach(function(sf){
+      var btn=document.createElement("button");
+      btn.className="sbtn"+(A.sortF===sf.k?" on":"");
+      btn.textContent=sf.l+(A.sortF===sf.k?(A.sortD==="asc"?" A":" D"):"");
+      (function(fk){btn.onclick=function(){setInboxDealSort(fk);};})(sf.k);
+      sb.appendChild(btn);
+    });
+  }
+  applyInboxDealPickerFilters();
+  if(typeof applyFilters==="function")applyFilters();
+}
+function applyInboxDealPickerFilters(){
+  if(!A.deals.length)return;
+  var q=(el("inbox-d-search")||{value:""}).value.toLowerCase();
+  var acct=(el("inbox-d-acct")||{value:""}).value;
+  var stage=(el("inbox-d-stage")||{value:""}).value;
+  var filtered=A.deals.filter(function(d){
+    return(!q||(d.Account_Name||"").toLowerCase().indexOf(q)>=0||(d.Description||"").toLowerCase().indexOf(q)>=0||(d.Deal_Name||"").toLowerCase().indexOf(q)>=0)&&(!acct||(d.Account_Name||"")===acct)&&(!stage||(d.Stage||"")===stage);
+  }).sort(function(a,b){
+    var va=a[A.sortF]||"",vb=b[A.sortF]||"";
+    if(A.sortF==="Amount"){va=parseFloat(va)||0;vb=parseFloat(vb)||0;return A.sortD==="asc"?va-vb:vb-va;}
+    return A.sortD==="asc"?String(va).localeCompare(String(vb)):String(vb).localeCompare(String(va));
+  });
+  var dc=el("inbox-d-count");if(dc)dc.textContent=filtered.length+" of "+A.deals.length+" deals";
+  var dl=el("inbox-d-list");if(!dl)return;
+  if(!filtered.length){dl.innerHTML="<div class='empty' style='padding:16px 0'><div class='e-sub'>No deals match your search</div></div>";return;}
+  dl.innerHTML="";
+  filtered.forEach(function(d){
+    var sel=A.sel&&A.sel.id===d.id;var amt=fmtAmt(d.Amount);var own=ownerStr(d);
+    var dc2=document.createElement("div");dc2.className="deal-card"+(sel?" sel":"");
+    (function(did){dc2.onclick=function(){pickInboxDeal(did);};})(d.id);
+    dc2.innerHTML="<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px'><div class='d-acct'>"+esc(d.Account_Name||"---")+"</div>"+(amt?"<div style='color:var(--green);font-weight:700;font-size:13px;flex-shrink:0;margin-left:8px'>"+amt+"</div>":"")+"</div><div class='d-deal'>"+esc(d.Deal_Name||"")+"</div><div class='d-meta'><span class='stage-pill'>"+esc(d.Stage||"")+"</span>"+(own?"<span style='font-size:11px;color:var(--dim)'>"+esc(own)+"</span>":"")+(d.Closing_Date?"<span style='font-size:11px;color:var(--dim)'>"+d.Closing_Date+"</span>":"")+"</div>"+(d.Description?"<div class='d-desc'>"+esc(d.Description)+"</div>":"");
+    dl.appendChild(dc2);
+  });
+}
+function pickInboxDeal(dealId){
+  if(A.inboxPickerItemId){
+    linkInboxToDeal(A.inboxPickerItemId,dealId);
+    closeInboxDealPicker();
+    return;
+  }
+  selectDeal(dealId,{stayOnTab:"inbox"});
+  closeInboxDealPicker();
+}
+function linkInboxToActiveDeal(itemId){
+  if(!A.sel){openInboxDealPicker(itemId);return;}
+  linkInboxToDeal(itemId,A.sel.id);
+}
 function inboxStatusLabel(s){
   if(s==="transcribing")return"Transcribing";
   if(s==="ready")return"Ready for review";
@@ -2858,6 +2986,7 @@ function renderInboxBadge(){
   badge("tb-inbox",unlinked||"");
 }
 function renderInbox(){
+  updateInboxDealUI();
   var box=el("inbox-list"),st=el("inbox-status");
   var items=getInboxItems().slice().sort(function(a,b){return new Date(b.created)-new Date(a.created);});
   renderInboxBadge();
@@ -2880,6 +3009,7 @@ function renderInbox(){
       "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'>"+
       "<button class='bg bsm' onclick='editInboxTranscript(\""+esc(item.id)+"\")'>Edit Transcript</button>"+
       (item.dealId?"":"<button class='bb bsm' onclick='linkInboxToDealPrompt(\""+esc(item.id)+"\")'>Link to Deal</button>")+
+      (item.dealId||!A.sel?"":"<button class='bg bsm' onclick='linkInboxToActiveDeal(\""+esc(item.id)+"\")'>Use Active Deal</button>")+
       (transcript?"<button class='bs bsm' onclick='generateInboxSummary(\""+esc(item.id)+"\")'>Generate Summary</button>":"")+
       (item.dealId&&(item.summary||transcript)?"<button class='bp bsm' onclick='saveInboxToZoho(\""+esc(item.id)+"\")'>Save to Zoho</button>":"")+
       "<button class='bd bsm' onclick='deleteInboxItem(\""+esc(item.id)+"\")'>Remove</button>"+
@@ -2893,9 +3023,10 @@ function addInboxManualNote(){
   if(transcript===null)return;
   var items=getInboxItems();
   var id="inbox"+Date.now();
-  items.push({id:id,created:new Date().toISOString(),source:"manual",status:"ready",title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",dealId:null,dealName:"",accountName:"",summary:"",error:""});
+  var dealFields=inboxDealFieldsFromSel();
+  items.push({id:id,created:new Date().toISOString(),source:"manual",status:dealFields.status,title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",error:""});
   saveInboxItems(items);
-  showToast("Manual note added to Inbox",2500);
+  showToast(dealFields.dealId?"Manual note added and linked to active deal":"Manual note added to Inbox",2500);
   go("inbox");
 }
 async function inboxAudioSelected(input){
@@ -2915,20 +3046,21 @@ async function inboxAudioSelected(input){
     var txt=await r.text();
     var d={};try{d=JSON.parse(txt);}catch(e){}
     if(!r.ok||!d.ok)throw new Error(d.error||("Upload failed "+r.status));
+    var dealFields=inboxDealFieldsFromSel();
     var items=getInboxItems();
     items.push({
       id:d.id||("inbox"+Date.now()),
       created:new Date().toISOString(),
       source:"upload",
-      status:d.status||"received",
+      status:dealFields.dealId?"linked":(d.status||"received"),
       title:file.name,
       filename:file.name,
       transcript:d.transcript||"",
-      dealId:null,dealName:"",accountName:"",summary:"",
+      dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
       error:"",pipelineMessage:d.message||""
     });
     saveInboxItems(items);
-    showToast(d.message||"Audio added to Inbox",4000);
+    showToast(dealFields.dealId?"Audio added and linked to active deal":(d.message||"Audio added to Inbox"),4000);
     go("inbox");
   }catch(e){showToast("Upload failed: "+e.message,7000);}
 }
@@ -2942,21 +3074,7 @@ function editInboxTranscript(itemId){
   item.status=item.transcript?"ready":item.status;
   saveInboxItems(items);
 }
-function linkInboxToDealPrompt(itemId){
-  if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
-  var names=A.deals.map(function(d,i){return (i+1)+". "+dealHeaderText(d);}).join("\n");
-  var pick=prompt("Enter deal number to link:\n\n"+names+"\n\nOr type account/deal name fragment:");
-  if(!pick)return;
-  var deal=null;
-  var num=parseInt(pick,10);
-  if(num>=1&&num<=A.deals.length)deal=A.deals[num-1];
-  else{
-    var q=pick.toLowerCase();
-    deal=A.deals.find(function(d){var t=dealHeaderText(d).toLowerCase();return t.indexOf(q)>=0;});
-  }
-  if(!deal){showToast("Deal not found",3000);return;}
-  linkInboxToDeal(itemId,deal.id);
-}
+function linkInboxToDealPrompt(itemId){openInboxDealPicker(itemId);}
 function linkInboxToDeal(itemId,dealId){
   var items=getInboxItems();
   var item=items.find(function(i){return i.id===itemId;});
