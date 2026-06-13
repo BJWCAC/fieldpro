@@ -22,7 +22,7 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="207";
+var FP_VERSION="208";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -2929,10 +2929,21 @@ function renderPlaudSettingsUI(){
   }
   if(tog)tog.classList.toggle("on",isPlaudAutoPullEnabled());
 }
+function parsePlaudTokenInput(raw){
+  raw=String(raw||"").trim();
+  if(!raw)return"";
+  if(raw.charAt(0)==="{"){
+    try{
+      var j=JSON.parse(raw);
+      return String(j.refresh_token||j.refreshToken||"").trim();
+    }catch(e){}
+  }
+  return raw;
+}
 function savePlaudRefreshToken(){
   var inp=el("plaud-refresh-input");
-  var token=inp?String(inp.value||"").trim():"";
-  if(!token){showToast("Paste your Plaud refresh token first",4000);return;}
+  var token=parsePlaudTokenInput(inp?inp.value:"");
+  if(!token){showToast("Paste your Plaud refresh_token (or whole tokens.json)",4000);return;}
   savePlaudTokens({refresh_token:token,connectedAt:new Date().toISOString()});
   if(inp)inp.value="";
   showToast("Plaud token saved — tap Verify Connection",3000);
