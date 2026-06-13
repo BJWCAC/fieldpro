@@ -22,8 +22,10 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="205";
+var FP_VERSION="206";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
+var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
+var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -64,7 +66,7 @@ function go(n){
   });
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
-  if(n==="inbox"&&typeof renderInbox==="function")renderInbox();
+  if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();}
 }
@@ -457,6 +459,7 @@ function bootApp(){
     setupAssetFieldAiButtons();
     restoreFieldAiUiFromQueue();
     renderInboxBadge();
+    startInboxPollIfNeeded();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
     alert("CapStone failed to start: "+e.message+"\n\nTry: Settings → Reset App Cache, or clear browser data for this site.");
@@ -2874,7 +2877,50 @@ function saveHistory(meta){
 }
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
 function getInboxItems(){try{return JSON.parse(localStorage.getItem("fp_inbox")||"[]");}catch(e){return[];}}
-function saveInboxItems(items){try{localStorage.setItem("fp_inbox",JSON.stringify(items));}catch(e){showToast("Could not save Inbox item",5000);}renderInboxBadge();if(typeof renderInbox==="function")renderInbox();}
+function saveInboxItems(items){try{localStorage.setItem("fp_inbox",JSON.stringify(items));}catch(e){showToast("Could not save Inbox item",5000);}renderInboxBadge();if(typeof renderInbox==="function")renderInbox();startInboxPollIfNeeded();}
+var inboxPollTimer=null;
+function startInboxTranscriptPolling(){
+  if(inboxPollTimer)return;
+  pollInboxTranscripts();
+  inboxPollTimer=setInterval(pollInboxTranscripts,8000);
+}
+function stopInboxTranscriptPolling(){
+  if(inboxPollTimer){clearInterval(inboxPollTimer);inboxPollTimer=null;}
+}
+function startInboxPollIfNeeded(){
+  var needs=getInboxItems().some(function(i){return i.assemblyTranscriptId&&i.status==="transcribing";});
+  if(needs)startInboxTranscriptPolling();
+  else stopInboxTranscriptPolling();
+}
+async function pollInboxTranscripts(){
+  var items=getInboxItems();
+  var pending=items.filter(function(i){return i.assemblyTranscriptId&&i.status==="transcribing";});
+  if(!pending.length){stopInboxTranscriptPolling();return;}
+  var changed=false;
+  for(var pi=0;pi<pending.length;pi++){
+    var item=pending[pi];
+    try{
+      var r=await fetch(INBOX_TRANSCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({transcript_id:item.assemblyTranscriptId})});
+      var txt=await r.text();
+      var d={};try{d=JSON.parse(txt);}catch(e){}
+      if(d.status==="completed"&&d.transcript){
+        item.transcript=String(d.transcript).trim();
+        item.status="ready";
+        item.pipelineMessage="";
+        item.error="";
+        changed=true;
+        showToast("Transcript ready — "+(item.title||item.filename||"recording"),4000);
+      }else if(d.status==="error"){
+        item.status="ready";
+        item.error=d.error||"Transcription failed";
+        item.pipelineMessage="Paste Plaud transcript manually or re-upload audio";
+        changed=true;
+        showToast("Transcription failed — paste transcript manually",6000);
+      }
+    }catch(e){console.log("inbox transcript poll",e);}
+  }
+  if(changed)saveInboxItems(items);
+}
 function inboxDealFieldsFromSel(){
   if(!A.sel)return{dealId:null,dealName:"",accountName:"",status:"ready"};
   var acct=A.sel.Account_Name;
@@ -3014,8 +3060,10 @@ function renderInbox(){
       "<div class='h-status'>"+inboxStatusChip(item)+"</div>"+
       "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
       (summary?"<div style='font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap'>"+esc(summary.substring(0,400))+(summary.length>400?"…":"")+"</div>":"")+
+      (item.status==="transcribing"?"<div style='font-size:12px;color:#1e40af;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px;margin-bottom:8px'>AssemblyAI transcribing… transcript will appear automatically (usually 1–3 min).</div>":"")+
       (item.status==="synced"?"<div style='font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px'>Saved to Zoho — deal note filed"+(item.zohoSavedAt?" on "+esc(new Date(item.zohoSavedAt).toLocaleString()):"")+".</div>":"")+
       (item.status==="pending_sync"?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>Zoho save queued — retry when signal improves or use Pending Sync in Settings.</div>":"")+
+      (item.error&&item.status!=="transcribing"?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>"+esc(item.error)+(item.pipelineMessage?" — "+esc(item.pipelineMessage):"")+"</div>":"")+
       "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'>"+
       "<button class='bg bsm' onclick='editInboxTranscript(\""+esc(item.id)+"\")'>Edit Transcript</button>"+
       (item.dealId?"":"<button class='bp bsm' onclick='linkInboxToDealPrompt(\""+esc(item.id)+"\")'>Link to Deal</button>")+
@@ -3043,8 +3091,8 @@ async function inboxAudioSelected(input){
   var file=input&&input.files&&input.files[0];
   if(!file)return;
   input.value="";
-  if(file.size>25*1024*1024){showToast("Audio file too large (max 25 MB for Stage 1)",6000);return;}
-  showToast("Uploading audio to pipeline...",3000);
+  if(file.size>INBOX_AUDIO_MAX_BYTES){showToast("Audio file too large (max 5 MB for AssemblyAI upload)",6000);return;}
+  showToast("Uploading audio for transcription...",3000);
   try{
     var b64=await new Promise(function(res,rej){
       var r=new FileReader();
@@ -3052,25 +3100,27 @@ async function inboxAudioSelected(input){
       r.onerror=rej;
       r.readAsDataURL(file);
     });
-    var r=await fetch(INBOX_SUBMIT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({filename:file.name,source:"upload",audio_b64:b64})});
+    var r=await fetchWithTimeout(INBOX_SUBMIT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({filename:file.name,source:"upload",audio_b64:b64})},120000);
     var txt=await r.text();
     var d={};try{d=JSON.parse(txt);}catch(e){}
     if(!r.ok||!d.ok)throw new Error(d.error||("Upload failed "+r.status));
     var dealFields=inboxDealFieldsFromSel();
+    var transcribing=!!d.assemblyTranscriptId;
     var items=getInboxItems();
     items.push({
       id:d.id||("inbox"+Date.now()),
       created:new Date().toISOString(),
       source:"upload",
-      status:dealFields.dealId?"linked":(d.status||"received"),
+      status:transcribing?"transcribing":(dealFields.dealId?"linked":(d.status||"received")),
       title:file.name,
       filename:file.name,
       transcript:d.transcript||"",
+      assemblyTranscriptId:d.assemblyTranscriptId||"",
       dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
       error:"",pipelineMessage:d.message||""
     });
     saveInboxItems(items);
-    showToast(dealFields.dealId?"Audio added and linked to active deal":(d.message||"Audio added to Inbox"),4000);
+    showToast(transcribing?"Transcribing with AssemblyAI…":(dealFields.dealId?"Audio added and linked to active deal":(d.message||"Audio added to Inbox")),4000);
     go("inbox");
   }catch(e){showToast("Upload failed: "+e.message,7000);}
 }

@@ -88,6 +88,25 @@ Run these even if the full checklist is done in multiple sessions.
 | Generate AI Report on weak signal — queues + retries | | |
 | Extract with AI on Assets — queues + retries | | |
 
+### G. Plaud Stage 0 — MCP + Inbox (v205)
+
+**Runbook:** `docs/PLAUD_STAGE0_RUNBOOK.md`
+
+| Step | Pass | Notes |
+|------|------|-------|
+| Plaud MCP + transcript + CapStone Inbox → Zoho | | |
+
+### H. AssemblyAI upload (v206)
+
+**Setup:** `docs/ASSEMBLYAI_SETUP.md`
+
+| Step | Pass | Notes |
+|------|------|-------|
+| ASSEMBLYAI_API_KEY on Netlify + redeploy | | |
+| Upload audio under 5 MB | | |
+| Transcript appears automatically | | |
+| Generate Summary → Save to Zoho | | |
+
 ---
 
 ## Findings (bugs and gaps)

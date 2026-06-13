@@ -15,19 +15,22 @@ exports.handler = async function (event) {
       data = { raw: body };
     }
 
+    var status = data.status || data.transcript_status || "unknown";
+    var id = data.transcript_id || data.id || "";
     console.log("transcript-ready webhook", JSON.stringify({
-      status: data.status || data.transcript_status,
-      id: data.id || data.transcript_id,
+      status: status,
+      id: id,
       received: new Date().toISOString()
-    }).slice(0, 500));
+    }));
 
     return {
       statusCode: 200,
       headers: h,
       body: JSON.stringify({
         ok: true,
-        message: "Webhook received — CapStone Inbox client will poll or push updates in a future release",
-        status: data.status || "unknown"
+        message: "Webhook received — CapStone polls get-transcript for completed jobs",
+        status: status,
+        transcript_id: id
       })
     };
   } catch (e) {

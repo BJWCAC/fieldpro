@@ -193,9 +193,10 @@ Order small PRs; bump `FP_VERSION` per behavior change.
 | A2 | Netlify `submit-recording` + `transcript-ready` skeleton | Done (v202 PR) |
 | A3 | Inbox tab shell — workflow card, list, badge | Done (v202 PR) |
 | A4 | Link-to-deal UI + local staging record | Done (v202 PR) |
-| A5 | AssemblyAI integration + Pending Sync for failed steps | Planned |
-| A6 | Claude summarize + Zoho save from Inbox | Partial (v202 — manual transcript + summary) |
-| A7 | Field test Inbox path; program review checklist section | After v202 merge |
+| A5 | AssemblyAI integration + client poll for transcripts | Done (v206 — requires ASSEMBLYAI_API_KEY on Netlify) |
+| A6 | Claude summarize + Zoho save from Inbox | Done (v202–v205) |
+| A7 | Field test Inbox path; program review checklist section | Done — Stage 0 validated |
+| **Stage 0** | Plaud MCP validation (no code) | Done — Claude + CapStone Inbox → Zoho |
 
 ### Fork B (deferred)
 
