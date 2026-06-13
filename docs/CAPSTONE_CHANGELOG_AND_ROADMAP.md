@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v209
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=209
+Current live version: v210
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=210
 ```
 
 ---
@@ -47,7 +47,8 @@ Related docs (detail, not status):
 | v206 | #97 | **AssemblyAI Inbox transcription** — upload audio → auto transcript with speaker labels; client poll |
 | v207 | #100 | **Plaud Stage 2 auto-pull** — Plaud cloud → Inbox via refresh token; presigned URL → AssemblyAI; auto-pull every 3 min |
 | v208 | #101 | **Plaud token refresh fix** — form-encoded refresh for Plaud API; paste whole tokens.json |
-| v209 | — | **Plaud auto-pull on any tab + foreground** — pull every 3 min app-wide; toast when new recordings arrive |
+| v209 | #102 | **Plaud auto-pull on any tab + foreground** — pull every 3 min app-wide; toast when new recordings arrive |
+| v210 | — | **Cloud settings sync Phase 1** — API key + Plaud by Zoho technician name; Netlify Blobs + org PIN |
 
 ### UI / workflow polish
 
@@ -86,7 +87,7 @@ Related docs (detail, not status):
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
-| 2026-06-08 | `PLAUD_STAGE2_SETUP.md` — Plaud refresh token + auto-pull field setup |
+| 2026-06-08 | `CAPSTONE_CLOUD_SETTINGS_SETUP.md` — cloud settings sync by technician name |
 
 ### Structure (earlier milestone)
 
@@ -108,7 +109,6 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
 
@@ -120,7 +120,7 @@ Related docs (detail, not status):
 |------|----------------|
 | **Plaud Fork B — diary / RAG** | Ambient search, embeddings, pgvector, nightly digest — after Fork A Inbox is routine |
 | Separate CapStone email/password accounts | Declined — use Zoho Users picklist for technician identity |
-| Phase 2+ cloud photo storage, native app | See backend architecture when revised |
+| Phase 2+ cloud photo storage, History sync, native app | Phase 1 settings sync done (v210); see `CAPSTONE_CLOUD_SETTINGS_SETUP.md` |
 | Further `src/app.js` modularization | Not blocking field use |
 
 ---
