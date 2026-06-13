@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v205 (PR pending — Inbox saved status)
+Current live version: v205
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=205
 ```
 
@@ -43,7 +43,7 @@ Related docs (detail, not status):
 | v202 | #92 | **Inbox tab** — unassigned voice staging, link to deal, summary, Zoho save; Netlify recording pipeline skeleton |
 | v203 | #93 | **Inbox deal picker** — active deal bar, Deals-style search modal, Use Active Deal, auto-link when deal selected |
 | v204 | #94 | **Inbox button styles** — fix black/unstyled buttons; add `.bb` class; document button classes in dev rules |
-| v205 | pending | **Inbox saved status** — Saved to Zoho chip, banner, and disabled button after successful save; Zoho Pending on queue |
+| v205 | #95 | **Inbox saved status** — Saved to Zoho chip, banner, and disabled button after successful save; Zoho Pending on queue |
 
 ### UI / workflow polish
 
@@ -82,7 +82,8 @@ Related docs (detail, not status):
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
-| 2026-06-08 | Field test — manual Plaud transcript → Inbox → Zoho worked; deal link UX needs Deals-style picker (v203) |
+| 2026-06-08 | Field test — manual Plaud transcript → Inbox → Zoho worked (v203 deal picker follow-up) |
+| 2026-06-08 | `PLAUD_STAGE0_RUNBOOK.md` — Stage 0 MCP setup and validation checklist |
 
 ### Structure (earlier milestone)
 
@@ -96,8 +97,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR pending** — Inbox saved status (v205) | Open | Show Saved to Zoho after successful Inbox save |
-| **Field test on Android** | User action | Confirm Saved to Zoho state on Inbox after save |
+| **Plaud Stage 0** | User action | Follow `docs/PLAUD_STAGE0_RUNBOOK.md` — MCP in Claude + Inbox → Zoho |
+| **Field test on Android** | User action | Log Stage 0 in field test log section G |
 
 ---
 
@@ -106,7 +107,7 @@ Related docs (detail, not status):
 | Priority | Item | Notes |
 |----------|------|-------|
 | High | **Field test completion** | Poor-signal + 10–15 photo scenarios; Pending AI section F |
-| Medium | **Plaud Fork A — Stage 0** | Note Pro setup + MCP validate summarize → Zoho before code — see `PLAUD_INTEGRATION.md` |
+| Medium | **Plaud Fork A — Stage 0** | **Active** — run `docs/PLAUD_STAGE0_RUNBOOK.md` (MCP + Inbox → Zoho) |
 | Medium | **Plaud Fork A — Stage 1 (Inbox tab)** | v202 shipped — v203 deal picker; AssemblyAI + Plaud pull in later PRs |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name — after field test, not separate accounts |
 | Medium | **Fix bugs from field test** | Small PRs per finding |
@@ -150,7 +151,7 @@ Related docs (detail, not status):
 | Item | Notes |
 |------|-------|
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
-| Plaud Stage 0 validation | Run MCP flow in Claude chat after Note Pro setup |
+| Plaud Stage 0 validation | **Run now** — `docs/PLAUD_STAGE0_RUNBOOK.md` |
 | Inbox tab naming | Default **Inbox** — confirm before Stage 1 UI build |
 
 ---
