@@ -22,7 +22,7 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="206";
+var FP_VERSION="207";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
@@ -3061,6 +3061,7 @@ function renderInbox(){
       "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
       (summary?"<div style='font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap'>"+esc(summary.substring(0,400))+(summary.length>400?"…":"")+"</div>":"")+
       (item.status==="transcribing"?"<div style='font-size:12px;color:#1e40af;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px;margin-bottom:8px'>AssemblyAI transcribing… transcript will appear automatically (usually 1–3 min).</div>":"")+
+      ((!item.transcript&&item.pipelineMessage&&!item.error)?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>"+esc(item.pipelineMessage)+"</div>":"")+
       (item.status==="synced"?"<div style='font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px'>Saved to Zoho — deal note filed"+(item.zohoSavedAt?" on "+esc(new Date(item.zohoSavedAt).toLocaleString()):"")+".</div>":"")+
       (item.status==="pending_sync"?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>Zoho save queued — retry when signal improves or use Pending Sync in Settings.</div>":"")+
       (item.error&&item.status!=="transcribing"?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>"+esc(item.error)+(item.pipelineMessage?" — "+esc(item.pipelineMessage):"")+"</div>":"")+
