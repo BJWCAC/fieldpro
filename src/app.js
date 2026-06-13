@@ -2894,7 +2894,10 @@ function savePlaudTokens(tokens){
   }catch(e){showToast("Could not save Plaud connection",5000);}
   if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
 }
-function isPlaudConnected(){var t=getPlaudTokens();return!!(t&&t.refresh_token);}
+function isPlaudConnected(){var t=getPlaudTokens();return!!(t&&(t.refresh_token||t.access_token));}
+function plaudAccessTokenUsable(tokens){
+  return !!(tokens&&tokens.access_token&&(!tokens.expires_at||Date.now()<tokens.expires_at-60000));
+}
 function isPlaudAutoPullEnabled(){try{return localStorage.getItem("fp_plaud_auto_pull")!=="0";}catch(e){return true;}}
 function applyPlaudProxyTokens(d){
   if(!d||!d.tokens)return;
