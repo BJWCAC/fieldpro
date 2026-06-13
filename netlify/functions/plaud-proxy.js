@@ -62,14 +62,14 @@ async function plaudRequest(accessToken, path, method) {
 
 async function refreshAccessToken(refreshToken) {
   var refreshUrl = new URL(PLAUD_REFRESH_URL);
-  var payload = JSON.stringify({ refresh_token: refreshToken });
+  var payload = "refresh_token=" + encodeURIComponent(refreshToken);
   var result = await httpsJson({
     hostname: refreshUrl.hostname,
     port: refreshUrl.port || 443,
     path: refreshUrl.pathname,
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
       "Content-Length": Buffer.byteLength(payload)
     }
