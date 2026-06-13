@@ -96,7 +96,7 @@ Run these even if the full checklist is done in multiple sessions.
 
 | Step | Pass | Notes |
 |------|------|-------|
-| Plaud MCP + transcript + CapStone Inbox → Zoho | | |
+| Plaud MCP + transcript + CapStone Inbox → Zoho | ✓ | User validated |
 
 ### H. AssemblyAI upload (v206)
 
@@ -104,10 +104,17 @@ Run these even if the full checklist is done in multiple sessions.
 
 | Step | Pass | Notes |
 |------|------|-------|
-| ASSEMBLYAI_API_KEY on Netlify + redeploy | | |
-| Upload audio under 5 MB | | |
-| Transcript appears automatically | | |
-| Generate Summary → Save to Zoho | | |
+| ASSEMBLYAI_API_KEY on Netlify + redeploy | ✓ | |
+| Upload audio under 5 MB | ✓ | |
+| Transcript appears automatically | ✓ | |
+| Generate Summary → Save to Zoho | ✓ | |
+
+### Track A — Sections A + F (user reported complete)
+
+| Section | Pass | Notes |
+|---------|------|-------|
+| A. Poor signal + many photos | ✓ | User reported complete |
+| F. Pending AI | ✓ | User reported complete |
 
 ---
 

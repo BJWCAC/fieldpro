@@ -83,7 +83,7 @@ Related docs (detail, not status):
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
-| 2026-06-08 | `FIELD_TEST_TRACK_A.md` — poor-signal + Pending AI field test runbook |
+| 2026-06-08 | Track A field test — user reported complete (sections A + F, poor signal + Pending AI) |
 
 ### Structure (earlier milestone)
 
