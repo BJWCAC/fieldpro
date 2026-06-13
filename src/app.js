@@ -22,12 +22,13 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="208";
+var FP_VERSION="209";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var PLAUD_AUTO_PULL_MS=3*60*1000;
+var PLAUD_FOREGROUND_PULL_MS=15000;
 var PLAUD_FIRST_PULL_DAYS=7;
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
@@ -477,6 +478,7 @@ async function startCapStone(){
   setTimeout(maybeRestoreAssetDraft,900);
   setupPendingUploadAutoRetry();
   setupPendingAiAutoRetry();
+  setupPlaudForegroundPull();
   try{
     document.addEventListener("visibilitychange",function(){
       if(document.visibilityState==="hidden"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
@@ -2991,6 +2993,7 @@ function togglePlaudAutoPull(){
 }
 var plaudPullTimer=null;
 var plaudPullInFlight=false;
+var lastPlaudForegroundPull=0;
 function stopPlaudAutoPull(){
   if(plaudPullTimer){clearInterval(plaudPullTimer);plaudPullTimer=null;}
 }
@@ -2998,11 +3001,20 @@ function startPlaudAutoPullIfNeeded(){
   if(!isPlaudConnected()||!isPlaudAutoPullEnabled()){stopPlaudAutoPull();return;}
   if(!plaudPullTimer){
     plaudPullTimer=setInterval(function(){
-      var inboxPane=el("p-inbox");
-      if(inboxPane&&inboxPane.classList.contains("on"))pullFromPlaud({silent:true});
+      pullFromPlaud({silent:true,notifyOnAdd:true});
     },PLAUD_AUTO_PULL_MS);
   }
-  pullFromPlaud({silent:true});
+  pullFromPlaud({silent:true,notifyOnAdd:true});
+}
+function setupPlaudForegroundPull(){
+  try{
+    document.addEventListener("visibilitychange",function(){
+      if(document.hidden||!isPlaudConnected()||!isPlaudAutoPullEnabled())return;
+      if(Date.now()-lastPlaudForegroundPull<PLAUD_FOREGROUND_PULL_MS)return;
+      lastPlaudForegroundPull=Date.now();
+      pullFromPlaud({silent:true,notifyOnAdd:true});
+    });
+  }catch(e){}
 }
 function getKnownPlaudFileIds(items){
   var ids={};
@@ -3079,7 +3091,12 @@ async function pullFromPlaud(opts){
     try{localStorage.setItem("fp_plaud_last_pull",new Date().toISOString());}catch(e){}
     if(added){
       saveInboxItems(items);
-      if(!opts.silent){showToast(added+" Plaud recording"+(added!==1?"s":"")+" added to Inbox",4000);go("inbox");}
+      if(!opts.silent){
+        showToast(added+" Plaud recording"+(added!==1?"s":"")+" added to Inbox",4000);
+        go("inbox");
+      }else if(opts.notifyOnAdd){
+        showToast(added+" new Plaud recording"+(added!==1?"s":"")+" in Inbox",4000);
+      }
     }else if(!opts.silent){
       showToast(candidates.length?"No new Plaud recordings to import":"No recent Plaud recordings found",4000);
     }
@@ -3262,7 +3279,7 @@ function renderInbox(){
   if(ps){
     if(isPlaudConnected()){
       var pt=getPlaudTokens()||{};
-      ps.textContent="Plaud connected"+(pt.email?" — "+pt.email:"")+(isPlaudAutoPullEnabled()?" · auto-pull on":" · auto-pull paused");
+      ps.textContent="Plaud connected"+(pt.email?" — "+pt.email:"")+(isPlaudAutoPullEnabled()?" · auto-pull every 3 min":" · auto-pull paused");
       ps.style.color="var(--green)";
     }else{
       ps.textContent="Plaud not connected — Settings → Plaud Cloud Sync to enable auto-pull";
