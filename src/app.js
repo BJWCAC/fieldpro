@@ -22,7 +22,7 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="204";
+var FP_VERSION="205";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
@@ -2973,13 +2973,21 @@ function inboxStatusLabel(s){
   if(s==="transcribing")return"Transcribing";
   if(s==="ready")return"Ready for review";
   if(s==="linked")return"Deal linked";
+  if(s==="pending_sync")return"Zoho Pending";
   if(s==="synced")return"Saved to Zoho";
   if(s==="received")return"Received";
   return"New";
 }
 function inboxStatusChip(item){
-  var warn=item.status!=="synced"&&item.status!=="linked";
-  return "<span class='h-chip "+(warn?"warn":"ok")+"'>"+esc(inboxStatusLabel(item.status))+"</span>";
+  var ok=item.status==="synced"||item.status==="linked";
+  var warn=!ok&&item.status!=="pending_sync";
+  return "<span class='h-chip "+(item.status==="synced"?"ok":item.status==="pending_sync"?"warn":ok?"ok":"warn")+"'>"+esc(inboxStatusLabel(item.status))+"</span>";
+}
+function inboxSaveButtonHtml(item,transcript){
+  if(item.status==="synced")return "<button type='button' class='bs bsm' disabled>Saved to Zoho</button>";
+  if(!item.dealId||!(item.summary||transcript))return"";
+  if(item.status==="pending_sync")return "<button class='bp bsm' onclick='saveInboxToZoho(\""+esc(item.id)+"\")'>Retry Save to Zoho</button>";
+  return "<button class='bp bsm' onclick='saveInboxToZoho(\""+esc(item.id)+"\")'>Save to Zoho</button>";
 }
 function renderInboxBadge(){
   var unlinked=getInboxItems().filter(function(i){return!i.dealId&&i.status!=="synced";}).length;
@@ -3006,12 +3014,14 @@ function renderInbox(){
       "<div class='h-status'>"+inboxStatusChip(item)+"</div>"+
       "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
       (summary?"<div style='font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap'>"+esc(summary.substring(0,400))+(summary.length>400?"…":"")+"</div>":"")+
+      (item.status==="synced"?"<div style='font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px'>Saved to Zoho — deal note filed"+(item.zohoSavedAt?" on "+esc(new Date(item.zohoSavedAt).toLocaleString()):"")+".</div>":"")+
+      (item.status==="pending_sync"?"<div style='font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:8px;margin-bottom:8px'>Zoho save queued — retry when signal improves or use Pending Sync in Settings.</div>":"")+
       "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'>"+
       "<button class='bg bsm' onclick='editInboxTranscript(\""+esc(item.id)+"\")'>Edit Transcript</button>"+
       (item.dealId?"":"<button class='bp bsm' onclick='linkInboxToDealPrompt(\""+esc(item.id)+"\")'>Link to Deal</button>")+
       (item.dealId||!A.sel?"":"<button class='bb bsm' onclick='linkInboxToActiveDeal(\""+esc(item.id)+"\")'>Use Active Deal</button>")+
       (transcript?"<button class='bs bsm' onclick='generateInboxSummary(\""+esc(item.id)+"\")'>Generate Summary</button>":"")+
-      (item.dealId&&(item.summary||transcript)?"<button class='bp bsm' onclick='saveInboxToZoho(\""+esc(item.id)+"\")'>Save to Zoho</button>":"")+
+      inboxSaveButtonHtml(item,transcript)+
       "<button class='bd bsm' onclick='deleteInboxItem(\""+esc(item.id)+"\")'>Remove</button>"+
       "</div></div></div>";
   }).join("");
@@ -3117,9 +3127,11 @@ async function saveInboxToZoho(itemId){
     if(!r.ok){var err=await r.text();throw new Error("Zoho save "+r.status+": "+err.substring(0,120));}
     item.status="synced";
     item.zohoSavedAt=new Date().toISOString();
+    item.error="";
     saveInboxItems(items);
-    showToast("Inbox note saved to Zoho deal",4000);
+    showToast("Saved to Zoho",4000);
   }catch(e){
+    item.status="pending_sync";
     item.error=e.message;
     saveInboxItems(items);
     enqueueReportNoteSave({
