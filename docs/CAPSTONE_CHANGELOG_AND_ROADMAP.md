@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v204 (PR pending — Inbox button styles)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=204
+Current live version: v205 (PR pending — Inbox saved status)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=205
 ```
 
 ---
@@ -41,7 +41,9 @@ Related docs (detail, not status):
 | v200 | #89 | Technicians from Zoho Internal_Assets.Users (no separate login list) |
 | v201 | #90 | Per-field → AI with offline Pending AI queue (Capture, Assets, photos, report generate, asset extract) |
 | v202 | #92 | **Inbox tab** — unassigned voice staging, link to deal, summary, Zoho save; Netlify recording pipeline skeleton |
-| v203 | pending | **Inbox deal picker** — active deal bar, Deals-style search modal, Use Active Deal, auto-link when deal selected |
+| v203 | #93 | **Inbox deal picker** — active deal bar, Deals-style search modal, Use Active Deal, auto-link when deal selected |
+| v204 | #94 | **Inbox button styles** — fix black/unstyled buttons; add `.bb` class; document button classes in dev rules |
+| v205 | pending | **Inbox saved status** — Saved to Zoho chip, banner, and disabled button after successful save; Zoho Pending on queue |
 
 ### UI / workflow polish
 
@@ -94,8 +96,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR pending** — Inbox deal picker (v203) | Open | Replace prompt() deal link with Deals-style search; active deal bar on Inbox |
-| **Field test on Android** | User action | Re-test Inbox deal linking on v203 |
+| **PR pending** — Inbox saved status (v205) | Open | Show Saved to Zoho after successful Inbox save |
+| **Field test on Android** | User action | Confirm Saved to Zoho state on Inbox after save |
 
 ---
 
