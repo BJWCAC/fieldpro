@@ -127,6 +127,20 @@ Use consistent CapStone patterns:
 
 Avoid introducing one-off colors or button styles unless there is a clear reason.
 
+Standard button classes (always pair with `.bsm` or `-lg` size as needed):
+
+| Class | Use |
+|-------|-----|
+| `.bp` / `.bp-lg` | Amber — primary emphasis (Save to Zoho, View, Link to Deal) |
+| `.bb` / `.bb-lg` | Teal — primary workflow (Upload, Snap, Search, Use Active Deal) |
+| `.bs` / `.bs-lg` | Green — success / generate / save actions |
+| `.bg` / `.bg-lg` | Secondary — neutral actions (Edit, PDF, Cancel, PICK DEAL in bars) |
+| `.bd` / `.bd-lg` | Red — remove / delete |
+| `.bsm` | Small padding modifier |
+| `.bfull` | Full width |
+
+Do not use undefined classes (e.g. `.bb` without a matching rule) or `.bg-lg` for primary tab entry actions — use `.bb-lg` or `.bs-lg` instead.
+
 ## Required field rules
 
 If a field is required:
