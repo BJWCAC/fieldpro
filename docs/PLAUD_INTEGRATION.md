@@ -11,9 +11,9 @@ Design and phased build plan for combining CapStone (intentional deal walkthroug
 - `docs/CAPSTONE_FIELD_TEST_LOG.md` — field validation before Fork A build
 
 ```text
-Last updated: 2026-06-12
+Last updated: 2026-06-08
 Tab name: Inbox
-Fork A: v202 Stage 1 in progress (Inbox UI + pipeline skeleton)
+Fork A: Stage 2 auto-pull shipped (v207)
 Fork B: deferred — see changelog
 ```
 
@@ -144,7 +144,7 @@ Both Plaud official MCP and Zoho MCP can run in the same session for plain-Engli
 |-------|--------|-------|
 | **0 — Zero code** | Plaud MCP + Zoho MCP; manual summarize → note | Claude.ai chat — **validate before Cursor build** |
 | **1 — Assisted** | Inbox tab + Netlify workers + review in CapStone | **Cursor / this repo** |
-| **2 — Automated** | Plaud webhook → Netlify → Zoho note hands-off | After Stage 1 field-solid |
+| **2 — Automated** | Plaud cloud auto-pull → Inbox → AssemblyAI → review → Zoho | **v207** — refresh token + Netlify proxy |
 
 Stage 0 does **not** require Cursor. Run after Note Pro setup checklist (below).
 
@@ -167,7 +167,9 @@ Not in repo yet. Planned alongside Inbox UI.
 
 | Function | Role |
 |----------|------|
-| `submit-recording` | Accept audio upload or Plaud pull metadata; send to AssemblyAI |
+| `submit-recording` | Accept audio upload, Plaud presigned URL, or manual transcript; send to AssemblyAI |
+| `get-transcript` | Poll AssemblyAI transcript status for Inbox client |
+| `plaud-proxy` | Plaud API proxy — list files, get file, token refresh (Stage 2) |
 | `transcript-ready` | AssemblyAI webhook; store transcript; trigger summarize job |
 | Extend `zoho-proxy` | Or thin wrapper — reuse deal note + WorkDrive writes |
 
@@ -197,6 +199,7 @@ Order small PRs; bump `FP_VERSION` per behavior change.
 | A6 | Claude summarize + Zoho save from Inbox | Done (v202–v205) |
 | A7 | Field test Inbox path; program review checklist section | Done — Stage 0 validated |
 | **Stage 0** | Plaud MCP validation (no code) | Done — Claude + CapStone Inbox → Zoho |
+| **Stage 2** | Plaud cloud auto-pull → Inbox (refresh token + Netlify proxy) | Done (v207) |
 
 ### Fork B (deferred)
 

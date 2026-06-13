@@ -22,10 +22,13 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="206";
+var FP_VERSION="207";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
+var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
+var PLAUD_AUTO_PULL_MS=3*60*1000;
+var PLAUD_FIRST_PULL_DAYS=7;
 var CAPTURE_STORAGE_WARN_PHOTOS=8;
 var CAPTURE_STORAGE_WARN_MB=4;
 var FP_VERSION_CHECK_URL="https://raw.githubusercontent.com/BJWCAC/fieldpro/main/src/app.js";
@@ -66,9 +69,9 @@ function go(n){
   });
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
-  if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();}
+  if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();}
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -459,6 +462,8 @@ function bootApp(){
     setupAssetFieldAiButtons();
     restoreFieldAiUiFromQueue();
     renderInboxBadge();
+    if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
+    if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();
     startInboxPollIfNeeded();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
@@ -508,6 +513,11 @@ window.linkInboxToActiveDeal=linkInboxToActiveDeal;
 window.generateInboxSummary=generateInboxSummary;
 window.saveInboxToZoho=saveInboxToZoho;
 window.deleteInboxItem=deleteInboxItem;
+window.pullFromPlaud=pullFromPlaud;
+window.savePlaudRefreshToken=savePlaudRefreshToken;
+window.verifyPlaudConnection=verifyPlaudConnection;
+window.clearPlaudConnection=clearPlaudConnection;
+window.togglePlaudAutoPull=togglePlaudAutoPull;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
@@ -2876,6 +2886,197 @@ function saveHistory(meta){
   return pr.saved;
 }
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
+function getPlaudTokens(){try{return JSON.parse(localStorage.getItem("fp_plaud_tokens")||"null")||null;}catch(e){return null;}}
+function savePlaudTokens(tokens){
+  try{
+    if(!tokens)localStorage.removeItem("fp_plaud_tokens");
+    else localStorage.setItem("fp_plaud_tokens",JSON.stringify(tokens));
+  }catch(e){showToast("Could not save Plaud connection",5000);}
+  if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
+}
+function isPlaudConnected(){var t=getPlaudTokens();return!!(t&&t.refresh_token);}
+function isPlaudAutoPullEnabled(){try{return localStorage.getItem("fp_plaud_auto_pull")!=="0";}catch(e){return true;}}
+function applyPlaudProxyTokens(d){
+  if(!d||!d.tokens)return;
+  var cur=getPlaudTokens()||{};
+  savePlaudTokens({
+    refresh_token:d.tokens.refresh_token||cur.refresh_token,
+    access_token:d.tokens.access_token||cur.access_token,
+    expires_at:d.tokens.expires_at||cur.expires_at,
+    email:cur.email||"",
+    connectedAt:cur.connectedAt||new Date().toISOString()
+  });
+}
+async function plaudProxyRequest(payload){
+  var tokens=getPlaudTokens();
+  if(tokens&&tokens.refresh_token)payload.refresh_token=tokens.refresh_token;
+  else if(tokens&&tokens.access_token)payload.access_token=tokens.access_token;
+  var r=await fetchWithTimeout(PLAUD_PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},45000);
+  var txt=await r.text();
+  var d={};try{d=JSON.parse(txt);}catch(e){}
+  if(!r.ok||!d.ok)throw new Error(d.error||("Plaud request failed "+r.status));
+  applyPlaudProxyTokens(d);
+  return d;
+}
+function renderPlaudSettingsUI(){
+  var st=el("plaud-conn-status"),inp=el("plaud-refresh-input"),tog=el("tog-plaud-auto");
+  var t=getPlaudTokens();
+  if(inp&&!inp.dataset.bound){inp.dataset.bound="1";inp.addEventListener("input",function(){if(st)st.textContent="";});}
+  if(st){
+    if(t&&t.email)st.textContent="Connected — "+t.email+(t.connectedAt?" (since "+new Date(t.connectedAt).toLocaleDateString()+")":"");
+    else if(t&&t.refresh_token)st.textContent="Refresh token saved — tap Verify to confirm account";
+    else st.textContent="Not connected — paste a Plaud refresh token from plaud login (see docs/PLAUD_STAGE2_SETUP.md)";
+  }
+  if(tog)tog.classList.toggle("on",isPlaudAutoPullEnabled());
+}
+function savePlaudRefreshToken(){
+  var inp=el("plaud-refresh-input");
+  var token=inp?String(inp.value||"").trim():"";
+  if(!token){showToast("Paste your Plaud refresh token first",4000);return;}
+  savePlaudTokens({refresh_token:token,connectedAt:new Date().toISOString()});
+  if(inp)inp.value="";
+  showToast("Plaud token saved — tap Verify Connection",3000);
+  verifyPlaudConnection();
+}
+async function verifyPlaudConnection(){
+  if(!isPlaudConnected()){showToast("Paste and save a Plaud refresh token first",4000);return;}
+  var st=el("plaud-conn-status");if(st)st.textContent="Verifying Plaud connection...";
+  try{
+    var d=await plaudProxyRequest({action:"verify"});
+    var user=d.user||{};
+    var email=user.email||user.name||user.nickname||"Plaud account";
+    var cur=getPlaudTokens()||{};
+    savePlaudTokens({
+      refresh_token:cur.refresh_token,
+      access_token:cur.access_token,
+      expires_at:cur.expires_at,
+      email:email,
+      connectedAt:cur.connectedAt||new Date().toISOString()
+    });
+    showToast("Plaud connected — "+email,4000);
+    renderPlaudSettingsUI();
+  }catch(e){
+    if(st)st.textContent="Connection failed — "+e.message;
+    showToast("Plaud verify failed: "+e.message,7000);
+  }
+}
+function clearPlaudConnection(){
+  if(!confirm("Disconnect Plaud from this device?"))return;
+  savePlaudTokens(null);
+  stopPlaudAutoPull();
+  showToast("Plaud disconnected",2500);
+  renderPlaudSettingsUI();
+}
+function togglePlaudAutoPull(){
+  var on=!isPlaudAutoPullEnabled();
+  try{localStorage.setItem("fp_plaud_auto_pull",on?"1":"0");}catch(e){}
+  var tog=el("tog-plaud-auto");if(tog)tog.classList.toggle("on",on);
+  if(on&&isPlaudConnected())startPlaudAutoPullIfNeeded();
+  else stopPlaudAutoPull();
+  showToast(on?"Plaud auto-pull enabled":"Plaud auto-pull paused",2500);
+}
+var plaudPullTimer=null;
+var plaudPullInFlight=false;
+function stopPlaudAutoPull(){
+  if(plaudPullTimer){clearInterval(plaudPullTimer);plaudPullTimer=null;}
+}
+function startPlaudAutoPullIfNeeded(){
+  if(!isPlaudConnected()||!isPlaudAutoPullEnabled()){stopPlaudAutoPull();return;}
+  if(!plaudPullTimer){
+    plaudPullTimer=setInterval(function(){
+      var inboxPane=el("p-inbox");
+      if(inboxPane&&inboxPane.classList.contains("on"))pullFromPlaud({silent:true});
+    },PLAUD_AUTO_PULL_MS);
+  }
+  pullFromPlaud({silent:true});
+}
+function getKnownPlaudFileIds(items){
+  var ids={};
+  (items||getInboxItems()).forEach(function(i){if(i.plaudFileId)ids[i.plaudFileId]=true;});
+  return ids;
+}
+function getPlaudPullCutoffMs(){
+  var last="";try{last=localStorage.getItem("fp_plaud_last_pull")||"";}catch(e){}
+  if(last){var t=new Date(last).getTime();if(!isNaN(t))return t;}
+  return Date.now()-PLAUD_FIRST_PULL_DAYS*24*60*60*1000;
+}
+async function pullFromPlaud(opts){
+  opts=opts||{};
+  if(!isPlaudConnected()){
+    if(!opts.silent){showToast("Connect Plaud in Settings first (docs/PLAUD_STAGE2_SETUP.md)",6000);go("settings");}
+    return;
+  }
+  if(plaudPullInFlight)return;
+  plaudPullInFlight=true;
+  if(!opts.silent)showToast("Pulling new Plaud recordings...",3000);
+  var added=0;
+  try{
+    var items=getInboxItems();
+    var known=getKnownPlaudFileIds(items);
+    var cutoff=getPlaudPullCutoffMs();
+    var dealFields=inboxDealFieldsFromSel();
+    var candidates=[];
+    for(var page=1;page<=3;page++){
+      var list=await plaudProxyRequest({action:"list_files",page:page,page_size:50});
+      var rows=(list.result&&list.result.data)||[];
+      if(!rows.length)break;
+      for(var ri=0;ri<rows.length;ri++){
+        var row=rows[ri];
+        if(!row||!row.id||known[row.id])continue;
+        var created=new Date(row.created_at||row.start_at||0).getTime();
+        if(isNaN(created)||created<cutoff)continue;
+        candidates.push(row);
+      }
+      if(rows.length<50)break;
+    }
+    candidates.sort(function(a,b){return new Date(b.created_at||0)-new Date(a.created_at||0);});
+    for(var ci=0;ci<candidates.length;ci++){
+      var fileMeta=candidates[ci];
+      try{
+        var detail=await plaudProxyRequest({action:"get_file",file_id:fileMeta.id});
+        var file=detail.file||{};
+        var audioUrl=String(file.presigned_url||"").trim();
+        if(!audioUrl){known[fileMeta.id]=true;continue;}
+        var submit=await fetchWithTimeout(INBOX_SUBMIT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inbox_id:"plaud"+fileMeta.id,filename:file.name||fileMeta.name||"Plaud recording",source:"plaud",audio_url:audioUrl})},120000);
+        var stxt=await submit.text();
+        var sd={};try{sd=JSON.parse(stxt);}catch(e){}
+        if(!submit.ok||!sd.ok)throw new Error(sd.error||("Submit failed "+submit.status));
+        var transcribing=!!sd.assemblyTranscriptId;
+        items.push({
+          id:sd.id||("plaud"+fileMeta.id),
+          created:file.created_at||file.start_at||new Date().toISOString(),
+          source:"plaud",
+          status:transcribing?"transcribing":(dealFields.dealId?"linked":(sd.status||"received")),
+          title:file.name||fileMeta.name||"Plaud recording",
+          filename:file.name||fileMeta.name||"Plaud recording",
+          transcript:sd.transcript||"",
+          assemblyTranscriptId:sd.assemblyTranscriptId||"",
+          plaudFileId:fileMeta.id,
+          dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
+          error:"",pipelineMessage:sd.message||""
+        });
+        known[fileMeta.id]=true;
+        added++;
+      }catch(fe){
+        console.log("plaud file pull",fileMeta.id,fe);
+        if(!opts.silent)showToast("Plaud pull issue: "+fe.message,6000);
+      }
+    }
+    try{localStorage.setItem("fp_plaud_last_pull",new Date().toISOString());}catch(e){}
+    if(added){
+      saveInboxItems(items);
+      if(!opts.silent){showToast(added+" Plaud recording"+(added!==1?"s":"")+" added to Inbox",4000);go("inbox");}
+    }else if(!opts.silent){
+      showToast(candidates.length?"No new Plaud recordings to import":"No recent Plaud recordings found",4000);
+    }
+  }catch(e){
+    if(!opts.silent)showToast("Plaud pull failed: "+e.message,7000);
+    console.log("plaud pull",e);
+  }finally{
+    plaudPullInFlight=false;
+    renderPlaudSettingsUI();
+  }
+}
 function getInboxItems(){try{return JSON.parse(localStorage.getItem("fp_inbox")||"[]");}catch(e){return[];}}
 function saveInboxItems(items){try{localStorage.setItem("fp_inbox",JSON.stringify(items));}catch(e){showToast("Could not save Inbox item",5000);}renderInboxBadge();if(typeof renderInbox==="function")renderInbox();startInboxPollIfNeeded();}
 var inboxPollTimer=null;
@@ -3041,17 +3242,27 @@ function renderInboxBadge(){
 }
 function renderInbox(){
   updateInboxDealUI();
-  var box=el("inbox-list"),st=el("inbox-status");
+  var box=el("inbox-list"),st=el("inbox-status"),ps=el("plaud-inbox-status");
   var items=getInboxItems().slice().sort(function(a,b){return new Date(b.created)-new Date(a.created);});
   renderInboxBadge();
-  if(st)st.textContent=items.length?items.length+" inbox item"+(items.length!==1?"s":""):"No recordings yet — upload audio or add a manual note.";
+  if(ps){
+    if(isPlaudConnected()){
+      var pt=getPlaudTokens()||{};
+      ps.textContent="Plaud connected"+(pt.email?" — "+pt.email:"")+(isPlaudAutoPullEnabled()?" · auto-pull on":" · auto-pull paused");
+      ps.style.color="var(--green)";
+    }else{
+      ps.textContent="Plaud not connected — Settings → Plaud Cloud Sync to enable auto-pull";
+      ps.style.color="var(--dim)";
+    }
+  }
+  if(st)st.textContent=items.length?items.length+" inbox item"+(items.length!==1?"s":""):"No recordings yet — pull from Plaud, upload audio, or add a manual note.";
   if(!box)return;
   if(!items.length){box.innerHTML="<div class='empty'><div class='e-icon'>&#128236;</div><div class='e-title'>Inbox Empty</div><div class='e-sub'>Plaud calls and unassigned voice land here</div></div>";return;}
   box.innerHTML=items.map(function(item){
     var ds=new Date(item.created).toLocaleString();
     var dealLine=item.dealId?(esc(item.accountName||"")+" — "+esc(item.dealName||"Deal")):"<span style='color:#92400e'>No deal linked</span>";
     var transcript=(item.transcript||"").trim();
-    var preview=transcript?esc(transcript.substring(0,180))+(transcript.length>180?"…":""):"<span style='color:var(--dim);font-style:italic'>No transcript yet — paste from Plaud MCP or upload audio</span>";
+    var preview=transcript?esc(transcript.substring(0,180))+(transcript.length>180?"…":""):"<span style='color:var(--dim);font-style:italic'>No transcript yet — Plaud auto-pull, paste from MCP, or upload audio</span>";
     var summary=(item.summary||"").trim();
     return "<div class='hist-card inbox-card' data-inbox-id='"+esc(item.id)+"'>"+
       "<div class='h-acct'>"+esc(item.title||item.filename||"Recording")+"</div>"+

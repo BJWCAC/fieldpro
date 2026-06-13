@@ -72,13 +72,34 @@ exports.handler = async function (event) {
     var filename = String(data.filename || "recording.webm").slice(0, 200);
     var source = String(data.source || "upload");
     var hasAudio = !!(data.audio_b64 && String(data.audio_b64).length > 100);
+    var audioUrl = String(data.audio_url || "").trim();
+    var hasAudioUrl = audioUrl.indexOf("http") === 0;
     var assemblyKey = process.env.ASSEMBLYAI_API_KEY || "";
 
-    if (!hasAudio && !data.transcript) {
+    if (!hasAudio && !hasAudioUrl && !data.transcript) {
       return {
         statusCode: 400,
         headers: h,
-        body: JSON.stringify({ ok: false, error: "audio_b64 or transcript required" })
+        body: JSON.stringify({ ok: false, error: "audio_b64, audio_url, or transcript required" })
+      };
+    }
+
+    if (assemblyKey && hasAudioUrl) {
+      var siteUrl = process.env.URL || process.env.DEPLOY_URL || "https://dulcet-sherbet-40f8f6.netlify.app";
+      var webhookUrl2 = siteUrl.replace(/\/$/, "") + "/.netlify/functions/transcript-ready";
+      var jobUrl = await assemblySubmit(assemblyKey, audioUrl, webhookUrl2);
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({
+          ok: true,
+          id: id,
+          assemblyTranscriptId: jobUrl.id,
+          status: "transcribing",
+          filename: filename,
+          source: source,
+          message: "Transcribing Plaud audio with AssemblyAI — transcript will appear when ready"
+        })
       };
     }
 
