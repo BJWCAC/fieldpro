@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v203 (PR pending — Inbox deal picker)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=203
+Current live version: v204 (PR pending — Inbox button styles)
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=204
 ```
 
 ---
