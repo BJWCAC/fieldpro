@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=202"/>
+<link rel="stylesheet" href="src/styles.css?v=203"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v202</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v203</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -450,18 +450,31 @@
       <p>Inbox holds <strong>unassigned voice</strong> — Plaud recordings, phone calls, or manual notes — until you link them to a Zoho deal and file a field note.</p>
       <ul>
         <li><strong>Capture</strong> remains for intentional walkthroughs when the deal is already selected.</li>
+        <li>Select the active deal on Inbox (same search as Deals) — new notes auto-link when a deal is selected.</li>
         <li>Upload audio here or add a manual note while Plaud Stage 0 MCP is in use.</li>
         <li>Link to deal → generate summary → save to Zoho (same pipeline as reports).</li>
         <li>See <code>docs/PLAUD_INTEGRATION.md</code> for the full Plaud Note Pro plan.</li>
       </ul>
     </div>
   </details>
+  <div id="no-deal-inbox" class="no-deal-bar"><span>No deal selected — pick one before linking notes</span><button class="bg bsm" onclick="openInboxDealPicker()">PICK DEAL</button></div>
+  <div id="inbox-deal-bar" class="card" style="background:#fff;border:1px solid #b2ddd6;display:none;margin-bottom:10px;color:#0f2420">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="flex:1">
+        <div class="stitle" style="color:var(--green);margin-bottom:2px">Active Deal</div>
+        <div id="idb-acct" style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:800;color:#0f2420"></div>
+        <div id="idb-info" style="font-size:12px;color:#2d6b60"></div>
+      </div>
+      <button type="button" class="bg bsm" onclick="openInboxDealPicker()" style="flex-shrink:0;margin-top:2px">CHANGE</button>
+    </div>
+  </div>
   <div class="workflow-card">
     <div class="stitle">Inbox Workflow</div>
     <ol>
+      <li>Select the active deal (same search as Deals tab) — new notes auto-link when a deal is selected.</li>
       <li>Recording lands here (upload, Plaud pull later, or manual note).</li>
       <li>Review transcript — paste from Stage 0 MCP or wait for AssemblyAI when configured.</li>
-      <li><strong>Link to deal</strong> — search your Zoho deals list.</li>
+      <li><strong>Link to deal</strong> if needed — or tap <strong>Use Active Deal</strong> on an item.</li>
       <li><strong>Generate summary</strong> — Claude turns transcript into a structured field note.</li>
       <li><strong>Save to Zoho</strong> — writes a deal note; Pending Sync retries if needed.</li>
     </ol>
@@ -629,6 +642,24 @@
 
 <div id="toast" class="toast"></div>
 
+<div id="inboxdealmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeInboxDealPicker()">
+  <div class="sbox" style="border-radius:12px;max-width:520px;max-height:88vh;overflow:auto;width:100%" onclick="event.stopPropagation()">
+    <div id="inbox-deal-picker-title" style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Select Deal</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:12px">Search and filter the same Zoho deals list as the Deals tab.</div>
+    <div class="card" style="margin-bottom:10px">
+      <input type="text" id="inbox-d-search" placeholder="Search account, deal, description..." oninput="applyInboxDealPickerFilters()" style="margin-bottom:8px"/>
+      <div class="g2">
+        <div><label class="lbl">Account</label><select id="inbox-d-acct" onchange="applyInboxDealPickerFilters()"><option value="">All</option></select></div>
+        <div><label class="lbl">Stage</label><select id="inbox-d-stage" onchange="applyInboxDealPickerFilters()"><option value="">All</option></select></div>
+      </div>
+    </div>
+    <div class="sort-bar" id="inbox-d-sort-bar"></div>
+    <div id="inbox-d-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
+    <div id="inbox-d-list" style="max-height:42vh;overflow:auto;margin-bottom:12px"></div>
+    <button type="button" class="bg bfull" onclick="closeInboxDealPicker()">Cancel</button>
+  </div>
+</div>
+
 <div id="quickstartmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeQuickStart()">
   <div class="sbox" style="border-radius:12px;max-width:480px;max-height:86vh;overflow:auto" onclick="event.stopPropagation()">
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">CapStone Quick Start</div>
@@ -705,7 +736,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=202"></script>
+<script src="src/app.js?v=203"></script>
 
 </body>
 </html>
