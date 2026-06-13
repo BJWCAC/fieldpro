@@ -627,6 +627,26 @@
       <div><div style="font-size:14px;font-weight:500">Dark Mode</div></div>
     </div>
   </div>
+  <div class="settings-group-title">Cloud Settings Sync</div>
+  <div class="card">
+    <div class="stitle">Cloud Settings Sync</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Phase 1 — sync your <strong>Anthropic API key</strong> and <strong>Plaud connection</strong> across phones by Zoho technician name. Requires org PIN on Netlify (<code>CAPSTONE_SETTINGS_PIN</code>). See <code>docs/CAPSTONE_CLOUD_SETTINGS_SETUP.md</code>.</div>
+    <div id="cloud-settings-status" style="font-size:12px;color:var(--amber);margin-bottom:10px;line-height:1.5">Select a technician first</div>
+    <label class="lbl" for="cloud-settings-pin">Org PIN</label>
+    <input id="cloud-settings-pin" type="password" placeholder="Team PIN (saved on this device)" style="margin-bottom:8px"/>
+    <button type="button" class="bg bfull" onclick="saveCloudSettingsPin()" style="margin-bottom:10px">Save PIN</button>
+    <div class="g2" style="margin-bottom:10px">
+      <button type="button" class="bp bfull" onclick="pushCloudSettings()">Push to Cloud</button>
+      <button type="button" class="bs bfull" onclick="pullCloudSettings()">Pull from Cloud</button>
+    </div>
+    <div class="tog-row" onclick="toggleCloudSettingsAutoSync()" style="margin-bottom:8px">
+      <div class="tog on" id="tog-cloud-settings-auto"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-sync when technician changes</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Pull missing API key / Plaud token when you select your name, and push after key saves.</div>
+      </div>
+    </div>
+  </div>
   <div class="settings-group-title">Plaud / Inbox</div>
   <div class="card">
     <div class="stitle">Plaud Cloud Sync</div>
@@ -760,7 +780,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=206"></script>
+<script src="src/app.js?v=210"></script>
 
 </body>
 </html>

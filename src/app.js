@@ -22,10 +22,11 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="209";
+var FP_VERSION="210";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
+var CAPSTONE_SETTINGS_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/capstone-settings";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var PLAUD_AUTO_PULL_MS=3*60*1000;
 var PLAUD_FOREGROUND_PULL_MS=15000;
@@ -72,7 +73,7 @@ function go(n){
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();if(typeof renderCloudSettingsUI==="function")renderCloudSettingsUI();}
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -350,6 +351,7 @@ function saveTechnicianSetting(v){
   try{localStorage.setItem("fp_technician",A.technician);}catch(e){}
   setTechnicianUI();
   showToast(A.technician?("Technician: "+A.technician):"Technician cleared",2000);
+  if(A.technician&&isCloudSettingsAutoSync())pullCloudSettings({silent:true,fillOnly:true});
 }
 function currentTechnicianName(){return(A.reportTechnician||A.technician||"").trim();}
 function technicianDisplayName(){return currentTechnicianName()||"Not selected";}
@@ -388,7 +390,9 @@ function enterKey(){
     if(!k)return;k=k.trim();
     if(!k.startsWith("sk-ant")){alert("Key should start with sk-ant-");return;}
     API_KEY=k;try{localStorage.setItem("fp_api_key",k);}catch(e){alert("Could not save key");return;}
-    setKeyUI(true);showToast("API key saved",2000);return;
+    setKeyUI(true);showToast("API key saved",2000);
+    if(isCloudSettingsAutoSync())pushCloudSettings({silent:true});
+    return;
   }
   if(err)err.textContent="";
   var saved="";try{saved=localStorage.getItem("fp_api_key")||"";}catch(e){}
@@ -404,6 +408,7 @@ function saveApiKey(){
   API_KEY=k;
   try{localStorage.setItem("fp_api_key",k);}catch(e){if(err)err.textContent="Could not save: "+e.message;return;}
   setKeyUI(true);closeKeyModal();showToast("API key saved",3000);
+  if(isCloudSettingsAutoSync())pushCloudSettings({silent:true});
 }
 function showDealsErr(msg){
   var d=el("deals-err");if(!d)return;
@@ -465,6 +470,7 @@ function bootApp(){
     renderInboxBadge();
     if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
     if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();
+    if(A.technician&&isCloudSettingsAutoSync()&&getCloudSettingsPin())pullCloudSettings({silent:true,fillOnly:true});
     startInboxPollIfNeeded();
   }catch(e){
     showDealsErr("CapStone failed to start: "+e.message);
@@ -520,6 +526,10 @@ window.savePlaudRefreshToken=savePlaudRefreshToken;
 window.verifyPlaudConnection=verifyPlaudConnection;
 window.clearPlaudConnection=clearPlaudConnection;
 window.togglePlaudAutoPull=togglePlaudAutoPull;
+window.saveCloudSettingsPin=saveCloudSettingsPin;
+window.pushCloudSettings=pushCloudSettings;
+window.pullCloudSettings=pullCloudSettings;
+window.toggleCloudSettingsAutoSync=toggleCloudSettingsAutoSync;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
@@ -2888,6 +2898,136 @@ function saveHistory(meta){
   return pr.saved;
 }
 function getHistory(){try{var h=localStorage.getItem("fp_history");return h?JSON.parse(h):[];}catch(e){return[];}}
+function getCloudSettingsPin(){try{return localStorage.getItem("fp_cloud_settings_pin")||"";}catch(e){return"";}}
+function isCloudSettingsAutoSync(){try{return localStorage.getItem("fp_cloud_settings_auto")!=="0";}catch(e){return true;}}
+function buildCloudSettingsPayload(){
+  var pt=getPlaudTokens();
+  return{
+    api_key:API_KEY||localStorage.getItem("fp_api_key")||"",
+    plaud:pt?{
+      refresh_token:pt.refresh_token||"",
+      access_token:pt.access_token||"",
+      expires_at:pt.expires_at||null,
+      email:pt.email||""
+    }:null,
+    auto_save_zoho:A.autoSaveZoho?"1":"0",
+    auto_save_phone_photos:A.autoSavePhonePhotos?"1":"0",
+    plaud_auto_pull:isPlaudAutoPullEnabled()?"1":"0"
+  };
+}
+function applyCloudSettingsFromCloud(settings,opts){
+  opts=opts||{};
+  if(!settings)return false;
+  var changed=false;
+  if(settings.api_key&&settings.api_key.startsWith("sk-ant")){
+    if(!opts.fillOnly||!(API_KEY||"").trim()){
+      API_KEY=settings.api_key;
+      try{localStorage.setItem("fp_api_key",settings.api_key);}catch(e){}
+      setKeyUI(true);
+      changed=true;
+    }
+  }
+  if(settings.plaud&&settings.plaud.refresh_token){
+    if(!opts.fillOnly||!isPlaudConnected()){
+      var cur=getPlaudTokens()||{};
+      savePlaudTokens({
+        refresh_token:settings.plaud.refresh_token,
+        access_token:settings.plaud.access_token||cur.access_token||"",
+        expires_at:settings.plaud.expires_at||cur.expires_at||null,
+        email:settings.plaud.email||cur.email||"",
+        connectedAt:cur.connectedAt||new Date().toISOString()
+      });
+      if(isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();
+      changed=true;
+    }
+  }
+  if(settings.auto_save_zoho!==undefined&&!opts.fillOnly){
+    A.autoSaveZoho=settings.auto_save_zoho!=="0";
+    try{localStorage.setItem("fp_auto_save_zoho",A.autoSaveZoho?"1":"0");}catch(e){}
+    var tz=el("tog-auto-zoho");if(tz)tz.classList.toggle("on",A.autoSaveZoho);
+    changed=true;
+  }
+  if(settings.auto_save_phone_photos!==undefined&&!opts.fillOnly){
+    A.autoSavePhonePhotos=settings.auto_save_phone_photos!=="0";
+    try{localStorage.setItem("fp_auto_save_phone_photos",A.autoSavePhonePhotos?"1":"0");}catch(e){}
+    var tp=el("tog-auto-phone-photos");if(tp)tp.classList.toggle("on",A.autoSavePhonePhotos);
+    changed=true;
+  }
+  if(settings.plaud_auto_pull!==undefined&&!opts.fillOnly){
+    try{localStorage.setItem("fp_plaud_auto_pull",settings.plaud_auto_pull==="0"?"0":"1");}catch(e){}
+    var pa=el("tog-plaud-auto");if(pa)pa.classList.toggle("on",settings.plaud_auto_pull!=="0");
+    changed=true;
+  }
+  return changed;
+}
+function renderCloudSettingsUI(){
+  var st=el("cloud-settings-status"),pin=el("cloud-settings-pin"),tog=el("tog-cloud-settings-auto");
+  var tech=currentTechnicianName();
+  if(pin&&!pin.dataset.bound){
+    pin.dataset.bound="1";
+    pin.value=getCloudSettingsPin();
+  }
+  if(tog)tog.classList.toggle("on",isCloudSettingsAutoSync());
+  if(st){
+    if(!tech)st.textContent="Select a technician first — cloud settings are keyed by Zoho technician name.";
+    else if(!getCloudSettingsPin())st.textContent="Enter your org PIN to sync settings for "+tech+".";
+    else st.textContent="Ready — settings sync for "+tech+" (API key + Plaud connection).";
+  }
+}
+function saveCloudSettingsPin(){
+  var pin=el("cloud-settings-pin");
+  var v=pin?String(pin.value||"").trim():"";
+  if(!v){showToast("Enter the org PIN first",3000);return;}
+  try{localStorage.setItem("fp_cloud_settings_pin",v);}catch(e){showToast("Could not save PIN",4000);return;}
+  showToast("Org PIN saved on this device",2500);
+  renderCloudSettingsUI();
+}
+function toggleCloudSettingsAutoSync(){
+  var on=!isCloudSettingsAutoSync();
+  try{localStorage.setItem("fp_cloud_settings_auto",on?"1":"0");}catch(e){}
+  var tog=el("tog-cloud-settings-auto");if(tog)tog.classList.toggle("on",on);
+  showToast(on?"Cloud settings auto-sync enabled":"Cloud settings auto-sync paused",2500);
+}
+async function pushCloudSettings(opts){
+  opts=opts||{};
+  var tech=currentTechnicianName();
+  if(!tech){if(!opts.silent)showToast("Select a technician first",3000);return;}
+  var pin=getCloudSettingsPin();
+  if(!pin){if(!opts.silent)showToast("Save org PIN in Settings first",4000);return;}
+  if(!opts.silent)showToast("Saving settings to cloud...",2500);
+  try{
+    var r=await fetchWithTimeout(CAPSTONE_SETTINGS_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"push",pin:pin,technician:tech,settings:buildCloudSettingsPayload()})},30000);
+    var txt=await r.text();
+    var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok)throw new Error(d.error||("Cloud save failed "+r.status));
+    if(!opts.silent)showToast("Settings saved to cloud for "+tech,4000);
+    renderCloudSettingsUI();
+  }catch(e){
+    if(!opts.silent)showToast("Cloud save failed: "+e.message,7000);
+  }
+}
+async function pullCloudSettings(opts){
+  opts=opts||{};
+  var tech=currentTechnicianName();
+  if(!tech){if(!opts.silent)showToast("Select a technician first",3000);return;}
+  var pin=getCloudSettingsPin();
+  if(!pin){if(!opts.silent)showToast("Save org PIN in Settings first",4000);return;}
+  if(!opts.silent)showToast("Loading settings from cloud...",2500);
+  try{
+    var r=await fetchWithTimeout(CAPSTONE_SETTINGS_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pull",pin:pin,technician:tech})},30000);
+    var txt=await r.text();
+    var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok)throw new Error(d.error||("Cloud load failed "+r.status));
+    var changed=applyCloudSettingsFromCloud(d.settings,opts);
+    if(!opts.silent)showToast(changed?"Settings restored from cloud":"Cloud settings already up to date",4000);
+    else if(changed)showToast("Cloud settings restored for "+tech,3500);
+    renderCloudSettingsUI();
+    renderPlaudSettingsUI();
+  }catch(e){
+    if(!opts.silent)showToast("Cloud load failed: "+e.message,7000);
+    else if(e.message&&e.message.indexOf("No cloud settings")<0)console.log("cloud settings pull",e.message);
+  }
+}
 function getPlaudTokens(){try{return JSON.parse(localStorage.getItem("fp_plaud_tokens")||"null")||null;}catch(e){return null;}}
 function savePlaudTokens(tokens){
   try{
@@ -2971,6 +3111,7 @@ async function verifyPlaudConnection(){
     });
     showToast("Plaud connected — "+email,4000);
     renderPlaudSettingsUI();
+    if(isCloudSettingsAutoSync())pushCloudSettings({silent:true});
   }catch(e){
     if(st)st.textContent="Connection failed — "+e.message;
     showToast("Plaud verify failed: "+e.message,7000);
