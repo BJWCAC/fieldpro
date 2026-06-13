@@ -8,9 +8,11 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=206
 Test date:
 Signal conditions: (good / poor / offline portions)
+
+Track A runbook: docs/FIELD_TEST_TRACK_A.md
 ```
 
 ---

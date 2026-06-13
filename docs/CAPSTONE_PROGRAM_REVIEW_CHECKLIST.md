@@ -2,7 +2,9 @@
 
 Use this checklist periodically after a group of CapStone changes. The goal is to make sure all parts of the program stay consistent, reliable, and aligned as new tabs and workflows are added.
 
-**Test build:** `https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198`
+**Test build:** `https://BJWCAC.github.io/fieldpro/FieldPro.html?v=206`
+
+**Focused runbook (Track A):** `docs/FIELD_TEST_TRACK_A.md`
 
 **Log results in:** `docs/CAPSTONE_FIELD_TEST_LOG.md`
 
