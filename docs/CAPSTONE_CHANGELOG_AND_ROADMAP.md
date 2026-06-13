@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v206 (PR pending — AssemblyAI Inbox)
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=206
+Current live version: v207
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=207
 ```
 
 ---
@@ -44,7 +44,8 @@ Related docs (detail, not status):
 | v203 | #93 | **Inbox deal picker** — active deal bar, Deals-style search modal, Use Active Deal, auto-link when deal selected |
 | v204 | #94 | **Inbox button styles** — fix black/unstyled buttons; add `.bb` class; document button classes in dev rules |
 | v205 | #95 | **Inbox saved status** — Saved to Zoho chip, banner, and disabled button after successful save; Zoho Pending on queue |
-| v206 | pending | **AssemblyAI Inbox transcription** — upload audio → auto transcript with speaker labels; client poll |
+| v206 | #97 | **AssemblyAI Inbox transcription** — upload audio → auto transcript with speaker labels; client poll |
+| v207 | — | **Plaud Stage 2 auto-pull** — Plaud cloud → Inbox via refresh token; presigned URL → AssemblyAI; auto-pull every 3 min |
 
 ### UI / workflow polish
 
@@ -83,7 +84,7 @@ Related docs (detail, not status):
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
-| 2026-06-08 | Field test — manual Plaud transcript → Inbox → Zoho worked; deal link UX needs Deals-style picker (v203) |
+| 2026-06-08 | `PLAUD_STAGE2_SETUP.md` — Plaud refresh token + auto-pull field setup |
 
 ### Structure (earlier milestone)
 
@@ -97,8 +98,7 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR pending** — AssemblyAI Inbox (v206) | Open | Set ASSEMBLYAI_API_KEY on Netlify; redeploy; test Upload Audio |
-| **Plaud Stage 0** | Done | Claude MCP + CapStone Inbox → Zoho validated in field |
+| **Fix bugs from field test** | As needed | Small PRs if field testing surfaces issues |
 
 ---
 
@@ -106,12 +106,8 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | **Field test completion** | Poor-signal + 10–15 photo scenarios; Pending AI section F |
-| Medium | **Plaud Fork A — AssemblyAI (A5)** | v206 — redeploy Netlify with ASSEMBLYAI_API_KEY |
-| Medium | **Plaud Fork A — Stage 2 auto-pull** | Plaud webhook / cloud pull after A5 field-solid |
-| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name — after field test, not separate accounts |
-| Medium | **Fix bugs from field test** | Small PRs per finding |
-| On hold | **Training video** | After field test |
+| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
+| On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
 
 ---
@@ -171,3 +167,4 @@ Related docs (detail, not status):
 | v200 | Technicians loaded from Zoho Internal_Assets.Users |
 | v201 | Per-field → AI with offline Pending AI queue |
 | v202 | Inbox tab — Plaud Fork A Stage 1 (unassigned voice staging) |
+| v207 | Plaud Stage 2 — cloud auto-pull into Inbox |
