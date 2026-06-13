@@ -83,7 +83,7 @@ Related docs (detail, not status):
 |------|--------------|
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
-| 2026-06-08 | Field test — manual Plaud transcript → Inbox → Zoho worked; deal link UX needs Deals-style picker (v203) |
+| 2026-06-08 | Track A field test — user reported complete (sections A + F, poor signal + Pending AI) |
 
 ### Structure (earlier milestone)
 
@@ -97,8 +97,7 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **PR pending** — AssemblyAI Inbox (v206) | Open | Set ASSEMBLYAI_API_KEY on Netlify; redeploy; test Upload Audio |
-| **Plaud Stage 0** | Done | Claude MCP + CapStone Inbox → Zoho validated in field |
+| **Field test Track A** | User action | Follow `docs/FIELD_TEST_TRACK_A.md` — sections A + F on Android |
 
 ---
 

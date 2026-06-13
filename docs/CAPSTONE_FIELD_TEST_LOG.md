@@ -8,9 +8,11 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=206
 Test date:
 Signal conditions: (good / poor / offline portions)
+
+Track A runbook: docs/FIELD_TEST_TRACK_A.md
 ```
 
 ---
@@ -94,7 +96,7 @@ Run these even if the full checklist is done in multiple sessions.
 
 | Step | Pass | Notes |
 |------|------|-------|
-| Plaud MCP + transcript + CapStone Inbox → Zoho | | |
+| Plaud MCP + transcript + CapStone Inbox → Zoho | ✓ | User validated |
 
 ### H. AssemblyAI upload (v206)
 
@@ -102,10 +104,17 @@ Run these even if the full checklist is done in multiple sessions.
 
 | Step | Pass | Notes |
 |------|------|-------|
-| ASSEMBLYAI_API_KEY on Netlify + redeploy | | |
-| Upload audio under 5 MB | | |
-| Transcript appears automatically | | |
-| Generate Summary → Save to Zoho | | |
+| ASSEMBLYAI_API_KEY on Netlify + redeploy | ✓ | |
+| Upload audio under 5 MB | ✓ | |
+| Transcript appears automatically | ✓ | |
+| Generate Summary → Save to Zoho | ✓ | |
+
+### Track A — Sections A + F (user reported complete)
+
+| Section | Pass | Notes |
+|---------|------|-------|
+| A. Poor signal + many photos | ✓ | User reported complete |
+| F. Pending AI | ✓ | User reported complete |
 
 ---
 
