@@ -8,7 +8,7 @@ Use this log when running `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` on a real Andro
 Tester:
 Device:
 Chrome version:
-Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=201
+Test build URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=205
 Test date:
 Signal conditions: (good / poor / offline portions)
 ```
@@ -87,6 +87,20 @@ Run these even if the full checklist is done in multiple sessions.
 | Return online — field updates or Retry AI works | | |
 | Generate AI Report on weak signal — queues + retries | | |
 | Extract with AI on Assets — queues + retries | | |
+
+### G. Plaud Stage 0 — MCP + Inbox (v205)
+
+**Runbook:** `docs/PLAUD_STAGE0_RUNBOOK.md`
+
+| Step | Pass | Notes |
+|------|------|-------|
+| Note Pro paired; Cloud Sync ON | | |
+| Test recording synced to Plaud cloud | | |
+| Plaud MCP connected in Claude | | |
+| Claude lists recording + returns transcript | | |
+| Field-service summary acceptable | | |
+| CapStone Inbox → link deal → Save to Zoho | | |
+| Saved to Zoho state visible on card | | |
 
 ---
 

@@ -11,9 +11,9 @@ Design and phased build plan for combining CapStone (intentional deal walkthroug
 - `docs/CAPSTONE_FIELD_TEST_LOG.md` — field validation before Fork A build
 
 ```text
-Last updated: 2026-06-12
+Last updated: 2026-06-08
 Tab name: Inbox
-Fork A: v202 Stage 1 in progress (Inbox UI + pipeline skeleton)
+Fork A: Stage 1 shipped (v202–v205); Stage 0 runbook ready — see PLAUD_STAGE0_RUNBOOK.md
 Fork B: deferred — see changelog
 ```
 
@@ -181,7 +181,7 @@ Existing: `netlify/functions/zoho-proxy.js` — deals, notes, PDF, WorkDrive, eq
 
 1. **Field test v201** — merge PR #90; exercise Pending AI + existing Capture path.
 2. **Note Pro setup** when hardware arrives — free plan, Cloud Sync on, auto-transcribe off, CLI install, minutes test.
-3. **Stage 0** — Plaud MCP + Zoho MCP in Claude chat; prove summarize → deal note flow.
+3. **Stage 0** — Plaud MCP + summarize → Zoho — **run now:** `docs/PLAUD_STAGE0_RUNBOOK.md`
 
 ### Fork A build (Stage 1 — in Cursor)
 
@@ -194,8 +194,9 @@ Order small PRs; bump `FP_VERSION` per behavior change.
 | A3 | Inbox tab shell — workflow card, list, badge | Done (v202 PR) |
 | A4 | Link-to-deal UI + local staging record | Done (v202 PR) |
 | A5 | AssemblyAI integration + Pending Sync for failed steps | Planned |
-| A6 | Claude summarize + Zoho save from Inbox | Partial (v202 — manual transcript + summary) |
-| A7 | Field test Inbox path; program review checklist section | After v202 merge |
+| A6 | Claude summarize + Zoho save from Inbox | Done (v202–v205 — manual transcript + summary + saved state) |
+| A7 | Field test Inbox path; program review checklist section | Partial — manual path validated; log in field test log |
+| **Stage 0** | Plaud MCP validation (no code) | **In progress** — `docs/PLAUD_STAGE0_RUNBOOK.md` |
 
 ### Fork B (deferred)
 
@@ -205,12 +206,14 @@ Diary store, Voyage embeddings, pgvector (Supabase/Neon), nightly digest, RAG se
 
 ## First-day Note Pro checklist (when device arrives)
 
+Full step-by-step: **`docs/PLAUD_STAGE0_RUNBOOK.md`**
+
 - [ ] Create free Starter plan account
-- [ ] Enable **Cloud Sync**
-- [ ] Disable Plaud auto-transcribe if available
+- [ ] Enable **Cloud Sync** (Private Cloud Sync)
+- [ ] Disable Plaud auto-transcribe if available (AssemblyAI in Stage 1)
 - [ ] Run short test recording; confirm sync to cloud
-- [ ] Install Plaud CLI / confirm MCP access
-- [ ] Stage 0: one recording → MCP summarize → Zoho deal note manually
+- [ ] Connect Plaud MCP in Claude (Web connector or `npx -y @plaud-ai/mcp@latest install`)
+- [ ] Stage 0: recording → MCP transcript → summarize → CapStone Inbox → Zoho
 
 ---
 
