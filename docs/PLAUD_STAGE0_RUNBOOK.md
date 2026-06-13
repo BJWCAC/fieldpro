@@ -59,21 +59,38 @@ Open Plaud app → **Me** (profile):
 
 ## Part 2 — Connect Plaud MCP in Claude (10 min)
 
+> **On your phone?** The Claude **mobile app cannot add** custom MCP connectors. You must add Plaud once on **claude.ai in a browser** (computer or phone browser — not the Claude app). After that, Plaud syncs to the Claude app and you can use it in chats on your phone.
+
 Official docs: [Plaud MCP](https://docs.plaud.ai/documentation/plaud_app/mcp) · [Plaud support article](https://support.plaud.ai/hc/en-us/articles/57751078986265-Plaud-MCP)
 
-### Option A — Claude Web (recommended if you use claude.ai)
+### Option A — Claude Web (recommended)
 
-Requires a paid Claude plan (Pro, Max, Team, or Enterprise) for custom connectors.
+Requires a paid Claude plan (Pro, Max, Team, or Enterprise) for custom connectors. Free plan: limited to one custom connector.
 
-1. Go to [claude.ai](https://claude.ai) → profile avatar → **Settings** → **Connectors**
-2. **Add custom connector**
+**Use a browser** — Chrome/Safari on computer, or your phone browser opened to [claude.ai](https://claude.ai) (do not use the Claude app for this step).
+
+1. Sign in at [claude.ai](https://claude.ai)
+2. Open **Settings → Connectors**  
+   Direct link: [claude.ai/settings/connectors](https://claude.ai/settings/connectors)  
+   Or: profile avatar (bottom-left on web) → **Settings** → **Connectors**  
+   Some accounts show **Customize → Connectors** instead.
+3. Click **+** or **Add custom connector**
+4. Fill in:
    - **Name:** `Plaud`
    - **Remote MCP server URL:** `https://mcp.plaud.ai/mcp`
-3. Click **Add**, then **Connect** / **Authorize**
-4. Sign in to Plaud in the browser popup → **Authorize**
-5. Start a **new chat** and confirm Plaud tools appear (hammer/tools icon)
+5. Click **Add**, then **Connect** / **Authorize**
+6. Sign in to Plaud in the browser popup → **Authorize**
 
-**Alternative:** If **Plaud** is listed in Claude’s Connector Directory, one-click connect there instead of manual URL.
+**Easier path:** Open the [Connectors Directory](https://claude.ai/connectors) and search for **Plaud**. If listed, tap **Connect** — no manual URL needed.
+
+### Use Plaud on your phone (after web setup)
+
+1. Open the **Claude app** (or claude.ai in browser)
+2. Start a **new chat**
+3. Tap **+** (attach/tools area) → **Connectors** → turn **Plaud** on for this chat
+4. Ask: `List my recent Plaud recordings`
+
+If Plaud does not appear in the app, force-close Claude and reopen, or sign out/in once.
 
 ### Option B — Claude Desktop (Mac/Windows)
 
