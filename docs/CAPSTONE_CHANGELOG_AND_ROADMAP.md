@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v207
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=207
+Current live version: v208
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=208
 ```
 
 ---
@@ -45,7 +45,8 @@ Related docs (detail, not status):
 | v204 | #94 | **Inbox button styles** — fix black/unstyled buttons; add `.bb` class; document button classes in dev rules |
 | v205 | #95 | **Inbox saved status** — Saved to Zoho chip, banner, and disabled button after successful save; Zoho Pending on queue |
 | v206 | #97 | **AssemblyAI Inbox transcription** — upload audio → auto transcript with speaker labels; client poll |
-| v207 | — | **Plaud Stage 2 auto-pull** — Plaud cloud → Inbox via refresh token; presigned URL → AssemblyAI; auto-pull every 3 min |
+| v207 | #100 | **Plaud Stage 2 auto-pull** — Plaud cloud → Inbox via refresh token; presigned URL → AssemblyAI; auto-pull every 3 min |
+| v208 | #100 | **Plaud token refresh fix** — form-encoded refresh for Plaud API; paste whole tokens.json |
 
 ### UI / workflow polish
 

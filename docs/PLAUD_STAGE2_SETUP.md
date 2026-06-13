@@ -30,7 +30,7 @@ On the computer where you ran `plaud login`:
 cat ~/.plaud/tokens.json
 ```
 
-Copy the **`refresh_token`** value (long string).
+Copy the **`refresh_token`** value (long string). You can paste the **whole** `tokens.json` contents into CapStone — it will extract `refresh_token` automatically.
 
 On the phone (CapStone):
 
