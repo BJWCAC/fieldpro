@@ -45,10 +45,11 @@ The token stays on the device (localStorage). It is sent to the Netlify `plaud-p
 
 ## 3. Use Inbox
 
-1. Open **Inbox**
-2. New Plaud recordings appear within ~3 minutes (or tap **Pull from Plaud**)
-3. AssemblyAI transcribes automatically (presigned URL — no 5 MB upload limit)
-4. Link deal → Generate summary → Save to Zoho
+1. Record on Note Pro — **Cloud Sync** uploads to Plaud cloud (may take a minute; opening the Plaud app can help on weak signal)
+2. CapStone auto-pulls every **~3 minutes on any tab**, and when you **switch back** to the app — you'll get a toast when new recordings arrive
+3. Or open **Inbox** → tap **Pull from Plaud** for an immediate check
+4. AssemblyAI transcribes automatically (presigned URL — no 5 MB upload limit)
+5. Link deal → Generate summary → Save to Zoho
 
 **First pull:** imports recordings from the last **7 days** only. Later pulls only add recordings newer than the last successful pull.
 
