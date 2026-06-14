@@ -70,11 +70,38 @@ exports.handler = async function(event) {
     if (data.action === "get_deals") {
       var result = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Deals?per_page=200&page=" + (data.page || 1) + "&fields=Deal_Name,Account_Name,Stage,Amount,Description,Owner,Closing_Date",
+        path: "/crm/v3/Deals?per_page=200&page=" + (data.page || 1) + "&fields=Deal_Name,Account_Name,Stage,Pipeline,Amount,Description,Owner,Closing_Date",
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
       return { statusCode: result.status, headers: h, body: result.body };
+    }
+
+    if (data.action === "get_accounts_map") {
+      var accountFields = [
+        "Account_Name",
+        "Account_Status",
+        "Phone",
+        "Latitude_Longitude",
+        "googlemapreports__Latitude",
+        "googlemapreports__Longitude",
+        "Shipping_Street",
+        "Shipping_Street_2",
+        "Shipping_City",
+        "Shipping_State",
+        "Shipping_Code",
+        "Billing_Street",
+        "Billing_City",
+        "Billing_State",
+        "Billing_Code"
+      ].join(",");
+      var accountsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Accounts?per_page=200&page=" + (data.page || 1) + "&fields=" + encodeURIComponent(accountFields),
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: accountsResult.status, headers: h, body: accountsResult.body };
     }
 
     if (data.action === "save_note") {
