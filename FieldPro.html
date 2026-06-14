@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=206"/>
+<link rel="stylesheet" href="src/styles.css?v=211"/>
 
 </head>
 <body>
@@ -33,6 +33,7 @@
     <button onclick="newProject()" style="background:var(--amber);color:#001a18;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">+ NEW</button>
   </div>
   <div class="tab on" id="t-deals" onclick="go('deals')">Deals <span class="tbadge" id="tb-deals" style="display:none"></span></div>
+  <div class="tab" id="t-accounts-map" onclick="go('accounts-map')">Accounts Map</div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
   <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
   <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
@@ -87,6 +88,59 @@
     <div id="deal-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
   </div>
   <div id="deals-list"></div>
+</div>
+
+<!-- ACCOUNTS MAP -->
+<div class="pane" id="p-accounts-map">
+  <details class="help-box" data-help-id="accounts-map-tab">
+    <summary>Help: Accounts Map</summary>
+    <div class="help-box-body">
+      <p>The Accounts Map shows Zoho Accounts by their stored Google Maps coordinates or geocoded site address.</p>
+      <ul>
+        <li>Stored <strong>googlemapreports latitude/longitude</strong> fields are used first and skip geocoding.</li>
+        <li>Shipping address is geocoded next, then Billing if Shipping is empty or cannot be placed.</li>
+        <li>Meetings are loaded from Zoho and can be filtered by meeting status when linked to the Account or its Deals.</li>
+        <li>Geocode results are cached on this device under <code>capstone_geo_cache</code>.</li>
+      </ul>
+    </div>
+  </details>
+  <div class="workflow-card">
+    <div class="stitle">Map Workflow</div>
+    <ol>
+      <li>Tap Refresh Accounts to load current Zoho account records.</li>
+      <li>Filter by pipeline, deal stage, active status, or account search.</li>
+      <li>Tap a pin to see the address used, meeting details, and any site coordinate reference.</li>
+      <li>Review Missing Location for accounts without coordinates or usable addresses.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <div class="stitle">Accounts Map Controls</div>
+    <div class="g2" style="margin-bottom:8px">
+      <button class="bp bfull" id="accounts-map-refresh-btn" onclick="loadAccountsMap()">Refresh Accounts</button>
+      <button class="bg bfull" onclick="clearAccountsGeoCache()">Clear Geocode Cache</button>
+    </div>
+    <div id="accounts-map-load-status" style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Add your Google Maps API key in <code>GOOGLE_MAPS_API_KEY</code>, then refresh accounts.</div>
+    <input type="text" id="accounts-map-search" placeholder="Search account name..." oninput="applyAccountsMapFilters()" style="margin-bottom:8px"/>
+    <div class="g2">
+      <div><label class="lbl">Pipeline</label><select id="accounts-map-pipeline" onchange="applyAccountsMapFilters()"><option value="All">All</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
+      <div><label class="lbl">Account Status</label><select id="accounts-map-status" onchange="applyAccountsMapFilters()"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="All">All</option></select></div>
+    </div>
+    <div class="g2" style="margin-top:8px">
+      <div><label class="lbl">Deal Stage</label><select id="accounts-map-stage" onchange="applyAccountsMapFilters()"><option value="">All Stages</option></select></div>
+      <div><label class="lbl">Meeting Status</label><select id="accounts-map-meeting-status" onchange="applyAccountsMapFilters()"><option value="All">All Meetings</option></select></div>
+    </div>
+  </div>
+  <div id="accounts-map-status-bar" class="accounts-map-status-bar">No account pins loaded.</div>
+  <div id="accounts-map-legend" class="accounts-map-legend"></div>
+  <div id="accounts-map-canvas"></div>
+  <div class="card" id="accounts-map-missing-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+      <div class="stitle" style="margin-bottom:0">Missing Location</div>
+      <span id="accounts-map-missing-count" class="accounts-map-count-pill">0</span>
+    </div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Accounts appear here when they have no valid stored coordinates, no address fields, or geocoding cannot place the available address.</div>
+    <div id="accounts-map-missing-list"></div>
+  </div>
 </div>
 
 <!-- CAPTURE -->
@@ -760,7 +814,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=206"></script>
+<script src="src/app.js?v=211"></script>
 
 </body>
 </html>
