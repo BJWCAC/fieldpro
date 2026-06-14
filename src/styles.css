@@ -165,3 +165,4 @@ body.light .hist-card{background:#fff}
 .accounts-map-popup-row{margin-top:5px}
 .accounts-map-popup-label{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:800;color:#64748b;letter-spacing:.08em;text-transform:uppercase}
 .accounts-map-stage-chip{display:inline-flex;align-items:center;border-radius:10px;padding:2px 7px;margin-top:4px;font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff}
+.accounts-map-meeting-row{border-top:1px solid #d9ebe7;padding-top:5px;margin-top:5px}.accounts-map-meeting-row:first-child{border-top:none;padding-top:0;margin-top:0}.accounts-map-meeting-row span{color:#64748b}

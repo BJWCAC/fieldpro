@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=210"/>
+<link rel="stylesheet" href="src/styles.css?v=211"/>
 
 </head>
 <body>
@@ -99,6 +99,7 @@
       <ul>
         <li>Stored <strong>googlemapreports latitude/longitude</strong> fields are used first and skip geocoding.</li>
         <li>Shipping address is geocoded next, then Billing if Shipping is empty or cannot be placed.</li>
+        <li>Meetings are loaded from Zoho and can be filtered by meeting status when linked to the Account or its Deals.</li>
         <li>Geocode results are cached on this device under <code>capstone_geo_cache</code>.</li>
       </ul>
     </div>
@@ -108,7 +109,7 @@
     <ol>
       <li>Tap Refresh Accounts to load current Zoho account records.</li>
       <li>Filter by pipeline, deal stage, active status, or account search.</li>
-      <li>Tap a pin to see the address used and any site coordinate reference.</li>
+      <li>Tap a pin to see the address used, meeting details, and any site coordinate reference.</li>
       <li>Review Missing Location for accounts without coordinates or usable addresses.</li>
     </ol>
   </div>
@@ -124,7 +125,10 @@
       <div><label class="lbl">Pipeline</label><select id="accounts-map-pipeline" onchange="applyAccountsMapFilters()"><option value="All">All</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
       <div><label class="lbl">Account Status</label><select id="accounts-map-status" onchange="applyAccountsMapFilters()"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="All">All</option></select></div>
     </div>
-    <div style="margin-top:8px"><label class="lbl">Deal Stage</label><select id="accounts-map-stage" onchange="applyAccountsMapFilters()"><option value="">All Stages</option></select></div>
+    <div class="g2" style="margin-top:8px">
+      <div><label class="lbl">Deal Stage</label><select id="accounts-map-stage" onchange="applyAccountsMapFilters()"><option value="">All Stages</option></select></div>
+      <div><label class="lbl">Meeting Status</label><select id="accounts-map-meeting-status" onchange="applyAccountsMapFilters()"><option value="All">All Meetings</option></select></div>
+    </div>
   </div>
   <div id="accounts-map-status-bar" class="accounts-map-status-bar">No account pins loaded.</div>
   <div id="accounts-map-legend" class="accounts-map-legend"></div>
@@ -810,7 +814,7 @@
   </div>
 </div>
 
-<script src="src/app.js?v=210"></script>
+<script src="src/app.js?v=211"></script>
 
 </body>
 </html>
