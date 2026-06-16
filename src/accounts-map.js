@@ -5,7 +5,8 @@
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [46.0, -94.0];
   var MAP_ZOOM = 6;
-  var MAP_FIT_MAX_ZOOM = 8;
+  var MAP_FIT_MAX_ZOOM = 6;
+  var PIN_SIZE = 12;
 
   var STAGE_COLORS = {
     Active: { pin: "#22c55e", label: "Active", text: "#15803d" },
@@ -399,11 +400,13 @@
   }
 
   function makePinIcon(pinColor) {
+    var s = PIN_SIZE;
+    var half = Math.round(s / 2);
     return L.divIcon({
       className: "",
-      html: "<div style=\"width:18px;height:18px;border-radius:50%;background:" + pinColor + ";border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4)\"></div>",
-      iconSize: [18, 18],
-      iconAnchor: [9, 9]
+      html: "<div style=\"width:" + s + "px;height:" + s + "px;border-radius:50%;background:" + pinColor + ";border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.45)\"></div>",
+      iconSize: [s, s],
+      iconAnchor: [half, half]
     });
   }
 
@@ -455,11 +458,12 @@
     if (!mapState.map || typeof L === "undefined") return null;
     if (!mapState.clusterGroup) {
       mapState.clusterGroup = L.markerClusterGroup({
-        maxClusterRadius: 28,
-        disableClusteringAtZoom: 10,
+        maxClusterRadius: 12,
+        disableClusteringAtZoom: 4,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
-        chunkedLoading: true
+        chunkedLoading: true,
+        zoomToBoundsOnClick: true
       });
       mapState.map.addLayer(mapState.clusterGroup);
     }
@@ -468,6 +472,11 @@
 
   function clearMarkers() {
     if (mapState.clusterGroup) mapState.clusterGroup.clearLayers();
+  }
+
+  function resetMapToMinnesotaView() {
+    if (!mapState.map) return;
+    mapState.map.setView(MAP_CENTER, MAP_ZOOM, { animate: false });
   }
 
   function fitMapToFiltered(filtered) {
@@ -626,6 +635,7 @@
   function applyMapDataset(opts) {
     opts = opts || {};
     if (opts.fitBounds) mapState.fitBoundsNext = true;
+    if (opts.mnView) resetMapToMinnesotaView();
     populateStageFilter();
     renderLegend();
     applyMapFilters();
@@ -641,7 +651,7 @@
     mapState.cacheNote = stale
       ? "cached · refreshing…"
       : "cached · " + new Date(data.savedAt).toLocaleString();
-    applyMapDataset({ fitBounds: true });
+    applyMapDataset({ mnView: true });
   }
 
   function ensureMap() {
@@ -750,12 +760,11 @@
     mapState.noAddress = split.withoutLoc;
     mapState.loaded = true;
     mapState.cacheNote = "";
-    mapState.fitBoundsNext = true;
 
     saveMapCache();
     setMapOverlay(false);
     mapState.loading = false;
-    applyMapDataset({ fitBounds: true });
+    applyMapDataset({ mnView: true });
     updateSubtitle();
 
     if (split.pendingGeocode.length) {
