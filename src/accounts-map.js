@@ -185,11 +185,10 @@
   async function geocodeAddress(address, cache) {
     if (!address) return null;
     if (cache[address]) return cache[address];
-    if (typeof refreshZohoToken === "function") await refreshZohoToken();
     var r = await fetchWithTimeout(PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "geocode", token: A.zohoToken, address: address })
+      body: JSON.stringify({ action: "geocode", address: address })
     }, 30000);
     if (!r.ok) return null;
     var d = await r.json();
@@ -247,7 +246,7 @@
       }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
       if (!r.ok) {
         if (r.status === 401 && typeof refreshZohoToken === "function") {
-          await refreshZohoToken();
+          await refreshZohoToken(true);
           r = await fetchWithTimeout(PROXY, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

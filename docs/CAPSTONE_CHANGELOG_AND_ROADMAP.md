@@ -53,6 +53,7 @@ Related docs (detail, not status):
 | v213 | — | **Accounts Map polish** — two-phase load, fp_map_cache, marker clustering, fit bounds, deal/Zoho links, lazy Leaflet |
 | v214 | — | **Map tab visibility** — move Map next to Deals; tab bar scroll hint for overflow tabs |
 | v215 | — | **Zoho refresh resilience** — retry token refresh, clearer errors, cached map when refresh fails offline |
+| v216 | — | **Zoho token cache** — reuse access token ~1hr; stop geocode from refreshing OAuth; rate-limit error message |
 
 ### UI / workflow polish
 
