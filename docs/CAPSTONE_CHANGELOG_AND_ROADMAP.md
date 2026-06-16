@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v218
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=218
+Current live version: v219
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=219
 ```
 
 ---
@@ -55,6 +55,8 @@ Related docs (detail, not status):
 | v215 | — | **Zoho refresh resilience** — retry token refresh, clearer errors, cached map when refresh fails offline |
 | v216 | — | **Zoho token cache** — reuse access token ~1hr; stop geocode from refreshing OAuth; rate-limit error message |
 | v217 | — | **Map: Main Site Coordinates first** — parse `Latitude_Longitude` before Google extension fields or geocoding; bump map cache key |
+| v218 | #110 | **Map: active-only initial load** — first open filters to Active accounts and geocodes active only; MN center zoom 6 |
+| v219 | — | **Map: more pins when zoomed out** — statewide MN view instead of metro fitBounds; individual pins at zoom 4+; tighter cluster radius |
 
 ### UI / workflow polish
 
