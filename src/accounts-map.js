@@ -658,7 +658,23 @@
   async function fetchAndProcessMapData(force) {
     if (typeof refreshZohoToken === "function") {
       var tokOk = await refreshZohoToken();
-      if (!tokOk) throw new Error("Zoho token refresh failed");
+      if (!tokOk) {
+        var cachedOnFail = loadMapCache();
+        if (cachedOnFail && cachedOnFail.located && cachedOnFail.located.length) {
+          restoreFromCache(cachedOnFail, false);
+          mapState.cacheNote = "cached · Zoho refresh failed";
+          updateSubtitle();
+          var errBox = el("map-err");
+          if (errBox) {
+            errBox.textContent = (typeof zohoRefreshFailMsg === "function" ? zohoRefreshFailMsg() : "Zoho token refresh failed") + " Showing last cached map.";
+            errBox.style.display = "block";
+          }
+          setMapOverlay(false);
+          mapState.loading = false;
+          return;
+        }
+        throw new Error(typeof zohoRefreshFailMsg === "function" ? zohoRefreshFailMsg() : "Zoho token refresh failed");
+      }
     }
 
     var geoCache = loadGeoCache();
