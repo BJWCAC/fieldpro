@@ -8,7 +8,7 @@
   var MAP_FIT_MAX_ZOOM = 6;
   var PIN_SIZE = 12;
   var MEETING_PIN_COLOR = "#a855f7";
-  var MEETING_PIN_OFFSET = { lat: 0.012, lng: 0.018 };
+  var OVERLAP_GRID_STEP = 0.00012;
   var CLUSTER_MODE_KEY = "fp_map_cluster_mode";
   var LEGEND_HIDDEN_KEY = "fp_map_legend_hidden";
   var CLUSTER_PRESETS = {
@@ -38,6 +38,7 @@
   var mapLibsLoaded = false;
   var mapLibsLoading = false;
   var mapLibsWaiters = [];
+  var spreadRenderTimer = null;
 
   var mapState = {
     map: null,
@@ -413,7 +414,6 @@
     if (!dealIndex || !events || !events.length) return [];
     var meetings = [];
     var now = Date.now();
-    var perAccount = {};
     events.forEach(function (ev) {
       if (ev.$event_cancelled === true || ev.$event_cancelled === "true") return;
       var seModule = str(ev.$se_module);
@@ -426,8 +426,6 @@
       if (!dealInfo) return;
       var acc = locById[dealInfo.accountId];
       if (!acc || acc.lat == null || acc.lng == null) return;
-      var slot = perAccount[dealInfo.accountId] || 0;
-      perAccount[dealInfo.accountId] = slot + 1;
       meetings.push({
         id: ev.id,
         title: str(ev.Event_Title) || "Meeting",
@@ -438,8 +436,10 @@
         dealName: dealInfo.dealName,
         accountId: dealInfo.accountId,
         accountName: str(acc.Account_Name),
-        lat: acc.lat + MEETING_PIN_OFFSET.lat * (1 + slot * 0.35),
-        lng: acc.lng + MEETING_PIN_OFFSET.lng * (1 + slot * 0.35),
+        baseLat: acc.lat,
+        baseLng: acc.lng,
+        lat: acc.lat,
+        lng: acc.lng,
         eventModule: mapState.eventsModule || "Events"
       });
     });
@@ -628,6 +628,96 @@
     else alert("No deal found. Refresh deals on the Deals tab first.");
   }
 
+  function overlapGroupKey(lat, lng) {
+    return Math.round(lat / OVERLAP_GRID_STEP) + "|" + Math.round(lng / OVERLAP_GRID_STEP);
+  }
+
+  function spreadPixelRadius(zoom) {
+    if (zoom <= 4) return 0;
+    if (zoom <= 6) return 6 + (zoom - 4) * 5;
+    if (zoom <= 10) return 16 + (zoom - 6) * 11;
+    return Math.min(132, 60 + (zoom - 10) * 13);
+  }
+
+  function latLngFromPixelOffset(anchor, dx, dy) {
+    var pt = mapState.map.latLngToContainerPoint(anchor);
+    return mapState.map.containerPointToLatLng(L.point(pt.x + dx, pt.y + dy));
+  }
+
+  function compareSpreadItems(a, b) {
+    if (a.kind !== b.kind) return a.kind === "account" ? -1 : 1;
+    if (a.kind === "account") {
+      return str(a.data.Account_Name).localeCompare(str(b.data.Account_Name));
+    }
+    var ta = parseZohoDateTime(a.data.start);
+    var tb = parseZohoDateTime(b.data.start);
+    return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+  }
+
+  function applyOverlapSpread(items) {
+    if (!mapState.map || !items.length) return items;
+    var zoom = mapState.map.getZoom();
+    var radiusPx = spreadPixelRadius(zoom);
+    var groups = {};
+    items.forEach(function (item) {
+      var key = overlapGroupKey(item.baseLat, item.baseLng);
+      if (!groups[key]) {
+        groups[key] = { anchor: L.latLng(item.baseLat, item.baseLng), items: [] };
+      }
+      groups[key].items.push(item);
+    });
+    Object.keys(groups).forEach(function (key) {
+      var group = groups[key];
+      group.items.sort(compareSpreadItems);
+      if (group.items.length === 1 || radiusPx <= 0) {
+        group.items.forEach(function (item) {
+          item.displayLat = group.anchor.lat;
+          item.displayLng = group.anchor.lng;
+        });
+        return;
+      }
+      var count = group.items.length;
+      var ringRadius = radiusPx;
+      if (count > 6) ringRadius = radiusPx * (1 + (count - 6) * 0.08);
+      group.items.forEach(function (item, idx) {
+        var angle = (2 * Math.PI * idx) / count - Math.PI / 2;
+        var dx = Math.cos(angle) * ringRadius;
+        var dy = Math.sin(angle) * ringRadius;
+        var ll = latLngFromPixelOffset(group.anchor, dx, dy);
+        item.displayLat = ll.lat;
+        item.displayLng = ll.lng;
+      });
+    });
+    return items;
+  }
+
+  function collectSpreadMarkerItems(filtered, meetingFiltered) {
+    var items = [];
+    filtered.forEach(function (acc) {
+      items.push({ kind: "account", data: acc, baseLat: acc.lat, baseLng: acc.lng });
+    });
+    meetingFiltered.forEach(function (m) {
+      var baseLat = m.baseLat != null ? m.baseLat : m.lat;
+      var baseLng = m.baseLng != null ? m.baseLng : m.lng;
+      items.push({ kind: "meeting", data: m, baseLat: baseLat, baseLng: baseLng });
+    });
+    return applyOverlapSpread(items);
+  }
+
+  function scheduleSpreadRender() {
+    if (spreadRenderTimer) clearTimeout(spreadRenderTimer);
+    spreadRenderTimer = setTimeout(function () {
+      spreadRenderTimer = null;
+      if (mapState.loaded && mapState.map) renderMapMarkers();
+    }, 40);
+  }
+
+  function bindMapSpreadHandlers() {
+    if (!mapState.map || mapState.map.__fpSpreadBound) return;
+    mapState.map.__fpSpreadBound = true;
+    mapState.map.on("zoomend", scheduleSpreadRender);
+  }
+
   function makePinIcon(pinColor) {
     var s = PIN_SIZE;
     var half = Math.round(s / 2);
@@ -806,22 +896,31 @@
     if (!cluster) return;
     clearMarkers();
     var filtered = mapState.located.filter(passesFilters);
-    filtered.forEach(function (acc) {
-      var info = mapState.dealByAccount[acc.id] || {};
-      var stage = info.stage || "No Active Deal";
-      var color = stageColor(stage);
-      var isActive = accountIsActive(acc);
-      var pinColor = isActive ? color.pin : "#9ca3af";
-      var marker = L.marker([acc.lat, acc.lng], { icon: makePinIcon(pinColor) });
-      marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
-      cluster.addLayer(marker);
-    });
-
     var meetingFiltered = (mapState.scheduledMeetings || []).filter(passesMeetingFilters);
-    meetingFiltered.forEach(function (m) {
-      var marker = L.marker([m.lat, m.lng], { icon: makeMeetingPinIcon(), zIndexOffset: 500 });
-      marker.bindPopup(meetingPopupHtml(m), { maxWidth: 300 });
-      cluster.addLayer(marker);
+    var spreadItems = collectSpreadMarkerItems(filtered, meetingFiltered);
+
+    spreadItems.forEach(function (item) {
+      if (item.kind === "account") {
+        var acc = item.data;
+        var info = mapState.dealByAccount[acc.id] || {};
+        var stage = info.stage || "No Active Deal";
+        var color = stageColor(stage);
+        var isActive = accountIsActive(acc);
+        var pinColor = isActive ? color.pin : "#9ca3af";
+        var marker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor) });
+        marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
+        cluster.addLayer(marker);
+        return;
+      }
+      var m = item.data;
+      m.lat = item.displayLat;
+      m.lng = item.displayLng;
+      var meetingMarker = L.marker([item.displayLat, item.displayLng], {
+        icon: makeMeetingPinIcon(),
+        zIndexOffset: 500
+      });
+      meetingMarker.bindPopup(meetingPopupHtml(m), { maxWidth: 300 });
+      cluster.addLayer(meetingMarker);
     });
 
     var statusPins = el("map-status-pins");
@@ -967,6 +1066,7 @@
       maxZoom: 19
     }).addTo(mapState.map);
     ensureClusterGroup();
+    bindMapSpreadHandlers();
     setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 100);
   }
 
