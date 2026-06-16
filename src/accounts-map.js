@@ -185,11 +185,10 @@
   async function geocodeAddress(address, cache) {
     if (!address) return null;
     if (cache[address]) return cache[address];
-    if (typeof refreshZohoToken === "function") await refreshZohoToken();
     var r = await fetchWithTimeout(PROXY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "geocode", token: A.zohoToken, address: address })
+      body: JSON.stringify({ action: "geocode", address: address })
     }, 30000);
     if (!r.ok) return null;
     var d = await r.json();
@@ -247,7 +246,7 @@
       }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
       if (!r.ok) {
         if (r.status === 401 && typeof refreshZohoToken === "function") {
-          await refreshZohoToken();
+          await refreshZohoToken(true);
           r = await fetchWithTimeout(PROXY, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -658,7 +657,23 @@
   async function fetchAndProcessMapData(force) {
     if (typeof refreshZohoToken === "function") {
       var tokOk = await refreshZohoToken();
-      if (!tokOk) throw new Error("Zoho token refresh failed");
+      if (!tokOk) {
+        var cachedOnFail = loadMapCache();
+        if (cachedOnFail && cachedOnFail.located && cachedOnFail.located.length) {
+          restoreFromCache(cachedOnFail, false);
+          mapState.cacheNote = "cached · Zoho refresh failed";
+          updateSubtitle();
+          var errBox = el("map-err");
+          if (errBox) {
+            errBox.textContent = (typeof zohoRefreshFailMsg === "function" ? zohoRefreshFailMsg() : "Zoho token refresh failed") + " Showing last cached map.";
+            errBox.style.display = "block";
+          }
+          setMapOverlay(false);
+          mapState.loading = false;
+          return;
+        }
+        throw new Error(typeof zohoRefreshFailMsg === "function" ? zohoRefreshFailMsg() : "Zoho token refresh failed");
+      }
     }
 
     var geoCache = loadGeoCache();
