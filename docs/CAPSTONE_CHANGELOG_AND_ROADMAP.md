@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v221
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=221
+Current live version: v222
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=222
 ```
 
 ---
@@ -59,6 +59,7 @@ Related docs (detail, not status):
 | v219 | — | **Map: more pins when zoomed out** — statewide MN view instead of metro fitBounds; individual pins at zoom 4+; tighter cluster radius |
 | v220 | — | **Map: adjustable pin grouping** — Every pin / More pins / Balanced / More groups; choice saved on device |
 | v221 | — | **Map: hide legend toggle** — Hide/show deal-stage key on map; preference saved on device |
+| v222 | — | **Map: scheduled meetings** — purple diamond pins for upcoming Zoho meetings on Active deals; toggle + legend |
 
 ### UI / workflow polish
 

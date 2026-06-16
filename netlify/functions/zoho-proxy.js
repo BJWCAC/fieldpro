@@ -98,6 +98,47 @@ exports.handler = async function(event) {
       return { statusCode: mapDealResult.status, headers: h, body: mapDealResult.body };
     }
 
+    if (data.action === "get_map_events") {
+      var eventPage = data.page || 1;
+      var moduleName = data.crm_module || "Events";
+      var titleField = moduleName === "Meetings" ? "Meeting_Title" : "Event_Title";
+      var eventFields = titleField + ",Start_DateTime,End_DateTime,What_Id,Venue,Location,$se_module,$event_cancelled";
+
+      function fetchCrmEvents(mod) {
+        var tf = mod === "Meetings" ? "Meeting_Title" : "Event_Title";
+        var fields = tf + ",Start_DateTime,End_DateTime,What_Id,Venue,Location,$se_module,$event_cancelled";
+        return req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + mod + "?per_page=200&page=" + eventPage + "&fields=" + encodeURIComponent(fields),
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+      }
+
+      var eventResult = await fetchCrmEvents(moduleName);
+      if (!data.crm_module && eventPage === 1 && eventResult.status >= 400) {
+        var meetingTry = await fetchCrmEvents("Meetings");
+        if (meetingTry.status >= 200 && meetingTry.status < 300) {
+          eventResult = meetingTry;
+          moduleName = "Meetings";
+        }
+      }
+      if (eventResult.status < 200 || eventResult.status >= 300) {
+        return { statusCode: eventResult.status, headers: h, body: eventResult.body };
+      }
+      try {
+        var eventJson = JSON.parse(eventResult.body);
+        eventJson.data = (eventJson.data || []).map(function (row) {
+          if (!row.Event_Title && row.Meeting_Title) row.Event_Title = row.Meeting_Title;
+          return row;
+        });
+        eventJson.__fp_module = moduleName;
+        return { statusCode: 200, headers: h, body: JSON.stringify(eventJson) };
+      } catch (ee) {
+        return { statusCode: eventResult.status, headers: h, body: eventResult.body };
+      }
+    }
+
     if (data.action === "geocode") {
       var geoKey = process.env.GOOGLE_GEOCODE_API_KEY || "";
       var address = String(data.address || "").trim();
