@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=216"/>
+<link rel="stylesheet" href="src/styles.css?v=217"/>
 
 </head>
 <body>
@@ -529,7 +529,7 @@
     <div class="help-box-body">
       <p>The Map tab plots all Zoho CRM accounts on an OpenStreetMap view. Pin color reflects deal stage; inactive accounts appear gray.</p>
       <ul>
-        <li>Stored coordinates on the account are used first — geocoding runs in the background.</li>
+        <li>Location priority: <strong>Main Site Coordinates</strong> field first, then Google Maps extension lat/lng, then address geocoding in the background.</li>
         <li>Map data is cached on this device for 24 hours; tap Refresh to force a Zoho sync.</li>
         <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
         <li>Tap a pin to select the deal in CapStone or open the account in Zoho CRM.</li>
@@ -821,8 +821,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=215"></script>
-<script src="src/app.js?v=215"></script>
+<script src="src/accounts-map.js?v=217"></script>
+<script src="src/app.js?v=217"></script>
 
 </body>
 </html>
