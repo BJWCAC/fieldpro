@@ -1,12 +1,14 @@
 /* CapStone Accounts Map — Leaflet + OSM with phased load, cache, clustering */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
-  var MAP_CACHE_KEY = "fp_map_cache_v2";
+  var MAP_CACHE_KEY = "fp_map_cache_v3";
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [46.0, -94.0];
   var MAP_ZOOM = 6;
   var MAP_FIT_MAX_ZOOM = 6;
   var PIN_SIZE = 12;
+  var MEETING_PIN_COLOR = "#a855f7";
+  var OVERLAP_GRID_STEP = 0.00012;
   var CLUSTER_MODE_KEY = "fp_map_cluster_mode";
   var LEGEND_HIDDEN_KEY = "fp_map_legend_hidden";
   var CLUSTER_PRESETS = {
@@ -36,6 +38,7 @@
   var mapLibsLoaded = false;
   var mapLibsLoading = false;
   var mapLibsWaiters = [];
+  var spreadRenderTimer = null;
 
   var mapState = {
     map: null,
@@ -53,7 +56,11 @@
     initialViewDone: false,
     clusterMode: "loose",
     legendHidden: false,
-    filters: { search: "", pipeline: "", stage: "", status: "" }
+    scheduledMeetings: [],
+    rawMapEvents: [],
+    activeDealIndex: null,
+    eventsModule: "Events",
+    filters: { search: "", pipeline: "", stage: "", status: "", showMeetings: true }
   };
 
   function loadClusterMode() {
@@ -172,7 +179,11 @@
         dealByAccount: mapState.dealByAccount,
         located: mapState.located,
         noAddress: mapState.noAddress,
-        truncated: mapState.truncated
+        truncated: mapState.truncated,
+        scheduledMeetings: mapState.scheduledMeetings,
+        rawMapEvents: mapState.rawMapEvents,
+        activeDealIndex: mapState.activeDealIndex,
+        eventsModule: mapState.eventsModule
       }));
     } catch (e) {}
   }
@@ -358,6 +369,151 @@
     return dm;
   }
 
+  function buildActiveDealIndex(deals) {
+    var dealToAccount = {};
+    var activeDealIds = {};
+    deals.forEach(function (deal) {
+      var accId = deal.Account_Name && deal.Account_Name.id;
+      if (!accId || !deal.id) return;
+      dealToAccount[deal.id] = {
+        accountId: accId,
+        dealName: str(deal.Deal_Name),
+        stage: str(deal.Stage)
+      };
+      if (str(deal.Stage) === "Active") activeDealIds[deal.id] = true;
+    });
+    return { dealToAccount: dealToAccount, activeDealIds: activeDealIds };
+  }
+
+  function parseZohoDateTime(raw) {
+    if (!raw) return null;
+    var d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function formatMeetingWhen(start, end) {
+    var s = parseZohoDateTime(start);
+    if (!s) return "";
+    var out = s.toLocaleString(undefined, {
+      weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+    });
+    var e = parseZohoDateTime(end);
+    if (e) {
+      out += " – " + e.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    }
+    return out;
+  }
+
+  function accountLocById() {
+    var byId = {};
+    mapState.located.forEach(function (acc) { byId[acc.id] = acc; });
+    return byId;
+  }
+
+  function buildScheduledMeetings(events, dealIndex, locById) {
+    if (!dealIndex || !events || !events.length) return [];
+    var meetings = [];
+    var now = Date.now();
+    events.forEach(function (ev) {
+      if (ev.$event_cancelled === true || ev.$event_cancelled === "true") return;
+      var seModule = str(ev.$se_module);
+      if (seModule && seModule !== "Deals") return;
+      var dealId = ev.What_Id && ev.What_Id.id;
+      if (!dealId || !dealIndex.activeDealIds[dealId]) return;
+      var end = parseZohoDateTime(ev.End_DateTime || ev.Start_DateTime);
+      if (!end || end.getTime() < now) return;
+      var dealInfo = dealIndex.dealToAccount[dealId];
+      if (!dealInfo) return;
+      var acc = locById[dealInfo.accountId];
+      if (!acc || acc.lat == null || acc.lng == null) return;
+      meetings.push({
+        id: ev.id,
+        title: str(ev.Event_Title) || "Meeting",
+        start: ev.Start_DateTime,
+        end: ev.End_DateTime,
+        venue: str(ev.Venue) || str(ev.Location) || "",
+        dealId: dealId,
+        dealName: dealInfo.dealName,
+        accountId: dealInfo.accountId,
+        accountName: str(acc.Account_Name),
+        baseLat: acc.lat,
+        baseLng: acc.lng,
+        lat: acc.lat,
+        lng: acc.lng,
+        eventModule: mapState.eventsModule || "Events"
+      });
+    });
+    meetings.sort(function (a, b) {
+      var ta = parseZohoDateTime(a.start);
+      var tb = parseZohoDateTime(b.start);
+      return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+    });
+    return meetings;
+  }
+
+  function refreshScheduledMeetings() {
+    if (!mapState.activeDealIndex) {
+      mapState.scheduledMeetings = [];
+      return;
+    }
+    mapState.scheduledMeetings = buildScheduledMeetings(
+      mapState.rawMapEvents || [],
+      mapState.activeDealIndex,
+      accountLocById()
+    );
+  }
+
+  async function fetchMapEvents(maxPages) {
+    var all = [], page = 1, hasMore = true, truncated = false, crmModule = null;
+    maxPages = maxPages || 10;
+    while (hasMore && page <= maxPages) {
+      var body = { action: "get_map_events", token: A.zohoToken, page: page };
+      if (crmModule) body.crm_module = crmModule;
+      var r = await fetchWithTimeout(PROXY, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+      if (!r.ok) {
+        if (r.status === 401 && typeof refreshZohoToken === "function") {
+          await refreshZohoToken(true);
+          body.token = A.zohoToken;
+          r = await fetchWithTimeout(PROXY, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+        }
+        if (!r.ok) break;
+      }
+      var d = await r.json();
+      if (page === 1 && d.__fp_module) {
+        crmModule = d.__fp_module;
+        mapState.eventsModule = crmModule;
+      }
+      (d.data || []).forEach(function (rec) { all.push(rec); });
+      hasMore = !!(d.info && d.info.more_records);
+      if (hasMore && page >= maxPages) truncated = true;
+      page++;
+      setProgress("Loading events… " + all.length + (truncated ? "+" : ""));
+    }
+    return { data: all, truncated: truncated };
+  }
+
+  function findLocatedAccount(accountId) {
+    for (var i = 0; i < mapState.located.length; i++) {
+      if (mapState.located[i].id === accountId) return mapState.located[i];
+    }
+    return null;
+  }
+
+  function passesMeetingFilters(m) {
+    if (!mapState.filters.showMeetings) return false;
+    var acc = findLocatedAccount(m.accountId);
+    if (!acc) return false;
+    return passesFilters(acc);
+  }
+
   async function fetchAllPages(action, maxPages) {
     var all = [], page = 1, hasMore = true, truncated = false;
     maxPages = maxPages || 50;
@@ -443,6 +599,11 @@
     return "https://crm.zoho.com/crm/tab/Potentials/" + encodeURIComponent(dealId);
   }
 
+  function zohoEventUrl(eventId, eventModule) {
+    var mod = eventModule || mapState.eventsModule || "Events";
+    return "https://crm.zoho.com/crm/tab/" + mod + "/" + encodeURIComponent(eventId);
+  }
+
   function findDealIdForAccount(accountId) {
     var info = mapState.dealByAccount[accountId];
     if (info && info.dealId) return info.dealId;
@@ -467,6 +628,96 @@
     else alert("No deal found. Refresh deals on the Deals tab first.");
   }
 
+  function overlapGroupKey(lat, lng) {
+    return Math.round(lat / OVERLAP_GRID_STEP) + "|" + Math.round(lng / OVERLAP_GRID_STEP);
+  }
+
+  function spreadPixelRadius(zoom) {
+    if (zoom <= 4) return 0;
+    if (zoom <= 6) return 6 + (zoom - 4) * 5;
+    if (zoom <= 10) return 16 + (zoom - 6) * 11;
+    return Math.min(132, 60 + (zoom - 10) * 13);
+  }
+
+  function latLngFromPixelOffset(anchor, dx, dy) {
+    var pt = mapState.map.latLngToContainerPoint(anchor);
+    return mapState.map.containerPointToLatLng(L.point(pt.x + dx, pt.y + dy));
+  }
+
+  function compareSpreadItems(a, b) {
+    if (a.kind !== b.kind) return a.kind === "account" ? -1 : 1;
+    if (a.kind === "account") {
+      return str(a.data.Account_Name).localeCompare(str(b.data.Account_Name));
+    }
+    var ta = parseZohoDateTime(a.data.start);
+    var tb = parseZohoDateTime(b.data.start);
+    return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+  }
+
+  function applyOverlapSpread(items) {
+    if (!mapState.map || !items.length) return items;
+    var zoom = mapState.map.getZoom();
+    var radiusPx = spreadPixelRadius(zoom);
+    var groups = {};
+    items.forEach(function (item) {
+      var key = overlapGroupKey(item.baseLat, item.baseLng);
+      if (!groups[key]) {
+        groups[key] = { anchor: L.latLng(item.baseLat, item.baseLng), items: [] };
+      }
+      groups[key].items.push(item);
+    });
+    Object.keys(groups).forEach(function (key) {
+      var group = groups[key];
+      group.items.sort(compareSpreadItems);
+      if (group.items.length === 1 || radiusPx <= 0) {
+        group.items.forEach(function (item) {
+          item.displayLat = group.anchor.lat;
+          item.displayLng = group.anchor.lng;
+        });
+        return;
+      }
+      var count = group.items.length;
+      var ringRadius = radiusPx;
+      if (count > 6) ringRadius = radiusPx * (1 + (count - 6) * 0.08);
+      group.items.forEach(function (item, idx) {
+        var angle = (2 * Math.PI * idx) / count - Math.PI / 2;
+        var dx = Math.cos(angle) * ringRadius;
+        var dy = Math.sin(angle) * ringRadius;
+        var ll = latLngFromPixelOffset(group.anchor, dx, dy);
+        item.displayLat = ll.lat;
+        item.displayLng = ll.lng;
+      });
+    });
+    return items;
+  }
+
+  function collectSpreadMarkerItems(filtered, meetingFiltered) {
+    var items = [];
+    filtered.forEach(function (acc) {
+      items.push({ kind: "account", data: acc, baseLat: acc.lat, baseLng: acc.lng });
+    });
+    meetingFiltered.forEach(function (m) {
+      var baseLat = m.baseLat != null ? m.baseLat : m.lat;
+      var baseLng = m.baseLng != null ? m.baseLng : m.lng;
+      items.push({ kind: "meeting", data: m, baseLat: baseLat, baseLng: baseLng });
+    });
+    return applyOverlapSpread(items);
+  }
+
+  function scheduleSpreadRender() {
+    if (spreadRenderTimer) clearTimeout(spreadRenderTimer);
+    spreadRenderTimer = setTimeout(function () {
+      spreadRenderTimer = null;
+      if (mapState.loaded && mapState.map) renderMapMarkers();
+    }, 40);
+  }
+
+  function bindMapSpreadHandlers() {
+    if (!mapState.map || mapState.map.__fpSpreadBound) return;
+    mapState.map.__fpSpreadBound = true;
+    mapState.map.on("zoomend", scheduleSpreadRender);
+  }
+
   function makePinIcon(pinColor) {
     var s = PIN_SIZE;
     var half = Math.round(s / 2);
@@ -476,6 +727,35 @@
       iconSize: [s, s],
       iconAnchor: [half, half]
     });
+  }
+
+  function makeMeetingPinIcon() {
+    var s = PIN_SIZE + 4;
+    var half = Math.round(s / 2);
+    return L.divIcon({
+      className: "",
+      html: "<div style=\"width:" + s + "px;height:" + s + "px;transform:rotate(45deg);background:" + MEETING_PIN_COLOR + ";border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.5)\"></div>",
+      iconSize: [s, s],
+      iconAnchor: [half, half]
+    });
+  }
+
+  function meetingPopupHtml(m) {
+    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
+    html += "<div style=\"font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:" + MEETING_PIN_COLOR + ";margin-bottom:4px\">Scheduled meeting</div>";
+    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(m.title) + "</div>";
+    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:6px\">" + esc(formatMeetingWhen(m.start, m.end)) + "</div>";
+    html += "<div style=\"font-size:12px;color:#334155;margin-bottom:4px\"><strong>" + esc(m.accountName) + "</strong></div>";
+    html += "<div style=\"font-size:12px;color:#64748b;margin-bottom:6px\">Deal: " + esc(m.dealName) + "</div>";
+    if (m.venue) {
+      html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:6px\">" + esc(m.venue) + "</div>";
+    }
+    html += "<div class=\"map-popup-actions\">";
+    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapSelectDealForAccount('" + String(m.accountId).replace(/'/g, "\\'") + "')\">Select deal in CapStone</button>";
+    html += "<a href=\"" + esc(zohoEventUrl(m.id, m.eventModule)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open meeting in Zoho ↗</a>";
+    html += "<a href=\"" + esc(zohoDealUrl(m.dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open deal in Zoho ↗</a>";
+    html += "</div></div>";
+    return html;
   }
 
   function popupHtml(acc) {
@@ -603,6 +883,8 @@
       html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-pip\" style=\"background:" + PIPELINE_COLORS[name] + "\"></span><span style=\"color:#cbd5e1\">" + esc(name) + "</span></div>";
     });
     html += "<div class=\"map-legend-divider\"></div>";
+    html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-diamond\" style=\"background:" + MEETING_PIN_COLOR + "\"></span><span style=\"color:#cbd5e1\">Scheduled meeting</span></div>";
+    html += "<div class=\"map-legend-divider\"></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#9ca3af\"></span><span style=\"color:#64748b\">Inactive</span></div>";
     leg.innerHTML = html;
     applyLegendVisibility();
@@ -614,19 +896,39 @@
     if (!cluster) return;
     clearMarkers();
     var filtered = mapState.located.filter(passesFilters);
-    filtered.forEach(function (acc) {
-      var info = mapState.dealByAccount[acc.id] || {};
-      var stage = info.stage || "No Active Deal";
-      var color = stageColor(stage);
-      var isActive = accountIsActive(acc);
-      var pinColor = isActive ? color.pin : "#9ca3af";
-      var marker = L.marker([acc.lat, acc.lng], { icon: makePinIcon(pinColor) });
-      marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
-      cluster.addLayer(marker);
+    var meetingFiltered = (mapState.scheduledMeetings || []).filter(passesMeetingFilters);
+    var spreadItems = collectSpreadMarkerItems(filtered, meetingFiltered);
+
+    spreadItems.forEach(function (item) {
+      if (item.kind === "account") {
+        var acc = item.data;
+        var info = mapState.dealByAccount[acc.id] || {};
+        var stage = info.stage || "No Active Deal";
+        var color = stageColor(stage);
+        var isActive = accountIsActive(acc);
+        var pinColor = isActive ? color.pin : "#9ca3af";
+        var marker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor) });
+        marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
+        cluster.addLayer(marker);
+        return;
+      }
+      var m = item.data;
+      m.lat = item.displayLat;
+      m.lng = item.displayLng;
+      var meetingMarker = L.marker([item.displayLat, item.displayLng], {
+        icon: makeMeetingPinIcon(),
+        zIndexOffset: 500
+      });
+      meetingMarker.bindPopup(meetingPopupHtml(m), { maxWidth: 300 });
+      cluster.addLayer(meetingMarker);
     });
 
     var statusPins = el("map-status-pins");
     if (statusPins) statusPins.textContent = String(filtered.length);
+    var statusMeetings = el("map-status-meetings");
+    if (statusMeetings) {
+      statusMeetings.textContent = meetingFiltered.length ? " · " + meetingFiltered.length + " meetings" : "";
+    }
 
     var statusFilters = el("map-status-filters");
     if (statusFilters) {
@@ -691,6 +993,9 @@
     var subtitle = el("map-subtitle");
     if (!subtitle || mapState.loading) return;
     var parts = [mapState.located.length + " mapped", mapState.noAddress.length + " missing address"];
+    if (mapState.scheduledMeetings && mapState.scheduledMeetings.length) {
+      parts.push(mapState.scheduledMeetings.length + " upcoming meetings");
+    }
     if (mapState.cacheNote) parts.push(mapState.cacheNote);
     if (mapState.truncated) parts.push("list may be truncated");
     subtitle.textContent = parts.join(" · ");
@@ -719,6 +1024,8 @@
     mapState.filters.pipeline = (el("map-f-pipeline") || { value: "" }).value;
     mapState.filters.stage = (el("map-f-stage") || { value: "" }).value;
     mapState.filters.status = (el("map-f-status") || { value: "" }).value;
+    var meetingsCb = el("map-f-meetings");
+    mapState.filters.showMeetings = meetingsCb ? !!meetingsCb.checked : true;
     renderMapMarkers();
     renderMissingPanel();
   }
@@ -738,10 +1045,14 @@
     mapState.located = data.located || [];
     mapState.noAddress = data.noAddress || [];
     mapState.truncated = !!data.truncated;
+    mapState.rawMapEvents = data.rawMapEvents || [];
+    mapState.activeDealIndex = data.activeDealIndex || null;
+    mapState.eventsModule = data.eventsModule || "Events";
     mapState.loaded = true;
     mapState.cacheNote = stale
       ? "cached · refreshing…"
       : "cached · " + new Date(data.savedAt).toLocaleString();
+    refreshScheduledMeetings();
     applyMapDataset({ mnView: true });
   }
 
@@ -755,6 +1066,7 @@
       maxZoom: 19
     }).addTo(mapState.map);
     ensureClusterGroup();
+    bindMapSpreadHandlers();
     setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 100);
   }
 
@@ -790,6 +1102,7 @@
       if (loc) {
         mapState.located.push(Object.assign({}, acc, loc));
         batch++;
+        refreshScheduledMeetings();
       } else {
         acc.missingReason = "geocode_failed";
         mapState.noAddress.push(acc);
@@ -843,12 +1156,23 @@
     var acctResult = await fetchAllPages("get_accounts", 20);
     setProgress("Loaded " + acctResult.data.length + " accounts. Fetching deals…");
     var dealResult = await fetchAllPages("get_map_deals", 10);
+    mapState.activeDealIndex = buildActiveDealIndex(dealResult.data);
     mapState.dealByAccount = buildDealMap(dealResult.data);
-    mapState.truncated = acctResult.truncated || dealResult.truncated;
+
+    var eventResult = { data: [], truncated: false };
+    try {
+      setProgress("Fetching scheduled meetings…");
+      eventResult = await fetchMapEvents(10);
+      mapState.rawMapEvents = eventResult.data;
+    } catch (evErr) {
+      mapState.rawMapEvents = [];
+    }
 
     var split = splitAccountsByLocation(acctResult.data);
     mapState.located = split.withLoc;
     mapState.noAddress = split.withoutLoc;
+    refreshScheduledMeetings();
+    mapState.truncated = acctResult.truncated || dealResult.truncated || eventResult.truncated;
     mapState.loaded = true;
     mapState.cacheNote = "";
 

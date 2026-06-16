@@ -172,6 +172,9 @@ body.light .hist-card{background:#fff}
 .map-legend-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .map-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(255,255,255,.25)}
 .map-legend-pip{border-radius:3px}
+.map-legend-diamond{border-radius:2px;transform:rotate(45deg);width:8px;height:8px;margin:0 1px}
+.map-meetings-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8;margin-top:2px;cursor:pointer;user-select:none}
+.map-meetings-toggle input{width:16px;height:16px;accent-color:#a855f7;cursor:pointer}
 .map-loading-overlay{position:absolute;inset:0;background:rgba(15,23,42,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1000}
 .map-spinner{width:30px;height:30px;border:3px solid #334155;border-top:3px solid #3b82f6;border-radius:50%;animation:map-spin .8s linear infinite}
 .map-overlay-msg{font-size:13px;color:#94a3b8;text-align:center;max-width:260px;line-height:1.5}
