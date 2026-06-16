@@ -8,6 +8,7 @@
   var MAP_FIT_MAX_ZOOM = 6;
   var PIN_SIZE = 12;
   var CLUSTER_MODE_KEY = "fp_map_cluster_mode";
+  var LEGEND_HIDDEN_KEY = "fp_map_legend_hidden";
   var CLUSTER_PRESETS = {
     all: { maxClusterRadius: 8, disableClusteringAtZoom: 0 },
     loose: { maxClusterRadius: 12, disableClusteringAtZoom: 4 },
@@ -51,6 +52,7 @@
     cacheNote: "",
     initialViewDone: false,
     clusterMode: "loose",
+    legendHidden: false,
     filters: { search: "", pipeline: "", stage: "", status: "" }
   };
 
@@ -82,6 +84,34 @@
   function syncClusterModeSelect() {
     var sel = el("map-f-cluster");
     if (sel) sel.value = mapState.clusterMode || "loose";
+  }
+
+  function loadLegendHidden() {
+    try { return localStorage.getItem(LEGEND_HIDDEN_KEY) === "1"; }
+    catch (e) { return false; }
+  }
+
+  function saveLegendHidden(hidden) {
+    try { localStorage.setItem(LEGEND_HIDDEN_KEY, hidden ? "1" : "0"); }
+    catch (e) {}
+  }
+
+  function syncLegendToggleButton() {
+    var btn = el("map-legend-toggle");
+    if (!btn) return;
+    btn.textContent = mapState.legendHidden ? "Show legend" : "Hide legend";
+  }
+
+  function applyLegendVisibility() {
+    var leg = el("map-legend");
+    if (leg) leg.style.display = mapState.legendHidden ? "none" : "";
+    syncLegendToggleButton();
+  }
+
+  function toggleMapLegend() {
+    mapState.legendHidden = !mapState.legendHidden;
+    saveLegendHidden(mapState.legendHidden);
+    applyLegendVisibility();
   }
 
   function str(v) {
@@ -575,6 +605,7 @@
     html += "<div class=\"map-legend-divider\"></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#9ca3af\"></span><span style=\"color:#64748b\">Inactive</span></div>";
     leg.innerHTML = html;
+    applyLegendVisibility();
   }
 
   function renderMapMarkers() {
@@ -900,7 +931,9 @@
 
   function initAccountsMapTab() {
     mapState.clusterMode = loadClusterMode();
+    mapState.legendHidden = loadLegendHidden();
     syncClusterModeSelect();
+    applyLegendVisibility();
     loadMapLibs().then(function () {
       ensureMap();
       var cached = loadMapCache();
@@ -936,5 +969,6 @@
   window.applyMapClusterMode = applyMapClusterMode;
   window.initAccountsMapTab = initAccountsMapTab;
   window.toggleMapMissingPanel = toggleMapMissingPanel;
+  window.toggleMapLegend = toggleMapLegend;
   window.mapSelectDealForAccount = mapSelectDealForAccount;
 })();

@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v220
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=220
+Current live version: v221
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=221
 ```
 
 ---
@@ -58,6 +58,7 @@ Related docs (detail, not status):
 | v218 | #110 | **Map: active-only initial load** — first open filters to Active accounts and geocodes active only; MN center zoom 6 |
 | v219 | — | **Map: more pins when zoomed out** — statewide MN view instead of metro fitBounds; individual pins at zoom 4+; tighter cluster radius |
 | v220 | — | **Map: adjustable pin grouping** — Every pin / More pins / Balanced / More groups; choice saved on device |
+| v221 | — | **Map: hide legend toggle** — Hide/show deal-stage key on map; preference saved on device |
 
 ### UI / workflow polish
 
