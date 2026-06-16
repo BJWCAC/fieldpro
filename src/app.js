@@ -22,7 +22,7 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="214";
+var FP_VERSION="215";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -741,8 +741,29 @@ function saveCurrentToHistory(){return saveCaptureWorkLocally({silent:true});}
 
 // ZOHO
 async function refreshZohoToken(){
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},30000);
-  var d=await r.json();if(d.access_token){A.zohoToken=d.access_token;return true;}return false;
+  A.zohoRefreshError=null;
+  for(var attempt=0;attempt<2;attempt++){
+    try{
+      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},45000);
+      var txt=await r.text();
+      var d={};
+      try{d=JSON.parse(txt);}catch(pe){}
+      if(d.access_token){A.zohoToken=d.access_token;return true;}
+      A.zohoRefreshError=String(d.error||d.message||("HTTP "+r.status+(txt?": "+txt.substring(0,100):""))).trim();
+    }catch(e){
+      A.zohoRefreshError=e.message||String(e);
+    }
+    if(attempt===0)await waitMs(1500);
+  }
+  return false;
+}
+function zohoRefreshFailMsg(){
+  var err=A.zohoRefreshError||"";
+  if(err.indexOf("timed out")>=0||err.indexOf("Timeout")>=0)return"Zoho connection timed out — check cell/Wi‑Fi signal and try again.";
+  if(/invalid|expired|revoked|REFRESH/i.test(err))return"Zoho login expired — contact admin to refresh CapStone OAuth credentials.";
+  if(/Failed to fetch|NetworkError|offline|Load failed/i.test(err))return"Cannot reach Zoho — device appears offline or Netlify proxy blocked.";
+  if(err)return"Zoho error: "+err;
+  return"Zoho token refresh failed — check connection and try again.";
 }
 async function loadDeals(){
   var btn=el("ref-btn");if(btn){btn.disabled=true;btn.textContent="Syncing...";}
@@ -750,7 +771,7 @@ async function loadDeals(){
   if(sm){sm.textContent="Connecting to Zoho CRM (20s timeout)...";sm.style.color="var(--dim)";}
   try{
     var tokOk=await refreshZohoToken();
-    if(!tokOk)throw new Error("Zoho token refresh failed — proxy or credentials");
+    if(!tokOk)throw new Error(zohoRefreshFailMsg());
     var allDeals=[],page=1,hasMore=true;
     while(hasMore&&page<=10){
       var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})},ZOHO_FETCH_MS);

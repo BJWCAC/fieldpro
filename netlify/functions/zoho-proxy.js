@@ -201,12 +201,19 @@ exports.handler = async function(event) {
     }
 
     if (data.action === "refresh_token") {
+      var tokenBody = "refresh_token=" + encodeURIComponent(String(data.refresh_token || "")) +
+        "&client_id=" + encodeURIComponent(String(data.client_id || "")) +
+        "&client_secret=" + encodeURIComponent(String(data.client_secret || "")) +
+        "&grant_type=refresh_token";
       var result3 = await req({
         hostname: "accounts.zoho.com",
-        path: "/oauth/v2/token?refresh_token=" + data.refresh_token + "&client_id=" + data.client_id + "&client_secret=" + data.client_secret + "&grant_type=refresh_token",
+        path: "/oauth/v2/token",
         method: "POST",
-        headers: { "Content-Length": "0" }
-      });
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(tokenBody)
+        }
+      }, tokenBody);
       return { statusCode: result3.status, headers: h, body: result3.body };
     }
 
