@@ -1,38 +1,36 @@
-/* CapStone Accounts Map — Leaflet + OSM, Zoho Accounts + Deals */
+/* CapStone Accounts Map — Leaflet + OSM (aligned with AccountsMap.jsx) */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
   var MAP_CENTER = [44.5, -93.5];
   var MAP_ZOOM = 7;
 
   var STAGE_COLORS = {
-    Active: "#22c55e",
-    Qualified: "#3b82f6",
-    Proposal: "#f59e0b",
-    Negotiation: "#f97316",
-    "Closed Won": "#8b5cf6",
-    "Closed Lost": "#6b7280",
-    Prospect: "#06b6d4",
-    "No Active Deal": "#64748b"
+    Active: { pin: "#22c55e", label: "Active", text: "#15803d" },
+    Qualified: { pin: "#3b82f6", label: "Qualified", text: "#1d4ed8" },
+    Proposal: { pin: "#f59e0b", label: "Proposal", text: "#b45309" },
+    Negotiation: { pin: "#f97316", label: "Negotiation", text: "#c2410c" },
+    "Closed Won": { pin: "#8b5cf6", label: "Closed Won", text: "#6d28d9" },
+    "Closed Lost": { pin: "#6b7280", label: "Closed Lost", text: "#374151" },
+    Prospect: { pin: "#06b6d4", label: "Prospect", text: "#0e7490" },
+    "No Deal": { pin: "#9ca3af", label: "No Deal", text: "#6b7280" }
   };
+  var DEFAULT_COLOR = { pin: "#64748b", label: "No Active Deal", text: "#475569" };
 
-  var STAGE_ORDER = ["Active", "Qualified", "Proposal", "Negotiation", "Closed Won", "Closed Lost", "Prospect", "No Active Deal"];
+  var PIPELINE_COLORS = {
+    Jobs: "#3b82f6",
+    "InHouse Lab": "#a855f7"
+  };
 
   var mapState = {
     map: null,
     markers: [],
-    accounts: [],
     dealByAccount: {},
-    resolved: [],
-    missing: [],
+    located: [],
+    noAddress: [],
     loaded: false,
     loading: false,
-    filters: {
-      search: "",
-      pipeline: "",
-      stage: "",
-      status: "",
-      showMissing: false
-    }
+    showNoAddr: false,
+    filters: { search: "", pipeline: "", stage: "", status: "" }
   };
 
   function str(v) {
@@ -41,54 +39,41 @@
     return String(v);
   }
 
-  function readGeoCache() {
-    try {
-      return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || "{}") || {};
-    } catch (e) {
-      return {};
-    }
+  function sleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
   }
 
-  function writeGeoCache(cache) {
-    try {
-      localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache));
-    } catch (e) {}
+  function loadGeoCache() {
+    try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || "{}") || {}; }
+    catch (e) { return {}; }
   }
 
-  function hasShippingFields(acct) {
-    return !!(acct.Shipping_Street || acct.Shipping_Street_2 || acct.Shipping_City || acct.Shipping_State || acct.Shipping_Code);
+  function saveGeoCache(cache) {
+    try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache)); }
+    catch (e) {}
   }
 
-  function buildShippingAddress(acct) {
-    return [acct.Shipping_Street, acct.Shipping_Street_2, acct.Shipping_City, acct.Shipping_State, acct.Shipping_Code]
-      .map(function (x) { return String(x || "").trim(); })
-      .filter(Boolean)
-      .join(", ");
+  function shippingAddrStr(acc) {
+    return [acc.Shipping_Street, acc.Shipping_Street_2, acc.Shipping_City, acc.Shipping_State, acc.Shipping_Code]
+      .filter(Boolean).join(", ");
   }
 
-  function buildBillingAddress(acct) {
-    return [acct.Billing_Street, acct.Billing_City, acct.Billing_State, acct.Billing_Code]
-      .map(function (x) { return String(x || "").trim(); })
-      .filter(Boolean)
-      .join(", ");
+  function billingAddrStr(acc) {
+    return [acc.Billing_Street, acc.Billing_City, acc.Billing_State, acc.Billing_Code]
+      .filter(Boolean).join(", ");
   }
 
-  function parseStoredCoords(acct) {
-    var lat = parseFloat(acct.googlemapreports__Latitude);
-    var lng = parseFloat(acct.googlemapreports__Longitude);
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      return { lat: lat, lng: lng };
-    }
-    return null;
+  function accountIsActive(acc) {
+    return str(acc.Account_Status) !== "Inactive";
   }
 
-  async function geocodeAddress(address) {
-    var key = String(address || "").trim().toLowerCase();
-    if (!key) return null;
-    var cache = readGeoCache();
-    if (cache[key] && cache[key].lat != null && cache[key].lng != null) {
-      return { lat: cache[key].lat, lng: cache[key].lng };
-    }
+  function stageColor(stage) {
+    return STAGE_COLORS[stage] || DEFAULT_COLOR;
+  }
+
+  async function geocodeAddress(address, cache) {
+    if (!address) return null;
+    if (cache[address]) return cache[address];
     if (typeof refreshZohoToken === "function") await refreshZohoToken();
     var r = await fetchWithTimeout(PROXY, {
       method: "POST",
@@ -98,56 +83,49 @@
     if (!r.ok) return null;
     var d = await r.json();
     if (d.ok && d.lat != null && d.lng != null) {
-      cache[key] = { lat: d.lat, lng: d.lng };
-      writeGeoCache(cache);
-      return { lat: d.lat, lng: d.lng };
+      cache[address] = { lat: d.lat, lng: d.lng };
+      saveGeoCache(cache);
+      return cache[address];
     }
     return null;
   }
 
-  function accountInactive(acct) {
-    var s = String(acct.Account_Status || "").trim().toLowerCase();
-    return s === "inactive" || s === "closed" || s.indexOf("inactive") >= 0;
+  async function resolveLocation(acc, geoCache) {
+    var lat = parseFloat(acc.googlemapreports__Latitude);
+    var lng = parseFloat(acc.googlemapreports__Longitude);
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      return { lat: lat, lng: lng, source: "stored", addrStr: shippingAddrStr(acc) || "Coordinates on file" };
+    }
+    var shipStr = shippingAddrStr(acc);
+    if (shipStr) {
+      var shipCoords = await geocodeAddress(shipStr, geoCache);
+      if (shipCoords) return { lat: shipCoords.lat, lng: shipCoords.lng, source: "shipping", addrStr: shipStr };
+    }
+    var billStr = billingAddrStr(acc);
+    if (billStr) {
+      var billCoords = await geocodeAddress(billStr, geoCache);
+      if (billCoords) return { lat: billCoords.lat, lng: billCoords.lng, source: "billing", addrStr: billStr };
+    }
+    return null;
   }
 
   function buildDealMap(deals) {
-    var byAcct = {};
-    var stageRank = { Active: 100, Negotiation: 80, Proposal: 70, Qualified: 60, Prospect: 50, "Closed Won": 40, "Closed Lost": 30 };
+    var dm = {};
     deals.forEach(function (deal) {
-      var acctId = (deal.Account_Name && deal.Account_Name.id) || "";
-      if (!acctId) return;
-      var stage = str(deal.Stage) || "";
-      var pipeline = str(deal.Pipeline) || "";
-      var existing = byAcct[acctId];
-      if (!existing) {
-        byAcct[acctId] = { stage: stage, pipeline: pipeline, hasActive: stage === "Active" };
-        return;
-      }
-      if (stage === "Active") {
-        existing.stage = "Active";
-        existing.hasActive = true;
-        if (pipeline) existing.pipeline = pipeline;
-        return;
-      }
-      if (existing.hasActive) {
-        if (pipeline && !existing.pipeline) existing.pipeline = pipeline;
-        return;
-      }
-      var curRank = stageRank[existing.stage] || 0;
-      var newRank = stageRank[stage] || 0;
-      if (newRank > curRank) {
-        existing.stage = stage;
-        if (pipeline) existing.pipeline = pipeline;
-      } else if (pipeline && !existing.pipeline) {
-        existing.pipeline = pipeline;
+      var accId = deal.Account_Name && deal.Account_Name.id;
+      if (!accId) return;
+      var existing = dm[accId];
+      if (!existing || str(deal.Stage) === "Active") {
+        dm[accId] = { stage: str(deal.Stage), pipeline: str(deal.Pipeline) || "" };
       }
     });
-    return byAcct;
+    return dm;
   }
 
-  async function fetchAllPages(action) {
+  async function fetchAllPages(action, maxPages) {
     var all = [], page = 1, hasMore = true;
-    while (hasMore && page <= 50) {
+    maxPages = maxPages || 50;
+    while (hasMore && page <= maxPages) {
       var r = await fetchWithTimeout(PROXY, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,137 +146,89 @@
       (d.data || []).forEach(function (rec) { all.push(rec); });
       hasMore = d.info && d.info.more_records;
       page++;
-      var msg = el("map-load-msg");
-      if (msg) msg.textContent = "Loading " + action.replace("get_", "") + "… page " + page + " (" + all.length + ")";
     }
     return all;
   }
 
-  async function resolveLocations(accounts) {
-    var resolved = [], missing = [];
-    var total = accounts.length;
-    for (var i = 0; i < accounts.length; i++) {
-      var acct = accounts[i];
-      var msg = el("map-load-msg");
-      if (msg && i % 5 === 0) msg.textContent = "Resolving locations… " + (i + 1) + " / " + total;
-
-      var coords = parseStoredCoords(acct);
-      var addressUsed = "";
-      var addressType = "";
-
-      if (coords) {
-        if (hasShippingFields(acct)) {
-          addressUsed = buildShippingAddress(acct);
-          addressType = "shipping";
-        } else if (buildBillingAddress(acct)) {
-          addressUsed = buildBillingAddress(acct);
-          addressType = "billing";
-        } else {
-          addressUsed = "Coordinates on file";
-          addressType = "coords";
-        }
-      } else if (hasShippingFields(acct)) {
-        var shipAddr = buildShippingAddress(acct);
-        if (shipAddr) {
-          coords = await geocodeAddress(shipAddr);
-          if (coords) {
-            addressUsed = shipAddr;
-            addressType = "shipping";
-          }
-        }
-      } else {
-        var billAddr = buildBillingAddress(acct);
-        if (billAddr) {
-          coords = await geocodeAddress(billAddr);
-          if (coords) {
-            addressUsed = billAddr;
-            addressType = "billing";
-          }
-        }
-      }
-
-      var dealInfo = mapState.dealByAccount[acct.id] || { stage: "No Active Deal", pipeline: "" };
-      var entry = {
-        id: acct.id,
-        name: str(acct.Account_Name),
-        phone: str(acct.Phone),
-        inactive: accountInactive(acct),
-        stage: dealInfo.stage || "No Active Deal",
-        pipeline: dealInfo.pipeline || "",
-        siteCoords: str(acct.Latitude_Longitude),
-        lat: coords ? coords.lat : null,
-        lng: coords ? coords.lng : null,
-        addressUsed: addressUsed,
-        addressType: addressType
-      };
-
-      if (coords) resolved.push(entry);
-      else missing.push(entry);
-    }
-    return { resolved: resolved, missing: missing };
+  function setProgress(text) {
+    var overlayMsg = el("map-overlay-msg");
+    var subtitle = el("map-subtitle");
+    if (overlayMsg) overlayMsg.textContent = text || "Loading…";
+    if (subtitle) subtitle.textContent = text || "Loading…";
   }
 
-  function pinColor(entry) {
-    if (entry.inactive) return "#9ca3af";
-    return STAGE_COLORS[entry.stage] || STAGE_COLORS["No Active Deal"];
+  function setMapOverlay(show) {
+    var overlay = el("map-loading-overlay");
+    if (overlay) overlay.style.display = show ? "flex" : "none";
   }
 
-  function stageBadgeHtml(stage, inactive) {
-    var color = inactive ? "#9ca3af" : (STAGE_COLORS[stage] || STAGE_COLORS["No Active Deal"]);
-    return "<span class='map-badge' style='background:" + color + "22;color:" + color + ";border:1px solid " + color + "55'>" + esc(stage || "No Active Deal") + "</span>";
+  function accountStage(acc) {
+    var info = mapState.dealByAccount[acc.id] || {};
+    return info.stage || "No Active Deal";
   }
 
-  function pipelineBadgeHtml(pipeline) {
-    if (!pipeline) return "";
-    var color = pipeline === "InHouse Lab" ? "#8b5cf6" : "#3b82f6";
-    return "<span class='map-badge' style='background:" + color + "22;color:" + color + ";border:1px solid " + color + "55'>" + esc(pipeline) + "</span>";
+  function accountPipeline(acc) {
+    var info = mapState.dealByAccount[acc.id] || {};
+    return info.pipeline || "";
   }
 
-  function popupHtml(entry) {
-    var addrLine = entry.addressUsed || "—";
-    if (entry.addressType === "billing" && addrLine !== "Coordinates on file") {
-      addrLine += " <span style='color:#94a3b8'>(billing address)</span>";
-    }
-    var html = "<div class='map-popup'>";
-    html += "<div class='map-popup-name'>" + esc(entry.name) + "</div>";
-    html += "<div class='map-popup-row'>" + addrLine + "</div>";
-    if (entry.siteCoords) html += "<div class='map-popup-row'><strong>Site coords:</strong> " + esc(entry.siteCoords) + "</div>";
-    html += "<div class='map-popup-badges'>" + stageBadgeHtml(entry.stage, entry.inactive);
-    if (entry.pipeline) html += pipelineBadgeHtml(entry.pipeline);
-    if (entry.inactive) html += "<span class='map-badge map-badge-inactive'>Inactive</span>";
-    html += "</div>";
-    if (entry.phone) html += "<div class='map-popup-row'>" + esc(entry.phone) + "</div>";
-    if (entry.lat != null && entry.lng != null) {
-      var osmUrl = "https://www.openstreetmap.org/?mlat=" + encodeURIComponent(entry.lat) + "&mlon=" + encodeURIComponent(entry.lng) + "#map=17/" + entry.lat + "/" + entry.lng;
-      html += "<div class='map-popup-row'><a href='" + osmUrl + "' target='_blank' rel='noopener noreferrer' class='map-osm-link'>Open in OpenStreetMap ↗</a></div>";
-    }
-    html += "</div>";
-    return html;
+  function passesFilters(acc) {
+    var f = mapState.filters;
+    var name = str(acc.Account_Name);
+    var stage = accountStage(acc);
+    var pipeline = accountPipeline(acc);
+    var isActive = accountIsActive(acc);
+
+    if (f.search && name.toLowerCase().indexOf(f.search.toLowerCase()) < 0) return false;
+    if (f.pipeline && pipeline !== f.pipeline) return false;
+    if (f.stage && stage !== f.stage) return false;
+    if (f.status === "Active" && !isActive) return false;
+    if (f.status === "Inactive" && isActive) return false;
+    return true;
   }
 
-  function makePinIcon(color) {
-    var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='28' height='36' viewBox='0 0 28 36'><path fill='" + color + "' stroke='#0f172a' stroke-width='1.5' d='M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z'/><circle cx='14' cy='14' r='5' fill='#fff'/></svg>";
+  function makePinIcon(pinColor) {
     return L.divIcon({
-      html: svg,
-      className: "map-pin-icon",
-      iconSize: [28, 36],
-      iconAnchor: [14, 36],
-      popupAnchor: [0, -34]
+      className: "",
+      html: "<div style=\"width:18px;height:18px;border-radius:50%;background:" + pinColor + ";border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4)\"></div>",
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
     });
   }
 
-  function passesFilters(entry) {
-    var f = mapState.filters;
-    if (f.search && entry.name.toLowerCase().indexOf(f.search.toLowerCase()) < 0) return false;
-    if (f.pipeline && entry.pipeline !== f.pipeline) return false;
-    if (f.stage) {
-      if (f.stage === "No Active Deal") {
-        if (entry.stage !== "No Active Deal") return false;
-      } else if (entry.stage !== f.stage) return false;
+  function popupHtml(acc) {
+    var info = mapState.dealByAccount[acc.id] || {};
+    var stage = info.stage || "No Active Deal";
+    var pipeline = info.pipeline || "";
+    var color = stageColor(stage);
+    var isActive = accountIsActive(acc);
+    var pipColor = PIPELINE_COLORS[pipeline] || "#64748b";
+
+    var sourceLabel = acc.source === "stored" ? ""
+      : acc.source === "billing" ? " (billing address)" : "";
+
+    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
+    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(str(acc.Account_Name)) + "</div>";
+    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:8px;line-height:1.4\">";
+    html += esc(acc.addrStr || "No address on file") + sourceLabel;
+    html += "</div>";
+    html += "<div style=\"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px\">";
+    html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:" + color.pin + "22;color:" + color.text + ";border:1px solid " + color.pin + "55\">" + esc(stage) + "</span>";
+    if (pipeline) {
+      html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:" + pipColor + "22;color:" + pipColor + ";border:1px solid " + pipColor + "55\">" + esc(pipeline) + "</span>";
     }
-    if (f.status === "active" && entry.inactive) return false;
-    if (f.status === "inactive" && !entry.inactive) return false;
-    return true;
+    if (!isActive) {
+      html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0\">Inactive</span>";
+    }
+    html += "</div>";
+    if (acc.Phone) html += "<div style=\"font-size:12px;color:#334155\">" + esc(str(acc.Phone)) + "</div>";
+    if (acc.Latitude_Longitude) {
+      html += "<div style=\"font-size:11px;color:#94a3b8;margin-top:4px\">Site coords: " + esc(str(acc.Latitude_Longitude)) + "</div>";
+    }
+    html += "<div style=\"margin-top:8px;border-top:1px solid #e2e8f0;padding-top:6px\">";
+    html += "<a href=\"https://www.openstreetmap.org/?mlat=" + acc.lat + "&mlon=" + acc.lng + "#map=16/" + acc.lat + "/" + acc.lng + "\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-size:11px;color:#1d4ed8;text-decoration:none\">Open in OpenStreetMap ↗</a>";
+    html += "</div></div>";
+    return html;
   }
 
   function clearMarkers() {
@@ -308,56 +238,119 @@
     mapState.markers = [];
   }
 
-  function renderMapMarkers() {
-    if (!mapState.map || typeof L === "undefined") return;
-    clearMarkers();
-    var visible = mapState.resolved.filter(passesFilters);
-    visible.forEach(function (entry) {
-      var marker = L.marker([entry.lat, entry.lng], { icon: makePinIcon(pinColor(entry)) });
-      marker.bindPopup(popupHtml(entry), { maxWidth: 280 });
-      marker.addTo(mapState.map);
-      mapState.markers.push(marker);
+  function stagesInUse() {
+    var stages = { "No Active Deal": true };
+    mapState.located.forEach(function (acc) {
+      var st = accountStage(acc);
+      if (st) stages[st] = true;
     });
-    var countEl = el("map-pin-count");
-    if (countEl) countEl.textContent = visible.length + " pins on map";
+    var list = ["Active", "Qualified", "Proposal", "Negotiation", "Closed Won", "Closed Lost", "Prospect", "No Deal", "No Active Deal"];
+    return list.filter(function (st) { return stages[st]; });
   }
 
-  function renderMissingPanel() {
-    var panel = el("map-missing-panel");
-    var list = el("map-missing-list");
-    var countEl = el("map-missing-count");
-    if (!panel || !list) return;
-    if (!mapState.filters.showMissing) {
-      panel.style.display = "none";
-      return;
-    }
-    panel.style.display = "block";
-    var items = mapState.missing.filter(passesFilters);
-    if (countEl) countEl.textContent = items.length + " account" + (items.length === 1 ? "" : "s") + " without location";
-    if (!items.length) {
-      list.innerHTML = "<div class='map-missing-empty'>No accounts match filters in the missing-location list.</div>";
-      return;
-    }
-    list.innerHTML = items.map(function (entry) {
-      return "<div class='map-missing-item'><div class='map-missing-name'>" + esc(entry.name) + "</div><div class='map-missing-badges'>" +
-        stageBadgeHtml(entry.stage, entry.inactive) + pipelineBadgeHtml(entry.pipeline) + "</div></div>";
-    }).join("");
+  function populateStageFilter() {
+    var sel = el("map-f-stage");
+    if (!sel) return;
+    var cur = sel.value;
+    var opts = "<option value=\"\">All</option>";
+    stagesInUse().forEach(function (st) {
+      opts += "<option value=\"" + esc(st) + "\">" + esc(st) + "</option>";
+    });
+    sel.innerHTML = opts;
+    if (cur) sel.value = cur;
   }
 
   function renderLegend() {
     var leg = el("map-legend");
     if (!leg) return;
-    var html = "<div class='map-legend-title'>Deal Stage</div>";
-    STAGE_ORDER.forEach(function (stage) {
-      var c = STAGE_COLORS[stage];
-      html += "<div class='map-legend-row'><span class='map-legend-dot' style='background:" + c + "'></span>" + esc(stage) + "</div>";
+    var html = "<div class=\"map-legend-title\">Deal Stage</div>";
+    stagesInUse().forEach(function (stage) {
+      var c = stageColor(stage);
+      html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:" + c.pin + "\"></span><span style=\"color:#cbd5e1\">" + esc(c.label || stage) + "</span></div>";
     });
-    html += "<div class='map-legend-title' style='margin-top:8px'>Pipeline</div>";
-    html += "<div class='map-legend-row'><span class='map-legend-dot' style='background:#3b82f6'></span>Jobs</div>";
-    html += "<div class='map-legend-row'><span class='map-legend-dot' style='background:#8b5cf6'></span>InHouse Lab</div>";
-    html += "<div class='map-legend-title' style='margin-top:8px'>Account</div>";
-    html += "<div class='map-legend-row'><span class='map-legend-dot' style='background:#9ca3af'></span>Inactive</div>";
+    html += "<div class=\"map-legend-divider\"></div>";
+    html += "<div class=\"map-legend-title\">Pipeline</div>";
+    Object.keys(PIPELINE_COLORS).forEach(function (name) {
+      html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-pip\" style=\"background:" + PIPELINE_COLORS[name] + "\"></span><span style=\"color:#cbd5e1\">" + esc(name) + "</span></div>";
+    });
+    html += "<div class=\"map-legend-divider\"></div>";
+    html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#9ca3af\"></span><span style=\"color:#64748b\">Inactive</span></div>";
     leg.innerHTML = html;
+  }
+
+  function renderMapMarkers() {
+    if (!mapState.map || typeof L === "undefined") return;
+    clearMarkers();
+    var filtered = mapState.located.filter(passesFilters);
+    filtered.forEach(function (acc) {
+      var info = mapState.dealByAccount[acc.id] || {};
+      var stage = info.stage || "No Active Deal";
+      var color = stageColor(stage);
+      var isActive = accountIsActive(acc);
+      var pinColor = isActive ? color.pin : "#9ca3af";
+      var marker = L.marker([acc.lat, acc.lng], { icon: makePinIcon(pinColor) });
+      marker.bindPopup(popupHtml(acc), { maxWidth: 280 });
+      marker.addTo(mapState.map);
+      mapState.markers.push(marker);
+    });
+
+    var statusPins = el("map-status-pins");
+    if (statusPins) statusPins.textContent = String(filtered.length);
+
+    var statusFilters = el("map-status-filters");
+    if (statusFilters) {
+      var parts = [];
+      if (mapState.filters.pipeline) parts.push(mapState.filters.pipeline);
+      if (mapState.filters.stage) parts.push(mapState.filters.stage);
+      if (mapState.filters.status) parts.push(mapState.filters.status);
+      statusFilters.textContent = parts.length ? " · " + parts.join(" · ") : "";
+    }
+
+    var missingBtn = el("map-missing-btn");
+    if (missingBtn) missingBtn.textContent = "Missing (" + mapState.noAddress.length + ")";
+  }
+
+  function renderMissingPanel() {
+    var panel = el("map-missing-panel");
+    var list = el("map-missing-list");
+    var hdrCount = el("map-missing-hdr-count");
+    if (!panel || !list) return;
+    if (!mapState.showNoAddr) {
+      panel.style.display = "none";
+      return;
+    }
+    panel.style.display = "block";
+    var items = mapState.noAddress.filter(passesFilters);
+    if (hdrCount) hdrCount.textContent = String(items.length);
+    if (!items.length) {
+      list.innerHTML = "<div class=\"map-missing-empty\">None match current filters.</div>";
+      return;
+    }
+    list.innerHTML = items.map(function (acc) {
+      var info = mapState.dealByAccount[acc.id] || {};
+      var stage = info.stage || "No Active Deal";
+      var pipeline = info.pipeline || "";
+      var sc = stageColor(stage);
+      var pc = PIPELINE_COLORS[pipeline] || "#64748b";
+      var html = "<div class=\"map-missing-item\">";
+      html += "<span class=\"map-missing-name\">" + esc(str(acc.Account_Name)) + "</span>";
+      html += "<div class=\"map-missing-badges\">";
+      if (pipeline) {
+        html += "<span class=\"map-badge\" style=\"background:" + pc + "22;color:" + pc + ";border:1px solid " + pc + "44\">" + esc(pipeline) + "</span>";
+      }
+      html += "<span class=\"map-badge\" style=\"background:" + sc.pin + "22;color:" + sc.text + ";border:1px solid " + sc.pin + "44\">" + esc(stage) + "</span>";
+      html += "</div></div>";
+      return html;
+    }).join("");
+  }
+
+  function updateSubtitle() {
+    var subtitle = el("map-subtitle");
+    if (!subtitle) return;
+    if (mapState.loading) return;
+    subtitle.textContent = mapState.located.length + " mapped · " + mapState.noAddress.length + " missing address";
+    var note = el("map-status-missing-note");
+    if (note) note.textContent = mapState.noAddress.length + " accounts need address data";
   }
 
   function applyMapFilters() {
@@ -365,7 +358,6 @@
     mapState.filters.pipeline = (el("map-f-pipeline") || { value: "" }).value;
     mapState.filters.stage = (el("map-f-stage") || { value: "" }).value;
     mapState.filters.status = (el("map-f-status") || { value: "" }).value;
-    mapState.filters.showMissing = !!(el("map-f-missing") && el("map-f-missing").checked);
     renderMapMarkers();
     renderMissingPanel();
   }
@@ -379,7 +371,6 @@
       attribution: "© OpenStreetMap contributors",
       maxZoom: 19
     }).addTo(mapState.map);
-    renderLegend();
     setTimeout(function () {
       if (mapState.map) mapState.map.invalidateSize();
     }, 100);
@@ -389,65 +380,66 @@
     if (mapState.loading) return;
     if (mapState.loaded && !force) {
       ensureMap();
+      populateStageFilter();
+      renderLegend();
       applyMapFilters();
+      updateSubtitle();
       setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 150);
       return;
     }
+
     mapState.loading = true;
+    setMapOverlay(true);
     var btn = el("map-refresh-btn");
-    var msg = el("map-load-msg");
     var err = el("map-err");
     if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
     if (err) err.style.display = "none";
-    if (msg) { msg.textContent = "Connecting to Zoho…"; msg.style.color = "#94a3b8"; }
+    setProgress("Loading accounts…");
+
     try {
       if (typeof refreshZohoToken === "function") {
         var tokOk = await refreshZohoToken();
         if (!tokOk) throw new Error("Zoho token refresh failed");
       }
-      var rawAccounts = await fetchAllPages("get_accounts");
-      var rawDeals = await fetchAllPages("get_map_deals");
-      mapState.accounts = rawAccounts.map(function (rec) {
-        return {
-          id: rec.id,
-          Account_Name: str(rec.Account_Name),
-          Account_Status: str(rec.Account_Status),
-          Phone: str(rec.Phone),
-          Latitude_Longitude: str(rec.Latitude_Longitude),
-          googlemapreports__Latitude: str(rec.googlemapreports__Latitude),
-          googlemapreports__Longitude: str(rec.googlemapreports__Longitude),
-          Shipping_Street: str(rec.Shipping_Street),
-          Shipping_Street_2: str(rec.Shipping_Street_2),
-          Shipping_City: str(rec.Shipping_City),
-          Shipping_State: str(rec.Shipping_State),
-          Shipping_Code: str(rec.Shipping_Code),
-          Billing_Street: str(rec.Billing_Street),
-          Billing_City: str(rec.Billing_City),
-          Billing_State: str(rec.Billing_State),
-          Billing_Code: str(rec.Billing_Code)
-        };
-      });
+
+      var geoCache = loadGeoCache();
+      var rawAccounts = await fetchAllPages("get_accounts", 20);
+      setProgress("Loaded " + rawAccounts.length + " accounts. Fetching deals…");
+      var rawDeals = await fetchAllPages("get_map_deals", 10);
       mapState.dealByAccount = buildDealMap(rawDeals);
-      if (msg) msg.textContent = "Resolving " + mapState.accounts.length + " account locations…";
-      var loc = await resolveLocations(mapState.accounts);
-      mapState.resolved = loc.resolved;
-      mapState.missing = loc.missing;
+
+      setProgress("Resolving locations for " + rawAccounts.length + " accounts…");
+      var withLoc = [], withoutLoc = [], done = 0;
+      for (var i = 0; i < rawAccounts.length; i++) {
+        var acc = rawAccounts[i];
+        var loc = await resolveLocation(acc, geoCache);
+        if (loc) withLoc.push(Object.assign({}, acc, loc));
+        else withoutLoc.push(acc);
+        done++;
+        if (done % 10 === 0) setProgress("Resolved " + done + " / " + rawAccounts.length + "…");
+        await sleep(15);
+      }
+
+      mapState.located = withLoc;
+      mapState.noAddress = withoutLoc;
       mapState.loaded = true;
       ensureMap();
+      populateStageFilter();
+      renderLegend();
       applyMapFilters();
-      if (msg) {
-        msg.textContent = mapState.resolved.length + " mapped · " + mapState.missing.length + " missing location · " + new Date().toLocaleTimeString();
-        msg.style.color = "#22c55e";
-      }
+      updateSubtitle();
+      setProgress("");
     } catch (e) {
-      if (msg) { msg.textContent = "Map load failed"; msg.style.color = "#ef4444"; }
+      setProgress("");
       if (err) {
         err.textContent = e.message || String(e);
         err.style.display = "block";
       }
     } finally {
       mapState.loading = false;
-      if (btn) { btn.disabled = false; btn.textContent = "Refresh Map Data"; }
+      setMapOverlay(false);
+      if (btn) { btn.disabled = false; btn.textContent = "↺ Refresh"; }
+      updateSubtitle();
     }
   }
 
@@ -455,15 +447,23 @@
     ensureMap();
     if (!mapState.loaded) loadAccountsMap(false);
     else {
+      populateStageFilter();
+      renderLegend();
       applyMapFilters();
+      updateSubtitle();
       setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 150);
     }
+  }
+
+  function toggleMapMissingPanel() {
+    mapState.showNoAddr = !mapState.showNoAddr;
+    renderMissingPanel();
+    var hideLbl = el("map-missing-hide");
+    if (hideLbl) hideLbl.textContent = mapState.showNoAddr ? "▲ Hide" : "▼ Show";
   }
 
   window.loadAccountsMap = loadAccountsMap;
   window.applyMapFilters = applyMapFilters;
   window.initAccountsMapTab = initAccountsMapTab;
-  window.toggleMapMissingPanel = function () {
-    applyMapFilters();
-  };
+  window.toggleMapMissingPanel = toggleMapMissingPanel;
 })();

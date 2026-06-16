@@ -539,31 +539,46 @@
     </div>
   </details>
   <div class="map-toolbar">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;color:#e2e8f0">Accounts Map</div>
-      <button type="button" class="bp bsm" id="map-refresh-btn" onclick="loadAccountsMap(true)">Refresh Map Data</button>
+    <div class="map-header-row">
+      <div>
+        <div class="map-title">Accounts Map</div>
+        <div id="map-subtitle" class="map-subtitle">Open this tab to load accounts from Zoho.</div>
+      </div>
+      <div class="map-header-actions">
+        <button type="button" class="bg bsm" id="map-missing-btn" onclick="toggleMapMissingPanel()">Missing (0)</button>
+        <button type="button" class="bp bsm" id="map-refresh-btn" onclick="loadAccountsMap(true)">↺ Refresh</button>
+      </div>
     </div>
-    <div id="map-load-msg" style="font-size:12px;color:#94a3b8;margin-bottom:8px">Open this tab to load accounts from Zoho.</div>
     <div id="map-err" class="err-box" style="display:none"></div>
-    <input type="text" id="map-f-search" placeholder="Search account name…" oninput="applyMapFilters()" style="margin-bottom:8px;background:#1e293b;border-color:#334155;color:#e2e8f0"/>
+    <input type="text" id="map-f-search" placeholder="Search accounts…" oninput="applyMapFilters()"/>
     <div class="g2" style="margin-bottom:8px">
-      <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
-      <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option><option value="Active">Active</option><option value="Qualified">Qualified</option><option value="Proposal">Proposal</option><option value="Negotiation">Negotiation</option><option value="Closed Won">Closed Won</option><option value="Closed Lost">Closed Lost</option><option value="Prospect">Prospect</option><option value="No Active Deal">No Active Deal</option></select></div>
+      <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All pipelines</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
+      <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option></select></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
-      <div><label class="lbl" for="map-f-status">Account Status</label><select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select></div>
-      <div style="display:flex;align-items:flex-end;padding-bottom:4px"><label class="map-check-label"><input type="checkbox" id="map-f-missing" onchange="toggleMapMissingPanel()"/> Show missing-location panel</label></div>
+    <div style="margin-bottom:8px">
+      <label class="lbl" for="map-f-status">Account Status</label>
+      <select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option></select>
     </div>
-    <div id="map-pin-count" style="font-size:11px;color:#94a3b8"></div>
   </div>
   <div class="map-wrap">
     <div id="map-container"></div>
     <div id="map-legend" class="map-legend"></div>
+    <div id="map-loading-overlay" class="map-loading-overlay" style="display:none">
+      <div class="map-spinner"></div>
+      <div id="map-overlay-msg" class="map-overlay-msg">Loading…</div>
+    </div>
   </div>
-  <details id="map-missing-panel" class="map-missing-panel" style="display:none" open>
-    <summary><span id="map-missing-count">Missing locations</span></summary>
-    <div id="map-missing-list"></div>
-  </details>
+  <div id="map-status-bar" class="map-status-bar">
+    <span>Showing <strong id="map-status-pins">0</strong> pins<span id="map-status-filters"></span></span>
+    <span id="map-status-missing-note"></span>
+  </div>
+  <div id="map-missing-panel" class="map-missing-panel" style="display:none">
+    <div class="map-missing-hdr" onclick="toggleMapMissingPanel()">
+      <span class="map-missing-hdr-title">⚠ <span id="map-missing-hdr-count">0</span> accounts missing address</span>
+      <span id="map-missing-hide" class="map-missing-hide">▲ Hide</span>
+    </div>
+    <div id="map-missing-list" class="map-missing-list"></div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
