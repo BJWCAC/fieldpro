@@ -43,6 +43,7 @@
   var mapState = {
     map: null,
     clusterGroup: null,
+    spreadLinesGroup: null,
     dealByAccount: {},
     located: [],
     noAddress: [],
@@ -634,9 +635,9 @@
 
   function spreadPixelRadius(zoom) {
     if (zoom <= 4) return 0;
-    if (zoom <= 6) return 6 + (zoom - 4) * 5;
-    if (zoom <= 10) return 16 + (zoom - 6) * 11;
-    return Math.min(132, 60 + (zoom - 10) * 13);
+    if (zoom <= 6) return 4 + (zoom - 4) * 3;
+    if (zoom <= 10) return 10 + (zoom - 6) * 7;
+    return Math.min(84, 38 + (zoom - 10) * 8);
   }
 
   function latLngFromPixelOffset(anchor, dx, dy) {
@@ -660,6 +661,7 @@
     var radiusPx = spreadPixelRadius(zoom);
     var groups = {};
     items.forEach(function (item) {
+      item.showSpokeLine = false;
       var key = overlapGroupKey(item.baseLat, item.baseLng);
       if (!groups[key]) {
         groups[key] = { anchor: L.latLng(item.baseLat, item.baseLng), items: [] };
@@ -673,19 +675,39 @@
         group.items.forEach(function (item) {
           item.displayLat = group.anchor.lat;
           item.displayLng = group.anchor.lng;
+          item.anchorLat = group.anchor.lat;
+          item.anchorLng = group.anchor.lng;
         });
         return;
       }
-      var count = group.items.length;
-      var ringRadius = radiusPx;
-      if (count > 6) ringRadius = radiusPx * (1 + (count - 6) * 0.08);
+      var centerIdx = 0;
+      for (var ci = 0; ci < group.items.length; ci++) {
+        if (group.items[ci].kind === "account") { centerIdx = ci; break; }
+      }
+      var center = group.items[centerIdx];
+      center.displayLat = group.anchor.lat;
+      center.displayLng = group.anchor.lng;
+      center.anchorLat = group.anchor.lat;
+      center.anchorLng = group.anchor.lng;
+      center.showSpokeLine = false;
+
+      var satellites = [];
       group.items.forEach(function (item, idx) {
-        var angle = (2 * Math.PI * idx) / count - Math.PI / 2;
+        if (idx !== centerIdx) satellites.push(item);
+      });
+      var satCount = satellites.length;
+      var ringRadius = radiusPx * 0.82;
+      if (satCount > 5) ringRadius = ringRadius * (1 + (satCount - 5) * 0.06);
+      satellites.forEach(function (item, idx) {
+        var angle = (2 * Math.PI * idx) / satCount - Math.PI / 2;
         var dx = Math.cos(angle) * ringRadius;
         var dy = Math.sin(angle) * ringRadius;
         var ll = latLngFromPixelOffset(group.anchor, dx, dy);
         item.displayLat = ll.lat;
         item.displayLng = ll.lng;
+        item.anchorLat = group.anchor.lat;
+        item.anchorLng = group.anchor.lng;
+        item.showSpokeLine = true;
       });
     });
     return items;
@@ -716,6 +738,38 @@
     if (!mapState.map || mapState.map.__fpSpreadBound) return;
     mapState.map.__fpSpreadBound = true;
     mapState.map.on("zoomend", scheduleSpreadRender);
+  }
+
+  function ensureSpreadLinesLayer() {
+    if (!mapState.map || typeof L === "undefined") return;
+    if (!mapState.spreadLinesGroup) {
+      mapState.spreadLinesGroup = L.layerGroup().addTo(mapState.map);
+    }
+  }
+
+  function clearSpreadLines() {
+    if (mapState.spreadLinesGroup) mapState.spreadLinesGroup.clearLayers();
+  }
+
+  function renderSpreadLines(items) {
+    ensureSpreadLinesLayer();
+    clearSpreadLines();
+    if (!mapState.spreadLinesGroup) return;
+    items.forEach(function (item) {
+      if (!item.showSpokeLine) return;
+      var color = item.kind === "meeting" ? MEETING_PIN_COLOR : "#64748b";
+      L.polyline(
+        [[item.anchorLat, item.anchorLng], [item.displayLat, item.displayLng]],
+        {
+          color: color,
+          weight: 2,
+          opacity: 0.6,
+          dashArray: item.kind === "meeting" ? "5 4" : "3 4",
+          interactive: false,
+          className: "map-spread-line"
+        }
+      ).addTo(mapState.spreadLinesGroup);
+    });
   }
 
   function makePinIcon(pinColor) {
@@ -895,9 +949,11 @@
     var cluster = ensureClusterGroup();
     if (!cluster) return;
     clearMarkers();
+    clearSpreadLines();
     var filtered = mapState.located.filter(passesFilters);
     var meetingFiltered = (mapState.scheduledMeetings || []).filter(passesMeetingFilters);
     var spreadItems = collectSpreadMarkerItems(filtered, meetingFiltered);
+    renderSpreadLines(spreadItems);
 
     spreadItems.forEach(function (item) {
       if (item.kind === "account") {
@@ -1066,6 +1122,7 @@
       maxZoom: 19
     }).addTo(mapState.map);
     ensureClusterGroup();
+    ensureSpreadLinesLayer();
     bindMapSpreadHandlers();
     setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 100);
   }
