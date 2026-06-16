@@ -7,6 +7,13 @@
   var MAP_ZOOM = 6;
   var MAP_FIT_MAX_ZOOM = 6;
   var PIN_SIZE = 12;
+  var CLUSTER_MODE_KEY = "fp_map_cluster_mode";
+  var CLUSTER_PRESETS = {
+    all: { maxClusterRadius: 8, disableClusteringAtZoom: 0 },
+    loose: { maxClusterRadius: 12, disableClusteringAtZoom: 4 },
+    balanced: { maxClusterRadius: 22, disableClusteringAtZoom: 8 },
+    tight: { maxClusterRadius: 36, disableClusteringAtZoom: 12 }
+  };
 
   var STAGE_COLORS = {
     Active: { pin: "#22c55e", label: "Active", text: "#15803d" },
@@ -43,8 +50,39 @@
     truncated: false,
     cacheNote: "",
     initialViewDone: false,
+    clusterMode: "loose",
     filters: { search: "", pipeline: "", stage: "", status: "" }
   };
+
+  function loadClusterMode() {
+    try {
+      var saved = localStorage.getItem(CLUSTER_MODE_KEY);
+      if (saved && CLUSTER_PRESETS[saved]) return saved;
+    } catch (e) {}
+    return "loose";
+  }
+
+  function saveClusterMode(mode) {
+    try { localStorage.setItem(CLUSTER_MODE_KEY, mode); }
+    catch (e) {}
+  }
+
+  function clusterOptionsForMode(mode) {
+    var preset = CLUSTER_PRESETS[mode] || CLUSTER_PRESETS.loose;
+    return {
+      maxClusterRadius: preset.maxClusterRadius,
+      disableClusteringAtZoom: preset.disableClusteringAtZoom,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      chunkedLoading: true,
+      zoomToBoundsOnClick: true
+    };
+  }
+
+  function syncClusterModeSelect() {
+    var sel = el("map-f-cluster");
+    if (sel) sel.value = mapState.clusterMode || "loose";
+  }
 
   function str(v) {
     if (v == null) return "";
@@ -454,17 +492,28 @@
     return html;
   }
 
+  function rebuildClusterGroup() {
+    if (!mapState.map || typeof L === "undefined") return;
+    if (mapState.clusterGroup) {
+      mapState.map.removeLayer(mapState.clusterGroup);
+      mapState.clusterGroup = null;
+    }
+    var mode = mapState.clusterMode || "loose";
+    mapState.clusterGroup = L.markerClusterGroup(clusterOptionsForMode(mode));
+    mapState.clusterGroup.__fpMode = mode;
+    mapState.map.addLayer(mapState.clusterGroup);
+  }
+
   function ensureClusterGroup() {
     if (!mapState.map || typeof L === "undefined") return null;
+    var mode = mapState.clusterMode || "loose";
+    if (mapState.clusterGroup && mapState.clusterGroup.__fpMode !== mode) {
+      rebuildClusterGroup();
+      return mapState.clusterGroup;
+    }
     if (!mapState.clusterGroup) {
-      mapState.clusterGroup = L.markerClusterGroup({
-        maxClusterRadius: 12,
-        disableClusteringAtZoom: 4,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        chunkedLoading: true,
-        zoomToBoundsOnClick: true
-      });
+      mapState.clusterGroup = L.markerClusterGroup(clusterOptionsForMode(mode));
+      mapState.clusterGroup.__fpMode = mode;
       mapState.map.addLayer(mapState.clusterGroup);
     }
     return mapState.clusterGroup;
@@ -621,6 +670,17 @@
       cacheNote.textContent = mapState.cacheNote || "";
       cacheNote.style.display = mapState.cacheNote ? "block" : "none";
     }
+  }
+
+  function applyMapClusterMode() {
+    var sel = el("map-f-cluster");
+    var mode = sel && sel.value ? sel.value : "loose";
+    if (!CLUSTER_PRESETS[mode]) mode = "loose";
+    if (mode === mapState.clusterMode && mapState.clusterGroup) return;
+    mapState.clusterMode = mode;
+    saveClusterMode(mode);
+    rebuildClusterGroup();
+    renderMapMarkers();
   }
 
   function applyMapFilters() {
@@ -839,6 +899,8 @@
   }
 
   function initAccountsMapTab() {
+    mapState.clusterMode = loadClusterMode();
+    syncClusterModeSelect();
     loadMapLibs().then(function () {
       ensureMap();
       var cached = loadMapCache();
@@ -871,6 +933,7 @@
 
   window.loadAccountsMap = loadAccountsMap;
   window.applyMapFilters = applyMapFilters;
+  window.applyMapClusterMode = applyMapClusterMode;
   window.initAccountsMapTab = initAccountsMapTab;
   window.toggleMapMissingPanel = toggleMapMissingPanel;
   window.mapSelectDealForAccount = mapSelectDealForAccount;
