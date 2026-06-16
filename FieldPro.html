@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=213"/>
+<link rel="stylesheet" href="src/styles.css?v=214"/>
 
 </head>
 <body>
@@ -17,7 +17,7 @@
 <div id="hdr">
   <div style="flex:1;text-align:center">
     <div id="hdr-logo">CapStone</div>
-    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v206</span></div>
+    <div id="hdr-sub">by Calibrations &amp; Controls · <span id="hdr-ver" style="color:var(--amber)">v214</span></div>
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
@@ -28,17 +28,17 @@
   </div>
 </div>
 
-<div id="tabbar">
-  <div style="display:flex;align-items:center;padding:0 6px;border-right:1px solid var(--bdr)">
+<div id="tabbar" class="tabbar-scroll">
+  <div style="display:flex;align-items:center;padding:0 6px;border-right:1px solid var(--bdr);flex-shrink:0">
     <button onclick="newProject()" style="background:var(--amber);color:#001a18;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">+ NEW</button>
   </div>
   <div class="tab on" id="t-deals" onclick="go('deals')">Deals <span class="tbadge" id="tb-deals" style="display:none"></span></div>
+  <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
   <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
   <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
-  <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-settings" onclick="go('settings')">Settings</div>
   <div class="tab pending-sync-tab" id="pending-sync-tab" onclick="go('settings')" style="display:none">Pending <span id="pending-sync-count">0</span></div>
 </div>
@@ -821,8 +821,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=213"></script>
-<script src="src/app.js?v=213"></script>
+<script src="src/accounts-map.js?v=214"></script>
+<script src="src/app.js?v=214"></script>
 
 </body>
 </html>

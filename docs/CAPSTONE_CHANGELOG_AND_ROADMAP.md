@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v213
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=213
+Current live version: v214
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=214
 ```
 
 ---
@@ -51,6 +51,7 @@ Related docs (detail, not status):
 | v211 | — | **OpenStreetMap link** — View on OpenStreetMap after GPS capture (Capture + Assets) |
 | v212 | — | **Accounts Map tab** — Leaflet/OSM map of all Zoho accounts; stored coords + geocode fallback; deal stage pin colors; filters + missing-location panel |
 | v213 | — | **Accounts Map polish** — two-phase load, fp_map_cache, marker clustering, fit bounds, deal/Zoho links, lazy Leaflet |
+| v214 | — | **Map tab visibility** — move Map next to Deals; tab bar scroll hint for overflow tabs |
 
 ### UI / workflow polish
 
