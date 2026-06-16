@@ -3,8 +3,9 @@
   var GEO_CACHE_KEY = "capstone_geo_cache";
   var MAP_CACHE_KEY = "fp_map_cache_v2";
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-  var MAP_CENTER = [44.5, -93.5];
-  var MAP_ZOOM = 7;
+  var MAP_CENTER = [46.0, -94.0];
+  var MAP_ZOOM = 6;
+  var MAP_FIT_MAX_ZOOM = 8;
 
   var STAGE_COLORS = {
     Active: { pin: "#22c55e", label: "Active", text: "#15803d" },
@@ -40,6 +41,7 @@
     fitBoundsNext: false,
     truncated: false,
     cacheNote: "",
+    initialViewDone: false,
     filters: { search: "", pipeline: "", stage: "", status: "" }
   };
 
@@ -163,6 +165,24 @@
   function billingAddrStr(acc) {
     return [acc.Billing_Street, acc.Billing_City, acc.Billing_State, acc.Billing_Code]
       .filter(Boolean).join(", ");
+  }
+
+  function setInitialActiveFilter() {
+    mapState.filters.status = "Active";
+    var sel = el("map-f-status");
+    if (sel) sel.value = "Active";
+  }
+
+  function clearAccountStatusFilter() {
+    mapState.filters.status = "";
+    var sel = el("map-f-status");
+    if (sel) sel.value = "";
+  }
+
+  function applyInitialMapView() {
+    if (mapState.initialViewDone) return;
+    mapState.initialViewDone = true;
+    setInitialActiveFilter();
   }
 
   function accountIsActive(acc) {
@@ -435,9 +455,11 @@
     if (!mapState.map || typeof L === "undefined") return null;
     if (!mapState.clusterGroup) {
       mapState.clusterGroup = L.markerClusterGroup({
-        maxClusterRadius: 45,
+        maxClusterRadius: 28,
+        disableClusteringAtZoom: 10,
         spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false
+        showCoverageOnHover: false,
+        chunkedLoading: true
       });
       mapState.map.addLayer(mapState.clusterGroup);
     }
@@ -452,7 +474,7 @@
     if (!mapState.map || !mapState.fitBoundsNext || !filtered.length) return;
     try {
       var bounds = L.latLngBounds(filtered.map(function (acc) { return [acc.lat, acc.lng]; }));
-      mapState.map.fitBounds(bounds, { padding: [36, 36], maxZoom: 12 });
+      mapState.map.fitBounds(bounds, { padding: [36, 36], maxZoom: MAP_FIT_MAX_ZOOM });
     } catch (e) {}
     mapState.fitBoundsNext = false;
   }
@@ -654,7 +676,9 @@
     return { withLoc: withLoc, pendingGeocode: pendingGeocode, withoutLoc: withoutLoc };
   }
 
-  async function geocodePendingAccounts(pending, geoCache) {
+  async function geocodePendingAccounts(pending, geoCache, activeOnly) {
+    if (!pending.length) return;
+    if (activeOnly) pending = pending.filter(accountIsActive);
     if (!pending.length) return;
     mapState.geocoding = true;
     updateGeocodeStatus();
@@ -689,7 +713,9 @@
     applyMapDataset({});
   }
 
-  async function fetchAndProcessMapData(force) {
+  async function fetchAndProcessMapData(force, opts) {
+    opts = opts || {};
+    var geocodeActiveOnly = !!opts.geocodeActiveOnly;
     if (typeof refreshZohoToken === "function") {
       var tokOk = await refreshZohoToken();
       if (!tokOk) {
@@ -733,7 +759,7 @@
     updateSubtitle();
 
     if (split.pendingGeocode.length) {
-      geocodePendingAccounts(split.pendingGeocode, geoCache);
+      geocodePendingAccounts(split.pendingGeocode, geoCache, geocodeActiveOnly);
     } else {
       mapState.cacheNote = "updated · " + new Date().toLocaleTimeString();
       updateSubtitle();
@@ -746,14 +772,18 @@
     await loadMapLibs();
     ensureMap();
 
+    if (force) clearAccountStatusFilter();
+
     if (!force) {
       var cached = loadMapCache();
       if (cached && cached.located && cached.located.length) {
         var stale = !cacheIsFresh(cached);
         restoreFromCache(cached, stale);
+        applyInitialMapView();
+        applyMapFilters();
         if (!stale) return;
         mapState.loading = true;
-        fetchAndProcessMapData(true).catch(function (e) {
+        fetchAndProcessMapData(true, { geocodeActiveOnly: false }).catch(function (e) {
           mapState.cacheNote = "cached · refresh failed";
           updateSubtitle();
           var errEl = el("map-err");
@@ -783,7 +813,8 @@
     mapState.cacheNote = "";
 
     try {
-      await fetchAndProcessMapData(force);
+      applyInitialMapView();
+      await fetchAndProcessMapData(force, { geocodeActiveOnly: !force });
     } catch (e) {
       setProgress("");
       if (err) {
@@ -804,6 +835,8 @@
       var cached = loadMapCache();
       if (cached && cached.located && cached.located.length && !mapState.loaded) {
         restoreFromCache(cached, !cacheIsFresh(cached));
+        applyInitialMapView();
+        applyMapFilters();
         if (!cacheIsFresh(cached)) {
           loadAccountsMap(true);
           return;
