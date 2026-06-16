@@ -22,7 +22,10 @@ body.light input,body.light textarea,body.light select{background:#fff;color:var
 .hb{border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;font-family:"Barlow Condensed",sans-serif;white-space:nowrap}
 .hb-g{background:#051a18;border:1px solid #006050;color:var(--green);max-width:120px;overflow:hidden;text-overflow:ellipsis}
 .hb-b{background:#051a18;border:1px solid #006050;color:var(--amber)}
-#tabbar{display:flex;background:var(--surf);border-bottom:1px solid var(--bdr);position:sticky;top:86px;z-index:99;overflow-x:auto}
+#tabbar{display:flex;background:var(--surf);border-bottom:1px solid var(--bdr);position:sticky;top:86px;z-index:99;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#tabbar::-webkit-scrollbar{display:none}
+.tabbar-scroll{position:relative}
+.tabbar-scroll::after{content:"";position:sticky;right:0;top:0;flex:0 0 14px;width:14px;min-height:38px;margin-left:-14px;background:linear-gradient(to right,transparent,var(--surf));pointer-events:none;opacity:.85}
 .tab{flex:0 0 auto;padding:10px 12px;cursor:pointer;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
 .tab.on{color:var(--amber);border-bottom-color:var(--amber)}
 .tbadge{background:#0a6b5a;color:var(--amber);border-radius:8px;padding:0 4px;font-size:9px}
