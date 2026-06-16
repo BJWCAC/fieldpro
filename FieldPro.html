@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=219"/>
+<link rel="stylesheet" href="src/styles.css?v=220"/>
 
 </head>
 <body>
@@ -533,6 +533,7 @@
         <li>Location priority: <strong>Main Site Coordinates</strong> field first, then Google Maps extension lat/lng, then address geocoding in the background.</li>
         <li>Map data is cached on this device for 24 hours; tap Refresh to force a Zoho sync.</li>
         <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
+        <li>Use <strong>Pin grouping</strong> to control clustering — choose <em>Every pin</em> when zoomed out on Minnesota, or <em>More groups</em> for a cleaner overview.</li>
         <li>Tap a pin to select the deal in CapStone or open the account in Zoho CRM.</li>
         <li>Accounts without a resolvable location appear in the missing-address panel.</li>
       </ul>
@@ -557,9 +558,20 @@
       <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All pipelines</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
       <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option></select></div>
     </div>
-    <div style="margin-bottom:8px">
-      <label class="lbl" for="map-f-status">Account Status</label>
-      <select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option></select>
+    <div class="g2" style="margin-bottom:8px">
+      <div>
+        <label class="lbl" for="map-f-status">Account Status</label>
+        <select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option></select>
+      </div>
+      <div>
+        <label class="lbl" for="map-f-cluster">Pin grouping</label>
+        <select id="map-f-cluster" onchange="applyMapClusterMode()">
+          <option value="all">Every pin</option>
+          <option value="loose" selected>More pins</option>
+          <option value="balanced">Balanced</option>
+          <option value="tight">More groups</option>
+        </select>
+      </div>
     </div>
   </div>
   <div class="map-wrap">
@@ -822,8 +834,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=219"></script>
-<script src="src/app.js?v=219"></script>
+<script src="src/accounts-map.js?v=220"></script>
+<script src="src/app.js?v=220"></script>
 
 </body>
 </html>
