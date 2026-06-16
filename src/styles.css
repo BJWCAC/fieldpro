@@ -151,3 +151,32 @@ body.light .hist-card{background:#fff}
 .field-ai-status.field-ai-done{color:var(--green)}
 .field-ai-status.field-ai-failed{color:var(--red)}
 .pc-ai-lbl{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+#p-map{background:#0f172a;padding:12px}
+#p-map .lbl{color:#94a3b8}
+#p-map input,#p-map select{background:#1e293b;border-color:#334155;color:#e2e8f0}
+#p-map select option{background:#1e293b;color:#e2e8f0}
+.map-toolbar{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:10px}
+.map-wrap{position:relative;border:1px solid #334155;border-radius:8px;overflow:hidden;margin-bottom:10px}
+#map-container{height:min(52vh,420px);min-height:280px;background:#0f172a;z-index:1}
+.map-legend{position:absolute;top:10px;right:10px;z-index:500;background:rgba(15,23,42,.92);border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:11px;color:#e2e8f0;max-width:160px;line-height:1.45;pointer-events:none}
+.map-legend-title{font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:4px}
+.map-legend-row{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.map-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.25)}
+.map-pin-icon{background:transparent;border:none}
+.map-popup{font-size:12px;line-height:1.5;color:#0f172a}
+.map-popup-name{font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:14px;margin-bottom:4px;color:#0f172a}
+.map-popup-row{margin-bottom:4px;color:#334155}
+.map-popup-badges{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.map-badge{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:2px 6px;display:inline-block}
+.map-badge-inactive{background:#9ca3af22;color:#64748b;border:1px solid #9ca3af55}
+.map-osm-link{color:#059669;font-weight:600;text-decoration:none}
+.map-check-label{display:flex;align-items:center;gap:6px;font-size:12px;color:#e2e8f0;cursor:pointer}
+.map-missing-panel{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.map-missing-panel>summary{cursor:pointer;font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:13px;color:#e2e8f0;list-style:none}
+.map-missing-panel>summary::-webkit-details-marker{display:none}
+.map-missing-item{padding:8px 0;border-bottom:1px solid #334155}
+.map-missing-item:last-child{border-bottom:none}
+.map-missing-name{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:4px}
+.map-missing-badges{display:flex;flex-wrap:wrap;gap:4px}
+.map-missing-empty{font-size:12px;color:#94a3b8;padding:6px 0}
+.leaflet-container{font-family:"IBM Plex Sans",sans-serif}

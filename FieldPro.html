@@ -9,7 +9,9 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=206"/>
+<link rel="stylesheet" href="src/styles.css?v=212"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 </head>
 <body>
@@ -38,6 +40,7 @@
   <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
+  <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-settings" onclick="go('settings')">Settings</div>
   <div class="tab pending-sync-tab" id="pending-sync-tab" onclick="go('settings')" style="display:none">Pending <span id="pending-sync-count">0</span></div>
 </div>
@@ -521,6 +524,48 @@
   <div id="hist-list"></div>
 </div>
 
+<!-- MAP -->
+<div class="pane" id="p-map">
+  <details class="help-box" data-help-id="map-tab">
+    <summary>Help: Accounts Map</summary>
+    <div class="help-box-body">
+      <p>The Map tab plots all Zoho CRM accounts on an OpenStreetMap view. Pin color reflects deal stage; inactive accounts appear gray.</p>
+      <ul>
+        <li>Stored coordinates on the account are used first — geocoding is only a fallback.</li>
+        <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
+        <li>Accounts without a resolvable location appear in the missing-address panel below the map.</li>
+        <li>Tap Refresh Map Data after CRM address or coordinate updates.</li>
+      </ul>
+    </div>
+  </details>
+  <div class="map-toolbar">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;color:#e2e8f0">Accounts Map</div>
+      <button type="button" class="bp bsm" id="map-refresh-btn" onclick="loadAccountsMap(true)">Refresh Map Data</button>
+    </div>
+    <div id="map-load-msg" style="font-size:12px;color:#94a3b8;margin-bottom:8px">Open this tab to load accounts from Zoho.</div>
+    <div id="map-err" class="err-box" style="display:none"></div>
+    <input type="text" id="map-f-search" placeholder="Search account name…" oninput="applyMapFilters()" style="margin-bottom:8px;background:#1e293b;border-color:#334155;color:#e2e8f0"/>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
+      <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option><option value="Active">Active</option><option value="Qualified">Qualified</option><option value="Proposal">Proposal</option><option value="Negotiation">Negotiation</option><option value="Closed Won">Closed Won</option><option value="Closed Lost">Closed Lost</option><option value="Prospect">Prospect</option><option value="No Active Deal">No Active Deal</option></select></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl" for="map-f-status">Account Status</label><select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="active">Active only</option><option value="inactive">Inactive only</option></select></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:4px"><label class="map-check-label"><input type="checkbox" id="map-f-missing" onchange="toggleMapMissingPanel()"/> Show missing-location panel</label></div>
+    </div>
+    <div id="map-pin-count" style="font-size:11px;color:#94a3b8"></div>
+  </div>
+  <div class="map-wrap">
+    <div id="map-container"></div>
+    <div id="map-legend" class="map-legend"></div>
+  </div>
+  <details id="map-missing-panel" class="map-missing-panel" style="display:none" open>
+    <summary><span id="map-missing-count">Missing locations</span></summary>
+    <div id="map-missing-list"></div>
+  </details>
+</div>
+
 <!-- SETTINGS -->
 <div class="pane" id="p-settings">
   <details class="help-box" data-help-id="settings-tab">
@@ -760,7 +805,8 @@
   </div>
 </div>
 
-<script src="src/app.js?v=211"></script>
+<script src="src/accounts-map.js?v=212"></script>
+<script src="src/app.js?v=212"></script>
 
 </body>
 </html>

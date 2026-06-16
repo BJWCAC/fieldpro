@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v211
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=211
+Current live version: v212
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=212
 ```
 
 ---
@@ -49,6 +49,7 @@ Related docs (detail, not status):
 | v208 | #101 | **Plaud token refresh fix** — form-encoded refresh for Plaud API; paste whole tokens.json |
 | v209 | #102 | **Plaud auto-pull on any tab + foreground** — pull every 3 min app-wide; toast when new recordings arrive |
 | v211 | — | **OpenStreetMap link** — View on OpenStreetMap after GPS capture (Capture + Assets) |
+| v212 | — | **Accounts Map tab** — Leaflet/OSM map of all Zoho accounts; stored coords + geocode fallback; deal stage pin colors; filters + missing-location panel |
 
 ### UI / workflow polish
 
