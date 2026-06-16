@@ -1,6 +1,8 @@
-/* CapStone Accounts Map — Leaflet + OSM (aligned with AccountsMap.jsx) */
+/* CapStone Accounts Map — Leaflet + OSM with phased load, cache, clustering */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
+  var MAP_CACHE_KEY = "fp_map_cache";
+  var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [44.5, -93.5];
   var MAP_ZOOM = 7;
 
@@ -21,15 +23,23 @@
     "InHouse Lab": "#a855f7"
   };
 
+  var mapLibsLoaded = false;
+  var mapLibsLoading = false;
+  var mapLibsWaiters = [];
+
   var mapState = {
     map: null,
-    markers: [],
+    clusterGroup: null,
     dealByAccount: {},
     located: [],
     noAddress: [],
     loaded: false,
     loading: false,
+    geocoding: false,
     showNoAddr: false,
+    fitBoundsNext: false,
+    truncated: false,
+    cacheNote: "",
     filters: { search: "", pipeline: "", stage: "", status: "" }
   };
 
@@ -53,6 +63,98 @@
     catch (e) {}
   }
 
+  function normalizeAccount(rec) {
+    return {
+      id: rec.id,
+      Account_Name: str(rec.Account_Name),
+      Account_Status: str(rec.Account_Status),
+      Phone: str(rec.Phone),
+      Latitude_Longitude: str(rec.Latitude_Longitude),
+      googlemapreports__Latitude: str(rec.googlemapreports__Latitude),
+      googlemapreports__Longitude: str(rec.googlemapreports__Longitude),
+      Shipping_Street: str(rec.Shipping_Street),
+      Shipping_Street_2: str(rec.Shipping_Street_2),
+      Shipping_City: str(rec.Shipping_City),
+      Shipping_State: str(rec.Shipping_State),
+      Shipping_Code: str(rec.Shipping_Code),
+      Billing_Street: str(rec.Billing_Street),
+      Billing_City: str(rec.Billing_City),
+      Billing_State: str(rec.Billing_State),
+      Billing_Code: str(rec.Billing_Code)
+    };
+  }
+
+  function loadMapCache() {
+    try {
+      var raw = localStorage.getItem(MAP_CACHE_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || !data.savedAt) return null;
+      return data;
+    } catch (e) { return null; }
+  }
+
+  function saveMapCache() {
+    try {
+      localStorage.setItem(MAP_CACHE_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        dealByAccount: mapState.dealByAccount,
+        located: mapState.located,
+        noAddress: mapState.noAddress,
+        truncated: mapState.truncated
+      }));
+    } catch (e) {}
+  }
+
+  function cacheIsFresh(data) {
+    return data && (Date.now() - data.savedAt) < MAP_CACHE_TTL_MS;
+  }
+
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  function loadStylesheet(href) {
+    if (document.querySelector("link[href=\"" + href + "\"]")) return;
+    var l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    document.head.appendChild(l);
+  }
+
+  function loadMapLibs(cb) {
+    if (mapLibsLoaded) { if (cb) cb(); return Promise.resolve(); }
+    if (cb) mapLibsWaiters.push(cb);
+    if (mapLibsLoading) return new Promise(function (resolve) { mapLibsWaiters.push(resolve); });
+    mapLibsLoading = true;
+    loadStylesheet("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+    loadStylesheet("https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css");
+    loadStylesheet("https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css");
+    return loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
+      .then(function () {
+        return loadScript("https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js");
+      })
+      .then(function () {
+        mapLibsLoaded = true;
+        mapLibsLoading = false;
+        var waiters = mapLibsWaiters.slice();
+        mapLibsWaiters.length = 0;
+        waiters.forEach(function (fn) { if (typeof fn === "function") fn(); });
+      })
+      .catch(function (err) {
+        mapLibsLoading = false;
+        mapLibsWaiters.length = 0;
+        throw err;
+      });
+  }
+
   function shippingAddrStr(acc) {
     return [acc.Shipping_Street, acc.Shipping_Street_2, acc.Shipping_City, acc.Shipping_State, acc.Shipping_Code]
       .filter(Boolean).join(", ");
@@ -69,6 +171,15 @@
 
   function stageColor(stage) {
     return STAGE_COLORS[stage] || DEFAULT_COLOR;
+  }
+
+  function resolveStoredLocation(acc) {
+    var lat = parseFloat(acc.googlemapreports__Latitude);
+    var lng = parseFloat(acc.googlemapreports__Longitude);
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      return { lat: lat, lng: lng, source: "stored", addrStr: shippingAddrStr(acc) || "Coordinates on file" };
+    }
+    return null;
   }
 
   async function geocodeAddress(address, cache) {
@@ -90,12 +201,7 @@
     return null;
   }
 
-  async function resolveLocation(acc, geoCache) {
-    var lat = parseFloat(acc.googlemapreports__Latitude);
-    var lng = parseFloat(acc.googlemapreports__Longitude);
-    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      return { lat: lat, lng: lng, source: "stored", addrStr: shippingAddrStr(acc) || "Coordinates on file" };
-    }
+  async function resolveGeocodeLocation(acc, geoCache) {
     var shipStr = shippingAddrStr(acc);
     if (shipStr) {
       var shipCoords = await geocodeAddress(shipStr, geoCache);
@@ -116,14 +222,22 @@
       if (!accId) return;
       var existing = dm[accId];
       if (!existing || str(deal.Stage) === "Active") {
-        dm[accId] = { stage: str(deal.Stage), pipeline: str(deal.Pipeline) || "" };
+        dm[accId] = {
+          stage: str(deal.Stage),
+          pipeline: str(deal.Pipeline) || "",
+          dealId: deal.id || "",
+          dealName: str(deal.Deal_Name)
+        };
+      } else if (!existing.dealId && deal.id) {
+        existing.dealId = deal.id;
+        existing.dealName = str(deal.Deal_Name);
       }
     });
     return dm;
   }
 
   async function fetchAllPages(action, maxPages) {
-    var all = [], page = 1, hasMore = true;
+    var all = [], page = 1, hasMore = true, truncated = false;
     maxPages = maxPages || 50;
     while (hasMore && page <= maxPages) {
       var r = await fetchWithTimeout(PROXY, {
@@ -144,22 +258,34 @@
       }
       var d = await r.json();
       (d.data || []).forEach(function (rec) { all.push(rec); });
-      hasMore = d.info && d.info.more_records;
+      hasMore = !!(d.info && d.info.more_records);
+      if (hasMore && page >= maxPages) truncated = true;
       page++;
+      setProgress("Loading " + action.replace("get_", "") + "… " + all.length + (truncated ? "+" : ""));
     }
-    return all;
+    return { data: all, truncated: truncated };
   }
 
   function setProgress(text) {
     var overlayMsg = el("map-overlay-msg");
-    var subtitle = el("map-subtitle");
     if (overlayMsg) overlayMsg.textContent = text || "Loading…";
-    if (subtitle) subtitle.textContent = text || "Loading…";
   }
 
   function setMapOverlay(show) {
     var overlay = el("map-loading-overlay");
     if (overlay) overlay.style.display = show ? "flex" : "none";
+  }
+
+  function updateGeocodeStatus() {
+    var status = el("map-geocode-status");
+    if (!status) return;
+    if (mapState.geocoding) {
+      status.style.display = "block";
+      status.textContent = "Geocoding remaining addresses in background…";
+    } else {
+      status.style.display = "none";
+      status.textContent = "";
+    }
   }
 
   function accountStage(acc) {
@@ -187,6 +313,38 @@
     return true;
   }
 
+  function zohoAccountUrl(accountId) {
+    return "https://crm.zoho.com/crm/tab/Accounts/" + encodeURIComponent(accountId);
+  }
+
+  function zohoDealUrl(dealId) {
+    return "https://crm.zoho.com/crm/tab/Potentials/" + encodeURIComponent(dealId);
+  }
+
+  function findDealIdForAccount(accountId) {
+    var info = mapState.dealByAccount[accountId];
+    if (info && info.dealId) return info.dealId;
+    if (typeof A === "undefined" || !A.deals || !A.deals.length) return null;
+    var matches = A.deals.filter(function (d) { return d.Account_Id === accountId; });
+    if (!matches.length) return null;
+    var active = null;
+    for (var i = 0; i < matches.length; i++) {
+      if (matches[i].Stage === "Active") { active = matches[i]; break; }
+    }
+    return (active || matches[0]).id;
+  }
+
+  function mapSelectDealForAccount(accountId) {
+    var dealId = findDealIdForAccount(accountId);
+    if (dealId && typeof selectDeal === "function") {
+      selectDeal(dealId, { stayOnTab: "deals" });
+      if (typeof toast === "function") toast("Deal selected — open Capture when ready.");
+      return;
+    }
+    if (typeof toast === "function") toast("No deal found. Refresh deals on the Deals tab.");
+    else alert("No deal found. Refresh deals on the Deals tab first.");
+  }
+
   function makePinIcon(pinColor) {
     return L.divIcon({
       className: "",
@@ -203,6 +361,7 @@
     var color = stageColor(stage);
     var isActive = accountIsActive(acc);
     var pipColor = PIPELINE_COLORS[pipeline] || "#64748b";
+    var dealId = info.dealId || findDealIdForAccount(acc.id);
 
     var sourceLabel = acc.source === "stored" ? ""
       : acc.source === "billing" ? " (billing address)" : "";
@@ -225,17 +384,43 @@
     if (acc.Latitude_Longitude) {
       html += "<div style=\"font-size:11px;color:#94a3b8;margin-top:4px\">Site coords: " + esc(str(acc.Latitude_Longitude)) + "</div>";
     }
-    html += "<div style=\"margin-top:8px;border-top:1px solid #e2e8f0;padding-top:6px\">";
-    html += "<a href=\"https://www.openstreetmap.org/?mlat=" + acc.lat + "&mlon=" + acc.lng + "#map=16/" + acc.lat + "/" + acc.lng + "\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"font-size:11px;color:#1d4ed8;text-decoration:none\">Open in OpenStreetMap ↗</a>";
+    html += "<div class=\"map-popup-actions\">";
+    if (dealId) {
+      html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapSelectDealForAccount('" + String(acc.id).replace(/'/g, "\\'") + "')\">Select deal in CapStone</button>";
+    }
+    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
+    if (dealId) {
+      html += "<a href=\"" + esc(zohoDealUrl(dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open deal in Zoho ↗</a>";
+    }
+    html += "<a href=\"https://www.openstreetmap.org/?mlat=" + acc.lat + "&mlon=" + acc.lng + "#map=16/" + acc.lat + "/" + acc.lng + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open in OpenStreetMap ↗</a>";
     html += "</div></div>";
     return html;
   }
 
+  function ensureClusterGroup() {
+    if (!mapState.map || typeof L === "undefined") return null;
+    if (!mapState.clusterGroup) {
+      mapState.clusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 45,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false
+      });
+      mapState.map.addLayer(mapState.clusterGroup);
+    }
+    return mapState.clusterGroup;
+  }
+
   function clearMarkers() {
-    mapState.markers.forEach(function (m) {
-      if (mapState.map) mapState.map.removeLayer(m);
-    });
-    mapState.markers = [];
+    if (mapState.clusterGroup) mapState.clusterGroup.clearLayers();
+  }
+
+  function fitMapToFiltered(filtered) {
+    if (!mapState.map || !mapState.fitBoundsNext || !filtered.length) return;
+    try {
+      var bounds = L.latLngBounds(filtered.map(function (acc) { return [acc.lat, acc.lng]; }));
+      mapState.map.fitBounds(bounds, { padding: [36, 36], maxZoom: 12 });
+    } catch (e) {}
+    mapState.fitBoundsNext = false;
   }
 
   function stagesInUse() {
@@ -280,6 +465,8 @@
 
   function renderMapMarkers() {
     if (!mapState.map || typeof L === "undefined") return;
+    var cluster = ensureClusterGroup();
+    if (!cluster) return;
     clearMarkers();
     var filtered = mapState.located.filter(passesFilters);
     filtered.forEach(function (acc) {
@@ -289,9 +476,8 @@
       var isActive = accountIsActive(acc);
       var pinColor = isActive ? color.pin : "#9ca3af";
       var marker = L.marker([acc.lat, acc.lng], { icon: makePinIcon(pinColor) });
-      marker.bindPopup(popupHtml(acc), { maxWidth: 280 });
-      marker.addTo(mapState.map);
-      mapState.markers.push(marker);
+      marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
+      cluster.addLayer(marker);
     });
 
     var statusPins = el("map-status-pins");
@@ -308,6 +494,15 @@
 
     var missingBtn = el("map-missing-btn");
     if (missingBtn) missingBtn.textContent = "Missing (" + mapState.noAddress.length + ")";
+
+    fitMapToFiltered(filtered);
+    setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 80);
+  }
+
+  function missingReasonLabel(acc) {
+    if (acc.missingReason === "geocode_failed") return "Geocode failed";
+    if (acc.missingReason === "no_address") return "No address on file";
+    return "";
   }
 
   function renderMissingPanel() {
@@ -332,8 +527,11 @@
       var pipeline = info.pipeline || "";
       var sc = stageColor(stage);
       var pc = PIPELINE_COLORS[pipeline] || "#64748b";
+      var reason = missingReasonLabel(acc);
       var html = "<div class=\"map-missing-item\">";
-      html += "<span class=\"map-missing-name\">" + esc(str(acc.Account_Name)) + "</span>";
+      html += "<div><span class=\"map-missing-name\">" + esc(str(acc.Account_Name)) + "</span>";
+      if (reason) html += "<div class=\"map-missing-reason\">" + esc(reason) + "</div>";
+      html += "</div>";
       html += "<div class=\"map-missing-badges\">";
       if (pipeline) {
         html += "<span class=\"map-badge\" style=\"background:" + pc + "22;color:" + pc + ";border:1px solid " + pc + "44\">" + esc(pipeline) + "</span>";
@@ -346,11 +544,18 @@
 
   function updateSubtitle() {
     var subtitle = el("map-subtitle");
-    if (!subtitle) return;
-    if (mapState.loading) return;
-    subtitle.textContent = mapState.located.length + " mapped · " + mapState.noAddress.length + " missing address";
+    if (!subtitle || mapState.loading) return;
+    var parts = [mapState.located.length + " mapped", mapState.noAddress.length + " missing address"];
+    if (mapState.cacheNote) parts.push(mapState.cacheNote);
+    if (mapState.truncated) parts.push("list may be truncated");
+    subtitle.textContent = parts.join(" · ");
     var note = el("map-status-missing-note");
     if (note) note.textContent = mapState.noAddress.length + " accounts need address data";
+    var cacheNote = el("map-cache-note");
+    if (cacheNote) {
+      cacheNote.textContent = mapState.cacheNote || "";
+      cacheNote.style.display = mapState.cacheNote ? "block" : "none";
+    }
   }
 
   function applyMapFilters() {
@@ -362,6 +567,27 @@
     renderMissingPanel();
   }
 
+  function applyMapDataset(opts) {
+    opts = opts || {};
+    if (opts.fitBounds) mapState.fitBoundsNext = true;
+    populateStageFilter();
+    renderLegend();
+    applyMapFilters();
+    updateSubtitle();
+  }
+
+  function restoreFromCache(data, stale) {
+    mapState.dealByAccount = data.dealByAccount || {};
+    mapState.located = data.located || [];
+    mapState.noAddress = data.noAddress || [];
+    mapState.truncated = !!data.truncated;
+    mapState.loaded = true;
+    mapState.cacheNote = stale
+      ? "cached · refreshing…"
+      : "cached · " + new Date(data.savedAt).toLocaleString();
+    applyMapDataset({ fitBounds: true });
+  }
+
   function ensureMap() {
     if (mapState.map || typeof L === "undefined") return;
     var container = el("map-container");
@@ -371,19 +597,129 @@
       attribution: "© OpenStreetMap contributors",
       maxZoom: 19
     }).addTo(mapState.map);
-    setTimeout(function () {
-      if (mapState.map) mapState.map.invalidateSize();
-    }, 100);
+    ensureClusterGroup();
+    setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 100);
+  }
+
+  function splitAccountsByLocation(rawAccounts) {
+    var withLoc = [], pendingGeocode = [], withoutLoc = [];
+    rawAccounts.forEach(function (rec) {
+      var acc = normalizeAccount(rec);
+      var stored = resolveStoredLocation(acc);
+      if (stored) {
+        withLoc.push(Object.assign({}, acc, stored));
+        return;
+      }
+      if (shippingAddrStr(acc) || billingAddrStr(acc)) {
+        pendingGeocode.push(acc);
+        return;
+      }
+      acc.missingReason = "no_address";
+      withoutLoc.push(acc);
+    });
+    return { withLoc: withLoc, pendingGeocode: pendingGeocode, withoutLoc: withoutLoc };
+  }
+
+  async function geocodePendingAccounts(pending, geoCache) {
+    if (!pending.length) return;
+    mapState.geocoding = true;
+    updateGeocodeStatus();
+    var batch = 0;
+    for (var i = 0; i < pending.length; i++) {
+      var acc = pending[i];
+      var loc = await resolveGeocodeLocation(acc, geoCache);
+      if (loc) {
+        mapState.located.push(Object.assign({}, acc, loc));
+        batch++;
+      } else {
+        acc.missingReason = "geocode_failed";
+        mapState.noAddress.push(acc);
+      }
+      if (batch >= 3 || i === pending.length - 1) {
+        batch = 0;
+        renderMapMarkers();
+        renderMissingPanel();
+        updateSubtitle();
+        saveMapCache();
+      }
+      if ((i + 1) % 10 === 0) {
+        var status = el("map-geocode-status");
+        if (status) status.textContent = "Geocoding… " + (i + 1) + " / " + pending.length;
+      }
+      await sleep(15);
+    }
+    mapState.geocoding = false;
+    updateGeocodeStatus();
+    mapState.cacheNote = "updated · " + new Date().toLocaleTimeString();
+    saveMapCache();
+    applyMapDataset({});
+  }
+
+  async function fetchAndProcessMapData(force) {
+    if (typeof refreshZohoToken === "function") {
+      var tokOk = await refreshZohoToken();
+      if (!tokOk) throw new Error("Zoho token refresh failed");
+    }
+
+    var geoCache = loadGeoCache();
+    setProgress("Loading accounts…");
+    var acctResult = await fetchAllPages("get_accounts", 20);
+    setProgress("Loaded " + acctResult.data.length + " accounts. Fetching deals…");
+    var dealResult = await fetchAllPages("get_map_deals", 10);
+    mapState.dealByAccount = buildDealMap(dealResult.data);
+    mapState.truncated = acctResult.truncated || dealResult.truncated;
+
+    var split = splitAccountsByLocation(acctResult.data);
+    mapState.located = split.withLoc;
+    mapState.noAddress = split.withoutLoc;
+    mapState.loaded = true;
+    mapState.cacheNote = "";
+    mapState.fitBoundsNext = true;
+
+    saveMapCache();
+    setMapOverlay(false);
+    mapState.loading = false;
+    applyMapDataset({ fitBounds: true });
+    updateSubtitle();
+
+    if (split.pendingGeocode.length) {
+      geocodePendingAccounts(split.pendingGeocode, geoCache);
+    } else {
+      mapState.cacheNote = "updated · " + new Date().toLocaleTimeString();
+      updateSubtitle();
+    }
   }
 
   async function loadAccountsMap(force) {
     if (mapState.loading) return;
+
+    await loadMapLibs();
+    ensureMap();
+
+    if (!force) {
+      var cached = loadMapCache();
+      if (cached && cached.located && cached.located.length) {
+        var stale = !cacheIsFresh(cached);
+        restoreFromCache(cached, stale);
+        if (!stale) return;
+        mapState.loading = true;
+        fetchAndProcessMapData(true).catch(function (e) {
+          mapState.cacheNote = "cached · refresh failed";
+          updateSubtitle();
+          var errEl = el("map-err");
+          if (errEl) { errEl.textContent = e.message || String(e); errEl.style.display = "block"; }
+        }).finally(function () {
+          mapState.loading = false;
+          setMapOverlay(false);
+          var btn = el("map-refresh-btn");
+          if (btn) { btn.disabled = false; btn.textContent = "↺ Refresh"; }
+        });
+        return;
+      }
+    }
+
     if (mapState.loaded && !force) {
-      ensureMap();
-      populateStageFilter();
-      renderLegend();
-      applyMapFilters();
-      updateSubtitle();
+      applyMapDataset({});
       setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 150);
       return;
     }
@@ -394,41 +730,10 @@
     var err = el("map-err");
     if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
     if (err) err.style.display = "none";
-    setProgress("Loading accounts…");
+    mapState.cacheNote = "";
 
     try {
-      if (typeof refreshZohoToken === "function") {
-        var tokOk = await refreshZohoToken();
-        if (!tokOk) throw new Error("Zoho token refresh failed");
-      }
-
-      var geoCache = loadGeoCache();
-      var rawAccounts = await fetchAllPages("get_accounts", 20);
-      setProgress("Loaded " + rawAccounts.length + " accounts. Fetching deals…");
-      var rawDeals = await fetchAllPages("get_map_deals", 10);
-      mapState.dealByAccount = buildDealMap(rawDeals);
-
-      setProgress("Resolving locations for " + rawAccounts.length + " accounts…");
-      var withLoc = [], withoutLoc = [], done = 0;
-      for (var i = 0; i < rawAccounts.length; i++) {
-        var acc = rawAccounts[i];
-        var loc = await resolveLocation(acc, geoCache);
-        if (loc) withLoc.push(Object.assign({}, acc, loc));
-        else withoutLoc.push(acc);
-        done++;
-        if (done % 10 === 0) setProgress("Resolved " + done + " / " + rawAccounts.length + "…");
-        await sleep(15);
-      }
-
-      mapState.located = withLoc;
-      mapState.noAddress = withoutLoc;
-      mapState.loaded = true;
-      ensureMap();
-      populateStageFilter();
-      renderLegend();
-      applyMapFilters();
-      updateSubtitle();
-      setProgress("");
+      await fetchAndProcessMapData(force);
     } catch (e) {
       setProgress("");
       if (err) {
@@ -444,15 +749,25 @@
   }
 
   function initAccountsMapTab() {
-    ensureMap();
-    if (!mapState.loaded) loadAccountsMap(false);
-    else {
-      populateStageFilter();
-      renderLegend();
-      applyMapFilters();
-      updateSubtitle();
-      setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 150);
-    }
+    loadMapLibs().then(function () {
+      ensureMap();
+      var cached = loadMapCache();
+      if (cached && cached.located && cached.located.length && !mapState.loaded) {
+        restoreFromCache(cached, !cacheIsFresh(cached));
+        if (!cacheIsFresh(cached)) {
+          loadAccountsMap(true);
+          return;
+        }
+      }
+      if (!mapState.loaded) loadAccountsMap(false);
+      else {
+        applyMapDataset({});
+        setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 150);
+      }
+    }).catch(function (e) {
+      var err = el("map-err");
+      if (err) { err.textContent = "Could not load map libraries: " + (e.message || e); err.style.display = "block"; }
+    });
   }
 
   function toggleMapMissingPanel() {
@@ -466,4 +781,5 @@
   window.applyMapFilters = applyMapFilters;
   window.initAccountsMapTab = initAccountsMapTab;
   window.toggleMapMissingPanel = toggleMapMissingPanel;
+  window.mapSelectDealForAccount = mapSelectDealForAccount;
 })();

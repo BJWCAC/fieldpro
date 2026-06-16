@@ -186,5 +186,12 @@ body.light .hist-card{background:#fff}
 .map-missing-name{color:#cbd5e1;flex:1;margin-right:8px}
 .map-missing-badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
 .map-missing-empty{color:#64748b;font-size:11px;padding-bottom:8px}
-.leaflet-container{font-family:"IBM Plex Sans",sans-serif}
 .leaflet-popup-content-wrapper{border-radius:8px}
+.map-geocode-status{font-size:11px;color:#93c5fd;margin-bottom:8px;padding:6px 8px;background:#1e3a5f;border:1px solid #334155;border-radius:6px}
+.map-cache-note{font-size:11px;color:#64748b;margin-bottom:8px}
+.map-popup-actions{margin-top:8px;border-top:1px solid #e2e8f0;padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.map-popup-btn{background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:"IBM Plex Sans",sans-serif}
+.map-popup-link{font-size:11px;color:#1d4ed8;text-decoration:none}
+.map-missing-reason{font-size:10px;color:#64748b;margin-top:2px}
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(59,130,246,.35)}
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(29,78,216,.85);color:#fff;font-family:"Barlow Condensed",sans-serif;font-weight:800}

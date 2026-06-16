@@ -9,9 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=212"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="src/styles.css?v=213"/>
 
 </head>
 <body>
@@ -531,10 +529,11 @@
     <div class="help-box-body">
       <p>The Map tab plots all Zoho CRM accounts on an OpenStreetMap view. Pin color reflects deal stage; inactive accounts appear gray.</p>
       <ul>
-        <li>Stored coordinates on the account are used first — geocoding is only a fallback.</li>
+        <li>Stored coordinates on the account are used first — geocoding runs in the background.</li>
+        <li>Map data is cached on this device for 24 hours; tap Refresh to force a Zoho sync.</li>
         <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
-        <li>Accounts without a resolvable location appear in the missing-address panel below the map.</li>
-        <li>Tap Refresh Map Data after CRM address or coordinate updates.</li>
+        <li>Tap a pin to select the deal in CapStone or open the account in Zoho CRM.</li>
+        <li>Accounts without a resolvable location appear in the missing-address panel.</li>
       </ul>
     </div>
   </details>
@@ -550,6 +549,8 @@
       </div>
     </div>
     <div id="map-err" class="err-box" style="display:none"></div>
+    <div id="map-cache-note" class="map-cache-note" style="display:none"></div>
+    <div id="map-geocode-status" class="map-geocode-status" style="display:none"></div>
     <input type="text" id="map-f-search" placeholder="Search accounts…" oninput="applyMapFilters()"/>
     <div class="g2" style="margin-bottom:8px">
       <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All pipelines</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
@@ -820,8 +821,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=212"></script>
-<script src="src/app.js?v=212"></script>
+<script src="src/accounts-map.js?v=213"></script>
+<script src="src/app.js?v=213"></script>
 
 </body>
 </html>

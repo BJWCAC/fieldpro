@@ -91,7 +91,7 @@ exports.handler = async function(event) {
     if (data.action === "get_map_deals") {
       var mapDealResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Deals?per_page=200&page=" + (data.page || 1) + "&fields=Stage,Account_Name,Pipeline",
+        path: "/crm/v3/Deals?per_page=200&page=" + (data.page || 1) + "&fields=Deal_Name,Stage,Account_Name,Pipeline",
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
