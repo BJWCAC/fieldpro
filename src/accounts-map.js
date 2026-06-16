@@ -1,7 +1,7 @@
 /* CapStone Accounts Map — Leaflet + OSM with phased load, cache, clustering */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
-  var MAP_CACHE_KEY = "fp_map_cache";
+  var MAP_CACHE_KEY = "fp_map_cache_v2";
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [44.5, -93.5];
   var MAP_ZOOM = 7;
@@ -173,11 +173,45 @@
     return STAGE_COLORS[stage] || DEFAULT_COLOR;
   }
 
+  function validLat(v) {
+    return !isNaN(v) && v >= -90 && v <= 90 && Math.abs(v) > 0.0001;
+  }
+
+  function validLng(v) {
+    return !isNaN(v) && v >= -180 && v <= 180 && Math.abs(v) > 0.0001;
+  }
+
+  function parseCoordPair(a, b) {
+    var x = parseFloat(a), y = parseFloat(b);
+    if (isNaN(x) || isNaN(y) || (x === 0 && y === 0)) return null;
+    if (validLat(x) && validLng(y)) return { lat: x, lng: y };
+    if (validLat(y) && validLng(x)) return { lat: y, lng: x };
+    return null;
+  }
+
+  /** Zoho "Main Site Coordinates" (API field Latitude_Longitude) */
+  function parseMainSiteCoords(raw) {
+    var s = String(raw || "").trim();
+    if (!s) return null;
+    var nums = s.match(/-?\d+(?:\.\d+)?/g);
+    if (nums && nums.length >= 2) return parseCoordPair(nums[0], nums[1]);
+    return null;
+  }
+
   function resolveStoredLocation(acc) {
+    var main = parseMainSiteCoords(acc.Latitude_Longitude);
+    if (main) {
+      return {
+        lat: main.lat,
+        lng: main.lng,
+        source: "main_site",
+        addrStr: shippingAddrStr(acc) || billingAddrStr(acc) || "Main site coordinates"
+      };
+    }
     var lat = parseFloat(acc.googlemapreports__Latitude);
     var lng = parseFloat(acc.googlemapreports__Longitude);
     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      return { lat: lat, lng: lng, source: "stored", addrStr: shippingAddrStr(acc) || "Coordinates on file" };
+      return { lat: lat, lng: lng, source: "googlemap", addrStr: shippingAddrStr(acc) || "Coordinates on file" };
     }
     return null;
   }
@@ -362,7 +396,8 @@
     var pipColor = PIPELINE_COLORS[pipeline] || "#64748b";
     var dealId = info.dealId || findDealIdForAccount(acc.id);
 
-    var sourceLabel = acc.source === "stored" ? ""
+    var sourceLabel = acc.source === "main_site" ? " (main site coordinates)"
+      : acc.source === "googlemap" || acc.source === "stored" ? ""
       : acc.source === "billing" ? " (billing address)" : "";
 
     var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
@@ -381,7 +416,7 @@
     html += "</div>";
     if (acc.Phone) html += "<div style=\"font-size:12px;color:#334155\">" + esc(str(acc.Phone)) + "</div>";
     if (acc.Latitude_Longitude) {
-      html += "<div style=\"font-size:11px;color:#94a3b8;margin-top:4px\">Site coords: " + esc(str(acc.Latitude_Longitude)) + "</div>";
+      html += "<div style=\"font-size:11px;color:#94a3b8;margin-top:4px\">Main site coords: " + esc(str(acc.Latitude_Longitude)) + "</div>";
     }
     html += "<div class=\"map-popup-actions\">";
     if (dealId) {

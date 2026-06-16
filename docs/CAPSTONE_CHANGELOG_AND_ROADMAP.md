@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v215
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=215
+Current live version: v217
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=217
 ```
 
 ---
@@ -54,6 +54,7 @@ Related docs (detail, not status):
 | v214 | — | **Map tab visibility** — move Map next to Deals; tab bar scroll hint for overflow tabs |
 | v215 | — | **Zoho refresh resilience** — retry token refresh, clearer errors, cached map when refresh fails offline |
 | v216 | — | **Zoho token cache** — reuse access token ~1hr; stop geocode from refreshing OAuth; rate-limit error message |
+| v217 | — | **Map: Main Site Coordinates first** — parse `Latitude_Longitude` before Google extension fields or geocoding; bump map cache key |
 
 ### UI / workflow polish
 
