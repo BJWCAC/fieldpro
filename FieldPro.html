@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=206"/>
+<link rel="stylesheet" href="src/styles.css?v=213"/>
 
 </head>
 <body>
@@ -38,6 +38,7 @@
   <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
+  <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-settings" onclick="go('settings')">Settings</div>
   <div class="tab pending-sync-tab" id="pending-sync-tab" onclick="go('settings')" style="display:none">Pending <span id="pending-sync-count">0</span></div>
 </div>
@@ -342,7 +343,7 @@
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><div style="font-size:11px;color:var(--dim);margin-top:6px">AI extraction uses up to the first 3 photos.</div></div>
     <div class="g2" style="margin-bottom:8px">
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="No deal selected"/></div>
-      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/></div>
+      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
     <div class="g2" style="margin-bottom:8px">
@@ -519,6 +520,66 @@
     <span id="hist-count" style="font-size:11px;color:var(--dim)"></span>
   </div>
   <div id="hist-list"></div>
+</div>
+
+<!-- MAP -->
+<div class="pane" id="p-map">
+  <details class="help-box" data-help-id="map-tab">
+    <summary>Help: Accounts Map</summary>
+    <div class="help-box-body">
+      <p>The Map tab plots all Zoho CRM accounts on an OpenStreetMap view. Pin color reflects deal stage; inactive accounts appear gray.</p>
+      <ul>
+        <li>Stored coordinates on the account are used first — geocoding runs in the background.</li>
+        <li>Map data is cached on this device for 24 hours; tap Refresh to force a Zoho sync.</li>
+        <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
+        <li>Tap a pin to select the deal in CapStone or open the account in Zoho CRM.</li>
+        <li>Accounts without a resolvable location appear in the missing-address panel.</li>
+      </ul>
+    </div>
+  </details>
+  <div class="map-toolbar">
+    <div class="map-header-row">
+      <div>
+        <div class="map-title">Accounts Map</div>
+        <div id="map-subtitle" class="map-subtitle">Open this tab to load accounts from Zoho.</div>
+      </div>
+      <div class="map-header-actions">
+        <button type="button" class="bg bsm" id="map-missing-btn" onclick="toggleMapMissingPanel()">Missing (0)</button>
+        <button type="button" class="bp bsm" id="map-refresh-btn" onclick="loadAccountsMap(true)">↺ Refresh</button>
+      </div>
+    </div>
+    <div id="map-err" class="err-box" style="display:none"></div>
+    <div id="map-cache-note" class="map-cache-note" style="display:none"></div>
+    <div id="map-geocode-status" class="map-geocode-status" style="display:none"></div>
+    <input type="text" id="map-f-search" placeholder="Search accounts…" oninput="applyMapFilters()"/>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All pipelines</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
+      <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option></select></div>
+    </div>
+    <div style="margin-bottom:8px">
+      <label class="lbl" for="map-f-status">Account Status</label>
+      <select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option></select>
+    </div>
+  </div>
+  <div class="map-wrap">
+    <div id="map-container"></div>
+    <div id="map-legend" class="map-legend"></div>
+    <div id="map-loading-overlay" class="map-loading-overlay" style="display:none">
+      <div class="map-spinner"></div>
+      <div id="map-overlay-msg" class="map-overlay-msg">Loading…</div>
+    </div>
+  </div>
+  <div id="map-status-bar" class="map-status-bar">
+    <span>Showing <strong id="map-status-pins">0</strong> pins<span id="map-status-filters"></span></span>
+    <span id="map-status-missing-note"></span>
+  </div>
+  <div id="map-missing-panel" class="map-missing-panel" style="display:none">
+    <div class="map-missing-hdr" onclick="toggleMapMissingPanel()">
+      <span class="map-missing-hdr-title">⚠ <span id="map-missing-hdr-count">0</span> accounts missing address</span>
+      <span id="map-missing-hide" class="map-missing-hide">▲ Hide</span>
+    </div>
+    <div id="map-missing-list" class="map-missing-list"></div>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -760,7 +821,8 @@
   </div>
 </div>
 
-<script src="src/app.js?v=206"></script>
+<script src="src/accounts-map.js?v=213"></script>
+<script src="src/app.js?v=213"></script>
 
 </body>
 </html>
