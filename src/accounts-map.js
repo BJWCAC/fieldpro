@@ -1,7 +1,7 @@
 /* CapStone Accounts Map — Leaflet + OSM with phased load, cache, clustering */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
-  var MAP_CACHE_KEY = "fp_map_cache_v4";
+  var MAP_CACHE_KEY = "fp_map_cache_v5";
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [46.0, -94.0];
   var MAP_ZOOM = 6;
@@ -472,22 +472,79 @@
     return byId;
   }
 
+  function findActiveDealForAccount(accountId) {
+    var deals = (mapState.dealsByAccount && mapState.dealsByAccount[accountId]) || [];
+    for (var i = 0; i < deals.length; i++) {
+      if (deals[i].stage === "Active") return deals[i];
+    }
+    return null;
+  }
+
+  function getDealsForAccount(acc) {
+    return (mapState.dealsByAccount[acc.id] || []).slice();
+  }
+
+  function passesDealFilters(deal, acc) {
+    var f = mapState.filters;
+    var accountName = str(acc.Account_Name);
+    var dealName = str(deal.dealName);
+    var isActive = accountIsActive(acc);
+
+    if (f.search) {
+      var q = f.search.toLowerCase();
+      if (accountName.toLowerCase().indexOf(q) < 0 && dealName.toLowerCase().indexOf(q) < 0) return false;
+    }
+    if (f.pipeline && str(deal.pipeline) !== f.pipeline) return false;
+    if (f.stages && f.stages.length) {
+      var st = str(deal.stage) || (deal.dealId ? "" : "No Active Deal");
+      if (!st) st = "No Active Deal";
+      if (f.stages.indexOf(st) < 0) return false;
+    }
+    if (f.status === "Active" && !isActive) return false;
+    if (f.status === "Inactive" && isActive) return false;
+    return true;
+  }
+
+  function getFilteredDealsForAccount(acc) {
+    return getDealsForAccount(acc).filter(function (d) { return passesDealFilters(d, acc); });
+  }
+
   function buildScheduledMeetings(events, dealIndex, locById) {
     if (!dealIndex || !events || !events.length) return [];
     var meetings = [];
     var now = Date.now();
+    var seenIds = {};
     events.forEach(function (ev) {
       if (ev.$event_cancelled === true || ev.$event_cancelled === "true") return;
+      if (ev.id && seenIds[ev.id]) return;
       var seModule = str(ev.$se_module);
-      if (seModule && seModule !== "Deals") return;
-      var dealId = ev.What_Id && ev.What_Id.id;
-      if (!dealId || !dealIndex.activeDealIds[dealId]) return;
+      var dealId = null;
+      var dealName = "";
+      var accountId = null;
+
+      if (seModule === "Deals") {
+        dealId = ev.What_Id && ev.What_Id.id;
+        if (!dealId || !dealIndex.activeDealIds[dealId]) return;
+        var dealInfo = dealIndex.dealToAccount[dealId];
+        if (!dealInfo) return;
+        accountId = dealInfo.accountId;
+        dealName = dealInfo.dealName;
+      } else if (seModule === "Accounts") {
+        accountId = ev.What_Id && ev.What_Id.id;
+        if (!accountId) return;
+        var activeDeal = findActiveDealForAccount(accountId);
+        if (!activeDeal) return;
+        dealId = activeDeal.dealId;
+        dealName = activeDeal.dealName;
+      } else {
+        return;
+      }
+
       var end = parseZohoDateTime(ev.End_DateTime || ev.Start_DateTime);
       if (!end || end.getTime() < now) return;
-      var dealInfo = dealIndex.dealToAccount[dealId];
-      if (!dealInfo) return;
-      var acc = locById[dealInfo.accountId];
+      var acc = locById[accountId];
       if (!acc || acc.lat == null || acc.lng == null) return;
+      if (ev.id) seenIds[ev.id] = true;
       meetings.push({
         id: ev.id,
         title: str(ev.Event_Title) || "Meeting",
@@ -495,14 +552,15 @@
         end: ev.End_DateTime,
         venue: str(ev.Venue) || str(ev.Location) || "",
         dealId: dealId,
-        dealName: dealInfo.dealName,
-        accountId: dealInfo.accountId,
+        dealName: dealName,
+        accountId: accountId,
         accountName: str(acc.Account_Name),
         baseLat: acc.lat,
         baseLng: acc.lng,
         lat: acc.lat,
         lng: acc.lng,
-        eventModule: mapState.eventsModule || "Events"
+        eventModule: mapState.eventsModule || "Events",
+        linkedVia: seModule === "Accounts" ? "account" : "deal"
       });
     });
     meetings.sort(function (a, b) {
@@ -573,7 +631,12 @@
     if (!mapState.filters.showMeetings) return false;
     var acc = findLocatedAccount(m.accountId);
     if (!acc) return false;
-    return passesFilters(acc);
+    var deal = { stage: "Active", pipeline: "", dealId: m.dealId, dealName: m.dealName };
+    var deals = mapState.dealsByAccount[m.accountId] || [];
+    for (var i = 0; i < deals.length; i++) {
+      if (deals[i].dealId === m.dealId) { deal = deals[i]; break; }
+    }
+    return passesDealFilters(deal, acc);
   }
 
   async function fetchAllPages(action, maxPages) {
@@ -639,23 +702,15 @@
   }
 
   function passesFilters(acc) {
-    var f = mapState.filters;
-    var name = str(acc.Account_Name);
-    var stage = accountStage(acc);
-    var pipeline = accountPipeline(acc);
-    var isActive = accountIsActive(acc);
-
-    if (f.search && name.toLowerCase().indexOf(f.search.toLowerCase()) < 0) return false;
-    if (f.pipeline && pipeline !== f.pipeline) return false;
-    if (f.stages && f.stages.length) {
-      var stageMatch = f.stages.some(function (wanted) {
-        return accountMatchesStageFilter(acc, wanted);
-      });
-      if (!stageMatch) return false;
+    var deals = getDealsForAccount(acc);
+    if (deals.length) {
+      return deals.some(function (d) { return passesDealFilters(d, acc); });
     }
-    if (f.status === "Active" && !isActive) return false;
-    if (f.status === "Inactive" && isActive) return false;
-    return true;
+    var noDeal = { stage: "No Active Deal", pipeline: "", dealId: "", dealName: "" };
+    if (!mapState.filters.stages || !mapState.filters.stages.length) {
+      return passesDealFilters(noDeal, acc);
+    }
+    return mapState.filters.stages.indexOf("No Active Deal") >= 0 && passesDealFilters(noDeal, acc);
   }
 
   function zohoAccountUrl(accountId) {
@@ -684,8 +739,7 @@
     return (active || matches[0]).id;
   }
 
-  function mapSelectDealForAccount(accountId) {
-    var dealId = findDealIdForAccount(accountId);
+  function mapSelectDeal(dealId) {
     if (dealId && typeof selectDeal === "function") {
       selectDeal(dealId, { stayOnTab: "deals" });
       if (typeof toast === "function") toast("Deal selected — open Capture when ready.");
@@ -693,6 +747,11 @@
     }
     if (typeof toast === "function") toast("No deal found. Refresh deals on the Deals tab.");
     else alert("No deal found. Refresh deals on the Deals tab first.");
+  }
+
+  function mapSelectDealForAccount(accountId) {
+    var dealId = findDealIdForAccount(accountId);
+    mapSelectDeal(dealId);
   }
 
   function overlapGroupKey(lat, lng) {
@@ -712,13 +771,20 @@
   }
 
   function compareSpreadItems(a, b) {
-    if (a.kind !== b.kind) return a.kind === "account" ? -1 : 1;
-    if (a.kind === "account") {
-      return str(a.data.Account_Name).localeCompare(str(b.data.Account_Name));
+    var rank = { hub: 0, deal: 1, meeting: 2, account: 3 };
+    var ra = rank[a.kind] != null ? rank[a.kind] : 9;
+    var rb = rank[b.kind] != null ? rank[b.kind] : 9;
+    if (ra !== rb) return ra - rb;
+    if (a.kind === "deal") {
+      return str(a.data.deal.dealName).localeCompare(str(b.data.deal.dealName));
     }
-    var ta = parseZohoDateTime(a.data.start);
-    var tb = parseZohoDateTime(b.data.start);
-    return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+    if (a.kind === "meeting") {
+      var ta = parseZohoDateTime(a.data.start);
+      var tb = parseZohoDateTime(b.data.start);
+      return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+    }
+    return str(a.data.Account_Name || (a.data.acc && a.data.acc.Account_Name) || "")
+      .localeCompare(str(b.data.Account_Name || (b.data.acc && b.data.acc.Account_Name) || ""));
   }
 
   function applyOverlapSpread(items) {
@@ -748,7 +814,15 @@
       }
       var centerIdx = 0;
       for (var ci = 0; ci < group.items.length; ci++) {
-        if (group.items[ci].kind === "account") { centerIdx = ci; break; }
+        if (group.items[ci].kind === "hub") { centerIdx = ci; break; }
+      }
+      if (group.items[centerIdx].kind !== "hub") {
+        for (var cj = 0; cj < group.items.length; cj++) {
+          if (group.items[cj].kind === "deal" || group.items[cj].kind === "account") {
+            centerIdx = cj;
+            break;
+          }
+        }
       }
       var center = group.items[centerIdx];
       center.displayLat = group.anchor.lat;
@@ -780,15 +854,81 @@
   }
 
   function collectSpreadMarkerItems(filtered, meetingFiltered) {
-    var items = [];
+    var sites = {};
+
+    function ensureSite(acc) {
+      var key = overlapGroupKey(acc.lat, acc.lng);
+      if (!sites[key]) {
+        sites[key] = {
+          acc: acc,
+          baseLat: acc.lat,
+          baseLng: acc.lng,
+          deals: [],
+          meetings: [],
+          accountsNoDeal: []
+        };
+      }
+      return sites[key];
+    }
+
     filtered.forEach(function (acc) {
-      items.push({ kind: "account", data: acc, baseLat: acc.lat, baseLng: acc.lng });
+      var site = ensureSite(acc);
+      var deals = getFilteredDealsForAccount(acc);
+      if (deals.length) {
+        deals.forEach(function (deal) {
+          site.deals.push({ deal: deal, acc: acc });
+        });
+      } else if (!getDealsForAccount(acc).length) {
+        site.accountsNoDeal.push(acc);
+      }
     });
+
     meetingFiltered.forEach(function (m) {
-      var baseLat = m.baseLat != null ? m.baseLat : m.lat;
-      var baseLng = m.baseLng != null ? m.baseLng : m.lng;
-      items.push({ kind: "meeting", data: m, baseLat: baseLat, baseLng: baseLng });
+      var acc = findLocatedAccount(m.accountId);
+      if (!acc) return;
+      var site = ensureSite(acc);
+      site.meetings.push(m);
     });
+
+    var items = [];
+    Object.keys(sites).forEach(function (key) {
+      var site = sites[key];
+      var satCount = site.deals.length + site.meetings.length + site.accountsNoDeal.length;
+      var useHub = satCount > 1;
+
+      if (useHub) {
+        var primaryDeal = "";
+        for (var i = 0; i < site.deals.length; i++) {
+          if (site.deals[i].deal.stage === "Active") {
+            primaryDeal = site.deals[i].deal.dealName;
+            break;
+          }
+        }
+        if (!primaryDeal && site.deals.length) primaryDeal = site.deals[0].deal.dealName;
+        items.push({
+          kind: "hub",
+          data: { acc: site.acc, primaryDealName: primaryDeal, site: site },
+          baseLat: site.baseLat,
+          baseLng: site.baseLng
+        });
+        site.deals.forEach(function (d) {
+          items.push({ kind: "deal", data: d, baseLat: site.baseLat, baseLng: site.baseLng });
+        });
+        site.meetings.forEach(function (m) {
+          items.push({ kind: "meeting", data: m, baseLat: site.baseLat, baseLng: site.baseLng });
+        });
+        site.accountsNoDeal.forEach(function (acc) {
+          items.push({ kind: "account", data: acc, baseLat: site.baseLat, baseLng: site.baseLng });
+        });
+      } else if (site.deals.length === 1) {
+        items.push({ kind: "deal", data: site.deals[0], baseLat: site.baseLat, baseLng: site.baseLng });
+      } else if (site.meetings.length === 1) {
+        items.push({ kind: "meeting", data: site.meetings[0], baseLat: site.baseLat, baseLng: site.baseLng });
+      } else if (site.accountsNoDeal.length === 1) {
+        items.push({ kind: "account", data: site.accountsNoDeal[0], baseLat: site.baseLat, baseLng: site.baseLng });
+      }
+    });
+
     return applyOverlapSpread(items);
   }
 
@@ -823,7 +963,9 @@
     if (!mapState.spreadLinesGroup) return;
     items.forEach(function (item) {
       if (!item.showSpokeLine) return;
-      var color = item.kind === "meeting" ? MEETING_PIN_COLOR : "#64748b";
+      var color = item.kind === "meeting" ? MEETING_PIN_COLOR
+        : item.kind === "deal" ? stageColor(item.data.deal.stage).pin
+        : "#64748b";
       L.polyline(
         [[item.anchorLat, item.anchorLng], [item.displayLat, item.displayLng]],
         {
@@ -849,6 +991,19 @@
     });
   }
 
+  function makeHubIcon(acc, primaryDealName) {
+    var name = esc(str(acc.Account_Name)).substring(0, 30);
+    var dealLine = primaryDealName
+      ? "<div class=\"map-hub-deal\">" + esc(str(primaryDealName).substring(0, 34)) + "</div>"
+      : "";
+    return L.divIcon({
+      className: "map-hub-wrap",
+      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\"></div><div class=\"map-hub-label\">" + name + dealLine + "</div></div>",
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+  }
+
   function makeMeetingPinIcon() {
     var s = PIN_SIZE + 4;
     var half = Math.round(s / 2);
@@ -870,10 +1025,69 @@
     if (m.venue) {
       html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:6px\">" + esc(m.venue) + "</div>";
     }
+    if (m.linkedVia === "account") {
+      html += "<div style=\"font-size:10px;color:#94a3b8;margin-bottom:6px\">Linked to account in Zoho</div>";
+    }
     html += "<div class=\"map-popup-actions\">";
-    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapSelectDealForAccount('" + String(m.accountId).replace(/'/g, "\\'") + "')\">Select deal in CapStone</button>";
+    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapSelectDeal('" + String(m.dealId).replace(/'/g, "\\'") + "')\">Select deal in CapStone</button>";
     html += "<a href=\"" + esc(zohoEventUrl(m.id, m.eventModule)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open meeting in Zoho ↗</a>";
     html += "<a href=\"" + esc(zohoDealUrl(m.dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open deal in Zoho ↗</a>";
+    html += "</div></div>";
+    return html;
+  }
+
+  function dealPopupHtml(dealWrap) {
+    var deal = dealWrap.deal;
+    var acc = dealWrap.acc;
+    var stage = deal.stage || "No Active Deal";
+    var pipeline = deal.pipeline || "";
+    var color = stageColor(stage);
+    var isActive = accountIsActive(acc);
+    var pipColor = PIPELINE_COLORS[pipeline] || "#64748b";
+
+    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
+    html += "<div style=\"font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:" + color.pin + ";margin-bottom:4px\">Deal</div>";
+    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(str(deal.dealName)) + "</div>";
+    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:8px\">" + esc(str(acc.Account_Name)) + "</div>";
+    html += "<div style=\"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px\">";
+    html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:" + color.pin + "22;color:" + color.text + ";border:1px solid " + color.pin + "55\">" + esc(stage) + "</span>";
+    if (pipeline) {
+      html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:" + pipColor + "22;color:" + pipColor + ";border:1px solid " + pipColor + "55\">" + esc(pipeline) + "</span>";
+    }
+    if (!isActive) {
+      html += "<span style=\"display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0\">Inactive account</span>";
+    }
+    html += "</div>";
+    html += "<div class=\"map-popup-actions\">";
+    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapSelectDeal('" + String(deal.dealId).replace(/'/g, "\\'") + "')\">Select deal in CapStone</button>";
+    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
+    html += "<a href=\"" + esc(zohoDealUrl(deal.dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open deal in Zoho ↗</a>";
+    html += "</div></div>";
+    return html;
+  }
+
+  function hubPopupHtml(hubData) {
+    var acc = hubData.acc;
+    var site = hubData.site;
+    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
+    html += "<div style=\"font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px\">Site</div>";
+    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(str(acc.Account_Name)) + "</div>";
+    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:8px;line-height:1.4\">" + esc(acc.addrStr || "No address on file") + "</div>";
+    if (site.deals.length) {
+      html += "<div style=\"font-size:11px;font-weight:600;color:#334155;margin-bottom:4px\">Deals at this site</div>";
+      site.deals.forEach(function (d) {
+        var c = stageColor(d.deal.stage);
+        html += "<div style=\"font-size:11px;margin-bottom:4px\"><span style=\"color:" + c.pin + ";font-weight:600\">" + esc(d.deal.dealName) + "</span> · " + esc(d.deal.stage) + "</div>";
+      });
+    }
+    if (site.meetings.length) {
+      html += "<div style=\"font-size:11px;font-weight:600;color:#334155;margin:8px 0 4px\">Upcoming meetings</div>";
+      site.meetings.forEach(function (m) {
+        html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:3px\">" + esc(m.title) + " · " + esc(formatMeetingWhen(m.start, m.end)) + "</div>";
+      });
+    }
+    html += "<div class=\"map-popup-actions\">";
+    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
     html += "</div></div>";
     return html;
   }
@@ -1061,6 +1275,7 @@
       html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-pip\" style=\"background:" + PIPELINE_COLORS[name] + "\"></span><span style=\"color:#cbd5e1\">" + esc(name) + "</span></div>";
     });
     html += "<div class=\"map-legend-divider\"></div>";
+    html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#f8fafc;border:2px solid #3b82f6\"></span><span style=\"color:#cbd5e1\">Site hub</span></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-diamond\" style=\"background:" + MEETING_PIN_COLOR + "\"></span><span style=\"color:#cbd5e1\">Scheduled meeting</span></div>";
     html += "<div class=\"map-legend-divider\"></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#9ca3af\"></span><span style=\"color:#64748b\">Inactive</span></div>";
@@ -1080,16 +1295,38 @@
     renderSpreadLines(spreadItems);
 
     spreadItems.forEach(function (item) {
-      if (item.kind === "account") {
-        var acc = item.data;
-        var info = mapState.dealByAccount[acc.id] || {};
-        var stage = info.stage || "No Active Deal";
-        var color = stageColor(stage);
+      if (item.kind === "hub") {
+        var hub = item.data;
+        var hubMarker = L.marker([item.displayLat, item.displayLng], {
+          icon: makeHubIcon(hub.acc, hub.primaryDealName),
+          zIndexOffset: 400
+        });
+        hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
+        cluster.addLayer(hubMarker);
+        return;
+      }
+      if (item.kind === "deal") {
+        var dw = item.data;
+        var deal = dw.deal;
+        var acc = dw.acc;
+        var color = stageColor(deal.stage);
         var isActive = accountIsActive(acc);
         var pinColor = isActive ? color.pin : "#9ca3af";
-        var marker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor) });
-        marker.bindPopup(popupHtml(acc), { maxWidth: 300 });
-        cluster.addLayer(marker);
+        var dealMarker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor) });
+        dealMarker.bindPopup(dealPopupHtml(dw), { maxWidth: 300 });
+        cluster.addLayer(dealMarker);
+        return;
+      }
+      if (item.kind === "account") {
+        var acc2 = item.data;
+        var info = mapState.dealByAccount[acc2.id] || {};
+        var stage2 = info.stage || "No Active Deal";
+        var color2 = stageColor(stage2);
+        var isActive2 = accountIsActive(acc2);
+        var pinColor2 = isActive2 ? color2.pin : "#9ca3af";
+        var accMarker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor2) });
+        accMarker.bindPopup(popupHtml(acc2), { maxWidth: 300 });
+        cluster.addLayer(accMarker);
         return;
       }
       var m = item.data;
@@ -1103,8 +1340,12 @@
       cluster.addLayer(meetingMarker);
     });
 
+    var pinCount = 0;
+    spreadItems.forEach(function (item) {
+      if (item.kind === "deal" || item.kind === "account") pinCount++;
+    });
     var statusPins = el("map-status-pins");
-    if (statusPins) statusPins.textContent = String(filtered.length);
+    if (statusPins) statusPins.textContent = String(pinCount || filtered.length);
     var statusMeetings = el("map-status-meetings");
     if (statusMeetings) {
       statusMeetings.textContent = meetingFiltered.length ? " · " + meetingFiltered.length + " meetings" : "";
@@ -1490,4 +1731,5 @@
   window.toggleMapMissingPanel = toggleMapMissingPanel;
   window.toggleMapLegend = toggleMapLegend;
   window.mapSelectDealForAccount = mapSelectDealForAccount;
+  window.mapSelectDeal = mapSelectDeal;
 })();
