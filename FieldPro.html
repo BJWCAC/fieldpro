@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=224"/>
+<link rel="stylesheet" href="src/styles.css?v=225"/>
 
 </head>
 <body>
@@ -532,7 +532,7 @@
         <li>First open defaults to <strong>Active only</strong> accounts; tap ↺ Refresh for all accounts + full geocoding.</li>
         <li>Location priority: <strong>Main Site Coordinates</strong> field first, then Google Maps extension lat/lng, then address geocoding in the background.</li>
         <li>Map data is cached on this device for 24 hours; tap Refresh to force a Zoho sync.</li>
-        <li>Filter by pipeline, deal stage, and account status. Combine filters as needed.</li>
+        <li>Filter by pipeline, deal stage, and account status. Select <strong>one or more deal stages</strong> — all Zoho stages load from your CRM; tap <em>All stages</em> to clear.</li>
         <li>Use <strong>Pin grouping</strong> to control clustering — choose <em>Every pin</em> when zoomed out on Minnesota, or <em>More groups</em> for a cleaner overview.</li>
         <li><strong>Purple diamond pins</strong> show upcoming Zoho meetings linked to deals in <em>Active</em> stage (not yet ended).</li>
         <li>When several pins share the same spot, <strong>zoom in</strong> — the account/deal stays at the center with meetings on short spokes and lines back to the site.</li>
@@ -560,13 +560,19 @@
     <input type="text" id="map-f-search" placeholder="Search accounts…" oninput="applyMapFilters()"/>
     <div class="g2" style="margin-bottom:8px">
       <div><label class="lbl" for="map-f-pipeline">Pipeline</label><select id="map-f-pipeline" onchange="applyMapFilters()"><option value="">All pipelines</option><option value="Jobs">Jobs</option><option value="InHouse Lab">InHouse Lab</option></select></div>
-      <div><label class="lbl" for="map-f-stage">Deal Stage</label><select id="map-f-stage" onchange="applyMapFilters()"><option value="">All</option></select></div>
-    </div>
-    <div class="g2" style="margin-bottom:8px">
       <div>
         <label class="lbl" for="map-f-status">Account Status</label>
         <select id="map-f-status" onchange="applyMapFilters()"><option value="">All accounts</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option></select>
       </div>
+    </div>
+    <div class="map-stage-filter" style="margin-bottom:8px">
+      <div class="map-stage-filter-hdr">
+        <label class="lbl">Deal Stage</label>
+        <button type="button" class="map-stage-clear" onclick="clearMapStageFilter()">All stages</button>
+      </div>
+      <div id="map-f-stages" class="map-stage-chips"></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
       <div>
         <label class="lbl" for="map-f-cluster">Pin grouping</label>
         <select id="map-f-cluster" onchange="applyMapClusterMode()">
@@ -842,8 +848,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=224"></script>
-<script src="src/app.js?v=224"></script>
+<script src="src/accounts-map.js?v=225"></script>
+<script src="src/app.js?v=225"></script>
 
 </body>
 </html>
