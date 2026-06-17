@@ -1,7 +1,7 @@
 /* CapStone Accounts Map — Leaflet + OSM with phased load, cache, clustering */
 (function () {
   var GEO_CACHE_KEY = "capstone_geo_cache";
-  var MAP_CACHE_KEY = "fp_map_cache_v3";
+  var MAP_CACHE_KEY = "fp_map_cache_v4";
   var MAP_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   var MAP_CENTER = [46.0, -94.0];
   var MAP_ZOOM = 6;
@@ -29,6 +29,16 @@
     "No Deal": { pin: "#9ca3af", label: "No Deal", text: "#6b7280" }
   };
   var DEFAULT_COLOR = { pin: "#64748b", label: "No Active Deal", text: "#475569" };
+  var EXTRA_STAGE_PALETTE = [
+    { pin: "#0ea5e9", text: "#0369a1" },
+    { pin: "#14b8a6", text: "#0f766e" },
+    { pin: "#eab308", text: "#a16207" },
+    { pin: "#ec4899", text: "#be185d" },
+    { pin: "#6366f1", text: "#4338ca" },
+    { pin: "#84cc16", text: "#4d7c0f" },
+    { pin: "#f43f5e", text: "#be123c" },
+    { pin: "#78716c", text: "#44403c" }
+  ];
 
   var PIPELINE_COLORS = {
     Jobs: "#3b82f6",
@@ -45,6 +55,8 @@
     clusterGroup: null,
     spreadLinesGroup: null,
     dealByAccount: {},
+    dealsByAccount: {},
+    allDealStages: [],
     located: [],
     noAddress: [],
     loaded: false,
@@ -61,7 +73,7 @@
     rawMapEvents: [],
     activeDealIndex: null,
     eventsModule: "Events",
-    filters: { search: "", pipeline: "", stage: "", status: "", showMeetings: true }
+    filters: { search: "", pipeline: "", stages: [], status: "", showMeetings: true }
   };
 
   function loadClusterMode() {
@@ -178,6 +190,8 @@
       localStorage.setItem(MAP_CACHE_KEY, JSON.stringify({
         savedAt: Date.now(),
         dealByAccount: mapState.dealByAccount,
+        dealsByAccount: mapState.dealsByAccount,
+        allDealStages: mapState.allDealStages,
         located: mapState.located,
         noAddress: mapState.noAddress,
         truncated: mapState.truncated,
@@ -271,7 +285,12 @@
   }
 
   function stageColor(stage) {
-    return STAGE_COLORS[stage] || DEFAULT_COLOR;
+    if (STAGE_COLORS[stage]) return STAGE_COLORS[stage];
+    if (stage === "No Active Deal" || stage === "No Deal") return DEFAULT_COLOR;
+    var hash = 0;
+    for (var i = 0; i < stage.length; i++) hash = ((hash << 5) - hash) + stage.charCodeAt(i);
+    var p = EXTRA_STAGE_PALETTE[Math.abs(hash) % EXTRA_STAGE_PALETTE.length];
+    return { pin: p.pin, label: stage, text: p.text };
   }
 
   function validLat(v) {
@@ -368,6 +387,48 @@
       }
     });
     return dm;
+  }
+
+  function buildDealsByAccount(deals) {
+    var dba = {};
+    (deals || []).forEach(function (deal) {
+      var accId = deal.Account_Name && deal.Account_Name.id;
+      if (!accId) return;
+      if (!dba[accId]) dba[accId] = [];
+      dba[accId].push({
+        stage: str(deal.Stage),
+        pipeline: str(deal.Pipeline) || "",
+        dealId: deal.id || "",
+        dealName: str(deal.Deal_Name)
+      });
+    });
+    return dba;
+  }
+
+  function extractAllDealStages(deals) {
+    var seen = {}, list = [];
+    (deals || []).forEach(function (deal) {
+      var st = str(deal.Stage);
+      if (st && !seen[st]) { seen[st] = true; list.push(st); }
+    });
+    list.sort(function (a, b) { return a.localeCompare(b); });
+    return list;
+  }
+
+  function accountHasNoDeal(acc) {
+    var info = mapState.dealByAccount[acc.id];
+    if (!info || !info.dealId) return true;
+    var deals = (mapState.dealsByAccount && mapState.dealsByAccount[acc.id]) || [];
+    return !deals.length;
+  }
+
+  function accountMatchesStageFilter(acc, wantedStage) {
+    if (wantedStage === "No Active Deal") return accountHasNoDeal(acc);
+    var deals = (mapState.dealsByAccount && mapState.dealsByAccount[acc.id]) || [];
+    for (var i = 0; i < deals.length; i++) {
+      if (deals[i].stage === wantedStage) return true;
+    }
+    return accountStage(acc) === wantedStage;
   }
 
   function buildActiveDealIndex(deals) {
@@ -586,7 +647,12 @@
 
     if (f.search && name.toLowerCase().indexOf(f.search.toLowerCase()) < 0) return false;
     if (f.pipeline && pipeline !== f.pipeline) return false;
-    if (f.stage && stage !== f.stage) return false;
+    if (f.stages && f.stages.length) {
+      var stageMatch = f.stages.some(function (wanted) {
+        return accountMatchesStageFilter(acc, wanted);
+      });
+      if (!stageMatch) return false;
+    }
     if (f.status === "Active" && !isActive) return false;
     if (f.status === "Inactive" && isActive) return false;
     return true;
@@ -901,26 +967,84 @@
     mapState.fitBoundsNext = false;
   }
 
+  function mapStageFilterOptions() {
+    var list = (mapState.allDealStages || []).slice();
+    if (!list.length) {
+      var seen = {};
+      mapState.located.forEach(function (acc) {
+        var st = accountStage(acc);
+        if (st && !seen[st]) { seen[st] = true; list.push(st); }
+        var deals = (mapState.dealsByAccount && mapState.dealsByAccount[acc.id]) || [];
+        deals.forEach(function (d) {
+          if (d.stage && !seen[d.stage]) { seen[d.stage] = true; list.push(d.stage); }
+        });
+      });
+      list.sort(function (a, b) { return a.localeCompare(b); });
+    }
+    if (mapState.located.some(accountHasNoDeal) && list.indexOf("No Active Deal") < 0) {
+      list.push("No Active Deal");
+    }
+    return list;
+  }
+
   function stagesInUse() {
-    var stages = { "No Active Deal": true };
+    var seen = {}, list = [];
     mapState.located.forEach(function (acc) {
       var st = accountStage(acc);
-      if (st) stages[st] = true;
+      if (st && !seen[st]) { seen[st] = true; list.push(st); }
+      var deals = (mapState.dealsByAccount && mapState.dealsByAccount[acc.id]) || [];
+      deals.forEach(function (d) {
+        if (d.stage && !seen[d.stage]) { seen[d.stage] = true; list.push(d.stage); }
+      });
     });
-    var list = ["Active", "Qualified", "Proposal", "Negotiation", "Closed Won", "Closed Lost", "Prospect", "No Deal", "No Active Deal"];
-    return list.filter(function (st) { return stages[st]; });
+    if (mapState.located.some(accountHasNoDeal) && !seen["No Active Deal"]) {
+      list.push("No Active Deal");
+    }
+    list.sort(function (a, b) {
+      if (a === "No Active Deal") return 1;
+      if (b === "No Active Deal") return -1;
+      return a.localeCompare(b);
+    });
+    return list;
   }
 
   function populateStageFilter() {
-    var sel = el("map-f-stage");
-    if (!sel) return;
-    var cur = sel.value;
-    var opts = "<option value=\"\">All</option>";
-    stagesInUse().forEach(function (st) {
-      opts += "<option value=\"" + esc(st) + "\">" + esc(st) + "</option>";
+    var box = el("map-f-stages");
+    if (!box) return;
+    var selected = mapState.filters.stages || [];
+    var stages = mapStageFilterOptions();
+    if (!stages.length) {
+      box.innerHTML = "<div class=\"map-stage-empty\">Refresh map to load deal stages from Zoho.</div>";
+      return;
+    }
+    var html = "";
+    stages.forEach(function (st) {
+      var checked = selected.indexOf(st) >= 0 ? " checked" : "";
+      var c = stageColor(st);
+      html += "<label class=\"map-stage-chip" + (checked ? " on" : "") + "\" style=\"--chip:" + esc(c.pin) + "\">";
+      html += "<input type=\"checkbox\" value=\"" + esc(st) + "\"" + checked + " onchange=\"applyMapFilters();syncMapStageChip(this)\"/>";
+      html += "<span class=\"map-stage-chip-dot\"></span>";
+      html += "<span>" + esc(st) + "</span></label>";
     });
-    sel.innerHTML = opts;
-    if (cur) sel.value = cur;
+    box.innerHTML = html;
+  }
+
+  function clearMapStageFilter() {
+    mapState.filters.stages = [];
+    var box = el("map-f-stages");
+    if (box) {
+      box.querySelectorAll("input[type=checkbox]").forEach(function (cb) {
+        cb.checked = false;
+        syncMapStageChip(cb);
+      });
+    }
+    applyMapFilters();
+  }
+
+  function syncMapStageChip(input) {
+    if (!input) return;
+    var chip = input.closest ? input.closest(".map-stage-chip") : null;
+    if (chip) chip.classList.toggle("on", !!input.checked);
   }
 
   function renderLegend() {
@@ -990,7 +1114,9 @@
     if (statusFilters) {
       var parts = [];
       if (mapState.filters.pipeline) parts.push(mapState.filters.pipeline);
-      if (mapState.filters.stage) parts.push(mapState.filters.stage);
+      if (mapState.filters.stages && mapState.filters.stages.length) {
+        parts.push(mapState.filters.stages.join(", "));
+      }
       if (mapState.filters.status) parts.push(mapState.filters.status);
       statusFilters.textContent = parts.length ? " · " + parts.join(" · ") : "";
     }
@@ -1078,8 +1204,14 @@
   function applyMapFilters() {
     mapState.filters.search = (el("map-f-search") || { value: "" }).value.trim();
     mapState.filters.pipeline = (el("map-f-pipeline") || { value: "" }).value;
-    mapState.filters.stage = (el("map-f-stage") || { value: "" }).value;
     mapState.filters.status = (el("map-f-status") || { value: "" }).value;
+    mapState.filters.stages = [];
+    var stageBox = el("map-f-stages");
+    if (stageBox) {
+      stageBox.querySelectorAll("input[type=checkbox]:checked").forEach(function (cb) {
+        if (cb.value) mapState.filters.stages.push(cb.value);
+      });
+    }
     var meetingsCb = el("map-f-meetings");
     mapState.filters.showMeetings = meetingsCb ? !!meetingsCb.checked : true;
     renderMapMarkers();
@@ -1098,6 +1230,8 @@
 
   function restoreFromCache(data, stale) {
     mapState.dealByAccount = data.dealByAccount || {};
+    mapState.dealsByAccount = data.dealsByAccount || {};
+    mapState.allDealStages = data.allDealStages || [];
     mapState.located = data.located || [];
     mapState.noAddress = data.noAddress || [];
     mapState.truncated = !!data.truncated;
@@ -1215,6 +1349,8 @@
     var dealResult = await fetchAllPages("get_map_deals", 10);
     mapState.activeDealIndex = buildActiveDealIndex(dealResult.data);
     mapState.dealByAccount = buildDealMap(dealResult.data);
+    mapState.dealsByAccount = buildDealsByAccount(dealResult.data);
+    mapState.allDealStages = extractAllDealStages(dealResult.data);
 
     var eventResult = { data: [], truncated: false };
     try {
@@ -1348,6 +1484,8 @@
   window.loadAccountsMap = loadAccountsMap;
   window.applyMapFilters = applyMapFilters;
   window.applyMapClusterMode = applyMapClusterMode;
+  window.clearMapStageFilter = clearMapStageFilter;
+  window.syncMapStageChip = syncMapStageChip;
   window.initAccountsMapTab = initAccountsMapTab;
   window.toggleMapMissingPanel = toggleMapMissingPanel;
   window.toggleMapLegend = toggleMapLegend;

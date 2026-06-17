@@ -176,6 +176,14 @@ body.light .hist-card{background:#fff}
 .map-meetings-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8;margin-top:2px;cursor:pointer;user-select:none}
 .map-meetings-toggle input{width:16px;height:16px;accent-color:#a855f7;cursor:pointer}
 .map-spread-line{pointer-events:none}
+.map-stage-filter-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.map-stage-clear{background:none;border:none;padding:0;font-size:11px;color:#93c5fd;cursor:pointer;font-family:"IBM Plex Sans",sans-serif;text-decoration:underline}
+.map-stage-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto;padding:2px 0}
+.map-stage-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;border:1px solid #334155;background:#0f172a;font-size:11px;color:#cbd5e1;cursor:pointer;user-select:none}
+.map-stage-chip input{position:absolute;opacity:0;width:0;height:0}
+.map-stage-chip.on{border-color:var(--chip,#64748b);background:color-mix(in srgb,var(--chip,#64748b) 18%,#0f172a);color:#f8fafc}
+.map-stage-chip-dot{width:8px;height:8px;border-radius:50%;background:var(--chip,#64748b);border:1px solid rgba(255,255,255,.25);flex-shrink:0}
+.map-stage-empty{font-size:11px;color:#64748b;padding:4px 0}
 .map-loading-overlay{position:absolute;inset:0;background:rgba(15,23,42,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1000}
 .map-spinner{width:30px;height:30px;border:3px solid #334155;border-top:3px solid #3b82f6;border-radius:50%;animation:map-spin .8s linear infinite}
 .map-overlay-msg{font-size:13px;color:#94a3b8;text-align:center;max-width:260px;line-height:1.5}
