@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=236"/>
+<link rel="stylesheet" href="src/styles.css?v=237"/>
 
 </head>
 <body>
@@ -258,7 +258,7 @@
     <div class="help-box-body">
       <p>The Assets tab saves equipment to Zoho <strong>Equipments</strong>, links the asset to the active Deal, and records update notes on both records.</p>
       <ul>
-        <li>Under <strong>Asset setup</strong>, pick one path: add with deal, add to account only, or update existing (search first).</li>
+        <li>Tap <strong>Pick deal &amp; add new</strong> to choose a deal without leaving Assets (same search as Deals tab).</li>
         <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
         <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
@@ -274,7 +274,7 @@
     <div id="asset-setup-card" class="asset-setup-card">
       <div class="stitle" style="margin-bottom:8px">Asset setup</div>
       <div class="asset-setup-options">
-        <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('deal_add')">Add new — link to this deal</button>
+        <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="startAssetDealAdd()">Pick deal &amp; add new</button>
         <button type="button" id="asset-setup-account-add" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('account_add')">Add new — account only (no deal)</button>
         <button type="button" id="asset-setup-update" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('update')">Update existing — search first</button>
       </div>
@@ -857,8 +857,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=236"></script>
-<script src="src/app.js?v=236"></script>
+<script src="src/accounts-map.js?v=237"></script>
+<script src="src/app.js?v=237"></script>
 
 </body>
 </html>
