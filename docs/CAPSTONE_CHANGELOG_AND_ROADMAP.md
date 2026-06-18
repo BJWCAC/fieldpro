@@ -14,7 +14,7 @@ Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
 
 ## How agents and contributors should use this file
 
-1. **Before starting work** — read *Planned*, *In progress*, and *Declined* so effort is not duplicated.
+1. **Before starting work** — read *Planned*, *In progress*, *Suggestions*, and *Declined* so effort is not duplicated.
 2. **After shipping** — move the item to *Completed* with version, PR number, and one-line outcome.
 3. **When the user defers or declines** — add to *Deferred* or *Declined* with date and reason.
 4. **When docs lag the app** — note under *Planned* until the doc PR lands.
@@ -130,9 +130,47 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
+| Medium | **Assets: picklist request (Phase A)** | **Accepted 2026-06-08** — request-only after AI extract; **email Brad** for new **Brand** and **Type** values; asset still saves with Other + explain. Brad adds approved values in Zoho manually. See design notes under *Planned detail* below. |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
+
+### Planned detail: Assets picklist requests (Phase A)
+
+**Brad's decision (2026-06-08):** *Start with request-only; email me for new brands and types.*
+
+| Choice | Decision |
+|--------|----------|
+| Phase | **A — Request only** (no CapStone picklist API add yet) |
+| Notification | **Email to Brad** when a tech requests a new value |
+| Fields in scope | **Asset Brand** and **Asset Type** only (not Series/Function in v1) |
+| Who adds to Zoho | Brad manually in CRM after review |
+| On no match today | Unchanged — `1 Other` + explain field; asset save not blocked |
+
+**Build scope (Phase A)**
+
+1. After **Extract with AI**, if brand or type has no picklist match → banner + **Request picklist value** button.
+2. Request includes: field name, proposed value, technician, deal/account, asset name, equipment ID if any, link to nameplate context.
+3. Queue via Pending Sync if offline; send email to Brad when online (Netlify function or Zoho workflow — TBD at build).
+4. Optional: Equipment note in Zoho documenting the request (nice-to-have, not blocking v1).
+5. **Out of scope for Phase A:** admin instant add (Phase B), Series/Function requests, auto-add to picklist.
+
+**Later (not committed):** Phase B admin add from CapStone; Phase C approve in Zoho; Series/Function requests.
+
+**Approval rules (carry forward when building)**
+
+1. Never silent auto-add for Brand or Type.
+2. Dedupe check before submit (case-insensitive; warn if near-match exists).
+3. Audit: who requested, field, value, asset link, timestamp.
+4. Refresh local picklist config after Brad adds value in Zoho (manual JSON update or live fetch — TBD).
+
+---
+
+## Suggestions (ideas — not committed)
+
+Review after field tests; promote to *Planned* when Brad confirms priority.
+
+*No open Assets picklist items — moved to Planned (2026-06-08).*
 
 ---
 
@@ -170,6 +208,7 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
+| **Picklist request email address** | Brad confirmed email notification — confirm destination address at build time (Settings or Netlify env) |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
 | AssemblyAI API key on Netlify | User action — see `docs/ASSEMBLYAI_SETUP.md` |
