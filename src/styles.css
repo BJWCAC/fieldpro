@@ -188,7 +188,8 @@ body.light .hist-card{background:#fff}
 .map-site-summary-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#0f172a;color:#f8fafc;font-size:9px;font-weight:700;line-height:16px;text-align:center;border:1px solid #64748b;pointer-events:none}
 .map-hub-wrap.map-site-summary-wrap,.map-site-summary-wrap .map-site-summary{cursor:pointer}
 .map-legend-summary{background:#e2e8f0;border:2px solid #3b82f6}
-.map-site-panel{background:#1e293b;border-top:1px solid #334155;margin-bottom:10px}
+.map-site-panel{background:#1e293b;border-top:1px solid #334155;margin-bottom:0}
+.map-site-panel-open{border-top:2px solid #3b82f6;box-shadow:0 -2px 12px rgba(59,130,246,.25)}
 .map-site-hdr{padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
 .map-site-hdr-title{font-size:12px;font-weight:600;color:#93c5fd}
 .map-site-hide{font-size:11px;color:#64748b}

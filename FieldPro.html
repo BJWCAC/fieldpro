@@ -535,7 +535,7 @@
         <li>Filter by pipeline, deal stage, and account status. Select <strong>one or more deal stages</strong> — all Zoho stages load from your CRM; tap <em>All stages</em> to clear.</li>
         <li>Use <strong>Pin grouping</strong> to control clustering — choose <em>Every pin</em> when zoomed out on Minnesota, or <em>More groups</em> for a cleaner overview.</li>
         <li><strong>Purple diamond pins</strong> show upcoming Zoho meetings on <em>Active</em> deals (linked to deal or account).</li>
-        <li>When several deals or meetings share a site, <strong>zoomed out</strong> they collapse into one numbered site pin — <strong>tap the pin</strong> to zoom in and open the deal list (hub label shows on hover or tap when expanded).</li>
+        <li>When several deals or meetings share a site, <strong>zoomed out</strong> they collapse into one numbered site pin — <strong>tap the pin</strong> to open the deal list right below the map and zoom in (individual pins stay tappable, not re-clustered).</li>
         <li>Sites with <strong>5+ items</strong> open a scrollable list panel instead of a crowded spider — tap the hub or collapsed pin to view every deal and meeting with CapStone/Zoho links.</li>
         <li>Tap <strong>Hide legend</strong> to collapse the deal-stage key on the map; your choice is remembered on this device.</li>
         <li>Tap a pin to select the deal in CapStone or open the account in Zoho CRM.</li>
@@ -597,16 +597,16 @@
       <div id="map-overlay-msg" class="map-overlay-msg">Loading…</div>
     </div>
   </div>
-  <div id="map-status-bar" class="map-status-bar">
-    <span>Showing <strong id="map-status-pins">0</strong> pins<span id="map-status-meetings"></span><span id="map-status-filters"></span></span>
-    <span id="map-status-missing-note"></span>
-  </div>
   <div id="map-site-panel" class="map-site-panel" style="display:none">
     <div class="map-site-hdr" onclick="toggleMapSitePanel()">
       <span class="map-site-hdr-title"><span id="map-site-hdr-name">Site</span> · <span id="map-site-hdr-count">0</span> items</span>
       <span id="map-site-hide" class="map-site-hide">▲ Hide</span>
     </div>
     <div id="map-site-list" class="map-site-list"></div>
+  </div>
+  <div id="map-status-bar" class="map-status-bar">
+    <span>Showing <strong id="map-status-pins">0</strong> pins<span id="map-status-meetings"></span><span id="map-status-filters"></span></span>
+    <span id="map-status-missing-note"></span>
   </div>
   <div id="map-missing-panel" class="map-missing-panel" style="display:none">
     <div class="map-missing-hdr" onclick="toggleMapMissingPanel()">
@@ -856,8 +856,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=229"></script>
-<script src="src/app.js?v=229"></script>
+<script src="src/accounts-map.js?v=230"></script>
+<script src="src/app.js?v=230"></script>
 
 </body>
 </html>
