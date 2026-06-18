@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v226
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=226
+Current live version: v227
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=227
 ```
 
 ---
@@ -63,7 +63,8 @@ Related docs (detail, not status):
 | v223 | — | **Map: overlap spread** — stacked account/meeting pins fan out in a ring as you zoom in for separate taps |
 | v224 | — | **Map: hub-and-spoke pins** — deal/account at center, satellites closer on spokes with lines to site |
 | v225 | #116 | **Map: all Zoho deal stages + multi-select** — stage chips from CRM; filter one or many stages per account |
-| v226 | — | **Map: per-deal pins + site spider** — one pin per deal; hub label; deals + meetings on spokes; account-linked meetings |
+| v226 | #117 | **Map: per-deal pins + site spider** — one pin per deal; hub label; deals + meetings on spokes; account-linked meetings |
+| v227 | — | **Map: hub label polish** — label hidden until hover/tap; site popup links to each deal + account |
 
 ### UI / workflow polish
 
