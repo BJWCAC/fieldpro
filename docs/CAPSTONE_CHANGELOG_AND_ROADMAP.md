@@ -142,7 +142,48 @@ Review after field tests; promote to *Planned* when Brad confirms priority.
 
 | Area | Suggestion | Why |
 |------|------------|-----|
-| Assets | **Add AI-detected values to Zoho picklists** — when nameplate extraction finds brand, type, series, or function that is not in the CRM picklist, offer to add the new value to Zoho (via API) and select it, instead of only falling back to `1 Other` / `Other` plus explain text | Today `applyAssetExtraction` uses exact picklist match only; unmatched values go to Other explain fields (`If_Asset_Brand_Other_explain`, etc.). Growing picklists in CRM would reduce cleanup and keep saved assets on canonical values. Needs Zoho field-settings API access, admin approval policy, and local config refresh after add. |
+| Assets | **AI-detected picklist values + approval workflow** — when nameplate extraction finds brand, type, series, or function not in CRM, let the tech **request** a new picklist value (or let an admin **add** it), instead of only `1 Other` / `Other` + explain text. See design notes below. | Today `applyAssetExtraction` uses exact picklist match only; unmatched values go to Other explain fields. Growing picklists in CRM reduces cleanup and keeps assets on canonical values — but uncontrolled adds would clutter Zoho picklists. |
+
+### Assets: AI picklist additions — suggested approval design
+
+**Goal:** Close the gap between what AI reads on a nameplate and what Zoho already allows, without letting every field tech freely edit CRM picklists.
+
+**Current behavior (unchanged until built):** No picklist match → set `1 Other` / `Other` and fill the matching explain field; asset still saves.
+
+**Recommended phased approach**
+
+| Phase | What | Who | Risk |
+|-------|------|-----|------|
+| **A — Request only** | After extract, show **Request picklist value** with field name + proposed value + link to asset/photo. Queue locally (Pending Sync) and/or write a Zoho **Picklist Request** record or admin note. Asset saves with Other + explain until approved. | Any technician submits; admin adds value in Zoho manually | Lowest — no picklist API yet |
+| **B — Admin instant add** | Users flagged as picklist admin (e.g. Brad, Greg via Zoho Users or Settings) see **Add to picklist & select** on the same prompt. Netlify calls Zoho field-settings API; CapStone refreshes picklist cache and selects the new value. | Admin only | Medium — needs API scope + dedupe rules |
+| **C — Approve in Zoho** | Submitted requests land in a Zoho module or queue; approver clicks Approve in CRM (or weekly review); webhook or poll applies value and notifies tech. | Submitter + designated approver | Higher build; best audit trail |
+
+**Approval rules to bake in**
+
+1. **Never silent auto-add for Brand or Type** — too many near-duplicates (`Rosemount` vs `ROSEMOUNT` vs `Emerson/Rosemount`). Always human or dedupe-checked.
+2. **Series may be lighter** — optional auto-suggest after fuzzy match, still confirm before add.
+3. **Dedupe before any add** — trim, case-insensitive match, optional fuzzy threshold; reject if within one edit of an existing value.
+4. **Normalize display** — title-case or match existing picklist casing convention before submit.
+5. **Audit every add** — who requested, who approved, field API name, value, asset ID, timestamp; optional CapStone note on Equipment record.
+6. **Save path unchanged on reject** — if not approved, keep Other + explain; do not block asset save.
+7. **Refresh picklists after add** — update `zohoEquipmentFields.json` cache or fetch live from Zoho so the new value appears for all devices.
+
+**UX sketch (Assets tab, after Extract with AI)**
+
+- Match found → select as today.
+- No match → banner: *“Brand ‘Acme Instruments’ isn’t in Zoho yet.”*
+  - **Request addition** (all techs) — queues request; continues with Other + explain.
+  - **Add to picklist** (admin only, Phase B+) — dedupe check → API add → select value.
+- Settings or Zoho: list of **picklist admins**; optional email/notification on new requests.
+
+**Open decisions for Brad**
+
+- Approve in CapStone (admin button) vs approve only in Zoho CRM UI?
+- New Zoho custom module for requests vs Deal/Equipment notes vs email digest?
+- Which fields get the workflow first: Brand + Type only, or Series/Function too?
+- Zoho API: confirm org has permission to update Equipments picklists via API.
+
+**Dependencies:** Zoho field-settings API (or manual admin step in Phase A), picklist cache refresh, dedupe helper, role flag for admins, Pending Sync / request queue pattern (same as other offline-first flows).
 
 ---
 
