@@ -21,10 +21,10 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, model_number, part_number, series, serial_number, ratings, visible_text";
-var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line code only (e.g. 8750, 3051, 8750WD). Often the leading numeric prefix of the full model string.\n- model_number → Asset Model Number: FULL model/order string exactly as printed (e.g. 8750WM4AXD1DA2). Include every character, option code, and suffix. Usually the LONGEST product identifier on the plate.\n- part_number: use ONLY if the plate shows a separate P/N or catalog line DIFFERENT from the Model line; otherwise null and put the full string in model_number.\n- serial_number → Serial Number (S/N only).\nExample: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\nIf one long model string is visible, model_number gets the full string and series gets the short prefix (e.g. 8750 from 8750WM4AXD1DA2).\nDo not put the full model string in series. Do not guess unreadable characters.";
+var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, model_number, order_number, part_number, series, serial_number, ratings, visible_text";
+var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line code only (e.g. 8750, 3051, 8750WD, Promag 300). Often the leading numeric prefix of the full model string.\n- model_number → Asset Model Number: FULL model/order string exactly as printed. Include every character, option code, and suffix. Usually the LONGEST product identifier on the plate.\n- order_number: if the plate labels the main product ID as Order code, Order No., Order number, Customer order number, Ord.-Nr., or similar (common on Endress+Hauser / Endress and Hauser / E+H nameplates), put that FULL value here AND in model_number.\n- part_number: use ONLY if the plate shows a separate P/N or catalog line DIFFERENT from Model/Order; otherwise null.\n- serial_number → Serial Number (S/N only).\nExamples:\n- Rosemount: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n- Endress+Hauser: Order number / customer order number → model_number (full order code); series = instrument family if shown separately.\nIf one long identifier is visible, model_number gets the full string and series gets the short prefix when applicable.\nDo not put the full model/order string in series. Do not guess unreadable characters.";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="241";
+var FP_VERSION="242";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1662,6 +1662,7 @@ function applyAssetExtraction(x){
   if(!assetInput("asset-name"))setAssetInput("asset-name",nameParts.join(" "));
   var notes=[];
   if(x.part_number&&x.part_number!==fullModel)notes.push("Part Number: "+x.part_number);
+  if(x.order_number&&x.order_number!==fullModel)notes.push("Order Number: "+x.order_number);
   if(x.ratings)notes.push("Ratings: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-nameplate-additional",notes.join("\n"));
@@ -1683,11 +1684,22 @@ function inferSeriesFromModel(model){
   if(numMatch&&numMatch[1].length<m.length)return numMatch[1];
   return null;
 }
+function isEndressHauserManufacturer(mfg){
+  var s=String(mfg||"").toLowerCase();
+  return s.indexOf("endress")>=0||s.indexOf("e+h")>=0||/\be\s*h\b/.test(s);
+}
 function normalizeExtractedPartModelSeries(x){
   x=Object.assign({},x);
   var pn=extractValTrim(x.part_number);
+  var ord=extractValTrim(x.order_number);
   var mn=extractValTrim(x.model_number)||extractValTrim(x.model);
   var ser=extractValTrim(x.series);
+  var mfg=x.manufacturer||x.brand||"";
+  if(ord){
+    if(!mn||ord.length>=mn.length)mn=ord;
+    else if(isEndressHauserManufacturer(mfg))mn=ord;
+  }
+  if(isEndressHauserManufacturer(mfg)&&pn&&!mn)mn=pn;
   if(pn&&mn){
     if(pn.length>=mn.length)mn=pn;
     else if(mn.length>pn.length)pn=null;
@@ -1730,7 +1742,7 @@ function parseAssetJson(txt){
 }
 async function parseAssetJsonWithRepair(txt){
   try{return parseAssetJson(txt);}catch(firstErr){
-    var repair=[{type:"text",text:"Convert this asset extraction response into valid minified JSON only. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS.replace(/,\s/g,", ")+". Zoho mapping: series=short Asset Series (e.g. 8750); model_number=full Asset Model Number (e.g. 8750WM4AXD1DA2); part_number only if separate from model. All values strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
+    var repair=[{type:"text",text:"Convert this asset extraction response into valid minified JSON only. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS.replace(/,\s/g,", ")+". Zoho mapping: series=short Asset Series; model_number=full Asset Model Number; order_number=Endress+Hauser order/customer order code (also copy to model_number). All values strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
     var repaired=await callAPI({content:repair,maxTok:500,ms:30000});
     try{return parseAssetJson(getText(repaired));}catch(secondErr){throw firstErr;}
   }
