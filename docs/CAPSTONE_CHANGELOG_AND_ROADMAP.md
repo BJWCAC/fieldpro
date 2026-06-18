@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v231
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=231
+Current live version: v232
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
 ```
 
 ---
@@ -69,6 +69,7 @@ Related docs (detail, not status):
 | v229 | — | **Map: fix numbered site pin taps** — site pins outside cluster group, larger tap target, tap opens deal list + zooms in |
 | v230 | — | **Map: show deal list on site tap** — list opens immediately under map; expanded site pins never re-cluster; hub tap opens list |
 | v231 | — | **Map: always spider multi-item sites** — Lallemand-scale sites (5+ items) now spread pins like Willmar; list panel still opens on tap |
+| v232 | — | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
 
 ### UI / workflow polish
 
