@@ -74,6 +74,7 @@
     legendHidden: false,
     scheduledMeetings: [],
     rawMapEvents: [],
+    rawMapDeals: [],
     activeDealIndex: null,
     eventsModule: "Events",
     filters: { search: "", pipeline: "", stages: [], status: "", showMeetings: true },
@@ -203,6 +204,7 @@
         truncated: mapState.truncated,
         scheduledMeetings: mapState.scheduledMeetings,
         rawMapEvents: mapState.rawMapEvents,
+        rawMapDeals: mapState.rawMapDeals,
         activeDealIndex: mapState.activeDealIndex,
         eventsModule: mapState.eventsModule
       }));
@@ -745,14 +747,65 @@
     return (active || matches[0]).id;
   }
 
+  function findAppDealById(dealId) {
+    if (!dealId || typeof A === "undefined" || !A.deals || !A.deals.length) return null;
+    for (var i = 0; i < A.deals.length; i++) {
+      if (A.deals[i].id === dealId) return A.deals[i];
+    }
+    return null;
+  }
+
+  function normalizeMapDealRecord(raw) {
+    if (!raw || !raw.id) return null;
+    var acc = raw.Account_Name || {};
+    return {
+      id: raw.id,
+      Deal_Name: str(raw.Deal_Name),
+      Account_Name: str(acc.name || acc),
+      Account_Id: acc.id || "",
+      Stage: str(raw.Stage),
+      Amount: raw.Amount != null ? raw.Amount : null,
+      Description: raw.Description || "",
+      Owner: raw.Owner ? str(raw.Owner.name || raw.Owner) : "",
+      Closing_Date: raw.Closing_Date || null,
+      Pipeline: str(raw.Pipeline) || ""
+    };
+  }
+
+  function ensureMapDealInApp(dealId) {
+    var existing = findAppDealById(dealId);
+    if (existing) return existing;
+    var rawList = mapState.rawMapDeals || [];
+    var raw = null;
+    for (var i = 0; i < rawList.length; i++) {
+      if (rawList[i].id === dealId) { raw = rawList[i]; break; }
+    }
+    if (!raw) return null;
+    var deal = normalizeMapDealRecord(raw);
+    if (!deal || typeof A === "undefined") return null;
+    if (!A.deals) A.deals = [];
+    A.deals.push(deal);
+    try { localStorage.setItem("fp_deals", JSON.stringify(A.deals)); } catch (e) {}
+    if (typeof renderDeals === "function") renderDeals();
+    else if (typeof badge === "function") badge("tb-deals", A.deals.length);
+    return deal;
+  }
+
   function mapSelectDeal(dealId) {
-    if (dealId && typeof selectDeal === "function") {
-      selectDeal(dealId, { stayOnTab: "deals" });
-      if (typeof toast === "function") toast("Deal selected — open Capture when ready.");
+    if (!dealId || typeof selectDeal !== "function") {
+      if (typeof toast === "function") toast("No deal found. Refresh deals on the Deals tab.");
+      else alert("No deal found. Refresh deals on the Deals tab first.");
       return;
     }
-    if (typeof toast === "function") toast("No deal found. Refresh deals on the Deals tab.");
-    else alert("No deal found. Refresh deals on the Deals tab first.");
+    var deal = ensureMapDealInApp(dealId);
+    if (!deal) {
+      if (typeof toast === "function") toast("Deal not loaded — refresh the map or Deals tab.");
+      else alert("Deal not loaded — refresh the map or Deals tab.");
+      return;
+    }
+    selectDeal(dealId, { stayOnTab: "capture" });
+    var label = deal.Deal_Name || deal.Account_Name || "deal";
+    if (typeof toast === "function") toast("Opening Capture for " + label);
   }
 
   function mapSelectDealForAccount(accountId) {
@@ -1796,6 +1849,7 @@
     mapState.noAddress = data.noAddress || [];
     mapState.truncated = !!data.truncated;
     mapState.rawMapEvents = data.rawMapEvents || [];
+    mapState.rawMapDeals = data.rawMapDeals || [];
     mapState.activeDealIndex = data.activeDealIndex || null;
     mapState.eventsModule = data.eventsModule || "Events";
     mapState.loaded = true;
@@ -1912,6 +1966,7 @@
     mapState.activeDealIndex = buildActiveDealIndex(dealResult.data);
     mapState.dealByAccount = buildDealMap(dealResult.data);
     mapState.dealsByAccount = buildDealsByAccount(dealResult.data);
+    mapState.rawMapDeals = dealResult.data || [];
     mapState.allDealStages = extractAllDealStages(dealResult.data);
 
     var eventResult = { data: [], truncated: false };
