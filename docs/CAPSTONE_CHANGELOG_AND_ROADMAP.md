@@ -66,6 +66,7 @@ Related docs (detail, not status):
 | v226 | #117 | **Map: per-deal pins + site spider** — one pin per deal; hub label; deals + meetings on spokes; account-linked meetings |
 | v227 | — | **Map: hub label polish** — label hidden until hover/tap; site popup links to each deal + account |
 | v228 | — | **Map: zoom disclosure + dense-site panel** — multi-item sites collapse when zoomed out; 5+ items open scrollable list panel instead of spider |
+| v229 | — | **Map: fix numbered site pin taps** — site pins outside cluster group, larger tap target, tap opens deal list + zooms in |
 
 ### UI / workflow polish
 

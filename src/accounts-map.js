@@ -1126,9 +1126,10 @@
     var denseHint = opts.dense
       ? "<div class=\"map-hub-deal\">Tap for full list</div>"
       : "";
+    var hubClass = opts.dense ? "map-hub map-hub-dense-target" : "map-hub";
     return L.divIcon({
       className: "map-hub-wrap",
-      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\" title=\"Tap for site details\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
+      html: "<div class=\"" + hubClass + "\"><div class=\"map-hub-dot\" title=\"Tap for site details\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
       iconSize: opts.dense ? [40, 40] : [16, 16],
       iconAnchor: opts.dense ? [20, 20] : [8, 8]
     });
