@@ -21,8 +21,8 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="236";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
+var FP_VERSION="237";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -535,6 +535,7 @@ window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 window.reopenSavedAsset=reopenSavedAsset;
 window.setAssetMode=setAssetMode;
 window.setAssetSetupMode=setAssetSetupMode;
+window.startAssetDealAdd=startAssetDealAdd;
 window.setAssetLinkMode=setAssetLinkMode;
 window.openAssetAccountPicker=openAssetAccountPicker;
 window.closeAssetAccountPicker=closeAssetAccountPicker;
@@ -883,6 +884,10 @@ function selectDeal(id,opts){
     go("inbox");
     return;
   }
+  if(tab==="assets"){
+    go("assets");
+    return;
+  }
   if(tab==="deals"){
     go("deals");
     return;
@@ -961,10 +966,10 @@ function setAssetSetupMode(setup){
   var prev=assetSetupMode();
   if(prev===setup){renderAssetSetupUi();updateAssetSaveState();return;}
   if(setup==="deal_add"){
-    if(!A.sel){showToast("Pick a deal on the Deals tab first",4500);return;}
     A.asset.mode="add";A.asset.linkMode="deal";A.asset.standaloneAccount=null;
-    clearAssetEntryState("",true);
-    setAssetInput("asset-account",A.sel.Account_Name||"");
+    if(prev!=="deal_add")clearAssetEntryState("",true);
+    if(A.sel)setAssetInput("asset-account",A.sel.Account_Name||"");
+    else{startAssetDealAdd();return;}
   }else if(setup==="account_add"){
     A.asset.mode="add";A.asset.linkMode="account";
     clearAssetEntryState("",true);
@@ -980,18 +985,43 @@ function setAssetSetupMode(setup){
 function setAssetLinkMode(mode){
   setAssetSetupMode(mode==="account"?"account_add":(A.sel?"deal_add":"account_add"));
 }
+function startAssetDealAdd(){
+  A.dealPickerContext="assets";
+  var openPicker=function(){openDealPickerModal();};
+  if(A.deals.length){openPicker();return;}
+  var cached=0;
+  try{cached=loadDealsFromCache()||0;}catch(e){}
+  if(cached){openPicker();return;}
+  showToast("Loading deals from Zoho...",3500);
+  loadDeals().then(function(){
+    if(A.deals.length)openPicker();
+    else showToast("No deals found — try Refresh from Zoho on Deals tab",5000);
+  });
+}
+function applyAssetDealPick(){
+  A.asset.mode="add";
+  A.asset.linkMode="deal";
+  A.asset.standaloneAccount=null;
+  setAssetInput("asset-account",A.sel?A.sel.Account_Name:"");
+  renderAssetSetupUi();
+  updateAssetSaveState();
+  if(A.sel)showToast("Deal linked: "+(A.sel.Deal_Name||A.sel.Account_Name||"deal"),3500);
+}
 function renderAssetSetupUi(){
   var setup=assetSetupMode();
   var dealBtn=el("asset-setup-deal-add"),acctBtn=el("asset-setup-account-add"),updBtn=el("asset-setup-update");
   var dealCtx=el("asset-setup-deal-context"),pickRow=el("asset-account-pick-row"),updPanel=el("asset-setup-update-panel"),picked=el("asset-account-picked");
-  if(dealBtn){dealBtn.className="asset-setup-btn asset-path-btn"+(setup==="deal_add"?" on":"");dealBtn.disabled=!A.sel;}
+  if(dealBtn){
+    dealBtn.className="asset-setup-btn asset-path-btn"+(setup==="deal_add"?" on":"");
+    dealBtn.textContent=setup==="deal_add"&&A.sel?"Add new — linked to deal":"Pick deal & add new";
+  }
   if(acctBtn)acctBtn.className="asset-setup-btn asset-path-btn"+(setup==="account_add"?" on":"");
   if(updBtn)updBtn.className="asset-setup-btn asset-path-btn"+(setup==="update"?" on":"");
   if(dealCtx){
     if(setup==="deal_add"&&A.sel){
       dealCtx.style.display="block";
-      var pickDeal=!A.sel.Account_Id?"<div class='asset-setup-pick-deal'><button type='button' class='bg bsm' onclick=\"go('deals')\">Refresh deals</button> <span style='font-size:11px;color:#92400e'>Account ID missing — refresh deals from Zoho.</span></div>":"";
-      dealCtx.innerHTML="<strong>Deal:</strong> "+esc(A.sel.Deal_Name||"—")+"<br><strong>Account:</strong> "+esc(A.sel.Account_Name||"—")+pickDeal;
+      var pickDeal=!A.sel.Account_Id?"<div class='asset-setup-pick-deal'><button type='button' class='bg bsm' onclick='loadDeals()'>Refresh deals</button> <span style='font-size:11px;color:#92400e'>Account ID missing — refresh deals from Zoho.</span></div>":"";
+      dealCtx.innerHTML="<strong>Deal:</strong> "+esc(A.sel.Deal_Name||"—")+"<br><strong>Account:</strong> "+esc(A.sel.Account_Name||"—")+pickDeal+"<div style='margin-top:8px'><button type='button' class='bg bsm' onclick='startAssetDealAdd()'>Change deal</button></div>";
     }else dealCtx.style.display="none";
   }
   var needsAccountPick=(setup==="account_add"||setup==="update")&&!assetSaveAccountId();
@@ -1580,7 +1610,7 @@ function validateAssetForm(){
   if(A.asset.linkMode==="account"){
     if(!assetSaveAccountId())missing.unshift("Zoho Account (tap Pick Account)");
   }else{
-    if(!A.sel)missing.unshift("Active deal (pick on Deals tab, or choose Account only in Asset setup)");
+    if(!A.sel)missing.unshift("Deal (tap Pick deal & add new in Asset setup)");
     if(A.sel&&!A.sel.Account_Id)missing.unshift("Zoho Account ID (refresh deals from Zoho)");
   }
   return missing;
@@ -3503,11 +3533,14 @@ function inboxDealFieldsFromSel(){
     status:"linked"
   };
 }
-function openInboxDealPicker(itemId){
-  if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
-  A.inboxPickerItemId=itemId||null;
+function openDealPickerModal(){
+  if(!A.deals.length){showToast("No deals loaded",4000);return;}
   var title=el("inbox-deal-picker-title");
-  if(title)title.textContent=A.inboxPickerItemId?"Link to Deal":"Select Deal";
+  if(title){
+    if(A.inboxPickerItemId)title.textContent="Link to Deal";
+    else if(A.dealPickerContext==="assets")title.textContent="Pick deal for new asset";
+    else title.textContent="Select Deal";
+  }
   var accounts=Array.from(new Set(A.deals.map(function(d){return d.Account_Name;}).filter(Boolean))).sort();
   var stages=Array.from(new Set(A.deals.map(function(d){return d.Stage;}).filter(Boolean))).sort();
   var fA=el("inbox-d-acct"),fS=el("inbox-d-stage"),fQ=el("inbox-d-search");
@@ -3529,8 +3562,15 @@ function openInboxDealPicker(itemId){
   applyInboxDealPickerFilters();
   var m=el("inboxdealmodal");if(m)m.style.display="flex";
 }
+function openInboxDealPicker(itemId){
+  if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
+  A.inboxPickerItemId=itemId||null;
+  A.dealPickerContext=A.inboxPickerItemId?"inbox":null;
+  openDealPickerModal();
+}
 function closeInboxDealPicker(){
   A.inboxPickerItemId=null;
+  A.dealPickerContext=null;
   var m=el("inboxdealmodal");if(m)m.style.display="none";
 }
 function setInboxDealSort(f){
@@ -3578,6 +3618,12 @@ function pickInboxDeal(dealId){
   if(A.inboxPickerItemId){
     linkInboxToDeal(A.inboxPickerItemId,dealId);
     closeInboxDealPicker();
+    return;
+  }
+  if(A.dealPickerContext==="assets"){
+    selectDeal(dealId,{stayOnTab:"assets"});
+    closeInboxDealPicker();
+    applyAssetDealPick();
     return;
   }
   selectDeal(dealId,{stayOnTab:"inbox"});

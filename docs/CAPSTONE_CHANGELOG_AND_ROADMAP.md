@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v236
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=236
+Current live version: v237
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=237
 ```
 
 ---
@@ -74,6 +74,7 @@ Related docs (detail, not status):
 | v234 | — | **Assets: picklist near-match** — auto-select on extract when only case/spacing differs; **Use [value]** button when Zoho has a similar Brand/Type |
 | v235 | — | **Assets: Account-only save** — save Equipments without a Deal; Pick Account; clearer save button/status; Internal_Assets noted as future |
 | v236 | — | **Assets: unified setup** — one Asset setup card with 3 choices (deal / account only / update); search nested under update |
+| v237 | — | **Assets: pick deal on Assets tab** — **Pick deal & add new** opens deal search modal without switching to Deals tab; Change deal in setup card |
 
 ### UI / workflow polish
 
