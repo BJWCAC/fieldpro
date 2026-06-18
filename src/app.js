@@ -22,7 +22,7 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="233";
+var FP_VERSION="234";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1186,6 +1186,32 @@ function assetPicklistNearMatch(field,val){
   }
   return best;
 }
+function normalizePicklistCompare(val){return String(val||"").toLowerCase().replace(/[^a-z0-9]+/g,"");}
+function assetPicklistIsStrongNear(proposed,candidate){
+  proposed=String(proposed||"").trim();candidate=String(candidate||"").trim();
+  if(!proposed||!candidate)return false;
+  if(proposed.toLowerCase()===candidate.toLowerCase())return true;
+  var np=normalizePicklistCompare(proposed),nc=normalizePicklistCompare(candidate);
+  return !!(np&&np===nc);
+}
+function applyAssetPicklistNearMatch(fieldApi,nearValue){
+  var cfg=PICKLIST_REQUEST_FIELDS[fieldApi];
+  if(!cfg||!nearValue)return;
+  setAssetSelectIfPresent(cfg.selectId,nearValue);
+  setAssetInput(cfg.otherId,"");
+  updateAssetSaveState();
+  renderAssetPicklistRequestPanel();
+  showToast(cfg.label+" set to "+nearValue,3500);
+}
+function applyExtractedPicklistField(fieldApi,cfg,rawVal){
+  rawVal=String(rawVal||"").trim();if(!rawVal||!cfg)return;
+  var exact=exactPicklistMatch(fieldApi,rawVal);
+  if(exact){setAssetSelectIfPresent(cfg.selectId,exact);setAssetInput(cfg.otherId,"");return;}
+  var near=assetPicklistNearMatch(fieldApi,rawVal);
+  if(near&&assetPicklistIsStrongNear(rawVal,near)){setAssetSelectIfPresent(cfg.selectId,near);setAssetInput(cfg.otherId,"");return;}
+  setAssetSelectIfPresent(cfg.selectId,cfg.otherValue);
+  setAssetInput(cfg.otherId,rawVal);
+}
 function getAssetPicklistMisses(){
   var misses=[];
   Object.keys(PICKLIST_REQUEST_FIELDS).forEach(function(fieldApi){
@@ -1224,9 +1250,9 @@ function renderAssetPicklistRequestPanel(){
   var rows=misses.map(function(m){
     var key=picklistRequestKey(m.fieldApi,m.proposedValue);
     var sent=isPicklistRequestSent(key);
-    var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='font-size:11px;color:#92400e;margin-top:4px'>Similar in Zoho: <strong>"+esc(m.nearMatch)+"</strong> — pick that if it matches.</div>"):"";
+    var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center'><span style='font-size:11px;color:#92400e'>Similar in Zoho:</span><button type='button' class='bb bsm' onclick='applyAssetPicklistNearMatch("+JSON.stringify(m.fieldApi)+","+JSON.stringify(m.nearMatch)+")'>Use "+esc(m.nearMatch)+"</button></div>"):"";
     var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' onclick=\"requestAssetPicklistValue('"+esc(m.fieldApi)+"')\">Request addition</button>";
-    return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Asset still saves with Other until Brad adds this to the picklist.</div></div><div style='flex-shrink:0'>"+action+"</div></div>";
+    return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Tap Use if the Zoho value matches, or Request addition for a new picklist value.</div></div><div style='flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end'>"+action+"</div></div>";
   }).join("");
   panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
 }
@@ -1276,10 +1302,8 @@ async function requestAssetPicklistValue(fieldApi){
 function applyAssetExtraction(x){
   x=x||{};
   var manufacturer=x.manufacturer||x.brand||"";
-  var brand=exactPicklistMatch("Asset_Brand",manufacturer);
-  if(brand)setAssetInput("asset-brand",brand);else if(manufacturer){setAssetInput("asset-brand","1 Other");setAssetInput("asset-brand-other",manufacturer);}
-  var type=exactPicklistMatch("Asset_Type",x.asset_type||x.equipment_type||"");
-  if(type)setAssetInput("asset-type",type);else if(x.asset_type||x.equipment_type){setAssetInput("asset-type","1 Other");setAssetInput("asset-type-other",x.asset_type||x.equipment_type);}
+  applyExtractedPicklistField("Asset_Brand",PICKLIST_REQUEST_FIELDS.Asset_Brand,manufacturer);
+  applyExtractedPicklistField("Asset_Type",PICKLIST_REQUEST_FIELDS.Asset_Type,x.asset_type||x.equipment_type||"");
   var series=exactPicklistMatch("Asset_Series",x.series||"");
   if(series)setAssetInput("asset-series",series);else if(x.series){setAssetInput("asset-series","Other");setAssetInput("asset-series-other",x.series);}
   setAssetInput("asset-model",x.model_number||x.model||x.part_number||"");

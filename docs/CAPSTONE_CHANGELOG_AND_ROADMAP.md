@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v233
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=233
+Current live version: v234
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=234
 ```
 
 ---
@@ -71,6 +71,7 @@ Related docs (detail, not status):
 | v231 | — | **Map: always spider multi-item sites** — Lallemand-scale sites (5+ items) now spread pins like Willmar; list panel still opens on tap |
 | v232 | — | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
 | v233 | — | **Assets: picklist request (Phase A)** — after AI extract, request new Brand/Type values; email `bradwhite@calibrationsandcontrols.com`; Pending Sync queue; Other + explain unchanged |
+| v234 | — | **Assets: picklist near-match** — auto-select on extract when only case/spacing differs; **Use [value]** button when Zoho has a similar Brand/Type |
 
 ### UI / workflow polish
 
@@ -196,3 +197,4 @@ Related docs (detail, not status):
 | v202 | Inbox tab — Plaud Fork A Stage 1 (unassigned voice staging) |
 | v207 | Plaud Stage 2 — cloud auto-pull into Inbox |
 | v233 | Assets picklist request email (Brand/Type Phase A) |
+| v234 | Picklist near-match Use button + auto-select on strong match |
