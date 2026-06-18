@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v243
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=243
+Current live version: v244
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=244
 ```
 
 ---
@@ -80,7 +80,8 @@ Related docs (detail, not status):
 | v240 | #132 | **Assets: AI extract part vs model** — prompt distinguishes full part number from short model/series; normalization swaps common mis-assignments |
 | v241 | #132 | **Assets: AI extract Zoho series/model mapping** — Series=8750, Model Number=8750WM4AXD1DA2; infer series prefix from full model when needed |
 | v242 | #133 | **Assets: Endress+Hauser order number extract** — Order / customer order number on E+H plates maps to Asset Model Number |
-| v243 | — | **Assets: E+H Promag magmeter extract** — device name→Series, Order Code→Model, K-factor/DN→Flow Meter fields; magmeter nameplate rules in prompt |
+| v243 | #134 | **Assets: E+H Promag magmeter extract** — device name→Series, Order Code→Model, K-factor/DN→Flow Meter fields |
+| v244 | — | **Assets: magmeter Cal Factor extract** — Cal Factor / Cal. Fact. / K-factor from any magmeter brand → Cal Factor field |
 
 ### UI / workflow polish
 
