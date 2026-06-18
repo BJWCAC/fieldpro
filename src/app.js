@@ -21,10 +21,11 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, model_number, order_number, part_number, series, serial_number, ratings, visible_text";
-var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line code only (e.g. 8750, 3051, 8750WD, Promag 300). Often the leading numeric prefix of the full model string.\n- model_number → Asset Model Number: FULL model/order string exactly as printed. Include every character, option code, and suffix. Usually the LONGEST product identifier on the plate.\n- order_number: if the plate labels the main product ID as Order code, Order No., Order number, Customer order number, Ord.-Nr., or similar (common on Endress+Hauser / Endress and Hauser / E+H nameplates), put that FULL value here AND in model_number.\n- part_number: use ONLY if the plate shows a separate P/N or catalog line DIFFERENT from Model/Order; otherwise null.\n- serial_number → Serial Number (S/N only).\nExamples:\n- Rosemount: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n- Endress+Hauser: Order number / customer order number → model_number (full order code); series = instrument family if shown separately.\nIf one long identifier is visible, model_number gets the full string and series gets the short prefix when applicable.\nDo not put the full model/order string in series. Do not guess unreadable characters.";
+var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number, order_number, part_number, series, serial_number, k_factor, nominal_diameter, ratings, visible_text";
+var ASSET_EXTRACT_EH_MAGMETER="Endress+Hauser magnetic flow meter (Promag) nameplate rules:\n- device_name → Asset Series: transmitter/product family exactly as printed (e.g. Proline Promag W 400, Promag 50P). NOT the order code.\n- order_number → Asset Model Number: FULL Order Code (Ord. Cd. / Order code), e.g. 5W4B80-AAI7/0. Copy the entire string including slashes and suffixes.\n- serial_number: Ser. No. exactly (often ~11 chars, e.g. M801B416000).\n- k_factor: Cal. Fact. / K-Factor calibration constant if shown (e.g. 1.2345).\n- nominal_diameter: DN / pipe size if shown (e.g. DN 80 / 3 inch).\n- ratings: combine DN, PN, liner, electrodes, power supply, enclosure IP, outputs if readable.\n- asset_type: Magnetic Flow Meter when applicable.\nDo NOT put Order Code in series. Do NOT truncate Order Code.";
+var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor, nominal_diameter: capture when visible.\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="242";
+var FP_VERSION="243";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1657,17 +1658,52 @@ function applyAssetExtraction(x){
   else if(seriesVal){setAssetInput("asset-series","Other");setAssetInput("asset-series-other",seriesVal);}
   setAssetInput("asset-model",fullModel);
   setAssetInput("asset-serial",x.serial_number||x.serial||"");
+  applyExtractedDynamicFields(x);
   var nameParts=[];if(manufacturer)nameParts.push(manufacturer);if(x.asset_type||x.equipment_type)nameParts.push(x.asset_type||x.equipment_type);
+  if(seriesVal&&!nameParts.some(function(p){return p===seriesVal;}))nameParts.push(seriesVal);
   if(fullModel)nameParts.push(fullModel);
   if(!assetInput("asset-name"))setAssetInput("asset-name",nameParts.join(" "));
   var notes=[];
   if(x.part_number&&x.part_number!==fullModel)notes.push("Part Number: "+x.part_number);
-  if(x.order_number&&x.order_number!==fullModel)notes.push("Order Number: "+x.order_number);
-  if(x.ratings)notes.push("Ratings: "+x.ratings);
+  if(x.order_number&&x.order_number!==fullModel)notes.push("Order Code: "+x.order_number);
+  if(x.nominal_diameter)notes.push("Nominal Diameter: "+x.nominal_diameter);
+  if(x.k_factor&&(!A.asset.dynamicValues||!A.asset.dynamicValues.Cal_Factor_K_Factor))notes.push("K-Factor: "+x.k_factor);
+  if(x.ratings)notes.push("Process / Electrical: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-nameplate-additional",notes.join("\n"));
   updateAssetSaveState();
   renderAssetPicklistRequestPanel();
+}
+function applyExtractedDynamicFields(x){
+  if(!x)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  if(x.k_factor){
+    A.asset.dynamicValues.Cal_Factor_K_Factor=String(x.k_factor);
+    var kEl=el(assetDynId("Cal_Factor_K_Factor"));
+    if(kEl)kEl.value=A.asset.dynamicValues.Cal_Factor_K_Factor;
+  }
+  if(x.nominal_diameter){
+    var dn=String(x.nominal_diameter);
+    var pipeMatch=matchPipeSizeFromDiameter(dn);
+    if(pipeMatch){
+      A.asset.dynamicValues.Pipe_Size=pipeMatch;
+      var pEl=el(assetDynId("Pipe_Size"));
+      if(pEl)pEl.value=pipeMatch;
+    }
+  }
+  if(typeof renderAssetCategoryFields==="function"&&assetInput("asset-category"))renderAssetCategoryFields();
+}
+function matchPipeSizeFromDiameter(dn){
+  var s=String(dn||""),vals=assetPicklistValues("Pipe_Size");
+  for(var i=0;i<vals.length;i++){if(s.indexOf(vals[i])>=0||vals[i].indexOf(s)>=0)return vals[i];}
+  var inch=s.match(/(\d+)\s*"/);if(inch){
+    var q=inch[1]+" Inch";
+    for(var j=0;j<vals.length;j++){if(vals[j].indexOf(q)===0)return vals[j];}
+  }
+  var dnNum=s.match(/DN\s*(\d+)/i);if(dnNum){
+    for(var k=0;k<vals.length;k++){if(vals[k].indexOf(dnNum[1]+" ")>=0||vals[k].indexOf(" "+dnNum[1]+" DN")>=0)return vals[k];}
+  }
+  return null;
 }
 function extractValTrim(v){v=String(v||"").trim();return v||null;}
 function extractAlnumKey(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
@@ -1694,24 +1730,31 @@ function normalizeExtractedPartModelSeries(x){
   var ord=extractValTrim(x.order_number);
   var mn=extractValTrim(x.model_number)||extractValTrim(x.model);
   var ser=extractValTrim(x.series);
+  var dev=extractValTrim(x.device_name);
   var mfg=x.manufacturer||x.brand||"";
+  var eh=isEndressHauserManufacturer(mfg);
   if(ord){
     if(!mn||ord.length>=mn.length)mn=ord;
-    else if(isEndressHauserManufacturer(mfg))mn=ord;
+    else if(eh)mn=ord;
   }
-  if(isEndressHauserManufacturer(mfg)&&pn&&!mn)mn=pn;
+  if(eh&&pn&&!mn)mn=pn;
   if(pn&&mn){
     if(pn.length>=mn.length)mn=pn;
     else if(mn.length>pn.length)pn=null;
   }else if(pn&&!mn)mn=pn;
-  if(ser&&mn&&extractAlnumKey(ser)===extractAlnumKey(mn))ser=null;
-  if(ser&&mn&&ser.length>=mn.length){
-    var swap=ser;ser=inferSeriesFromModel(swap)||null;mn=swap;
-  }
-  if(!ser&&mn)ser=inferSeriesFromModel(mn);
-  if(ser&&mn&&extractAlnumKey(mn).indexOf(extractAlnumKey(ser))!==0){
-    var inferred=inferSeriesFromModel(mn);
-    if(inferred)ser=inferred;
+  if(eh){
+    if(dev)ser=dev;
+    if(ser&&mn&&extractAlnumKey(ser)===extractAlnumKey(mn))ser=dev||null;
+  }else{
+    if(ser&&mn&&extractAlnumKey(ser)===extractAlnumKey(mn))ser=null;
+    if(ser&&mn&&ser.length>=mn.length){
+      var swap=ser;ser=inferSeriesFromModel(swap)||null;mn=swap;
+    }
+    if(!ser&&mn)ser=inferSeriesFromModel(mn);
+    if(ser&&mn&&extractAlnumKey(mn).indexOf(extractAlnumKey(ser))!==0){
+      var inferred=inferSeriesFromModel(mn);
+      if(inferred)ser=inferred;
+    }
   }
   if(pn&&mn&&extractAlnumKey(pn)===extractAlnumKey(mn))pn=null;
   x.part_number=pn;
@@ -1742,7 +1785,7 @@ function parseAssetJson(txt){
 }
 async function parseAssetJsonWithRepair(txt){
   try{return parseAssetJson(txt);}catch(firstErr){
-    var repair=[{type:"text",text:"Convert this asset extraction response into valid minified JSON only. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS.replace(/,\s/g,", ")+". Zoho mapping: series=short Asset Series; model_number=full Asset Model Number; order_number=Endress+Hauser order/customer order code (also copy to model_number). All values strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
+    var repair=[{type:"text",text:"Convert this asset extraction response into valid minified JSON only. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS.replace(/,\s/g,", ")+". Zoho: series/device_name=Asset Series; order_number/model_number=full Order Code for E+H Promag; serial_number; k_factor; nominal_diameter. "+ASSET_EXTRACT_EH_MAGMETER+" All values strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
     var repaired=await callAPI({content:repair,maxTok:500,ms:30000});
     try{return parseAssetJson(getText(repaired));}catch(secondErr){throw firstErr;}
   }
@@ -1756,7 +1799,7 @@ async function extractAssetFromPhoto(){
     var content=[];
     for(var pi=0;pi<Math.min(3,A.asset.photos.length);pi++){var b64=await compressPhoto(A.asset.photos[pi].data,900,0.55);if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});}
     content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
-    var data=await callAPI({content:content,maxTok:600,ms:45000});
+    var data=await callAPI({content:content,maxTok:750,ms:45000});
     var txt=getText(data);
     applyAssetExtraction(await parseAssetJsonWithRepair(txt));
     removePendingAiByTypeTarget("asset_extract","asset");
@@ -2369,7 +2412,7 @@ async function retryQueuedAssetExtract(item){
   var content=[];
   item.photos.forEach(function(b64){if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});});
   content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
-  var data=await callAPI({content:content,maxTok:600,ms:45000});
+  var data=await callAPI({content:content,maxTok:750,ms:45000});
   applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
   assetStatus("AI extraction complete. Review all required fields before saving.",false);
 }
