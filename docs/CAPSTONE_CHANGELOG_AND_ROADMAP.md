@@ -5,7 +5,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-06-08
+Last updated: 2026-06-18
 Current live version: v232
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
 ```
@@ -14,10 +14,11 @@ Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
 
 ## How agents and contributors should use this file
 
-1. **Before starting work** — read *Planned*, *In progress*, and *Declined* so effort is not duplicated.
+1. **Before starting work** — read *Planned*, *In progress*, *Suggestions*, and *Declined* so effort is not duplicated.
 2. **After shipping** — move the item to *Completed* with version, PR number, and one-line outcome.
 3. **When the user defers or declines** — add to *Deferred* or *Declined* with date and reason.
 4. **When docs lag the app** — note under *Planned* until the doc PR lands.
+5. **After field testing** — log device results in `docs/CAPSTONE_FIELD_TEST_LOG.md`; add follow-ups to *Planned* or *Suggestions*.
 
 Related docs (detail, not status):
 
@@ -64,12 +65,12 @@ Related docs (detail, not status):
 | v224 | — | **Map: hub-and-spoke pins** — deal/account at center, satellites closer on spokes with lines to site |
 | v225 | #116 | **Map: all Zoho deal stages + multi-select** — stage chips from CRM; filter one or many stages per account |
 | v226 | #117 | **Map: per-deal pins + site spider** — one pin per deal; hub label; deals + meetings on spokes; account-linked meetings |
-| v227 | — | **Map: hub label polish** — label hidden until hover/tap; site popup links to each deal + account |
-| v228 | — | **Map: zoom disclosure + dense-site panel** — multi-item sites collapse when zoomed out; 5+ items open scrollable list panel instead of spider |
-| v229 | — | **Map: fix numbered site pin taps** — site pins outside cluster group, larger tap target, tap opens deal list + zooms in |
-| v230 | — | **Map: show deal list on site tap** — list opens immediately under map; expanded site pins never re-cluster; hub tap opens list |
-| v231 | — | **Map: always spider multi-item sites** — Lallemand-scale sites (5+ items) now spread pins like Willmar; list panel still opens on tap |
-| v232 | — | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
+| v227 | #118 | **Map: hub label polish** — label hidden until hover/tap; site popup links to each deal + account |
+| v228 | #119 | **Map: zoom disclosure + dense-site panel** — multi-item sites collapse when zoomed out; scrollable list panel for busy sites |
+| v229 | #120 | **Map: fix numbered site pin taps** — site pins outside cluster group; larger tap target; tap opens list + zooms in |
+| v230 | #121 | **Map: show deal list on site tap** — list opens immediately under map; expanded pins never re-cluster |
+| v231 | #122 | **Map: always spider multi-item sites** — all multi-deal sites spread pins when zoomed in (Willmar/Lallemand consistency) |
+| v232 | #123 | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
 
 ### UI / workflow polish
 
@@ -109,6 +110,7 @@ Related docs (detail, not status):
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
 | 2026-06-08 | `PLAUD_STAGE2_SETUP.md` — Plaud refresh token + auto-pull field setup |
+| 2026-06-18 | Map field-test cycle documented — v228–v232 shipped from Lake City / Lallemand / Willmar feedback |
 
 ### Structure (earlier milestone)
 
@@ -122,7 +124,8 @@ Related docs (detail, not status):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **Fix bugs from field test** | As needed | Small PRs if field testing surfaces issues |
+| **Map tab field validation (v232)** | Retest on Android | Confirm Lallemand/Willmar/Lake City: tap → list → **Select in CapStone** → Capture with deal loaded. Log in `CAPSTONE_FIELD_TEST_LOG.md`. |
+| **Fix bugs from field test** | As needed | Small PRs when device testing surfaces issues |
 
 ---
 
@@ -130,9 +133,29 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
-| On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
+| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name; PR #103 area — confirm scope before build |
+| Medium | **Map filter persistence** | Remember stage chips + scheduled-meetings toggle on device (same pattern as pin grouping / legend) |
+| Low | **Map stage chip order** | Match Zoho CRM picklist order instead of alphabetical |
+| Low | **Map pin labels at shared sites** | Deal initials or short name on pins when same stage color |
+| On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
+
+---
+
+## Suggestions (ideas — not committed)
+
+Review after field tests; promote to *Planned* when Brad confirms priority.
+
+| Area | Suggestion | Why |
+|------|------------|-----|
+| Map | Auto-close site list panel when leaving Map tab | Reduces clutter when switching to Capture |
+| Map | Settings toggle: **Select in CapStone → Capture** vs **Deals** | v232 defaults to Capture; some users may want Deals confirm step |
+| Map | Show account name per deal row when one site has multiple accounts | Lallemand-style multi-account geocode sites |
+| Map | Bump map cache when `get_map_deals` fields expand | Full deal sync to Capture needs richer fields from Zoho |
+| Map | Deploy Netlify after proxy changes | `get_map_events` and map actions require production Netlify |
+| Process | Close superseded PRs **#8**, **#88** | Housekeeping — docs and old cloud-login draft |
+| Process | Mark merged map PRs **#119–#123** done in GitHub | All merged to `main` as of v232 |
+| Field | Run `CAPSTONE_PROGRAM_REVIEW_CHECKLIST.md` after map sign-off | Periodic QA once map behavior stable |
 
 ---
 
@@ -144,6 +167,7 @@ Related docs (detail, not status):
 | Separate CapStone email/password accounts | Declined — use Zoho Users picklist for technician identity |
 | Phase 2+ cloud photo storage, native app | See backend architecture when revised |
 | Further `src/app.js` modularization | Not blocking field use |
+| Map dense-site threshold tuning | v231 removed spider skip; revisit only if 10+ pin sites are too crowded |
 
 ---
 
@@ -153,6 +177,7 @@ Related docs (detail, not status):
 |------|---------------|--------|
 | **Dedicated Zoho replacement subform or separate replacement history module** | 2026-06-08 | User: replacing the existing asset and making a note is good enough. |
 | **Separate CapStone technician list / email login** | 2026-06-08 | User: use Zoho CRM Internal_Assets.Users picklist for technicians instead. |
+| **Map: hub label always visible** | 2026-06-18 | v227 — hidden until hover/tap; field feedback preferred cleaner map at zoom |
 
 ---
 
@@ -162,6 +187,8 @@ Related docs (detail, not status):
 |------|--------|
 | **PR #8** — old docs PR | **Close** — superseded |
 | **PR #88** — separate cloud login | **Close** — superseded by Zoho Users technician approach |
+| **PR #103** — cloud settings sync | **Open** — align with Cloud sync Phase 1 before merge |
+| **PRs #119–#123** — map v228–v232 | **Merged** — zoom disclosure, tap fixes, spider consistency, Capture jump |
 | **Note Pro hardware** | **Order when ready** — first-day checklist in `PLAUD_INTEGRATION.md` |
 
 ---
@@ -170,9 +197,10 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
-| Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
+| Field test results (Map v232) | Willmar spider, Lallemand list + Capture, Lake City numbered pins — log in `docs/CAPSTONE_FIELD_TEST_LOG.md` |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
 | AssemblyAI API key on Netlify | User action — see `docs/ASSEMBLYAI_SETUP.md` |
+| Cloud sync Phase 1 scope | Confirm whether PR #103 is the vehicle or a fresh branch |
 
 ---
 
@@ -186,9 +214,16 @@ Related docs (detail, not status):
 | v195 | Photo input focus fix |
 | v196 | Local History save before Zoho |
 | v197 | Phone Downloads photo backup |
-| v198 | Storage warning + Zoho search/deal description enhancements |
-| v199 | History reopen autosave when continuing offline |
-| v200 | Technicians loaded from Zoho Internal_Assets.Users |
-| v201 | Per-field → AI with offline Pending AI queue |
-| v202 | Inbox tab — Plaud Fork A Stage 1 (unassigned voice staging) |
-| v207 | Plaud Stage 2 — cloud auto-pull into Inbox |
+| v198 | Storage warning + Zoho asset/deal description |
+| v199 | History reopen autosave |
+| v200 | Technicians from Zoho Users picklist |
+| v201 | Per-field → AI + Pending AI queue |
+| v202 | Inbox tab (Plaud Fork A Stage 1) |
+| v207 | Plaud Stage 2 auto-pull |
+| v208–v209 | Plaud token refresh + app-wide auto-pull |
+| v211 | OpenStreetMap link on GPS |
+| v212–v217 | Accounts Map tab + cache + coords priority |
+| v218–v221 | Map MN view, pin grouping, legend toggle |
+| v222–v226 | Meetings, spider pins, all stages, per-deal pins |
+| v227 | Hub label polish + per-deal popup links |
+| v228–v232 | Site collapse, tap fixes, list panel, spider parity, Capture jump |
