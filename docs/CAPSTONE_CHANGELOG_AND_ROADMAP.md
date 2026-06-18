@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v234
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=234
+Current live version: v235
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=235
 ```
 
 ---
@@ -72,6 +72,7 @@ Related docs (detail, not status):
 | v232 | — | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
 | v233 | — | **Assets: picklist request (Phase A)** — after AI extract, request new Brand/Type values; email `bradwhite@calibrationsandcontrols.com`; Pending Sync queue; Other + explain unchanged |
 | v234 | — | **Assets: picklist near-match** — auto-select on extract when only case/spacing differs; **Use [value]** button when Zoho has a similar Brand/Type |
+| v235 | — | **Assets: Account-only save** — save Equipments without a Deal; Pick Account; clearer save button/status; Internal_Assets noted as future |
 
 ### UI / workflow polish
 
