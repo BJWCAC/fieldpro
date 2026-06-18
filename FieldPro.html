@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=227"/>
+<link rel="stylesheet" href="src/styles.css?v=233"/>
 
 </head>
 <body>
@@ -260,6 +260,7 @@
       <ul>
         <li>Choose <strong>Add New Asset</strong> only when the equipment is not already in Zoho.</li>
         <li>Choose <strong>Update Existing Asset</strong> and search first when the equipment may already exist.</li>
+        <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
         <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
       </ul>
@@ -362,6 +363,7 @@
       <div><label class="lbl">Brand Other</label><input id="asset-brand-other" placeholder="Only if brand is 1 Other"/></div>
       <div><label class="lbl">Type Other</label><input id="asset-type-other" placeholder="Only if type is 1 Other"/></div>
     </div>
+    <div id="asset-picklist-request-panel" class="asset-picklist-request-panel" style="display:none"></div>
     <div class="g2" style="margin-bottom:8px">
       <div><label class="lbl">Model Number *</label><input id="asset-model"/></div>
       <div><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
@@ -856,8 +858,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=232"></script>
-<script src="src/app.js?v=232"></script>
+<script src="src/accounts-map.js?v=233"></script>
+<script src="src/app.js?v=233"></script>
 
 </body>
 </html>

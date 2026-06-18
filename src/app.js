@@ -22,10 +22,11 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="232";
+var FP_VERSION="233";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
+var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var PLAUD_AUTO_PULL_MS=3*60*1000;
 var PLAUD_FOREGROUND_PULL_MS=15000;
@@ -1160,6 +1161,118 @@ function exactPicklistMatch(field,val){
   for(var i=0;i<vals.length;i++){if(String(vals[i]).toLowerCase()===low)return vals[i];}
   return"";
 }
+var PICKLIST_REQUEST_FIELDS={
+  Asset_Brand:{selectId:"asset-brand",otherId:"asset-brand-other",otherValue:"1 Other",label:"Asset Brand"},
+  Asset_Type:{selectId:"asset-type",otherId:"asset-type-other",otherValue:"1 Other",label:"Asset Type"}
+};
+function picklistRequestKey(fieldApi,value){return fieldApi+":"+String(value||"").trim().toLowerCase();}
+function getPicklistRequestsSent(){try{return JSON.parse(localStorage.getItem("fp_picklist_requests_sent")||"[]");}catch(e){return[];}}
+function markPicklistRequestSent(key){
+  var arr=getPicklistRequestsSent();
+  if(arr.indexOf(key)<0){arr.push(key);if(arr.length>200)arr=arr.slice(-200);}
+  try{localStorage.setItem("fp_picklist_requests_sent",JSON.stringify(arr));}catch(e){}
+}
+function isPicklistRequestSent(key){return getPicklistRequestsSent().indexOf(key)>=0;}
+function assetPicklistNearMatch(field,val){
+  val=String(val||"").trim();if(!val)return"";
+  var exact=exactPicklistMatch(field,val);if(exact)return exact;
+  var vals=assetPicklistValues(field),low=val.toLowerCase(),best="",bestLen=999;
+  for(var i=0;i<vals.length;i++){
+    var v=String(vals[i]);if(!v||v==="1 Other"||v==="_"||v==="Other")continue;
+    var vl=v.toLowerCase();
+    if(vl.indexOf(low)>=0||low.indexOf(vl)>=0){
+      if(v.length<bestLen){best=v;bestLen=v.length;}
+    }
+  }
+  return best;
+}
+function getAssetPicklistMisses(){
+  var misses=[];
+  Object.keys(PICKLIST_REQUEST_FIELDS).forEach(function(fieldApi){
+    var cfg=PICKLIST_REQUEST_FIELDS[fieldApi];
+    var sel=assetInput(cfg.selectId),other=assetInput(cfg.otherId);
+    if(sel===cfg.otherValue&&other){
+      var proposed=other.trim();
+      if(proposed)misses.push({fieldApi:fieldApi,fieldLabel:cfg.label,proposedValue:proposed,nearMatch:assetPicklistNearMatch(fieldApi,proposed)||""});
+    }
+  });
+  return misses;
+}
+function buildPicklistRequestPayload(miss){
+  miss=miss||{};
+  return{
+    fieldApi:miss.fieldApi||"",
+    fieldLabel:miss.fieldLabel||miss.fieldApi||"Picklist field",
+    proposedValue:miss.proposedValue||"",
+    nearMatch:miss.nearMatch||"",
+    technician:technicianDisplayName()||A.technician||"",
+    accountName:A.sel&&A.sel.Account_Name||assetInput("asset-account")||"",
+    dealName:A.sel&&A.sel.Deal_Name||"",
+    dealId:A.sel&&A.sel.id||"",
+    equipmentId:A.asset.currentAssetId||"",
+    assetName:assetInput("asset-name")||"",
+    model:assetInput("asset-model")||"",
+    serial:assetInput("asset-serial")||"",
+    requestedAt:new Date().toISOString()
+  };
+}
+function renderAssetPicklistRequestPanel(){
+  var panel=el("asset-picklist-request-panel");if(!panel)return;
+  var misses=getAssetPicklistMisses();
+  if(!misses.length){panel.style.display="none";panel.innerHTML="";return;}
+  panel.style.display="block";
+  var rows=misses.map(function(m){
+    var key=picklistRequestKey(m.fieldApi,m.proposedValue);
+    var sent=isPicklistRequestSent(key);
+    var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='font-size:11px;color:#92400e;margin-top:4px'>Similar in Zoho: <strong>"+esc(m.nearMatch)+"</strong> — pick that if it matches.</div>"):"";
+    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' onclick=\"requestAssetPicklistValue('"+esc(m.fieldApi)+"')\">Request addition</button>";
+    return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Asset still saves with Other until Brad adds this to the picklist.</div></div><div style='flex-shrink:0'>"+action+"</div></div>";
+  }).join("");
+  panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
+}
+async function sendPicklistRequestPayload(payload){
+  var r=await fetchWithTimeout(PICKLIST_REQUEST_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
+  var txt=await r.text();
+  if(!r.ok)throw new Error((r.status===503?"Email not configured":"Picklist request "+r.status)+": "+txt.substring(0,160));
+  try{return JSON.parse(txt);}catch(e){return{ok:true};}
+}
+function enqueuePicklistRequest(payload,error){
+  if(!payload||!payload.fieldApi||!payload.proposedValue)return;
+  var key=picklistRequestKey(payload.fieldApi,payload.proposedValue);
+  var items=getPendingUploads();
+  if(items.some(function(i){return i.type==="picklist_request"&&(i.requestKey===key||(i.payload&&picklistRequestKey(i.payload.fieldApi,i.payload.proposedValue)===key));}))return;
+  enqueuePendingUpload({type:"picklist_request",requestKey:key,payload:payload,assetLabel:"Picklist request — "+payload.fieldLabel,filename:payload.proposedValue,error:error||""});
+}
+async function uploadPendingPicklistRequest(item){
+  if(!item||!item.payload)throw new Error("Pending picklist request missing data");
+  await sendPicklistRequestPayload(item.payload);
+  markPicklistRequestSent(item.requestKey||picklistRequestKey(item.payload.fieldApi,item.payload.proposedValue));
+}
+async function requestAssetPicklistValue(fieldApi){
+  var miss=null;
+  getAssetPicklistMisses().forEach(function(m){if(m.fieldApi===fieldApi)miss=m;});
+  if(!miss){showToast("Nothing to request for that field",2500);return;}
+  if(miss.nearMatch&&miss.nearMatch.toLowerCase()!==miss.proposedValue.toLowerCase()){
+    if(!confirm("Zoho already has \""+miss.nearMatch+"\" which looks similar.\n\nRequest \""+miss.proposedValue+"\" anyway?"))return;
+  }
+  var payload=buildPicklistRequestPayload(miss);
+  var key=picklistRequestKey(payload.fieldApi,payload.proposedValue);
+  if(isPicklistRequestSent(key)){renderAssetPicklistRequestPanel();showToast("Request already sent for this value",3000);return;}
+  try{
+    await sendPicklistRequestPayload(payload);
+    markPicklistRequestSent(key);
+    renderAssetPicklistRequestPanel();
+    showToast("Picklist request emailed to Brad",4000);
+  }catch(e){
+    if(shouldQueueAiError(e)||String(e.message||"").indexOf("not configured")>=0){
+      enqueuePicklistRequest(payload,e.message||String(e));
+      renderAssetPicklistRequestPanel();
+      showToast("Picklist request queued in Pending Sync",4500);
+      return;
+    }
+    showToast("Could not send picklist request: "+(e.message||e),5000);
+  }
+}
 function applyAssetExtraction(x){
   x=x||{};
   var manufacturer=x.manufacturer||x.brand||"";
@@ -1176,6 +1289,7 @@ function applyAssetExtraction(x){
   var notes=[];if(x.part_number)notes.push("Part Number: "+x.part_number);if(x.ratings)notes.push("Ratings: "+x.ratings);if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-description",notes.join("\n"));
   updateAssetSaveState();
+  renderAssetPicklistRequestPanel();
 }
 function assetJsonCandidate(txt){
   txt=String(txt||"").trim().replace(/^```(?:json)?/i,"").replace(/```$/g,"").trim();
@@ -1271,6 +1385,7 @@ function updateAssetSaveState(){
   if(typeof renderAssetReplacementPanel==="function")renderAssetReplacementPanel();
   if(typeof renderAssetModeControls==="function")renderAssetModeControls();
   if(typeof renderAssetModeBanner==="function")renderAssetModeBanner();
+  renderAssetPicklistRequestPanel();
   return missing;
 }
 function setupAssetRequiredHandlers(){
@@ -1280,6 +1395,11 @@ function setupAssetRequiredHandlers(){
     e.addEventListener("input",updateAssetSaveState);
     e.addEventListener("change",updateAssetSaveState);
     e.addEventListener("blur",updateAssetSaveState);
+  });
+  ["asset-brand-other","asset-type-other"].forEach(function(id){
+    var e=el(id);if(!e)return;
+    e.addEventListener("input",renderAssetPicklistRequestPanel);
+    e.addEventListener("change",renderAssetPicklistRequestPanel);
   });
   A.assetReqHandlersBound=true;
 }
@@ -1303,6 +1423,7 @@ function clearAssetEntryState(msg,keepSavedItems){
   renderAssetPhotos();renderSavedAssets();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
+  renderAssetPicklistRequestPanel();
   updateAssetSaveState();
 }
 function resetAssetFormForNext(){
@@ -1520,6 +1641,7 @@ function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pend
 function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending sync item",5000);}renderPendingUploads();if(typeof renderHistory==="function")renderHistory();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
 function pendingUploadLabel(item){
   if(item.type==="capture_photo")return "Capture photo — "+(item.filename||"photo");
+  if(item.type==="picklist_request")return "Picklist request — "+((item.payload&&item.payload.fieldLabel)||"field")+": "+((item.payload&&item.payload.proposedValue)||item.filename||"value");
   return (item.assetLabel||"Pending sync")+" — "+(item.filename||"file");
 }
 function enqueueCapturePhotoUpload(photo,idx,folderId,error){
@@ -1567,11 +1689,12 @@ async function retryPendingUploads(opts){
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else throw new Error("Unknown pending upload type");}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");}
     catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
   }
   A.pendingRetrying=false;
   savePendingUploads(remaining);
+  if(typeof renderAssetPicklistRequestPanel==="function")renderAssetPicklistRequestPanel();
   if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" sync item(s) still pending":"All pending sync items complete",5000);
 }
 function schedulePendingUploadRetry(reason,delayMs){
