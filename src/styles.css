@@ -178,12 +178,15 @@ body.light .hist-card{background:#fff}
 .map-spread-line{pointer-events:none}
 .map-hub-wrap{background:transparent;border:none}
 .map-hub{position:relative;display:flex;flex-direction:column;align-items:center}
+.map-hub-dense-target{min-width:40px;min-height:40px;justify-content:center}
+.map-hub-dense-target .map-hub-dot{margin:0}
 .map-hub-dot{width:16px;height:16px;border-radius:50%;background:#f8fafc;border:2px solid #3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:pointer;position:relative}
 .map-hub-dense-badge{position:absolute;top:-7px;right:-9px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;line-height:16px;text-align:center;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .map-site-summary-wrap{background:transparent;border:none}
-.map-site-summary{position:relative;width:22px;height:22px}
-.map-site-summary-dot{width:18px;height:18px;border-radius:50%;background:#e2e8f0;border:2px solid #3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.45);margin:2px auto 0}
-.map-site-summary-badge{position:absolute;top:-2px;right:-4px;min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#0f172a;color:#f8fafc;font-size:9px;font-weight:700;line-height:15px;text-align:center;border:1px solid #64748b}
+.map-site-summary{position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+.map-site-summary-dot{width:18px;height:18px;border-radius:50%;background:#e2e8f0;border:2px solid #3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.45);flex-shrink:0}
+.map-site-summary-badge{position:absolute;top:2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#0f172a;color:#f8fafc;font-size:9px;font-weight:700;line-height:16px;text-align:center;border:1px solid #64748b;pointer-events:none}
+.map-hub-wrap.map-site-summary-wrap,.map-site-summary-wrap .map-site-summary{cursor:pointer}
 .map-legend-summary{background:#e2e8f0;border:2px solid #3b82f6}
 .map-site-panel{background:#1e293b;border-top:1px solid #334155;margin-bottom:10px}
 .map-site-hdr{padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
