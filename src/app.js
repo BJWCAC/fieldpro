@@ -25,8 +25,12 @@ var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number
 var ASSET_EXTRACT_MAGMETER_CAL="Magnetic flow meter calibration (all brands): Most magmeters show Cal Factor, Cal. Fact., Calibration Factor, K-Factor, or K Factor on the nameplate. Put that numeric value in k_factor (and cal_factor if needed). This maps to the Zoho Cal Factor field — do not omit when visible on the plate.";
 var ASSET_EXTRACT_EH_MAGMETER="Endress+Hauser magnetic flow meter (Promag) nameplate rules:\n- device_name → Asset Series: transmitter/product family exactly as printed (e.g. Proline Promag W 400, Promag 50P). NOT the order code.\n- order_number → Asset Model Number: FULL Order Code (Ord. Cd. / Order code), e.g. 5W4B80-AAI7/0. Copy the entire string including slashes and suffixes.\n- serial_number: Ser. No. exactly (often ~11 chars, e.g. M801B416000).\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor (e.g. 1.2345) → Cal Factor field.\n- nominal_diameter: DN / pipe size if shown (e.g. DN 80 / 3 inch).\n- ratings: combine DN, PN, liner, electrodes, power supply, enclosure IP, outputs if readable (exclude cal factor if already in k_factor).\n- asset_type: Magnetic Flow Meter when applicable.\nDo NOT put Order Code in series. Do NOT truncate Order Code.";
 var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="244";
+var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, manufacturer, model_number, serial_number, ratings, visible_text";
+var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM sensor fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- model_number / serial_number: use only if the plate does not say sensor but clearly shows model/serial for the sensor body.\n- manufacturer: sensor brand if shown.\n- ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\nDo not guess unreadable characters.";
+var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
+var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
+var FP_VERSION="245";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -508,6 +512,8 @@ window.saveTechnicianSetting=saveTechnicianSetting;
 window.loadTechniciansFromZoho=loadTechniciansFromZoho;
 window.confirmAssetPhotoDescription=confirmAssetPhotoDescription;
 window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
+window.pickAssetPhotoRole=pickAssetPhotoRole;
+window.editAssetPhotoLabel=editAssetPhotoLabel;
 window.retryPendingUploads=retryPendingUploads;
 window.clearPendingUploads=clearPendingUploads;
 window.runFieldPolishAi=runFieldPolishAi;
@@ -1132,7 +1138,7 @@ function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-s
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;try{localStorage.setItem("fp_asset_draft",JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
 function clearAssetDraft(){try{localStorage.removeItem("fp_asset_draft");}catch(e){}setAssetDraftStatus("",false);}
-function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}renderAssetCategoryFields();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
+function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];normalizeAssetPhotos();renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}renderAssetCategoryFields();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
 function assetDraftSummary(d,label){
   var f=d&&d.fields||{};
   var deal=d&&d.deal;
@@ -1477,10 +1483,61 @@ function assetPhotoFingerprint(dataUrl){
   var s=String(dataUrl||"");
   return s.length+":"+s.slice(0,80)+":"+s.slice(-80);
 }
+function normalizeAssetPhotoRole(desc,explicitRole){
+  if(explicitRole&&ASSET_PHOTO_ROLES[explicitRole])return explicitRole;
+  var s=String(desc||"").toLowerCase();
+  if(/\bsensor\b/.test(s))return "sensor";
+  if(/\btransmitter\b/.test(s)||/\bmain\b/.test(s)||/\bnameplate\b/.test(s))return "transmitter";
+  return "other";
+}
+function normalizeAssetPhoto(photo){
+  if(!photo)return photo;
+  if(photo.shortDescription||photo.photoRole){
+    if(!photo.photoRole)photo.photoRole=normalizeAssetPhotoRole(photo.shortDescription);
+    if(!photo.shortDescription){
+      var roleDef=ASSET_PHOTO_ROLES[photo.photoRole]||ASSET_PHOTO_ROLES.other;
+      photo.shortDescription=roleDef.short;
+    }
+  }
+  return photo;
+}
+function normalizeAssetPhotos(){A.asset.photos.forEach(normalizeAssetPhoto);}
+function assetPhotoRoleLabel(photo){
+  photo=photo||{};
+  if(!photo.shortDescription&&!photo.photoRole)return "Unlabeled";
+  photo=normalizeAssetPhoto(photo);
+  var roleDef=ASSET_PHOTO_ROLES[photo.photoRole]||ASSET_PHOTO_ROLES.other;
+  return photo.shortDescription||roleDef.short;
+}
+function assetPhotosForExtract(kind){
+  normalizeAssetPhotos();
+  return A.asset.photos.filter(function(p){
+    if(!p.shortDescription&&!p.photoRole)return false;
+    var role=p.photoRole||normalizeAssetPhotoRole(p.shortDescription);
+    if(kind==="sensor")return role==="sensor";
+    return role!=="sensor";
+  });
+}
+function setDynamicAssetField(api,val){
+  if(!val)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  A.asset.dynamicValues[api]=String(val);
+  var dEl=el(assetDynId(api));
+  if(dEl)dEl.value=A.asset.dynamicValues[api];
+}
 function renderAssetPhotos(){
+  normalizeAssetPhotos();
   var grid=el("asset-photo-grid");if(!grid)return;
-  grid.innerHTML=A.asset.photos.map(function(p){return"<img src='"+p.data+"' alt='Asset photo'/>";}).join("");
+  grid.innerHTML=A.asset.photos.map(function(p,i){
+    var lbl=esc(assetPhotoRoleLabel(p));
+    return"<button type='button' class='asset-photo-item' onclick='editAssetPhotoLabel("+i+")' title='Tap to change label'><img src='"+p.data+"' alt='Asset photo'/><span class='asset-photo-label'>"+lbl+"</span></button>";
+  }).join("");
   if(A.asset.photos.length)showEl("asset-photo-wrap");else hideEl("asset-photo-wrap");
+}
+async function labelNewAssetPhotos(startIdx){
+  for(var i=startIdx;i<A.asset.photos.length;i++){
+    await requestAssetPhotoLabel(A.asset.photos[i],i,{required:true});
+  }
 }
 function assetPhotosToUpload(){
   return A.asset.photos.filter(function(p){return p.fingerprint&&!A.asset.lastUploadedPhotoFingerprints[p.fingerprint];});
@@ -1489,13 +1546,23 @@ function primaryAssetPhoto(){return A.asset.photos[0]||null;}
 function assetPhotoSelected(input){
   var files=Array.from(input.files||[]);if(!files.length)return;
   A.asset.saved=false;
+  var startIdx=A.asset.photos.length;
   var remaining=files.length;
   files.forEach(function(file){
     var reader=new FileReader();
     reader.onload=function(ev){
       var data=ev.target.result,fp=assetPhotoFingerprint(data);
-      A.asset.photos.push({data:data,name:file.name||("asset-nameplate-"+A.asset.photos.length+".jpg"),fingerprint:fp,shortDescription:""});
-      remaining--;if(remaining===0){renderAssetPhotos();assetStatus(A.asset.photos.length+" asset photo(s) ready. AI extraction uses up to the first 3.",false);scheduleAssetDraftSave();}
+      A.asset.photos.push({data:data,name:file.name||("asset-nameplate-"+A.asset.photos.length+".jpg"),fingerprint:fp,shortDescription:"",photoRole:""});
+      remaining--;
+      if(remaining===0){
+        (async function(){
+          await labelNewAssetPhotos(startIdx);
+          renderAssetPhotos();
+          var mainCount=assetPhotosForExtract("main").length,sensorCount=assetPhotosForExtract("sensor").length;
+          assetStatus(A.asset.photos.length+" photo(s) labeled. "+mainCount+" transmitter/main, "+sensorCount+" sensor. Tap a photo to relabel.",false);
+          scheduleAssetDraftSave();
+        })();
+      }
     };
     reader.onerror=function(){remaining--;if(remaining===0)renderAssetPhotos();};
     reader.readAsDataURL(file);
@@ -1675,6 +1742,21 @@ function applyAssetExtraction(x){
   updateAssetSaveState();
   renderAssetPicklistRequestPanel();
 }
+function applySensorExtraction(x){
+  if(!x)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  var sensorModel=extractValTrim(x.sensor_model_number)||extractValTrim(x.model_number)||"";
+  var sensorSerial=extractValTrim(x.sensor_serial_number)||extractValTrim(x.serial_number)||"";
+  if(sensorModel)setDynamicAssetField("Sensor_Model_Number",sensorModel);
+  if(sensorSerial)setDynamicAssetField("Sensor_Serial_Number",sensorSerial);
+  var notes=[];
+  if(x.manufacturer)notes.push("Manufacturer: "+x.manufacturer);
+  if(x.ratings)notes.push("Ratings: "+x.ratings);
+  if(x.visible_text)notes.push("Visible text: "+x.visible_text);
+  if(notes.length)setDynamicAssetField("Sensor_Additional_Information",notes.join("\n"));
+  if(typeof renderAssetCategoryFields==="function"&&assetInput("asset-category"))renderAssetCategoryFields();
+  updateAssetSaveState();
+}
 function applyExtractedDynamicFields(x){
   if(!x)return;
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
@@ -1816,38 +1898,83 @@ async function parseAssetJsonWithRepair(txt){
     try{return parseAssetJson(getText(repaired));}catch(secondErr){throw firstErr;}
   }
 }
-async function extractAssetFromPhoto(){
-  try{
-    A.asset.saved=false;
-    if(!A.asset.photos.length){assetStatus("Take or upload at least one nameplate photo first.",true);return;}
-    if(!API_KEY){enterKey();assetStatus("Add your Anthropic API key, then tap Extract again.",true);return;}
-    assetStatus("Extracting asset details from photo...",false);
-    var content=[];
-    for(var pi=0;pi<Math.min(3,A.asset.photos.length);pi++){var b64=await compressPhoto(A.asset.photos[pi].data,900,0.55);if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});}
-    content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
-    var data=await callAPI({content:content,maxTok:750,ms:45000});
-    var txt=getText(data);
-    applyAssetExtraction(await parseAssetJsonWithRepair(txt));
-    removePendingAiByTypeTarget("asset_extract","asset");
-    assetStatus("AI extraction complete. Review all required fields before saving.",false);
-  }catch(e){
-    if(shouldQueueAiError(e)&&A.asset.photos.length){
-      (async function(){
-        var photos=[];
-        for(var pi=0;pi<Math.min(3,A.asset.photos.length);pi++){
-          var b64=await compressPhoto(A.asset.photos[pi].data,900,0.55);
-          if(b64)photos.push(b64);
-        }
-        if(photos.length){
-          enqueuePendingAi({type:"asset_extract",target:"asset",photos:photos,label:"Asset photo extraction",error:e.message||String(e)});
-          assetStatus("Extraction queued — will retry when connection improves.",false);
-          showToast("Asset extraction queued for when signal returns",4500);
-          return;
-        }
-        assetStatus("Asset extraction failed: "+e.message,true);
-      })();
-    }else assetStatus("Asset extraction failed: "+e.message,true);
+async function parseAssetSensorJsonWithRepair(txt){
+  try{return parseAssetJson(txt);}catch(firstErr){
+    var repair=[{type:"text",text:"Convert this sensor extraction response into valid minified JSON only. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS.replace(/,\s/g,", ")+". Zoho: sensor_model_number, sensor_serial_number. All values strings or null. No markdown.\n\n"+String(txt||"").slice(0,2500)}];
+    var repaired=await callAPI({content:repair,maxTok:500,ms:30000});
+    try{return parseAssetJson(getText(repaired));}catch(secondErr){throw firstErr;}
   }
+}
+async function buildAssetExtractContent(photos,maxCount){
+  var content=[];
+  for(var pi=0;pi<Math.min(maxCount||3,photos.length);pi++){
+    var b64=await compressPhoto(photos[pi].data,900,0.55);
+    if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});
+  }
+  return content;
+}
+async function extractMainAssetPhotos(photos){
+  var content=await buildAssetExtractContent(photos,3);
+  content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
+  var data=await callAPI({content:content,maxTok:750,ms:45000});
+  applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
+  removePendingAiByTypeTarget("asset_extract","asset");
+}
+async function extractSensorAssetPhotos(photos){
+  var content=await buildAssetExtractContent(photos,3);
+  content.push({type:"text",text:ASSET_EXTRACT_SENSOR_PROMPT});
+  var data=await callAPI({content:content,maxTok:500,ms:45000});
+  applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
+  removePendingAiByTypeTarget("asset_extract_sensor","asset");
+}
+async function queueAssetExtractFailure(kind,photos,err){
+  if(!shouldQueueAiError(err)||!photos.length)return false;
+  var b64Photos=[];
+  for(var pi=0;pi<Math.min(3,photos.length);pi++){
+    var b64=await compressPhoto(photos[pi].data,900,0.55);
+    if(b64)b64Photos.push(b64);
+  }
+  if(!b64Photos.length)return false;
+  var type=kind==="sensor"?"asset_extract_sensor":"asset_extract";
+  var label=kind==="sensor"?"Sensor photo extraction":"Asset photo extraction";
+  enqueuePendingAi({type:type,target:"asset",photos:b64Photos,extractKind:kind,label:label,error:err.message||String(err)});
+  return true;
+}
+async function extractAssetFromPhoto(){
+  A.asset.saved=false;
+  normalizeAssetPhotos();
+  if(!A.asset.photos.length){assetStatus("Take or upload at least one nameplate photo first.",true);return;}
+  if(!API_KEY){enterKey();assetStatus("Add your Anthropic API key, then tap Extract again.",true);return;}
+  var mainPhotos=assetPhotosForExtract("main");
+  var sensorPhotos=assetPhotosForExtract("sensor");
+  if(!mainPhotos.length&&!sensorPhotos.length){assetStatus("Label photos as transmitter or sensor, then tap Extract again.",true);return;}
+  var parts=[],errors=[],queued=false;
+  if(mainPhotos.length){
+    try{
+      assetStatus("Extracting transmitter/main fields from "+Math.min(3,mainPhotos.length)+" photo(s)...",false);
+      await extractMainAssetPhotos(mainPhotos);
+      parts.push("main");
+    }catch(e){
+      errors.push(e);
+      queued=await queueAssetExtractFailure("main",mainPhotos,e)||queued;
+    }
+  }
+  if(sensorPhotos.length){
+    try{
+      assetStatus("Extracting sensor fields from "+Math.min(3,sensorPhotos.length)+" photo(s)...",false);
+      await extractSensorAssetPhotos(sensorPhotos);
+      parts.push("sensor");
+    }catch(e){
+      errors.push(e);
+      queued=await queueAssetExtractFailure("sensor",sensorPhotos,e)||queued;
+    }
+  }
+  if(parts.length&&!errors.length)assetStatus("AI extraction complete ("+parts.join(" + ")+"). Review all fields before saving.",false);
+  else if(parts.length&&errors.length)assetStatus("Partial extraction ("+parts.join(" + ")+"). Some fields queued for retry.",false);
+  else if(queued){
+    assetStatus("Extraction queued — will retry when connection improves.",false);
+    showToast("Asset extraction queued for when signal returns",4500);
+  }else if(errors.length)assetStatus("Asset extraction failed: "+(errors[0].message||String(errors[0])),true);
 }
 function assetRequiredFields(){return [
   ["asset-name","Asset Name"],
@@ -2351,6 +2478,7 @@ function pendingAiLabel(item){
   if(item.type==="field_polish")return "Field AI — "+(item.label||fieldAiLabel(item.target||""));
   if(item.type==="report_generate")return "Generate AI Report";
   if(item.type==="asset_extract")return "Asset photo extraction";
+  if(item.type==="asset_extract_sensor")return "Sensor photo extraction";
   return item.label||"Pending AI";
 }
 function removePendingAiByTarget(target){
@@ -2434,12 +2562,19 @@ async function retryQueuedReportGenerate(item){
 async function retryQueuedAssetExtract(item){
   if(!item.photos||!item.photos.length)throw new Error("Queued extraction missing photos");
   if(!API_KEY)throw new Error("API key required");
-  assetStatus("Retrying asset extraction...",false);
+  var isSensor=item.type==="asset_extract_sensor"||item.extractKind==="sensor";
+  assetStatus(isSensor?"Retrying sensor extraction...":"Retrying asset extraction...",false);
   var content=[];
   item.photos.forEach(function(b64){if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});});
-  content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
-  var data=await callAPI({content:content,maxTok:750,ms:45000});
-  applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
+  content.push({type:"text",text:isSensor?ASSET_EXTRACT_SENSOR_PROMPT:ASSET_EXTRACT_PROMPT});
+  var data=await callAPI({content:content,maxTok:isSensor?500:750,ms:45000});
+  if(isSensor){
+    applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
+    removePendingAiByTypeTarget("asset_extract_sensor","asset");
+  }else{
+    applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
+    removePendingAiByTypeTarget("asset_extract","asset");
+  }
   assetStatus("AI extraction complete. Review all required fields before saving.",false);
 }
 async function processPendingAiItem(item){
@@ -2455,7 +2590,7 @@ async function processPendingAiItem(item){
     return;
   }
   if(item.type==="report_generate"){await retryQueuedReportGenerate(item);return;}
-  if(item.type==="asset_extract"){await retryQueuedAssetExtract(item);return;}
+  if(item.type==="asset_extract"||item.type==="asset_extract_sensor"){await retryQueuedAssetExtract(item);return;}
   throw new Error("Unknown pending AI type");
 }
 async function retryPendingAi(opts){
@@ -2543,20 +2678,76 @@ async function assetPhotoFilePrefix(equipmentId){
   var cac=(rec&&rec.CAC_Asset_ID)||(A.asset.loadedOriginal&&A.asset.loadedOriginal.cacId)||equipmentId;
   return sanitizeAssetFilePart(cac);
 }
-function requestAssetPhotoDescription(photo,idx){
-  if(photo.shortDescription)return Promise.resolve(photo.shortDescription);
+function updateAssetPhotoRoleButtons(role){
+  Object.keys(ASSET_PHOTO_ROLES).forEach(function(key){
+    var btn=el("asset-photo-role-"+key);
+    if(btn)btn.classList.toggle("on",key===role);
+  });
+}
+function finalizeAssetPhotoLabel(desc,role){
+  var photo=A.assetPhotoLabelPhoto;
+  var resolver=A.assetPhotoLabelResolver||A.assetPhotoDescResolver;
+  role=role||A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
+  if(!ASSET_PHOTO_ROLES[role])role=normalizeAssetPhotoRole(desc,role);
+  var roleDef=ASSET_PHOTO_ROLES[role]||ASSET_PHOTO_ROLES.other;
+  desc=String(desc||"").trim()||roleDef.short;
+  if(photo){
+    photo.shortDescription=desc;
+    photo.photoRole=role;
+    normalizeAssetPhoto(photo);
+  }
+  A.assetPhotoLabelPhoto=null;
+  A.assetPhotoLabelResolver=null;
+  A.assetPhotoDescResolver=null;
+  A.assetPhotoLabelRole=ASSET_PHOTO_ROLE_DEFAULT;
+  closeAssetPhotoDescriptionModal();
+  renderAssetPhotos();
+  scheduleAssetDraftSave();
+  if(resolver)resolver(desc);
+}
+function requestAssetPhotoLabel(photo,idx,opts){
+  opts=opts||{};
+  normalizeAssetPhoto(photo);
+  if(!opts.force&&photo.shortDescription)return Promise.resolve(photo.shortDescription);
   return new Promise(function(resolve){
-    A.assetPhotoDescResolver=function(val){photo.shortDescription=(val||"nameplate").trim()||"nameplate";A.assetPhotoDescResolver=null;closeAssetPhotoDescriptionModal();resolve(photo.shortDescription);};
+    A.assetPhotoLabelPhoto=photo;
+    A.assetPhotoLabelResolver=resolve;
+    A.assetPhotoDescResolver=resolve;
+    A.assetPhotoLabelRole=photo.photoRole||ASSET_PHOTO_ROLE_DEFAULT;
     var img=el("asset-photo-desc-img"),inp=el("asset-photo-desc-input"),m=el("assetphotomodal");
     if(img)img.src=photo.data||"";
-    if(inp)inp.value=photo.shortDescription||"nameplate";
+    if(inp)inp.value=photo.shortDescription||ASSET_PHOTO_ROLES[A.assetPhotoLabelRole].short;
+    updateAssetPhotoRoleButtons(A.assetPhotoLabelRole);
     if(m)m.style.display="flex";
     setTimeout(function(){try{if(inp){inp.focus();inp.select();}}catch(e){}},50);
   });
 }
+function requestAssetPhotoDescription(photo,idx){
+  normalizeAssetPhoto(photo);
+  if(photo.shortDescription)return Promise.resolve(photo.shortDescription);
+  return requestAssetPhotoLabel(photo,idx,{force:false});
+}
+function editAssetPhotoLabel(idx){
+  var photo=A.asset.photos[idx];
+  if(!photo)return;
+  requestAssetPhotoLabel(photo,idx,{force:true});
+}
+function pickAssetPhotoRole(role){
+  if(!ASSET_PHOTO_ROLES[role])return;
+  A.assetPhotoLabelRole=role;
+  updateAssetPhotoRoleButtons(role);
+  var inp=el("asset-photo-desc-input"),roleDef=ASSET_PHOTO_ROLES[role];
+  if(inp&&roleDef)inp.value=roleDef.short;
+}
 function closeAssetPhotoDescriptionModal(){var m=el("assetphotomodal");if(m)m.style.display="none";}
-function confirmAssetPhotoDescription(){var inp=el("asset-photo-desc-input");if(A.assetPhotoDescResolver)A.assetPhotoDescResolver(inp&&inp.value||"nameplate");}
-function cancelAssetPhotoDescription(){if(A.assetPhotoDescResolver)A.assetPhotoDescResolver("nameplate");}
+function confirmAssetPhotoDescription(){
+  var inp=el("asset-photo-desc-input");
+  finalizeAssetPhotoLabel(inp&&inp.value,A.assetPhotoLabelRole);
+}
+function cancelAssetPhotoDescription(){
+  var role=A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
+  finalizeAssetPhotoLabel(ASSET_PHOTO_ROLES[role].short,role);
+}
 async function assetPhotoAttachmentName(prefix,photo,idx){
   var desc=sanitizeAssetFilePart(await requestAssetPhotoDescription(photo,idx));
   return prefix+"-"+desc+"-"+(idx+1)+".jpg";
