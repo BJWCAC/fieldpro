@@ -178,7 +178,7 @@ body.light .hist-card{background:#fff}
 .map-spread-line{pointer-events:none}
 .map-hub-wrap{background:transparent;border:none}
 .map-hub{position:relative;display:flex;flex-direction:column;align-items:center}
-.map-hub-dot{width:14px;height:14px;border-radius:50%;background:#f8fafc;border:2px solid #3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.5);position:relative}
+.map-hub-dot{width:16px;height:16px;border-radius:50%;background:#f8fafc;border:2px solid #3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:pointer;position:relative}
 .map-hub-dense-badge{position:absolute;top:-7px;right:-9px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;line-height:16px;text-align:center;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
 .map-site-summary-wrap{background:transparent;border:none}
 .map-site-summary{position:relative;width:22px;height:22px}
@@ -203,7 +203,8 @@ body.light .hist-card{background:#fff}
 .map-site-btn{background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;font-family:"IBM Plex Sans",sans-serif;text-align:left}
 .map-site-link{font-size:11px;color:#93c5fd;text-decoration:none}
 .map-site-empty{color:#64748b;font-size:11px;padding-bottom:8px}
-.map-hub-label{margin-top:4px;max-width:120px;padding:2px 6px;border-radius:6px;background:rgba(15,23,42,.92);border:1px solid #334155;font-size:10px;font-weight:600;color:#f8fafc;text-align:center;line-height:1.25;white-space:normal;pointer-events:none}
+.map-hub-label{margin-top:4px;max-width:120px;padding:2px 6px;border-radius:6px;background:rgba(15,23,42,.92);border:1px solid #334155;font-size:10px;font-weight:600;color:#f8fafc;text-align:center;line-height:1.25;white-space:normal;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s ease,visibility .15s ease}
+.map-hub-wrap:hover .map-hub-label,.map-hub-wrap.map-hub-label-visible .map-hub-label{opacity:1;visibility:visible}
 .map-hub-deal{font-size:9px;font-weight:500;color:#93c5fd;margin-top:2px;line-height:1.2}
 .map-stage-filter-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
 .map-stage-clear{background:none;border:none;padding:0;font-size:11px;color:#93c5fd;cursor:pointer;font-family:"IBM Plex Sans",sans-serif;text-decoration:underline}

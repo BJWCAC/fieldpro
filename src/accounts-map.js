@@ -961,13 +961,18 @@
 
       if (useHub) {
         var primaryDeal = "";
+        var primaryDealId = "";
         for (var i = 0; i < site.deals.length; i++) {
           if (site.deals[i].deal.stage === "Active") {
             primaryDeal = site.deals[i].deal.dealName;
+            primaryDealId = site.deals[i].deal.dealId;
             break;
           }
         }
-        if (!primaryDeal && site.deals.length) primaryDeal = site.deals[0].deal.dealName;
+        if (!primaryDealId && site.deals.length) {
+          primaryDeal = site.deals[0].deal.dealName;
+          primaryDealId = site.deals[0].deal.dealId;
+        }
 
         if (!expanded) {
           items.push({
@@ -990,6 +995,7 @@
           data: {
             acc: site.acc,
             primaryDealName: primaryDeal,
+            primaryDealId: primaryDealId,
             site: site,
             dense: dense,
             count: satCount
@@ -1079,6 +1085,27 @@
     });
   }
 
+  function bindHubLabelDismiss() {
+    if (!mapState.map || mapState.map.__fpHubDismiss) return;
+    mapState.map.__fpHubDismiss = true;
+    mapState.map.on("click", function () {
+      document.querySelectorAll(".map-hub-label-visible").forEach(function (el) {
+        el.classList.remove("map-hub-label-visible");
+      });
+    });
+  }
+
+  function bindHubMarkerEvents(marker) {
+    marker.on("click", function (e) {
+      if (typeof L !== "undefined" && L.DomEvent) L.DomEvent.stopPropagation(e);
+      document.querySelectorAll(".map-hub-label-visible").forEach(function (el) {
+        if (el !== marker.getElement()) el.classList.remove("map-hub-label-visible");
+      });
+      var el = marker.getElement();
+      if (el) el.classList.add("map-hub-label-visible");
+    });
+  }
+
   function makeHubIcon(acc, primaryDealName, opts) {
     opts = opts || {};
     var name = esc(str(acc.Account_Name)).substring(0, 30);
@@ -1093,9 +1120,9 @@
       : "";
     return L.divIcon({
       className: "map-hub-wrap",
-      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
+      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\" title=\"Tap for site details\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
     });
   }
 
@@ -1202,7 +1229,13 @@
       html += "<div style=\"font-size:11px;font-weight:600;color:#334155;margin-bottom:4px\">Deals at this site</div>";
       site.deals.forEach(function (d) {
         var c = stageColor(d.deal.stage);
-        html += "<div style=\"font-size:11px;margin-bottom:4px\"><span style=\"color:" + c.pin + ";font-weight:600\">" + esc(d.deal.dealName) + "</span> · " + esc(d.deal.stage) + "</div>";
+        html += "<div style=\"font-size:11px;margin-bottom:8px;line-height:1.45\">";
+        html += "<span style=\"color:" + c.pin + ";font-weight:600\">" + esc(d.deal.dealName) + "</span>";
+        html += " <span style=\"color:#64748b\">· " + esc(d.deal.stage) + "</span>";
+        html += "<div style=\"margin-top:4px;display:flex;flex-wrap:wrap;gap:8px\">";
+        html += "<a href=\"#\" class=\"map-popup-link\" onclick=\"mapSelectDeal('" + String(d.deal.dealId).replace(/'/g, "\\'") + "');return false;\">Select in CapStone</a>";
+        html += "<a href=\"" + esc(zohoDealUrl(d.deal.dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open deal in Zoho ↗</a>";
+        html += "</div></div>";
       });
     }
     if (site.meetings.length) {
@@ -1213,6 +1246,9 @@
     }
     html += "<div class=\"map-popup-actions\">";
     html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
+    if (hubData.primaryDealId) {
+      html += "<a href=\"" + esc(zohoDealUrl(hubData.primaryDealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open primary deal in Zoho ↗</a>";
+    }
     html += "</div></div>";
     return html;
   }
@@ -1445,6 +1481,7 @@
           bindDenseHubMarkerEvents(hubMarker, hub);
         } else {
           hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
+          bindHubMarkerEvents(hubMarker);
         }
         cluster.addLayer(hubMarker);
         return;
@@ -1756,6 +1793,7 @@
     ensureClusterGroup();
     ensureSpreadLinesLayer();
     bindMapSpreadHandlers();
+    bindHubLabelDismiss();
     setTimeout(function () { if (mapState.map) mapState.map.invalidateSize(); }, 100);
   }
 
