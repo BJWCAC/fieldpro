@@ -7,6 +7,7 @@
     "Equipments is CustomModule1 in Zoho CRM and uses layout Asset Main.",
     "Subform_1 rows are nested under the parent Equipments record payload, not standalone records.",
     "CapStone asset search checks CAC_Asset_ID, Serial_Number, Asset_Model_Number, Name, Building, Additional_Designator, Customer_Asset_Number, Asset_Brand, Asset_Type, and Asset_Series with equals first, then contains fallback.",
+    "AI nameplate extract: Asset Model Number = full model/order string; Asset Series = short family code. Endress+Hauser plates often label model as Order number / customer order number.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
