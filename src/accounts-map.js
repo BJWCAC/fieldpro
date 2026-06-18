@@ -55,6 +55,7 @@
   var mapState = {
     map: null,
     clusterGroup: null,
+    siteMarkersGroup: null,
     spreadLinesGroup: null,
     dealByAccount: {},
     dealsByAccount: {},
@@ -830,18 +831,25 @@
     }
   }
 
+  function activateSiteSummary(item, marker) {
+    var sm = item.data;
+    var site = sm.site;
+    if (marker && marker.closePopup) marker.closePopup();
+    flyMapToSite(item.baseLat, item.baseLng, function () {
+      openMapSitePanel(site);
+    });
+  }
+
   function bindSiteSummaryMarkerEvents(marker, item) {
-    marker.on("click", function () {
-      var sm = item.data;
-      var site = sm.site;
-      flyMapToSite(item.baseLat, item.baseLng, function () {
-        if (isDenseSite(site)) openMapSitePanel(site);
-      });
+    marker.on("click", function (e) {
+      if (typeof L !== "undefined" && L.DomEvent) L.DomEvent.stopPropagation(e);
+      activateSiteSummary(item, marker);
     });
   }
 
   function bindDenseHubMarkerEvents(marker, hub) {
-    marker.on("click", function () {
+    marker.on("click", function (e) {
+      if (typeof L !== "undefined" && L.DomEvent) L.DomEvent.stopPropagation(e);
       openMapSitePanel(hub.site);
     });
   }
@@ -1118,42 +1126,25 @@
     var denseHint = opts.dense
       ? "<div class=\"map-hub-deal\">Tap for full list</div>"
       : "";
+    var hubClass = opts.dense ? "map-hub map-hub-dense-target" : "map-hub";
     return L.divIcon({
       className: "map-hub-wrap",
-      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\" title=\"Tap for site details\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
-      iconSize: [16, 16],
-      iconAnchor: [8, 8]
+      html: "<div class=\"" + hubClass + "\"><div class=\"map-hub-dot\" title=\"Tap for site details\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
+      iconSize: opts.dense ? [40, 40] : [16, 16],
+      iconAnchor: opts.dense ? [20, 20] : [8, 8]
     });
   }
 
   function makeSiteSummaryIcon(count) {
-    var s = 22;
-    var half = Math.round(s / 2);
+    var wrap = 40;
+    var half = wrap / 2;
     var badge = count > 99 ? "99+" : String(count);
     return L.divIcon({
       className: "map-site-summary-wrap",
       html: "<div class=\"map-site-summary\"><div class=\"map-site-summary-dot\"></div><span class=\"map-site-summary-badge\">" + esc(badge) + "</span></div>",
-      iconSize: [s, s],
+      iconSize: [wrap, wrap],
       iconAnchor: [half, half]
     });
-  }
-
-  function siteSummaryPopupHtml(summary) {
-    var acc = summary.acc;
-    var site = summary.site;
-    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
-    html += "<div style=\"font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px\">Multi-item site</div>";
-    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(str(acc.Account_Name)) + "</div>";
-    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:8px\">" + esc(String(summary.count)) + " deals/meetings at this location</div>";
-    html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:8px\">Zoom in to expand pins, or tap to zoom now.</div>";
-    if (isDenseSite(site)) {
-      html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:8px\">Large site — opens list panel when zoomed in.</div>";
-    }
-    html += "<div class=\"map-popup-actions\">";
-    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapZoomPendingSite()\">Zoom to site</button>";
-    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
-    html += "</div></div>";
-    return html;
   }
 
   function makeMeetingPinIcon() {
@@ -1324,8 +1315,17 @@
     return mapState.clusterGroup;
   }
 
+  function ensureSiteMarkersLayer() {
+    if (!mapState.map || typeof L === "undefined") return;
+    if (!mapState.siteMarkersGroup) {
+      mapState.siteMarkersGroup = L.layerGroup();
+      mapState.map.addLayer(mapState.siteMarkersGroup);
+    }
+  }
+
   function clearMarkers() {
     if (mapState.clusterGroup) mapState.clusterGroup.clearLayers();
+    if (mapState.siteMarkersGroup) mapState.siteMarkersGroup.clearLayers();
   }
 
   function resetMapToMinnesotaView() {
@@ -1449,6 +1449,8 @@
     if (!mapState.map || typeof L === "undefined") return;
     var cluster = ensureClusterGroup();
     if (!cluster) return;
+    ensureSiteMarkersLayer();
+    var siteLayer = mapState.siteMarkersGroup;
     clearMarkers();
     clearSpreadLines();
     var filtered = mapState.located.filter(passesFilters);
@@ -1461,29 +1463,26 @@
         var sm = item.data;
         var summaryMarker = L.marker([item.displayLat, item.displayLng], {
           icon: makeSiteSummaryIcon(sm.count),
-          zIndexOffset: 450
-        });
-        summaryMarker.bindPopup(siteSummaryPopupHtml(sm), { maxWidth: 300 });
-        summaryMarker.on("popupopen", function () {
-          mapState.pendingSitePanel = sm.site;
+          zIndexOffset: 650
         });
         bindSiteSummaryMarkerEvents(summaryMarker, item);
-        cluster.addLayer(summaryMarker);
+        if (siteLayer) siteLayer.addLayer(summaryMarker);
         return;
       }
       if (item.kind === "hub") {
         var hub = item.data;
         var hubMarker = L.marker([item.displayLat, item.displayLng], {
           icon: makeHubIcon(hub.acc, hub.primaryDealName, { dense: hub.dense, count: hub.count }),
-          zIndexOffset: 400
+          zIndexOffset: hub.dense ? 640 : 400
         });
         if (hub.dense) {
           bindDenseHubMarkerEvents(hubMarker, hub);
+          if (siteLayer) siteLayer.addLayer(hubMarker);
         } else {
           hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
           bindHubMarkerEvents(hubMarker);
+          cluster.addLayer(hubMarker);
         }
-        cluster.addLayer(hubMarker);
         return;
       }
       if (item.kind === "deal") {
@@ -1557,7 +1556,7 @@
     var site = mapState.pendingSitePanel;
     if (!site) return;
     flyMapToSite(site.baseLat, site.baseLng, function () {
-      if (isDenseSite(site)) openMapSitePanel(site);
+      openMapSitePanel(site);
     });
   }
 
@@ -1791,6 +1790,7 @@
       maxZoom: 19
     }).addTo(mapState.map);
     ensureClusterGroup();
+    ensureSiteMarkersLayer();
     ensureSpreadLinesLayer();
     bindMapSpreadHandlers();
     bindHubLabelDismiss();
