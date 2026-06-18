@@ -50,7 +50,11 @@ body.light .card{background:#fff}
 .bb-lg{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%}
 .asset-path-btn{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%;min-height:58px;border:1px solid #006050;text-align:center;white-space:normal;line-height:1.2}
 .asset-path-btn.on{background:var(--green);color:#001a18;border-color:var(--green);box-shadow:0 0 0 2px rgba(16,185,129,.18) inset}
-.asset-path-desc{font-size:11px;color:var(--dim);line-height:1.5;margin-top:6px}
+.asset-setup-card{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px}
+.asset-setup-options{display:flex;flex-direction:column;gap:8px}
+.asset-setup-btn{min-height:52px;text-align:left;line-height:1.35;white-space:normal}
+.asset-setup-context{margin-top:8px;padding:8px 10px;background:#f8fffc;border:1px solid #b2ddd6;border-radius:8px;font-size:12px;line-height:1.55}
+.asset-setup-context .asset-setup-pick-deal{margin-top:8px}
 .bpu{background:#006a90;color:#fff;padding:9px 16px;font-size:13px}
 .bsm{padding:5px 10px;font-size:11px}
 .bfull{width:100%}
