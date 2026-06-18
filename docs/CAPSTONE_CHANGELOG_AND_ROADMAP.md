@@ -146,6 +146,10 @@ Review after field tests; promote to *Planned* when Brad confirms priority.
 
 ### Assets: AI picklist additions — suggested approval design
 
+**Status:** Idea only — **no decision needed now.** CapStone keeps using `1 Other` / `Other` + explain until you ask to build this.
+
+**Default if we build it:** Start with **Phase A (request only)**. Phase B and C are optional later upgrades.
+
 **Goal:** Close the gap between what AI reads on a nameplate and what Zoho already allows, without letting every field tech freely edit CRM picklists.
 
 **Current behavior (unchanged until built):** No picklist match → set `1 Other` / `Other` and fill the matching explain field; asset still saves.
@@ -154,9 +158,9 @@ Review after field tests; promote to *Planned* when Brad confirms priority.
 
 | Phase | What | Who | Risk |
 |-------|------|-----|------|
-| **A — Request only** | After extract, show **Request picklist value** with field name + proposed value + link to asset/photo. Queue locally (Pending Sync) and/or write a Zoho **Picklist Request** record or admin note. Asset saves with Other + explain until approved. | Any technician submits; admin adds value in Zoho manually | Lowest — no picklist API yet |
-| **B — Admin instant add** | Users flagged as picklist admin (e.g. Brad, Greg via Zoho Users or Settings) see **Add to picklist & select** on the same prompt. Netlify calls Zoho field-settings API; CapStone refreshes picklist cache and selects the new value. | Admin only | Medium — needs API scope + dedupe rules |
-| **C — Approve in Zoho** | Submitted requests land in a Zoho module or queue; approver clicks Approve in CRM (or weekly review); webhook or poll applies value and notifies tech. | Submitter + designated approver | Higher build; best audit trail |
+| **A — Request only** *(default start)* | After extract, show **Request picklist value** with field name + proposed value + link to asset/photo. Queue locally (Pending Sync) and/or write a Zoho note or simple request record. Asset saves with Other + explain until you add the value in Zoho. | Any technician submits; you add value in Zoho manually | Lowest — no picklist API yet |
+| **B — Admin instant add** *(optional later)* | Picklist admins see **Add to picklist & select** on the same prompt. Netlify calls Zoho field-settings API; CapStone refreshes picklist cache and selects the new value. | Admin only | Medium — needs API scope + dedupe rules |
+| **C — Approve in Zoho** *(optional later)* | Submitted requests land in a Zoho module or queue; approver clicks Approve in CRM; CapStone picks up the new value. | Submitter + designated approver | Higher build; best audit trail |
 
 **Approval rules to bake in**
 
@@ -176,14 +180,18 @@ Review after field tests; promote to *Planned* when Brad confirms priority.
   - **Add to picklist** (admin only, Phase B+) — dedupe check → API add → select value.
 - Settings or Zoho: list of **picklist admins**; optional email/notification on new requests.
 
-**Open decisions for Brad**
+**When you're ready to build (not required now)**
 
-- Approve in CapStone (admin button) vs approve only in Zoho CRM UI?
-- New Zoho custom module for requests vs Deal/Equipment notes vs email digest?
-- Which fields get the workflow first: Brand + Type only, or Series/Function too?
-- Zoho API: confirm org has permission to update Equipments picklists via API.
+Pick these when the feature moves to *Planned* — or tell the agent in plain language, e.g. *"Start with request-only; email me for new brands and types."*
 
-**Dependencies:** Zoho field-settings API (or manual admin step in Phase A), picklist cache refresh, dedupe helper, role flag for admins, Pending Sync / request queue pattern (same as other offline-first flows).
+| Question | Plain meaning | Suggested default |
+|----------|---------------|-------------------|
+| Where do requests go? | How you find out someone asked for a new dropdown value | Email to Brad + note on the Equipment record |
+| Who can add to the picklist? | Can it be done from the phone, or only by you in Zoho? | Phase A: you add in Zoho only |
+| Which fields first? | Brand, Type, Series, Function — start small or all at once? | Brand + Type only |
+| Zoho API | Can CapStone call Zoho to edit picklists? | Not needed for Phase A |
+
+**Dependencies:** Phase A needs only a request queue + notification. Phase B+ needs Zoho field-settings API, picklist cache refresh, dedupe helper, and admin role flag.
 
 ---
 
