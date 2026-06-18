@@ -21,8 +21,8 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[]}};
-var FP_VERSION="238";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
+var FP_VERSION="239";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -541,6 +541,8 @@ window.openAssetAccountPicker=openAssetAccountPicker;
 window.closeAssetAccountPicker=closeAssetAccountPicker;
 window.applyAssetAccountPickerFilters=applyAssetAccountPickerFilters;
 window.pickAssetAccount=pickAssetAccount;
+window.addAssetSubformRow=addAssetSubformRow;
+window.removeAssetSubformRow=removeAssetSubformRow;
 window.startAssetReplacement=startAssetReplacement;
 window.retryReportSave=retryReportSave;
 window.retryReportUploads=retryReportUploads;
@@ -924,13 +926,209 @@ async function loadEquipmentConfig(){
   A.equipmentConfig=await r.json();
   return A.equipmentConfig;
 }
+function assetFieldRegistry(){return(A.equipmentConfig&&A.equipmentConfig.assetFieldRegistry)||{};}
+function categoryLayout(cat){var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};return layouts[cat]||null;}
+function assetDynId(api){return"asset-dyn-"+String(api||"").replace(/[^a-zA-Z0-9_]/g,"_");}
+function assetSubformConfig(){
+  var eq=A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments;
+  return eq&&eq.subform||null;
+}
+function assetSubformColumns(){
+  var sf=assetSubformConfig();
+  if(sf&&sf.capstoneColumns&&sf.capstoneColumns.length)return sf.capstoneColumns;
+  return[
+    {apiName:"Output_Type",label:"Function",widget:"select",picklist:"Output_Type"},
+    {apiName:"Input_Output_Type",label:"Engineering Unit",widget:"text"},
+    {apiName:"Zero_Parameter",label:"LRV Parameter",widget:"text"},
+    {apiName:"Output_Zero",label:"LRV",widget:"number"},
+    {apiName:"Span_Parameter",label:"URV Parameter",widget:"text"},
+    {apiName:"Output_Span",label:"URV",widget:"number"},
+    {apiName:"Pulses_per_Unit",label:"Units per pulse",widget:"number"},
+    {apiName:"Description",label:"Other",widget:"text"}
+  ];
+}
+function syncDynamicFieldValuesFromDom(){
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  var box=el("asset-category-fields");if(!box)return;
+  box.querySelectorAll("[data-api]").forEach(function(e){
+    A.asset.dynamicValues[e.getAttribute("data-api")]=e.value||"";
+  });
+}
+function collectDynamicAssetPayload(includeBlank){
+  syncDynamicFieldValuesFromDom();
+  var out={};
+  Object.keys(A.asset.dynamicValues||{}).forEach(function(api){
+    var v=String(A.asset.dynamicValues[api]||"").trim();
+    if(includeBlank||v)out[api]=v;
+  });
+  return out;
+}
+function subformPicklistValues(fieldApi){
+  var sf=assetSubformConfig();
+  var f=sf&&sf.fields&&sf.fields[fieldApi];
+  return f&&f.values?f.values:[];
+}
+function renderDynFieldBlock(def,fullWidth){
+  var id=assetDynId(def.apiName);
+  var val=(A.asset.dynamicValues&&A.asset.dynamicValues[def.apiName])||"";
+  var req=def.required?" *":"";
+  var wrapStart=fullWidth?"<div style='margin-bottom:8px'>":"<div>";
+  var wrapEnd="</div>";
+  if(def.widget==="select"&&def.picklist){
+    var opts=assetPicklistValues(def.picklist);
+    return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><select id='"+id+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+opts.map(function(v){return"<option value='"+esc(v)+"'"+(v===val?" selected":"")+">"+esc(v)+"</option>";}).join("")+"</select>"+wrapEnd;
+  }
+  if(def.widget==="textarea"){
+    return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><textarea id='"+id+"' data-api='"+esc(def.apiName)+"' rows='"+(def.rows||2)+"'>"+esc(val)+"</textarea>"+wrapEnd;
+  }
+  if(def.widget==="date"){
+    return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><input id='"+id+"' data-api='"+esc(def.apiName)+"' type='date' value='"+esc(val)+"'/>"+wrapEnd;
+  }
+  var inputType=def.widget==="number"?"number":"text";
+  return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><input id='"+id+"' data-api='"+esc(def.apiName)+"' type='"+inputType+"' value='"+esc(val)+"'/>"+wrapEnd;
+}
+function renderAssetSubformSection(sec){
+  if(!A.asset.subformRows)A.asset.subformRows=[];
+  var cols=assetSubformColumns();
+  var html="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div><div class='asset-subform-wrap'><table class='asset-subform-table'><thead><tr>";
+  cols.forEach(function(c){html+="<th>"+esc(c.label)+"</th>";});
+  html+="<th></th></tr></thead><tbody id='asset-subform-body'>";
+  A.asset.subformRows.forEach(function(row,ri){
+    html+="<tr>";
+    cols.forEach(function(c){
+      var v=row[c.apiName]!=null?String(row[c.apiName]):"";
+      html+="<td>";
+      if(c.widget==="select"){
+        var opts=subformPicklistValues(c.apiName);
+        html+="<select data-subform='"+ri+"' data-api='"+esc(c.apiName)+"'>";
+        html+="<option value=''></option>"+opts.map(function(o){return"<option value='"+esc(o)+"'"+(o===v?" selected":"")+">"+esc(o)+"</option>";}).join("");
+        html+="</select>";
+      }else{
+        html+="<input data-subform='"+ri+"' data-api='"+esc(c.apiName)+"' type='"+(c.widget==="number"?"number":"text")+"' value='"+esc(v)+"'/>";
+      }
+      html+="</td>";
+    });
+    html+="<td><button type='button' class='bg bsm' onclick='removeAssetSubformRow("+ri+")'>Remove</button></td></tr>";
+  });
+  html+="</tbody></table></div><button type='button' class='bg bsm' onclick='addAssetSubformRow()' style='margin-bottom:8px'>+ Add row</button></div>";
+  return html;
+}
+function syncSubformRowsFromDom(){
+  var body=el("asset-subform-body");if(!body)return;
+  var rows=[];
+  body.querySelectorAll("tr").forEach(function(tr){
+    var row={};
+    tr.querySelectorAll("[data-subform][data-api]").forEach(function(e){
+      row[e.getAttribute("data-api")]=e.value||"";
+    });
+    if(Object.keys(row).some(function(k){return row[k];}))rows.push(row);
+  });
+  A.asset.subformRows=rows;
+}
+function addAssetSubformRow(){
+  syncSubformRowsFromDom();
+  A.asset.subformRows.push({});
+  renderAssetCategoryFields();
+  scheduleAssetDraftSave();
+}
+function removeAssetSubformRow(idx){
+  syncSubformRowsFromDom();
+  A.asset.subformRows.splice(idx,1);
+  renderAssetCategoryFields();
+  scheduleAssetDraftSave();
+}
+function assetSubformPayload(){
+  syncSubformRowsFromDom();
+  return(A.asset.subformRows||[]).filter(function(row){
+    return Object.keys(row).some(function(k){return String(row[k]||"").trim();});
+  }).map(function(row){
+    var out={};
+    assetSubformColumns().forEach(function(c){
+      var v=row[c.apiName];
+      if(v===""||v==null)return;
+      if(c.widget==="number"){var n=parseFloat(v);if(!isNaN(n))out[c.apiName]=n;}else out[c.apiName]=String(v);
+    });
+    if(row.id)out.id=row.id;
+    return out;
+  });
+}
+function applyDynamicFieldsFromRecord(r){
+  if(!r)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  var registry=assetFieldRegistry();
+  Object.keys(registry).forEach(function(api){
+    var v=r[api];
+    if(v==null||v==="")return;
+    A.asset.dynamicValues[api]=typeof v==="object"?(v.name||v.id||""):String(v);
+  });
+  if(r.Subform_1&&Array.isArray(r.Subform_1)){
+    A.asset.subformRows=r.Subform_1.map(function(row){
+      var copy={};
+      if(row.id)copy.id=row.id;
+      assetSubformColumns().forEach(function(c){
+        var v=row[c.apiName];
+        if(v!=null)copy[c.apiName]=typeof v==="object"?(v.name||v.id||""):String(v);
+      });
+      return copy;
+    });
+  }else A.asset.subformRows=[];
+}
+function bindDynamicFieldHandlers(){
+  var box=el("asset-category-fields");if(!box)return;
+  box.querySelectorAll("[data-api]").forEach(function(e){
+    if(e._dynBound)return;
+    e._dynBound=true;
+    e.addEventListener("input",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
+    e.addEventListener("change",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
+  });
+  box.querySelectorAll("[data-subform]").forEach(function(e){
+    if(e._subBound)return;
+    e._subBound=true;
+    e.addEventListener("input",function(){syncSubformRowsFromDom();scheduleAssetDraftSave();});
+    e.addEventListener("change",function(){syncSubformRowsFromDom();scheduleAssetDraftSave();});
+  });
+}
+function renderAssetCategoryFields(){
+  var box=el("asset-category-fields");if(!box)return;
+  syncDynamicFieldValuesFromDom();
+  syncSubformRowsFromDom();
+  var cat=assetInput("asset-category");
+  var layout=categoryLayout(cat);
+  if(!layout||!layout.sections||!layout.sections.length){box.innerHTML="";box.style.display="none";return;}
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  if(!A.asset.subformRows)A.asset.subformRows=[];
+  var registry=assetFieldRegistry();
+  var html="";
+  layout.sections.forEach(function(sec){
+    if(sec.subform){html+=renderAssetSubformSection(sec);return;}
+    html+="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div>";
+    var defs=(sec.fields||[]).map(function(api){var d=registry[api];return d?Object.assign({apiName:api},d):null;}).filter(Boolean);
+    for(var i=0;i<defs.length;i++){
+      var d=defs[i];
+      if(d.widget==="textarea"){html+=renderDynFieldBlock(d,true);continue;}
+      if(i+1<defs.length&&defs[i+1].widget!=="textarea"){
+        html+="<div class='g2' style='margin-bottom:8px'>"+renderDynFieldBlock(d,false)+renderDynFieldBlock(defs[i+1],false)+"</div>";
+        i++;
+      }else html+="<div class='g2' style='margin-bottom:8px'>"+renderDynFieldBlock(d,false)+"<div></div></div>";
+    }
+    html+="</div>";
+  });
+  box.innerHTML=html;
+  box.style.display="block";
+  bindDynamicFieldHandlers();
+}
+function onAssetCategoryChange(){
+  renderAssetCategoryFields();
+  updateAssetSaveState();
+  scheduleAssetDraftSave();
+}
 function setAssetDraftStatus(msg,isErr){var e=el("asset-draft-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.color=isErr?"#991b1b":"#2d6b60";e.style.background=isErr?"#fee2e2":"#fff";e.style.borderColor=isErr?"#ef4444":"#b2ddd6";}else e.style.display="none";}
 function assetDraftHasWork(){return !!(A.asset.currentAssetId||A.asset.photos.length||assetFieldIdsToClear().some(function(id){return assetInput(id);})||assetInput("asset-search")||A.asset.replacementMode);}
-function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});return{version:1,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:A.asset.mode,linkMode:A.asset.linkMode,standaloneAccount:A.asset.standaloneAccount,currentAssetId:A.asset.currentAssetId,activeDealKey:A.asset.activeDealKey,loadedOriginal:A.asset.loadedOriginal,replacementMode:A.asset.replacementMode,photos:A.asset.photos,lastUploadedPhotoFingerprints:A.asset.lastUploadedPhotoFingerprints,fields:fields};}
+function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});syncDynamicFieldValuesFromDom();syncSubformRowsFromDom();return{version:1,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:A.asset.mode,linkMode:A.asset.linkMode,standaloneAccount:A.asset.standaloneAccount,currentAssetId:A.asset.currentAssetId,activeDealKey:A.asset.activeDealKey,loadedOriginal:A.asset.loadedOriginal,replacementMode:A.asset.replacementMode,photos:A.asset.photos,lastUploadedPhotoFingerprints:A.asset.lastUploadedPhotoFingerprints,dynamicValues:A.asset.dynamicValues||{},subformRows:A.asset.subformRows||[],fields:fields};}
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;try{localStorage.setItem("fp_asset_draft",JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
 function clearAssetDraft(){try{localStorage.removeItem("fp_asset_draft");}catch(e){}setAssetDraftStatus("",false);}
-function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
+function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}renderAssetCategoryFields();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
 function assetDraftSummary(d,label){
   var f=d&&d.fields||{};
   var deal=d&&d.deal;
@@ -1137,6 +1335,7 @@ function renderAssetForm(){
     if(A.sel&&A.asset.mode==="add"&&A.asset.linkMode!=="account"){A.asset.linkMode="deal";A.asset.standaloneAccount=null;}
     else if(!A.sel&&A.asset.mode==="add"&&A.asset.linkMode==="deal")A.asset.linkMode="account";
     renderAssetSetupUi();
+    renderAssetCategoryFields();
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
@@ -1260,12 +1459,14 @@ function loadExistingAssetFromSearch(idx){
   setAssetInput("asset-series-other",r.If_Asset_Series_is_Other_Function_explain||"");
   setAssetSelectIfPresent("asset-environment",r.Asset_Environment||"");
   setAssetSelectIfPresent("asset-confined",r.Confined_Space||"");
+  applyDynamicFieldsFromRecord(r);
   setAssetInput("asset-nameplate-additional",r.Nameplate_Additional_Info||"");
   setAssetInput("asset-description",r.Description_Instructions||"");
   setAssetInput("asset-search",r.CAC_Asset_ID||r.Serial_Number||r.Name||"");
   var box=el("asset-search-results");if(box)box.style.display="none";
   renderAssetReplacementPanel();
   renderAssetSetupUi();
+  renderAssetCategoryFields();
   updateAssetSaveState();
 }
 function assetPhotoFingerprint(dataUrl){
@@ -1569,6 +1770,11 @@ function setupAssetRequiredHandlers(){
     e.addEventListener("input",renderAssetPicklistRequestPanel);
     e.addEventListener("change",renderAssetPicklistRequestPanel);
   });
+  var catEl=el("asset-category");
+  if(catEl&&!catEl._categoryLayoutBound){
+    catEl._categoryLayoutBound=true;
+    catEl.addEventListener("change",onAssetCategoryChange);
+  }
   A.assetReqHandlersBound=true;
 }
 function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes"];}
@@ -1587,8 +1793,9 @@ function clearAssetEntryState(msg,keepSavedItems){
   clearAssetDraft();
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
   A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
+  A.asset.dynamicValues={};A.asset.subformRows=[];
   A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;if(!keepSavedItems)A.asset.savedItems=[];
-  renderAssetPhotos();renderSavedAssets();
+  renderAssetPhotos();renderSavedAssets();renderAssetCategoryFields();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
   renderAssetPicklistRequestPanel();
@@ -1645,6 +1852,10 @@ function assetPayload(opts){
   if(repl)desc=desc?(desc+"\n\n"+repl):repl;
   setOptional("Description_Instructions",desc);
   setOptional("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
+  var dyn=collectDynamicAssetPayload(includeBlank);
+  Object.keys(dyn).forEach(function(k){setOptional(k,dyn[k]);});
+  var subRows=assetSubformPayload();
+  if(subRows.length)payload.Subform_1=subRows;
   payload.Date=new Date().toISOString().slice(0,10);
   return payload;
 }
@@ -1739,6 +1950,15 @@ function assetUpdateNoteContent(){
     ["Confined Space",assetInput("asset-confined")],
     ["Location Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):""]
   ].forEach(function(r){if(r[1])lines.push("- "+r[0]+": "+r[1]);});
+  var registry=assetFieldRegistry();
+  syncDynamicFieldValuesFromDom();
+  Object.keys(registry).forEach(function(api){
+    var v=A.asset.dynamicValues&&A.asset.dynamicValues[api];
+    if(v)lines.push("- "+registry[api].label+": "+v);
+  });
+  if(A.asset.subformRows&&A.asset.subformRows.length){
+    lines.push("- Input/Output setups: "+A.asset.subformRows.length+" row(s)");
+  }
   var nameplate=assetInput("asset-nameplate-additional");if(nameplate){lines.push("");lines.push("Nameplate Additional Info:");lines.push(nameplate);}
   var desc=assetInput("asset-description");if(desc){lines.push("");lines.push("Description / Instructions:");lines.push(desc);}
   var dealNote=assetDealNotes();if(dealNote){lines.push("");lines.push("Deal Asset Notes:");lines.push(dealNote);}

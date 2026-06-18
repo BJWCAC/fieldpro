@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v238
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=238
+Current live version: v239
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=239
 ```
 
 ---
@@ -75,7 +75,8 @@ Related docs (detail, not status):
 | v235 | — | **Assets: Account-only save** — save Equipments without a Deal; Pick Account; clearer save button/status; Internal_Assets noted as future |
 | v236 | — | **Assets: unified setup** — one Asset setup card with 3 choices (deal / account only / update); search nested under update |
 | v237 | #129 | **Assets: pick deal on Assets tab** — **Pick deal & add new** opens deal search modal without switching to Deals tab; Change deal in setup card |
-| v238 | — | **Assets: Nameplate Additional Info** — AI extract part number, ratings, and visible text go to Zoho `Nameplate_Additional_Info` instead of Description / Instructions |
+| v238 | #130 | **Assets: Nameplate Additional Info** — AI extract extras go to Zoho `Nameplate_Additional_Info` instead of Description / Instructions |
+| v239 | — | **Assets: Flow Meter category fields (pilot)** — category-driven sections from config; sensor, display, setup I/O, flow meter details, Subform_1 grid |
 
 ### UI / workflow polish
 

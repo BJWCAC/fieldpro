@@ -46,6 +46,72 @@
       "Asset_Series": "If_Asset_Series_is_Other_Function_explain"
     }
   },
+  "assetFieldRegistry": {
+    "Customer_Asset_Number": { "label": "Customer Asset Number", "widget": "text" },
+    "Frequency": { "label": "Frequency", "widget": "select", "picklist": "Frequency" },
+    "Date_Installed": { "label": "Date Installed", "widget": "date" },
+    "Location": { "label": "Location", "widget": "text" },
+    "Room": { "label": "Room (Electrical, Filter, Pump, etc.)", "widget": "text" },
+    "Sensor_Model_Number": { "label": "Sensor Model Number", "widget": "text" },
+    "Sensor_Serial_Number": { "label": "Sensor Serial Number", "widget": "text" },
+    "Sensor_Additional_Information": { "label": "Sensor Additional Information", "widget": "textarea", "rows": 2 },
+    "Engineering_Units": { "label": "Engineering Units", "widget": "select", "picklist": "Engineering_Units" },
+    "Display_Size_d_Readability": { "label": "Display Size (d) / Readability", "widget": "text" },
+    "Input_Engineering_Units": { "label": "Input Engineering Units", "widget": "text", "note": "Zoho lookup in CRM; text for CapStone pilot" },
+    "Input_PV_Zero_Parameter": { "label": "Input PV Zero Parameter", "widget": "text" },
+    "Input_PV_Zero": { "label": "Input PV @ Zero", "widget": "text" },
+    "Input_PV_Span_Parameter": { "label": "Input PV Span Parameter", "widget": "text" },
+    "Input_PV_Span": { "label": "Input PV @ Span", "widget": "text" },
+    "Output_Engineering_Units": { "label": "Output Engineering Units", "widget": "text", "note": "Zoho lookup in CRM; text for CapStone pilot" },
+    "Output_PV_Zero_Parameter": { "label": "Output PV Zero Parameter", "widget": "text" },
+    "Output_PV_Zero": { "label": "Output PV @ Zero", "widget": "text" },
+    "Output_PV_Span_Parameter": { "label": "Output PV Span Parameter", "widget": "text" },
+    "Output_PV_Span": { "label": "Output PV @ Span", "widget": "text" },
+    "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text" },
+    "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
+    "Damping_Seconds": { "label": "Damping Seconds", "widget": "text" }
+  },
+  "categoryLayouts": {
+    "Flow Meter": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "setupInput",
+          "title": "Set Up Input",
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+        },
+        {
+          "id": "setupOutput",
+          "title": "Set Up Output",
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "flowMeterDetails",
+          "title": "Flow Meter Details",
+          "fields": ["Cal_Factor_K_Factor", "Pipe_Size", "Damping_Seconds"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
+    }
+  },
   "modules": {
     "Equipments": {
       "module_api_name": "Equipments",
@@ -54,6 +120,7 @@
           "label": "Asset Category",
           "type": "picklist",
           "values": [
+            "Flow Meter",
             "Flow",
             "Open Channel Flow",
             "Gas Detector",
@@ -674,6 +741,16 @@
         "api_name": "Subform_1",
         "label": "Input and Output Set ups",
         "note": "Written as an array of row objects inside the parent Equipments record payload, not as standalone records.",
+        "capstoneColumns": [
+          { "apiName": "Output_Type", "label": "Function", "widget": "select" },
+          { "apiName": "Input_Output_Type", "label": "Engineering Unit", "widget": "text" },
+          { "apiName": "Zero_Parameter", "label": "LRV Parameter", "widget": "text" },
+          { "apiName": "Output_Zero", "label": "LRV", "widget": "number" },
+          { "apiName": "Span_Parameter", "label": "URV Parameter", "widget": "text" },
+          { "apiName": "Output_Span", "label": "URV", "widget": "number" },
+          { "apiName": "Pulses_per_Unit", "label": "Units per pulse", "widget": "number" },
+          { "apiName": "Description", "label": "Other", "widget": "text" }
+        ],
         "fields": {
           "Parent_Id": {
             "label": "Parent Id",
@@ -700,6 +777,10 @@
             "label": "LRV",
             "type": "double",
             "decimal_place": 5
+          },
+          "Zero_Parameter": {
+            "label": "LRV Parameter",
+            "type": "text"
           },
           "Output_Span": {
             "label": "URV",
