@@ -130,9 +130,39 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
+| Medium | **Assets: picklist request (Phase A)** | **Accepted 2026-06-08** — request-only after AI extract; **email Brad** for new **Brand** and **Type** values; asset still saves with Other + explain. Brad adds approved values in Zoho manually. See design notes under *Planned detail* below. |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
+
+### Planned detail: Assets picklist requests (Phase A)
+
+**Brad's decision (2026-06-08):** *Start with request-only; email me for new brands and types.*
+
+| Choice | Decision |
+|--------|----------|
+| Phase | **A — Request only** (no CapStone picklist API add yet) |
+| Notification | **Email to Brad** when a tech requests a new value |
+| Fields in scope | **Asset Brand** and **Asset Type** only (not Series/Function in v1) |
+| Who adds to Zoho | Brad manually in CRM after review |
+| On no match today | Unchanged — `1 Other` + explain field; asset save not blocked |
+
+**Build scope (Phase A)**
+
+1. After **Extract with AI**, if brand or type has no picklist match → banner + **Request picklist value** button.
+2. Request includes: field name, proposed value, technician, deal/account, asset name, equipment ID if any, link to nameplate context.
+3. Queue via Pending Sync if offline; send email to Brad when online (Netlify function or Zoho workflow — TBD at build).
+4. Optional: Equipment note in Zoho documenting the request (nice-to-have, not blocking v1).
+5. **Out of scope for Phase A:** admin instant add (Phase B), Series/Function requests, auto-add to picklist.
+
+**Later (not committed):** Phase B admin add from CapStone; Phase C approve in Zoho; Series/Function requests.
+
+**Approval rules (carry forward when building)**
+
+1. Never silent auto-add for Brand or Type.
+2. Dedupe check before submit (case-insensitive; warn if near-match exists).
+3. Audit: who requested, field, value, asset link, timestamp.
+4. Refresh local picklist config after Brad adds value in Zoho (manual JSON update or live fetch — TBD).
 
 ---
 
@@ -140,58 +170,7 @@ Related docs (detail, not status):
 
 Review after field tests; promote to *Planned* when Brad confirms priority.
 
-| Area | Suggestion | Why |
-|------|------------|-----|
-| Assets | **AI-detected picklist values + approval workflow** — when nameplate extraction finds brand, type, series, or function not in CRM, let the tech **request** a new picklist value (or let an admin **add** it), instead of only `1 Other` / `Other` + explain text. See design notes below. | Today `applyAssetExtraction` uses exact picklist match only; unmatched values go to Other explain fields. Growing picklists in CRM reduces cleanup and keeps assets on canonical values — but uncontrolled adds would clutter Zoho picklists. |
-
-### Assets: AI picklist additions — suggested approval design
-
-**Status:** Idea only — **no decision needed now.** CapStone keeps using `1 Other` / `Other` + explain until you ask to build this.
-
-**Default if we build it:** Start with **Phase A (request only)**. Phase B and C are optional later upgrades.
-
-**Goal:** Close the gap between what AI reads on a nameplate and what Zoho already allows, without letting every field tech freely edit CRM picklists.
-
-**Current behavior (unchanged until built):** No picklist match → set `1 Other` / `Other` and fill the matching explain field; asset still saves.
-
-**Recommended phased approach**
-
-| Phase | What | Who | Risk |
-|-------|------|-----|------|
-| **A — Request only** *(default start)* | After extract, show **Request picklist value** with field name + proposed value + link to asset/photo. Queue locally (Pending Sync) and/or write a Zoho note or simple request record. Asset saves with Other + explain until you add the value in Zoho. | Any technician submits; you add value in Zoho manually | Lowest — no picklist API yet |
-| **B — Admin instant add** *(optional later)* | Picklist admins see **Add to picklist & select** on the same prompt. Netlify calls Zoho field-settings API; CapStone refreshes picklist cache and selects the new value. | Admin only | Medium — needs API scope + dedupe rules |
-| **C — Approve in Zoho** *(optional later)* | Submitted requests land in a Zoho module or queue; approver clicks Approve in CRM; CapStone picks up the new value. | Submitter + designated approver | Higher build; best audit trail |
-
-**Approval rules to bake in**
-
-1. **Never silent auto-add for Brand or Type** — too many near-duplicates (`Rosemount` vs `ROSEMOUNT` vs `Emerson/Rosemount`). Always human or dedupe-checked.
-2. **Series may be lighter** — optional auto-suggest after fuzzy match, still confirm before add.
-3. **Dedupe before any add** — trim, case-insensitive match, optional fuzzy threshold; reject if within one edit of an existing value.
-4. **Normalize display** — title-case or match existing picklist casing convention before submit.
-5. **Audit every add** — who requested, who approved, field API name, value, asset ID, timestamp; optional CapStone note on Equipment record.
-6. **Save path unchanged on reject** — if not approved, keep Other + explain; do not block asset save.
-7. **Refresh picklists after add** — update `zohoEquipmentFields.json` cache or fetch live from Zoho so the new value appears for all devices.
-
-**UX sketch (Assets tab, after Extract with AI)**
-
-- Match found → select as today.
-- No match → banner: *“Brand ‘Acme Instruments’ isn’t in Zoho yet.”*
-  - **Request addition** (all techs) — queues request; continues with Other + explain.
-  - **Add to picklist** (admin only, Phase B+) — dedupe check → API add → select value.
-- Settings or Zoho: list of **picklist admins**; optional email/notification on new requests.
-
-**When you're ready to build (not required now)**
-
-Pick these when the feature moves to *Planned* — or tell the agent in plain language, e.g. *"Start with request-only; email me for new brands and types."*
-
-| Question | Plain meaning | Suggested default |
-|----------|---------------|-------------------|
-| Where do requests go? | How you find out someone asked for a new dropdown value | Email to Brad + note on the Equipment record |
-| Who can add to the picklist? | Can it be done from the phone, or only by you in Zoho? | Phase A: you add in Zoho only |
-| Which fields first? | Brand, Type, Series, Function — start small or all at once? | Brand + Type only |
-| Zoho API | Can CapStone call Zoho to edit picklists? | Not needed for Phase A |
-
-**Dependencies:** Phase A needs only a request queue + notification. Phase B+ needs Zoho field-settings API, picklist cache refresh, dedupe helper, and admin role flag.
+*No open Assets picklist items — moved to Planned (2026-06-08).*
 
 ---
 
@@ -229,6 +208,7 @@ Pick these when the feature moves to *Planned* — or tell the agent in plain la
 
 | Item | Notes |
 |------|-------|
+| **Picklist request email address** | Brad confirmed email notification — confirm destination address at build time (Settings or Netlify env) |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
 | AssemblyAI API key on Netlify | User action — see `docs/ASSEMBLYAI_SETUP.md` |
