@@ -41,6 +41,9 @@ body.light .card{background:#fff}
 .bd-lg{background:var(--red);color:#fff;padding:13px 20px;font-size:15px;width:100%}
 .bs{background:var(--green);color:#001a18;padding:9px 16px;font-size:13px}
 .bs-lg{background:var(--green);color:#001a18;padding:14px 20px;font-size:16px;width:100%}
+#asset-save-btn.saved{background:#166534;color:#fff;border:2px solid #86efac}
+#asset-save-btn.saved:disabled{opacity:1!important}
+#asset-save-btn.blocked:not(.saved){opacity:.55}
 .bg{background:var(--card);color:var(--text);padding:9px 16px;font-size:13px;border:1px solid var(--bdr)}
 .bg-lg{background:#1a2a3a;color:var(--text);padding:13px 20px;font-size:15px;width:100%;border:1px solid var(--bdr)}
 .bb{background:#007a6a;color:#fff;padding:9px 16px;font-size:13px}

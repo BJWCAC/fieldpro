@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=234"/>
+<link rel="stylesheet" href="src/styles.css?v=235"/>
 
 </head>
 <body>
@@ -260,13 +260,14 @@
       <ul>
         <li>Choose <strong>Add New Asset</strong> only when the equipment is not already in Zoho.</li>
         <li>Choose <strong>Update Existing Asset</strong> and search first when the equipment may already exist.</li>
+        <li>Choose <strong>Deal visit</strong> (links to active Deal) or <strong>Account only</strong> (Equipments on an account, no deal).</li>
         <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
         <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
       </ul>
     </div>
   </details>
-  <div id="no-deal-assets" class="no-deal-bar"><span>Select a deal before adding an asset</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
+  <div id="no-deal-assets" class="no-deal-bar"><span>Select a deal, or switch to Account only below</span><button class="bg bsm" onclick="go('deals')">PICK DEAL</button></div>
   <div class="card">
     <div class="stitle">Add Asset to Zoho</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Capture a nameplate photo, optionally extract details with AI, review required fields, then save to Zoho Equipments.</div>
@@ -294,6 +295,24 @@
           <div class="asset-path-desc">Use when the equipment already exists. Search and load the asset first, then save updates and add a new update note.</div>
         </div>
       </div>
+    </div>
+    <div id="asset-link-card" style="background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div class="stitle" style="margin-bottom:6px">Link asset to</div>
+      <div class="g2" style="margin-bottom:8px">
+        <div>
+          <button type="button" id="asset-link-deal" class="asset-path-btn on" onclick="setAssetLinkMode('deal')">Deal visit</button>
+          <div class="asset-path-desc">Links Equipments to the active Deal and Account after save.</div>
+        </div>
+        <div>
+          <button type="button" id="asset-link-account" class="asset-path-btn" onclick="setAssetLinkMode('account')">Account only</button>
+          <div class="asset-path-desc">Creates Equipments on a Zoho Account with no Deal link.</div>
+        </div>
+      </div>
+      <div id="asset-account-pick-row" style="display:none">
+        <button type="button" class="bb-lg" onclick="openAssetAccountPicker()" style="margin-bottom:6px">Pick Account</button>
+        <div id="asset-account-picked" style="font-size:12px;color:var(--dim);line-height:1.5"></div>
+      </div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:6px"><strong>Internal_Assets</strong> (CAC tools) is a separate Zoho module — not in CapStone yet. Customer instruments use <strong>Equipments</strong>.</div>
     </div>
     <div id="asset-search-card" style="background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px;margin-bottom:10px">
       <div class="stitle" style="margin-bottom:6px">Find Existing Asset</div>
@@ -343,7 +362,7 @@
     <button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="margin-bottom:10px">Extract with AI</button>
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><div style="font-size:11px;color:var(--dim);margin-top:6px">AI extraction uses up to the first 3 photos.</div></div>
     <div class="g2" style="margin-bottom:8px">
-      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="No deal selected"/></div>
+      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
@@ -764,6 +783,17 @@
 
 <div id="toast" class="toast"></div>
 
+<div id="assetaccountmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeAssetAccountPicker()">
+  <div class="sbox" style="border-radius:12px;max-width:520px;max-height:88vh;overflow:auto;width:100%" onclick="event.stopPropagation()">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Pick Account</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:12px">Choose the Zoho Account for this Equipment record (no deal link).</div>
+    <input type="text" id="asset-account-search" placeholder="Search account name..." oninput="applyAssetAccountPickerFilters()" style="margin-bottom:8px"/>
+    <div id="asset-account-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
+    <div id="asset-account-list" style="max-height:50vh;overflow:auto;margin-bottom:12px"></div>
+    <button type="button" class="bg bfull" onclick="closeAssetAccountPicker()">Cancel</button>
+  </div>
+</div>
+
 <div id="inboxdealmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeInboxDealPicker()">
   <div class="sbox" style="border-radius:12px;max-width:520px;max-height:88vh;overflow:auto;width:100%" onclick="event.stopPropagation()">
     <div id="inbox-deal-picker-title" style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Select Deal</div>
@@ -858,8 +888,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=234"></script>
-<script src="src/app.js?v=234"></script>
+<script src="src/accounts-map.js?v=235"></script>
+<script src="src/app.js?v=235"></script>
 
 </body>
 </html>
