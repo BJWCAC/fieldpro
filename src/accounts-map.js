@@ -8,6 +8,8 @@
   var MAP_FIT_MAX_ZOOM = 6;
   var PIN_SIZE = 12;
   var MEETING_PIN_COLOR = "#a855f7";
+  var SITE_EXPAND_ZOOM = 9;
+  var DENSE_SITE_THRESHOLD = 5;
   var OVERLAP_GRID_STEP = 0.00012;
   var CLUSTER_MODE_KEY = "fp_map_cluster_mode";
   var LEGEND_HIDDEN_KEY = "fp_map_legend_hidden";
@@ -73,7 +75,10 @@
     rawMapEvents: [],
     activeDealIndex: null,
     eventsModule: "Events",
-    filters: { search: "", pipeline: "", stages: [], status: "", showMeetings: true }
+    filters: { search: "", pipeline: "", stages: [], status: "", showMeetings: true },
+    showSitePanel: false,
+    activeSitePanel: null,
+    pendingSitePanel: null
   };
 
   function loadClusterMode() {
@@ -771,7 +776,7 @@
   }
 
   function compareSpreadItems(a, b) {
-    var rank = { hub: 0, deal: 1, meeting: 2, account: 3 };
+    var rank = { hub: 0, "site-summary": 0, deal: 1, meeting: 2, account: 3 };
     var ra = rank[a.kind] != null ? rank[a.kind] : 9;
     var rb = rank[b.kind] != null ? rank[b.kind] : 9;
     if (ra !== rb) return ra - rb;
@@ -785,6 +790,60 @@
     }
     return str(a.data.Account_Name || (a.data.acc && a.data.acc.Account_Name) || "")
       .localeCompare(str(b.data.Account_Name || (b.data.acc && b.data.acc.Account_Name) || ""));
+  }
+
+  function siteItemCount(site) {
+    if (!site) return 0;
+    return site.deals.length + site.meetings.length + site.accountsNoDeal.length;
+  }
+
+  function isMapSiteExpanded() {
+    if (!mapState.map) return false;
+    return mapState.map.getZoom() >= SITE_EXPAND_ZOOM;
+  }
+
+  function isDenseSite(site) {
+    return siteItemCount(site) >= DENSE_SITE_THRESHOLD;
+  }
+
+  function countMapPinItems(spreadItems) {
+    var n = 0;
+    spreadItems.forEach(function (item) {
+      if (item.kind === "deal" || item.kind === "account") {
+        n++;
+        return;
+      }
+      if (item.kind === "site-summary" || (item.kind === "hub" && item.data && item.data.dense)) {
+        var site = item.data.site;
+        if (site) n += site.deals.length + site.accountsNoDeal.length;
+      }
+    });
+    return n;
+  }
+
+  function flyMapToSite(lat, lng, onDone) {
+    if (!mapState.map) return;
+    var targetZoom = Math.max(SITE_EXPAND_ZOOM, mapState.map.getZoom());
+    mapState.map.flyTo([lat, lng], targetZoom, { duration: 0.45 });
+    if (typeof onDone === "function") {
+      mapState.map.once("moveend", function () { onDone(); });
+    }
+  }
+
+  function bindSiteSummaryMarkerEvents(marker, item) {
+    marker.on("click", function () {
+      var sm = item.data;
+      var site = sm.site;
+      flyMapToSite(item.baseLat, item.baseLng, function () {
+        if (isDenseSite(site)) openMapSitePanel(site);
+      });
+    });
+  }
+
+  function bindDenseHubMarkerEvents(marker, hub) {
+    marker.on("click", function () {
+      openMapSitePanel(hub.site);
+    });
   }
 
   function applyOverlapSpread(items) {
@@ -814,9 +873,12 @@
       }
       var centerIdx = 0;
       for (var ci = 0; ci < group.items.length; ci++) {
-        if (group.items[ci].kind === "hub") { centerIdx = ci; break; }
+        if (group.items[ci].kind === "hub" || group.items[ci].kind === "site-summary") {
+          centerIdx = ci;
+          break;
+        }
       }
-      if (group.items[centerIdx].kind !== "hub") {
+      if (group.items[centerIdx].kind !== "hub" && group.items[centerIdx].kind !== "site-summary") {
         for (var cj = 0; cj < group.items.length; cj++) {
           if (group.items[cj].kind === "deal" || group.items[cj].kind === "account") {
             centerIdx = cj;
@@ -891,9 +953,10 @@
     });
 
     var items = [];
+    var expanded = isMapSiteExpanded();
     Object.keys(sites).forEach(function (key) {
       var site = sites[key];
-      var satCount = site.deals.length + site.meetings.length + site.accountsNoDeal.length;
+      var satCount = siteItemCount(site);
       var useHub = satCount > 1;
 
       if (useHub) {
@@ -905,12 +968,37 @@
           }
         }
         if (!primaryDeal && site.deals.length) primaryDeal = site.deals[0].deal.dealName;
+
+        if (!expanded) {
+          items.push({
+            kind: "site-summary",
+            data: {
+              acc: site.acc,
+              site: site,
+              count: satCount,
+              primaryDealName: primaryDeal
+            },
+            baseLat: site.baseLat,
+            baseLng: site.baseLng
+          });
+          return;
+        }
+
+        var dense = isDenseSite(site);
         items.push({
           kind: "hub",
-          data: { acc: site.acc, primaryDealName: primaryDeal, site: site },
+          data: {
+            acc: site.acc,
+            primaryDealName: primaryDeal,
+            site: site,
+            dense: dense,
+            count: satCount
+          },
           baseLat: site.baseLat,
           baseLng: site.baseLng
         });
+        if (dense) return;
+
         site.deals.forEach(function (d) {
           items.push({ kind: "deal", data: d, baseLat: site.baseLat, baseLng: site.baseLng });
         });
@@ -991,17 +1079,54 @@
     });
   }
 
-  function makeHubIcon(acc, primaryDealName) {
+  function makeHubIcon(acc, primaryDealName, opts) {
+    opts = opts || {};
     var name = esc(str(acc.Account_Name)).substring(0, 30);
     var dealLine = primaryDealName
       ? "<div class=\"map-hub-deal\">" + esc(str(primaryDealName).substring(0, 34)) + "</div>"
       : "";
+    var denseBadge = opts.dense && opts.count
+      ? "<span class=\"map-hub-dense-badge\">" + esc(String(opts.count)) + "</span>"
+      : "";
+    var denseHint = opts.dense
+      ? "<div class=\"map-hub-deal\">Tap for full list</div>"
+      : "";
     return L.divIcon({
       className: "map-hub-wrap",
-      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\"></div><div class=\"map-hub-label\">" + name + dealLine + "</div></div>",
+      html: "<div class=\"map-hub\"><div class=\"map-hub-dot\">" + denseBadge + "</div><div class=\"map-hub-label\">" + name + dealLine + denseHint + "</div></div>",
       iconSize: [14, 14],
       iconAnchor: [7, 7]
     });
+  }
+
+  function makeSiteSummaryIcon(count) {
+    var s = 22;
+    var half = Math.round(s / 2);
+    var badge = count > 99 ? "99+" : String(count);
+    return L.divIcon({
+      className: "map-site-summary-wrap",
+      html: "<div class=\"map-site-summary\"><div class=\"map-site-summary-dot\"></div><span class=\"map-site-summary-badge\">" + esc(badge) + "</span></div>",
+      iconSize: [s, s],
+      iconAnchor: [half, half]
+    });
+  }
+
+  function siteSummaryPopupHtml(summary) {
+    var acc = summary.acc;
+    var site = summary.site;
+    var html = "<div style=\"font-family:'IBM Plex Sans',system-ui,sans-serif;min-width:200px\">";
+    html += "<div style=\"font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px\">Multi-item site</div>";
+    html += "<div style=\"font-weight:700;font-size:14px;color:#0f172a;margin-bottom:2px\">" + esc(str(acc.Account_Name)) + "</div>";
+    html += "<div style=\"font-size:12px;color:#475569;margin-bottom:8px\">" + esc(String(summary.count)) + " deals/meetings at this location</div>";
+    html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:8px\">Zoom in to expand pins, or tap to zoom now.</div>";
+    if (isDenseSite(site)) {
+      html += "<div style=\"font-size:11px;color:#64748b;margin-bottom:8px\">Large site — opens list panel when zoomed in.</div>";
+    }
+    html += "<div class=\"map-popup-actions\">";
+    html += "<button type=\"button\" class=\"map-popup-btn\" onclick=\"mapZoomPendingSite()\">Zoom to site</button>";
+    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-popup-link\">Open account in Zoho ↗</a>";
+    html += "</div></div>";
+    return html;
   }
 
   function makeMeetingPinIcon() {
@@ -1276,6 +1401,7 @@
     });
     html += "<div class=\"map-legend-divider\"></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#f8fafc;border:2px solid #3b82f6\"></span><span style=\"color:#cbd5e1\">Site hub</span></div>";
+    html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-summary\"></span><span style=\"color:#cbd5e1\">Multi-item site (zoomed out)</span></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot map-legend-diamond\" style=\"background:" + MEETING_PIN_COLOR + "\"></span><span style=\"color:#cbd5e1\">Scheduled meeting</span></div>";
     html += "<div class=\"map-legend-divider\"></div>";
     html += "<div class=\"map-legend-row\"><span class=\"map-legend-dot\" style=\"background:#9ca3af\"></span><span style=\"color:#64748b\">Inactive</span></div>";
@@ -1295,13 +1421,31 @@
     renderSpreadLines(spreadItems);
 
     spreadItems.forEach(function (item) {
+      if (item.kind === "site-summary") {
+        var sm = item.data;
+        var summaryMarker = L.marker([item.displayLat, item.displayLng], {
+          icon: makeSiteSummaryIcon(sm.count),
+          zIndexOffset: 450
+        });
+        summaryMarker.bindPopup(siteSummaryPopupHtml(sm), { maxWidth: 300 });
+        summaryMarker.on("popupopen", function () {
+          mapState.pendingSitePanel = sm.site;
+        });
+        bindSiteSummaryMarkerEvents(summaryMarker, item);
+        cluster.addLayer(summaryMarker);
+        return;
+      }
       if (item.kind === "hub") {
         var hub = item.data;
         var hubMarker = L.marker([item.displayLat, item.displayLng], {
-          icon: makeHubIcon(hub.acc, hub.primaryDealName),
+          icon: makeHubIcon(hub.acc, hub.primaryDealName, { dense: hub.dense, count: hub.count }),
           zIndexOffset: 400
         });
-        hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
+        if (hub.dense) {
+          bindDenseHubMarkerEvents(hubMarker, hub);
+        } else {
+          hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
+        }
         cluster.addLayer(hubMarker);
         return;
       }
@@ -1340,10 +1484,7 @@
       cluster.addLayer(meetingMarker);
     });
 
-    var pinCount = 0;
-    spreadItems.forEach(function (item) {
-      if (item.kind === "deal" || item.kind === "account") pinCount++;
-    });
+    var pinCount = countMapPinItems(spreadItems);
     var statusPins = el("map-status-pins");
     if (statusPins) statusPins.textContent = String(pinCount || filtered.length);
     var statusMeetings = el("map-status-meetings");
@@ -1373,6 +1514,121 @@
     if (acc.missingReason === "geocode_failed") return "Geocode failed";
     if (acc.missingReason === "no_address") return "No address on file";
     return "";
+  }
+
+  function mapZoomPendingSite() {
+    var site = mapState.pendingSitePanel;
+    if (!site) return;
+    flyMapToSite(site.baseLat, site.baseLng, function () {
+      if (isDenseSite(site)) openMapSitePanel(site);
+    });
+  }
+
+  function renderMapSitePanel() {
+    var panel = el("map-site-panel");
+    var list = el("map-site-list");
+    var hdrName = el("map-site-hdr-name");
+    var hdrCount = el("map-site-hdr-count");
+    if (!panel || !list) return;
+    if (!mapState.showSitePanel || !mapState.activeSitePanel) {
+      panel.style.display = "none";
+      return;
+    }
+    var site = mapState.activeSitePanel;
+    var acc = site.acc;
+    var count = siteItemCount(site);
+    panel.style.display = "block";
+    if (hdrName) hdrName.textContent = str(acc.Account_Name);
+    if (hdrCount) hdrCount.textContent = String(count);
+    var html = "";
+    if (acc.addrStr) {
+      html += "<div class=\"map-site-addr\">" + esc(acc.addrStr) + "</div>";
+    }
+    html += "<div class=\"map-site-actions-top\">";
+    html += "<a href=\"" + esc(zohoAccountUrl(acc.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-site-link\">Open account in Zoho ↗</a>";
+    html += "</div>";
+    if (site.deals.length) {
+      html += "<div class=\"map-site-section-title\">Deals</div>";
+      site.deals.forEach(function (d) {
+        var deal = d.deal;
+        var sc = stageColor(deal.stage);
+        var pip = deal.pipeline || "";
+        var pc = PIPELINE_COLORS[pip] || "#64748b";
+        html += "<div class=\"map-site-item\">";
+        html += "<div class=\"map-site-item-main\">";
+        html += "<div class=\"map-site-item-name\">" + esc(str(deal.dealName)) + "</div>";
+        html += "<div class=\"map-site-item-sub\">" + esc(str(acc.Account_Name)) + "</div>";
+        html += "</div>";
+        html += "<div class=\"map-site-item-badges\">";
+        html += "<span class=\"map-badge\" style=\"background:" + sc.pin + "22;color:" + sc.text + ";border:1px solid " + sc.pin + "44\">" + esc(deal.stage) + "</span>";
+        if (pip) {
+          html += "<span class=\"map-badge\" style=\"background:" + pc + "22;color:" + pc + ";border:1px solid " + pc + "44\">" + esc(pip) + "</span>";
+        }
+        html += "</div>";
+        html += "<div class=\"map-site-item-actions\">";
+        html += "<button type=\"button\" class=\"map-site-btn\" onclick=\"mapSelectDeal('" + String(deal.dealId).replace(/'/g, "\\'") + "')\">Select in CapStone</button>";
+        html += "<a href=\"" + esc(zohoDealUrl(deal.dealId)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-site-link\">Open deal in Zoho ↗</a>";
+        html += "</div></div>";
+      });
+    }
+    if (site.meetings.length) {
+      html += "<div class=\"map-site-section-title\">Upcoming meetings</div>";
+      site.meetings.forEach(function (m) {
+        html += "<div class=\"map-site-item map-site-item-meeting\">";
+        html += "<div class=\"map-site-item-main\">";
+        html += "<div class=\"map-site-item-name\">" + esc(m.title) + "</div>";
+        html += "<div class=\"map-site-item-sub\">" + esc(formatMeetingWhen(m.start, m.end)) + "</div>";
+        html += "</div>";
+        html += "<div class=\"map-site-item-actions\">";
+        html += "<button type=\"button\" class=\"map-site-btn\" onclick=\"mapSelectDeal('" + String(m.dealId).replace(/'/g, "\\'") + "')\">Select deal</button>";
+        html += "<a href=\"" + esc(zohoEventUrl(m.id, m.eventModule)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-site-link\">Open meeting in Zoho ↗</a>";
+        html += "</div></div>";
+      });
+    }
+    if (site.accountsNoDeal.length) {
+      html += "<div class=\"map-site-section-title\">Accounts (no deal)</div>";
+      site.accountsNoDeal.forEach(function (acc2) {
+        var info = mapState.dealByAccount[acc2.id] || {};
+        var st = info.stage || "No Active Deal";
+        var sc2 = stageColor(st);
+        html += "<div class=\"map-site-item\">";
+        html += "<div class=\"map-site-item-main\">";
+        html += "<div class=\"map-site-item-name\">" + esc(str(acc2.Account_Name)) + "</div>";
+        html += "</div>";
+        html += "<div class=\"map-site-item-badges\">";
+        html += "<span class=\"map-badge\" style=\"background:" + sc2.pin + "22;color:" + sc2.text + ";border:1px solid " + sc2.pin + "44\">" + esc(st) + "</span>";
+        html += "</div>";
+        html += "<div class=\"map-site-item-actions\">";
+        html += "<button type=\"button\" class=\"map-site-btn\" onclick=\"mapSelectDealForAccount('" + String(acc2.id).replace(/'/g, "\\'") + "')\">Select in CapStone</button>";
+        html += "<a href=\"" + esc(zohoAccountUrl(acc2.id)) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"map-site-link\">Open account in Zoho ↗</a>";
+        html += "</div></div>";
+      });
+    }
+    if (!site.deals.length && !site.meetings.length && !site.accountsNoDeal.length) {
+      html += "<div class=\"map-site-empty\">Nothing to show for this site.</div>";
+    }
+    list.innerHTML = html;
+  }
+
+  function openMapSitePanel(site) {
+    if (!site) return;
+    mapState.activeSitePanel = site;
+    mapState.showSitePanel = true;
+    renderMapSitePanel();
+  }
+
+  function closeMapSitePanel() {
+    mapState.showSitePanel = false;
+    mapState.activeSitePanel = null;
+    renderMapSitePanel();
+  }
+
+  function toggleMapSitePanel() {
+    if (mapState.showSitePanel) closeMapSitePanel();
+    else if (mapState.activeSitePanel) {
+      mapState.showSitePanel = true;
+      renderMapSitePanel();
+    }
   }
 
   function renderMissingPanel() {
@@ -1455,6 +1711,7 @@
     }
     var meetingsCb = el("map-f-meetings");
     mapState.filters.showMeetings = meetingsCb ? !!meetingsCb.checked : true;
+    closeMapSitePanel();
     renderMapMarkers();
     renderMissingPanel();
   }
@@ -1729,6 +1986,8 @@
   window.syncMapStageChip = syncMapStageChip;
   window.initAccountsMapTab = initAccountsMapTab;
   window.toggleMapMissingPanel = toggleMapMissingPanel;
+  window.toggleMapSitePanel = toggleMapSitePanel;
+  window.mapZoomPendingSite = mapZoomPendingSite;
   window.toggleMapLegend = toggleMapLegend;
   window.mapSelectDealForAccount = mapSelectDealForAccount;
   window.mapSelectDeal = mapSelectDeal;
