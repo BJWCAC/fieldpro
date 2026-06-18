@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v232
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
+Current live version: v234
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=234
 ```
 
 ---
@@ -70,6 +70,8 @@ Related docs (detail, not status):
 | v230 | — | **Map: show deal list on site tap** — list opens immediately under map; expanded site pins never re-cluster; hub tap opens list |
 | v231 | — | **Map: always spider multi-item sites** — Lallemand-scale sites (5+ items) now spread pins like Willmar; list panel still opens on tap |
 | v232 | — | **Map: Select in CapStone opens Capture** — site list and pin buttons jump to Capture with deal loaded; map deals sync into app if needed |
+| v233 | — | **Assets: picklist request (Phase A)** — after AI extract, request new Brand/Type values; email `bradwhite@calibrationsandcontrols.com`; Pending Sync queue; Other + explain unchanged |
+| v234 | — | **Assets: picklist near-match** — auto-select on extract when only case/spacing differs; **Use [value]** button when Zoho has a similar Brand/Type |
 
 ### UI / workflow polish
 
@@ -100,6 +102,7 @@ Related docs (detail, not status):
 | Version | PR | What shipped |
 |---------|-----|--------------|
 | v198 | #85 | Asset search: brand, type, series; `contains` fallback; richer Deal `Instrument_Description`; refresh description when asset already linked; technician in replacement blocks |
+| v233 | — | Picklist request email for AI-detected Brand/Type not in Zoho (Phase A); dedupe hint for near matches |
 | Earlier | — | Equipment create/update, deal asset link, equipment + deal update notes, asset search, replace-instrument workflow, replacement notes in `Description_Instructions`, replacement cards in Asset History panel |
 
 ### Docs & process
@@ -170,6 +173,7 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
+| **Resend API key for picklist request emails** | Add `RESEND_API_KEY` on Netlify; optional `PICKLIST_REQUEST_FROM` (verified domain). Default to: `bradwhite@calibrationsandcontrols.com`. Until set, requests queue in Pending Sync. |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
 | AssemblyAI API key on Netlify | User action — see `docs/ASSEMBLYAI_SETUP.md` |
@@ -192,3 +196,5 @@ Related docs (detail, not status):
 | v201 | Per-field → AI with offline Pending AI queue |
 | v202 | Inbox tab — Plaud Fork A Stage 1 (unassigned voice staging) |
 | v207 | Plaud Stage 2 — cloud auto-pull into Inbox |
+| v233 | Assets picklist request email (Brand/Type Phase A) |
+| v234 | Picklist near-match Use button + auto-select on strong match |
