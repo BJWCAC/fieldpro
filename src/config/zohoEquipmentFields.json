@@ -32,9 +32,7 @@
       "Asset_Series",
       "Asset_Model_Number",
       "Serial_Number",
-      "Model_Number",
-      "Serial_Number1",
-      "Description_Instructions"
+      "Nameplate_Additional_Info"
     ],
     "capstoneContextFields": [
       "Account",
