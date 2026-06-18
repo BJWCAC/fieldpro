@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v241
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=241
+Current live version: v243
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=243
 ```
 
 ---
@@ -78,7 +78,9 @@ Related docs (detail, not status):
 | v238 | #130 | **Assets: Nameplate Additional Info** — AI extract extras go to Zoho `Nameplate_Additional_Info` instead of Description / Instructions |
 | v239 | #131 | **Assets: Flow Meter category fields (pilot)** — category-driven sections from config; sensor, display, setup I/O, flow meter details, Subform_1 grid |
 | v240 | #132 | **Assets: AI extract part vs model** — prompt distinguishes full part number from short model/series; normalization swaps common mis-assignments |
-| v241 | — | **Assets: AI extract Zoho series/model mapping** — Series=8750, Model Number=8750WM4AXD1DA2; infer series prefix from full model when needed |
+| v241 | #132 | **Assets: AI extract Zoho series/model mapping** — Series=8750, Model Number=8750WM4AXD1DA2; infer series prefix from full model when needed |
+| v242 | #133 | **Assets: Endress+Hauser order number extract** — Order / customer order number on E+H plates maps to Asset Model Number |
+| v243 | — | **Assets: E+H Promag magmeter extract** — device name→Series, Order Code→Model, K-factor/DN→Flow Meter fields; magmeter nameplate rules in prompt |
 
 ### UI / workflow polish
 
