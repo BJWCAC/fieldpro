@@ -848,7 +848,7 @@
   function expandedMultiSiteKeys(spreadItems) {
     var keys = {};
     spreadItems.forEach(function (item) {
-      if (item.kind !== "hub" || !item.data || item.data.dense) return;
+      if (item.kind !== "hub" || !item.data) return;
       keys[overlapGroupKey(item.baseLat, item.baseLng)] = true;
     });
     return keys;
@@ -856,7 +856,7 @@
 
   function useSiteMarkerLayer(item, expandedKeys) {
     if (item.kind === "site-summary") return true;
-    if (item.kind === "hub" && item.data && item.data.dense) return true;
+    if (item.kind === "hub") return true;
     var key = overlapGroupKey(item.baseLat, item.baseLng);
     if (expandedKeys[key] && (item.kind === "hub" || item.kind === "deal" || item.kind === "meeting" || item.kind === "account")) {
       return true;
@@ -872,13 +872,6 @@
   function bindExpandedHubMarkerEvents(marker, hub) {
     bindHubMarkerEvents(marker);
     marker.on("click", function () {
-      openMapSitePanel(hub.site);
-    });
-  }
-
-  function bindDenseHubMarkerEvents(marker, hub) {
-    marker.on("click", function (e) {
-      if (typeof L !== "undefined" && L.DomEvent) L.DomEvent.stopPropagation(e);
       openMapSitePanel(hub.site);
     });
   }
@@ -1040,8 +1033,6 @@
           baseLat: site.baseLat,
           baseLng: site.baseLng
         });
-        if (dense) return;
-
         site.deals.forEach(function (d) {
           items.push({ kind: "deal", data: d, baseLat: site.baseLat, baseLng: site.baseLng });
         });
@@ -1153,7 +1144,7 @@
       ? "<span class=\"map-hub-dense-badge\">" + esc(String(opts.count)) + "</span>"
       : "";
     var denseHint = opts.dense
-      ? "<div class=\"map-hub-deal\">Tap for full list</div>"
+      ? "<div class=\"map-hub-deal\">" + esc(String(opts.count)) + " items — tap for list</div>"
       : "";
     var hubClass = opts.dense ? "map-hub map-hub-dense-target" : "map-hub";
     return L.divIcon({
@@ -1503,14 +1494,10 @@
         var hub = item.data;
         var hubMarker = L.marker([item.displayLat, item.displayLng], {
           icon: makeHubIcon(hub.acc, hub.primaryDealName, { dense: hub.dense, count: hub.count }),
-          zIndexOffset: hub.dense ? 640 : 400
+          zIndexOffset: 400
         });
-        if (hub.dense) {
-          bindDenseHubMarkerEvents(hubMarker, hub);
-        } else {
-          hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
-          bindExpandedHubMarkerEvents(hubMarker, hub);
-        }
+        hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
+        bindExpandedHubMarkerEvents(hubMarker, hub);
         addMapMarker(hubMarker, item, expandedKeys, cluster, siteLayer);
         return;
       }
