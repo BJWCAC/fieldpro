@@ -833,17 +833,46 @@
 
   function activateSiteSummary(item, marker) {
     var sm = item.data;
-    var site = sm.site;
     if (marker && marker.closePopup) marker.closePopup();
-    flyMapToSite(item.baseLat, item.baseLng, function () {
-      openMapSitePanel(site);
-    });
+    openMapSitePanel(sm.site);
+    flyMapToSite(item.baseLat, item.baseLng);
   }
 
   function bindSiteSummaryMarkerEvents(marker, item) {
     marker.on("click", function (e) {
       if (typeof L !== "undefined" && L.DomEvent) L.DomEvent.stopPropagation(e);
       activateSiteSummary(item, marker);
+    });
+  }
+
+  function expandedMultiSiteKeys(spreadItems) {
+    var keys = {};
+    spreadItems.forEach(function (item) {
+      if (item.kind !== "hub" || !item.data || item.data.dense) return;
+      keys[overlapGroupKey(item.baseLat, item.baseLng)] = true;
+    });
+    return keys;
+  }
+
+  function useSiteMarkerLayer(item, expandedKeys) {
+    if (item.kind === "site-summary") return true;
+    if (item.kind === "hub" && item.data && item.data.dense) return true;
+    var key = overlapGroupKey(item.baseLat, item.baseLng);
+    if (expandedKeys[key] && (item.kind === "hub" || item.kind === "deal" || item.kind === "meeting" || item.kind === "account")) {
+      return true;
+    }
+    return false;
+  }
+
+  function addMapMarker(marker, item, expandedKeys, cluster, siteLayer) {
+    if (useSiteMarkerLayer(item, expandedKeys) && siteLayer) siteLayer.addLayer(marker);
+    else cluster.addLayer(marker);
+  }
+
+  function bindExpandedHubMarkerEvents(marker, hub) {
+    bindHubMarkerEvents(marker);
+    marker.on("click", function () {
+      openMapSitePanel(hub.site);
     });
   }
 
@@ -1456,6 +1485,7 @@
     var filtered = mapState.located.filter(passesFilters);
     var meetingFiltered = (mapState.scheduledMeetings || []).filter(passesMeetingFilters);
     var spreadItems = collectSpreadMarkerItems(filtered, meetingFiltered);
+    var expandedKeys = expandedMultiSiteKeys(spreadItems);
     renderSpreadLines(spreadItems);
 
     spreadItems.forEach(function (item) {
@@ -1466,7 +1496,7 @@
           zIndexOffset: 650
         });
         bindSiteSummaryMarkerEvents(summaryMarker, item);
-        if (siteLayer) siteLayer.addLayer(summaryMarker);
+        addMapMarker(summaryMarker, item, expandedKeys, cluster, siteLayer);
         return;
       }
       if (item.kind === "hub") {
@@ -1477,12 +1507,11 @@
         });
         if (hub.dense) {
           bindDenseHubMarkerEvents(hubMarker, hub);
-          if (siteLayer) siteLayer.addLayer(hubMarker);
         } else {
           hubMarker.bindPopup(hubPopupHtml(hub), { maxWidth: 300 });
-          bindHubMarkerEvents(hubMarker);
-          cluster.addLayer(hubMarker);
+          bindExpandedHubMarkerEvents(hubMarker, hub);
         }
+        addMapMarker(hubMarker, item, expandedKeys, cluster, siteLayer);
         return;
       }
       if (item.kind === "deal") {
@@ -1494,7 +1523,7 @@
         var pinColor = isActive ? color.pin : "#9ca3af";
         var dealMarker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor) });
         dealMarker.bindPopup(dealPopupHtml(dw), { maxWidth: 300 });
-        cluster.addLayer(dealMarker);
+        addMapMarker(dealMarker, item, expandedKeys, cluster, siteLayer);
         return;
       }
       if (item.kind === "account") {
@@ -1506,7 +1535,7 @@
         var pinColor2 = isActive2 ? color2.pin : "#9ca3af";
         var accMarker = L.marker([item.displayLat, item.displayLng], { icon: makePinIcon(pinColor2) });
         accMarker.bindPopup(popupHtml(acc2), { maxWidth: 300 });
-        cluster.addLayer(accMarker);
+        addMapMarker(accMarker, item, expandedKeys, cluster, siteLayer);
         return;
       }
       var m = item.data;
@@ -1517,7 +1546,7 @@
         zIndexOffset: 500
       });
       meetingMarker.bindPopup(meetingPopupHtml(m), { maxWidth: 300 });
-      cluster.addLayer(meetingMarker);
+      addMapMarker(meetingMarker, item, expandedKeys, cluster, siteLayer);
     });
 
     var pinCount = countMapPinItems(spreadItems);
@@ -1593,7 +1622,7 @@
         html += "<div class=\"map-site-item\">";
         html += "<div class=\"map-site-item-main\">";
         html += "<div class=\"map-site-item-name\">" + esc(str(deal.dealName)) + "</div>";
-        html += "<div class=\"map-site-item-sub\">" + esc(str(acc.Account_Name)) + "</div>";
+        html += "<div class=\"map-site-item-sub\">" + esc(str((d.acc && d.acc.Account_Name) || acc.Account_Name)) + "</div>";
         html += "</div>";
         html += "<div class=\"map-site-item-badges\">";
         html += "<span class=\"map-badge\" style=\"background:" + sc.pin + "22;color:" + sc.text + ";border:1px solid " + sc.pin + "44\">" + esc(deal.stage) + "</span>";
@@ -1651,11 +1680,21 @@
     mapState.activeSitePanel = site;
     mapState.showSitePanel = true;
     renderMapSitePanel();
+    var panel = el("map-site-panel");
+    if (panel) {
+      panel.classList.add("map-site-panel-open");
+      setTimeout(function () {
+        try { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+      }, 80);
+    }
+    if (typeof toast === "function") toast("Deal list opened below the map");
   }
 
   function closeMapSitePanel() {
     mapState.showSitePanel = false;
     mapState.activeSitePanel = null;
+    var panel = el("map-site-panel");
+    if (panel) panel.classList.remove("map-site-panel-open");
     renderMapSitePanel();
   }
 
