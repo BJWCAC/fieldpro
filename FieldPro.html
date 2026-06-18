@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=238"/>
+<link rel="stylesheet" href="src/styles.css?v=239"/>
 
 </head>
 <body>
@@ -258,6 +258,7 @@
     <div class="help-box-body">
       <p>The Assets tab saves equipment to Zoho <strong>Equipments</strong>, links the asset to the active Deal, and records update notes on both records.</p>
       <ul>
+        <li>Pick <strong>Asset Category</strong> to show category-specific fields (Flow Meter pilot: sensor, display, setup, pipe size, subform).</li>
         <li>Tap <strong>Pick deal &amp; add new</strong> to choose a deal without leaving Assets (same search as Deals tab).</li>
         <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
@@ -364,6 +365,7 @@
       <div><label class="lbl">Environment *</label><select id="asset-environment"></select></div>
       <div><label class="lbl">Confined Space *</label><select id="asset-confined"></select></div>
     </div>
+    <div id="asset-category-fields" class="asset-category-fields" style="display:none"></div>
     <div style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
@@ -858,8 +860,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=238"></script>
-<script src="src/app.js?v=238"></script>
+<script src="src/accounts-map.js?v=239"></script>
+<script src="src/app.js?v=239"></script>
 
 </body>
 </html>

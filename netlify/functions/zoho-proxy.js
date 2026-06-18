@@ -364,7 +364,7 @@ exports.handler = async function(event) {
       var q = String(data.query || "").replace(/"/g, "").trim();
       if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
       var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
-      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Date";
+      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date_Installed,Location,Room,Sensor_Model_Number,Sensor_Serial_Number,Sensor_Additional_Information,Engineering_Units,Display_Size_d_Readability,Input_Engineering_Units,Input_PV_Zero_Parameter,Input_PV_Zero,Input_PV_Span_Parameter,Input_PV_Span,Output_Engineering_Units,Output_PV_Zero_Parameter,Output_PV_Zero,Output_PV_Span_Parameter,Output_PV_Span,Cal_Factor_K_Factor,Pipe_Size,Damping_Seconds,Subform_1,Date";
       var seen = {};
       var hits = [];
       async function collectEquipmentSearch(field, operator) {

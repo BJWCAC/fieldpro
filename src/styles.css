@@ -132,6 +132,14 @@ body.light .hist-card{background:#fff}
 .asset-picklist-request-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid #fde68a}
 .asset-picklist-request-row:first-of-type{border-top:none;padding-top:0}
 .asset-picklist-request-sent{color:#2d6b60;font-size:11px;font-weight:600}
+.asset-category-fields{margin:4px 0 10px}
+.asset-cat-section{border-top:1px solid #b2ddd6;padding-top:10px;margin-top:4px}
+.asset-cat-section-title{font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:14px;color:#2d6b60;margin-bottom:8px}
+.asset-subform-wrap{overflow-x:auto;margin-bottom:8px}
+.asset-subform-table{width:100%;border-collapse:collapse;font-size:11px}
+.asset-subform-table th,.asset-subform-table td{border:1px solid #b2ddd6;padding:4px;vertical-align:top;background:#fff}
+.asset-subform-table input,.asset-subform-table select{width:100%;min-width:72px;font-size:11px;padding:4px}
+.asset-subform-table th{background:#f0fdf4;color:#2d6b60;font-weight:600;white-space:nowrap}
 .pending-sync-tab{background:#fee2e2!important;color:#991b1b!important;border-bottom-color:#ef4444!important}.pending-sync-tab span{background:#ef4444;color:#fff;border-radius:8px;padding:0 5px;margin-left:3px}
 .workflow-card{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px 12px;margin-bottom:10px;color:#0f2420}.workflow-card ol{padding-left:18px;font-size:12px;color:#2d6b60;line-height:1.7}
 .help-box{background:#fff;border:1px solid #b2ddd6;border-radius:8px;margin-bottom:10px;color:#0f2420;overflow:hidden}
