@@ -14,7 +14,7 @@ Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=232
 
 ## How agents and contributors should use this file
 
-1. **Before starting work** — read *Planned*, *In progress*, and *Declined* so effort is not duplicated.
+1. **Before starting work** — read *Planned*, *In progress*, *Suggestions*, and *Declined* so effort is not duplicated.
 2. **After shipping** — move the item to *Completed* with version, PR number, and one-line outcome.
 3. **When the user defers or declines** — add to *Deferred* or *Declined* with date and reason.
 4. **When docs lag the app** — note under *Planned* until the doc PR lands.
@@ -133,6 +133,16 @@ Related docs (detail, not status):
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
+
+---
+
+## Suggestions (ideas — not committed)
+
+Review after field tests; promote to *Planned* when Brad confirms priority.
+
+| Area | Suggestion | Why |
+|------|------------|-----|
+| Assets | **Add AI-detected values to Zoho picklists** — when nameplate extraction finds brand, type, series, or function that is not in the CRM picklist, offer to add the new value to Zoho (via API) and select it, instead of only falling back to `1 Other` / `Other` plus explain text | Today `applyAssetExtraction` uses exact picklist match only; unmatched values go to Other explain fields (`If_Asset_Brand_Other_explain`, etc.). Growing picklists in CRM would reduce cleanup and keep saved assets on canonical values. Needs Zoho field-settings API access, admin approval policy, and local config refresh after add. |
 
 ---
 
