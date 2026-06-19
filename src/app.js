@@ -25,12 +25,13 @@ var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number
 var ASSET_EXTRACT_MAGMETER_CAL="Magnetic flow meter calibration (all brands): Most magmeters show Cal Factor, Cal. Fact., Calibration Factor, K-Factor, or K Factor on the nameplate. Put that numeric value in k_factor (and cal_factor if needed). This maps to the Zoho Cal Factor field — do not omit when visible on the plate.";
 var ASSET_EXTRACT_EH_MAGMETER="Endress+Hauser magnetic flow meter (Promag) nameplate rules:\n- device_name → Asset Series: transmitter/product family exactly as printed (e.g. Proline Promag W 400, Promag 50P). NOT the order code.\n- order_number → Asset Model Number: FULL Order Code (Ord. Cd. / Order code), e.g. 5W4B80-AAI7/0. Copy the entire string including slashes and suffixes.\n- serial_number: Ser. No. exactly (often ~11 chars, e.g. M801B416000).\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor (e.g. 1.2345) → Cal Factor field.\n- nominal_diameter: DN / pipe size if shown (e.g. DN 80 / 3 inch).\n- ratings: combine DN, PN, liner, electrodes, power supply, enclosure IP, outputs if readable (exclude cal factor if already in k_factor).\n- asset_type: Magnetic Flow Meter when applicable.\nDo NOT put Order Code in series. Do NOT truncate Order Code.";
 var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
-var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, manufacturer, model_number, serial_number, ratings, visible_text";
-var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM sensor fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- model_number / serial_number: use only if the plate does not say sensor but clearly shows model/serial for the sensor body.\n- manufacturer: sensor brand if shown.\n- ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\nDo not guess unreadable characters.";
+var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, order_number, part_number, manufacturer, model_number, serial_number, nominal_diameter, ratings, visible_text";
+var ASSET_EXTRACT_EH_SENSOR="Endress+Hauser Promag sensor / flow-tube label rules:\n- sensor_model_number → Sensor Model Number: FULL order code on the sensor or flow-tube tag (often different from the transmitter Order Code).\n- sensor_serial_number → Sensor Serial Number: Ser. No. on the sensor tag.\n- order_number / part_number: use for sensor_model_number when that is the order or part code on the sensor label.\n- serial_number: use for sensor_serial_number when Ser. No. is on the sensor tag.\n- nominal_diameter / ratings: capture DN, liner, electrodes, PN when visible.";
+var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM sensor fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- order_number / part_number / model_number: map to sensor_model_number when they are the sensor order or part code.\n- serial_number: map to sensor_serial_number when it is the sensor serial.\n- manufacturer: sensor brand if shown.\n- nominal_diameter / ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\n"+ASSET_EXTRACT_EH_SENSOR+"\n\nDo not guess unreadable characters.";
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="246";
+var FP_VERSION="247";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1103,10 +1104,13 @@ function bindDynamicFieldHandlers(){
     e.addEventListener("change",function(){syncSubformRowsFromDom();scheduleAssetDraftSave();});
   });
 }
-function renderAssetCategoryFields(){
+function renderAssetCategoryFields(opts){
+  opts=opts||{};
   var box=el("asset-category-fields");if(!box)return;
-  syncDynamicFieldValuesFromDom();
-  syncSubformRowsFromDom();
+  if(!opts.skipDomSync){
+    syncDynamicFieldValuesFromDom();
+    syncSubformRowsFromDom();
+  }
   var cat=assetInput("asset-category");
   var layout=categoryLayout(cat);
   if(!layout||!layout.sections||!layout.sections.length){box.innerHTML="";box.style.display="none";return;}
@@ -1491,7 +1495,7 @@ function assetPhotoFingerprint(dataUrl){
 function normalizeAssetPhotoRole(desc,explicitRole){
   if(explicitRole&&ASSET_PHOTO_ROLES[explicitRole])return explicitRole;
   var s=String(desc||"").toLowerCase();
-  if(/\bsensor\b/.test(s))return "sensor";
+  if(/\bsensor\b|\bflow[\-\s]?tube\b|\bmeasuring[\-\s]?tube\b|\bsensor[\-\s]?body\b/.test(s))return "sensor";
   if(/\btransmitter\b/.test(s)||/\bmain\b/.test(s)||/\bnameplate\b/.test(s))return "transmitter";
   return "other";
 }
@@ -1747,20 +1751,32 @@ function applyAssetExtraction(x){
   updateAssetSaveState();
   renderAssetPicklistRequestPanel();
 }
+function ensureFlowMeterCategoryForSensor(){
+  if(categoryLayout(assetInput("asset-category")))return false;
+  setAssetSelectIfPresent("asset-category","Flow Meter");
+  if(!categoryLayout(assetInput("asset-category")))return false;
+  showToast("Asset Category set to Flow Meter to show sensor fields",4000);
+  return true;
+}
 function applySensorExtraction(x){
-  if(!x)return;
+  if(!x)return 0;
+  syncDynamicFieldValuesFromDom();
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
-  var sensorModel=extractValTrim(x.sensor_model_number)||extractValTrim(x.model_number)||"";
+  var sensorModel=extractValTrim(x.sensor_model_number)||extractValTrim(x.order_number)||extractValTrim(x.model_number)||extractValTrim(x.part_number)||"";
   var sensorSerial=extractValTrim(x.sensor_serial_number)||extractValTrim(x.serial_number)||"";
-  if(sensorModel)setDynamicAssetField("Sensor_Model_Number",sensorModel);
-  if(sensorSerial)setDynamicAssetField("Sensor_Serial_Number",sensorSerial);
   var notes=[];
   if(x.manufacturer)notes.push("Manufacturer: "+x.manufacturer);
+  if(x.nominal_diameter)notes.push("Nominal Diameter: "+x.nominal_diameter);
   if(x.ratings)notes.push("Ratings: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
-  if(notes.length)setDynamicAssetField("Sensor_Additional_Information",notes.join("\n"));
-  if(typeof renderAssetCategoryFields==="function"&&assetInput("asset-category"))renderAssetCategoryFields();
+  var count=0;
+  if(sensorModel){A.asset.dynamicValues.Sensor_Model_Number=String(sensorModel);count++;}
+  if(sensorSerial){A.asset.dynamicValues.Sensor_Serial_Number=String(sensorSerial);count++;}
+  if(notes.length){A.asset.dynamicValues.Sensor_Additional_Information=notes.join("\n");count++;}
+  if(count)ensureFlowMeterCategoryForSensor();
+  renderAssetCategoryFields({skipDomSync:true});
   updateAssetSaveState();
+  return count;
 }
 function applyExtractedDynamicFields(x){
   if(!x)return;
@@ -1927,10 +1943,12 @@ async function extractMainAssetPhotos(photos){
 }
 async function extractSensorAssetPhotos(photos){
   var content=await buildAssetExtractContent(photos,3);
-  content.push({type:"text",text:ASSET_EXTRACT_SENSOR_PROMPT});
-  var data=await callAPI({content:content,maxTok:500,ms:45000});
-  applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
+  var labels=photos.map(function(p){return assetPhotoRoleLabel(p);}).join(", ");
+  content.push({type:"text",text:ASSET_EXTRACT_SENSOR_PROMPT+"\n\nThese photos are labeled: "+labels+". Extract ONLY sensor / flow-tube fields — not the transmitter head."});
+  var data=await callAPI({content:content,maxTok:600,ms:45000});
+  var count=applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
   removePendingAiByTypeTarget("asset_extract_sensor","asset");
+  if(!count)throw new Error("No sensor model, serial, or notes found on sensor label photo(s)");
 }
 async function queueAssetExtractFailure(kind,photos,err){
   if(!shouldQueueAiError(err)||!photos.length)return false;
@@ -1972,6 +1990,7 @@ async function extractAssetFromPhoto(){
     }catch(e){
       errors.push(e);
       queued=await queueAssetExtractFailure("sensor",sensorPhotos,e)||queued;
+      if(!queued)showToast("Sensor extract: "+(e.message||e),6000);
     }
   }
   if(parts.length&&!errors.length)assetStatus("AI extraction complete ("+parts.join(" + ")+"). Review all fields before saving.",false);
@@ -2574,8 +2593,9 @@ async function retryQueuedAssetExtract(item){
   content.push({type:"text",text:isSensor?ASSET_EXTRACT_SENSOR_PROMPT:ASSET_EXTRACT_PROMPT});
   var data=await callAPI({content:content,maxTok:isSensor?500:750,ms:45000});
   if(isSensor){
-    applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
+    var count=applySensorExtraction(await parseAssetSensorJsonWithRepair(getText(data)));
     removePendingAiByTypeTarget("asset_extract_sensor","asset");
+    if(!count)throw new Error("No sensor model, serial, or notes found on sensor label photo(s)");
   }else{
     applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
     removePendingAiByTypeTarget("asset_extract","asset");

@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v246
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=246
+Current live version: v247
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=247
 ```
 
 ---
@@ -82,7 +82,9 @@ Related docs (detail, not status):
 | v242 | #133 | **Assets: Endress+Hauser order number extract** — Order / customer order number on E+H plates maps to Asset Model Number |
 | v243 | #134 | **Assets: E+H Promag magmeter extract** — device name→Series, Order Code→Model, K-factor/DN→Flow Meter fields |
 | v244 | — | **Assets: magmeter Cal Factor extract** — Cal Factor / Cal. Fact. / K-factor from any magmeter brand → Cal Factor field |
-| v245 | — | **Assets: photo labels + role-based AI extract** — label transmitter/sensor when photo is taken; main fields vs sensor fields extracted separately |
+| v245 | #136 | **Assets: photo labels + role-based AI extract** — label transmitter/sensor when photo is taken; main fields vs sensor fields extracted separately |
+| v246 | #137 | **Settings: live update URL** — Workflow Help shows current FieldPro.html?v= link from app version |
+| v247 | — | **Assets: fix sensor AI extract** — preserve sensor values on render; auto Flow Meter category; stronger E+H sensor prompt |
 
 ### UI / workflow polish
 
