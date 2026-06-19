@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v253
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=253
+Current live version: v254
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=254
 ```
 
 ---
@@ -90,7 +90,8 @@ Related docs (detail, not status):
 | v250 | — | **Assets: Zoho field API name mapping** — Cal_Factor_K_factor_Etc, Model_Number, Serial_Number1, etc. from live CRM metadata |
 | v251 | — | **Assets: Open Channel Flow category fields** — OCM flume/weir sections; remove deprecated Flow category from CapStone picker |
 | v252 | — | **Assets: Open Channel Flow layout trim** — Rosemount Details section removed from Open Channel Flow category |
-| v253 | — | **Assets: Ultra 4 part-number series rule** — P/N starting with 1744111 → Asset Series Ultra 4 on AI extract |
+| v253 | — | **Assets: Ultra 4 part-number series rule (initial)** — P/N prefix 1744111 → Ultra 4 |
+| v254 | — | **Assets: Ultra 4 prefix fix (Pulsar)** — correct prefix 174111 (e.g. 1741110002XX-XXP); also Brand Pulsar + Type Ultrasonic Flow |
 
 ### UI / workflow polish
 
