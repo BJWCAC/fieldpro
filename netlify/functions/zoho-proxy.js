@@ -353,7 +353,7 @@ exports.handler = async function(event) {
     if (data.action === "get_equipment") {
       var equipmentGetResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number",
+        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number,Cal_Factor_K_Factor,Sensor_Model_Number,Sensor_Serial_Number,Pipe_Size",
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
