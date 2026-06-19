@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v260
+Current live version: v261
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=256
 ```
 
@@ -98,6 +98,7 @@ Related docs (detail, not status):
 | v258 | — | **Assets: AMD search actually works** — fix Zoho 50-field limit breaking all searches; use word search + equals/starts_with (contains is invalid in Zoho); AMD searches ignore account filter |
 | v259 | — | **Assets: fix Input/Output Set ups Add row** — new subform rows no longer wiped on re-render; empty rows kept while editing |
 | v260 | — | **Assets: subform Engineering Unit lookup dropdown** — Input/Output Set ups uses Zoho CustomModule8 like Set Up Input/Output; **Add vs Update workflow gate** — choose intent first, form shows only when ready |
+| v261 | — | **Assets: category layout activation on save** — phased Zoho save activates Asset Category layout rules (category touch + category fields after create); CapStone reload syncs category sections when loading assets |
 
 ### UI / workflow polish
 
