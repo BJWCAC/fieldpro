@@ -6,7 +6,7 @@
     "The -None- blank defaults are intentionally omitted; literal None remains where it is an actual selectable value.",
     "Equipments is CustomModule1 in Zoho CRM and uses layout Asset Main.",
     "Subform_1 rows are nested under the parent Equipments record payload, not standalone records.",
-    "CapStone asset search checks CAC_Asset_ID, Serial_Number, Asset_Model_Number, Name, Building, Additional_Designator, Customer_Asset_Number, Asset_Brand, Asset_Type, and Asset_Series with equals first, then contains fallback.",
+    "CapStone asset search uses Zoho word search plus equals/starts_with criteria (never contains — invalid in Zoho). Search field list is capped at 50 Zoho fields.",
     "Flow Meter dynamic fields use zohoApiName in assetFieldRegistry when Zoho CRM api_name differs from CapStone key (e.g. Cal_Factor_K_Factor → Cal_Factor_K_factor_Etc, Sensor_Model_Number → Model_Number).",
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Open Channel Flow is the category for flume/weir assets.",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",

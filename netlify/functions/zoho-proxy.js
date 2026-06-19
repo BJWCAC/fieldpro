@@ -416,78 +416,72 @@ exports.handler = async function(event) {
       if (!qRaw) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
       var amdMatch = qRaw.match(/AMD\d+/i);
       var q = amdMatch ? amdMatch[0] : qRaw;
-      var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
-      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date,Location,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Damping_Seconds,Flume_Weir_Type,Flume_Weir_Size_Length,Distance_Measurement_Units,Exponent,Da1_and_DA2,DA2_License_Number,Totalizer_Display,Display,Subform_1";
+      var isAmdQuery = /^AMD\d+/i.test(q);
+      // Zoho search API allows at most 50 fields — a longer list returns LIMIT_EXCEEDED and zero results.
+      var equipmentSearchFields = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Damping_Seconds,Flume_Weir_Type,Flume_Weir_Size_Length,Distance_Measurement_Units,Exponent,Da1_and_DA2,Display,Subform_1";
+      var searchTerms = [q];
+      if (isAmdQuery) {
+        searchTerms.push(q.toUpperCase());
+        var amdNum = q.replace(/^AMD/i, "");
+        if (amdNum && searchTerms.indexOf(amdNum) < 0) searchTerms.push(amdNum);
+      }
       var seen = {};
       var hits = [];
-      var isAssetIdLike = /^AMD[\w-]*$/i.test(q) || q.length <= 16;
-      async function collectEquipmentSearch(field, operator) {
-        var crit = encodeURIComponent("(" + field + ":" + operator + ":" + q + ")");
+      function shouldIncludeRecord(rec) {
+        if (!rec || !rec.id) return false;
+        if (isAmdQuery || !data.account_id) return true;
+        if (equipmentAccountId(rec) === data.account_id) return true;
+        return equipmentBypassAccountFilter(rec, q);
+      }
+      function addHits(rows) {
+        for (var hi = 0; hi < rows.length; hi++) {
+          var rec = rows[hi];
+          if (!shouldIncludeRecord(rec)) continue;
+          if (!seen[rec.id]) { seen[rec.id] = true; hits.push(rec); }
+        }
+      }
+      async function collectWordSearch(term) {
+        var wordResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/Equipments/search?word=" + encodeURIComponent(term) + "&fields=" + equipmentSearchFields,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (wordResult.status === 204) return;
+        if (wordResult.status < 200 || wordResult.status >= 300) return;
+        try { addHits(JSON.parse(wordResult.body).data || []); } catch (we) {}
+      }
+      async function collectCriteriaSearch(field, operator, term) {
+        var crit = encodeURIComponent("(" + field + ":" + operator + ":" + term + ")");
         var searchResult = await req({
           hostname: "www.zohoapis.com",
-          path: "/crm/v3/Equipments/search?criteria=" + crit + "&fields=" + searchFieldList,
+          path: "/crm/v3/Equipments/search?criteria=" + crit + "&fields=" + equipmentSearchFields,
           method: "GET",
           headers: { "Authorization": "Zoho-oauthtoken " + token }
         });
         if (searchResult.status === 204) return;
         if (searchResult.status < 200 || searchResult.status >= 300) return;
-        try {
-          var foundRows = (JSON.parse(searchResult.body).data || []);
-          for (var sri = 0; sri < foundRows.length; sri++) {
-            var rec = foundRows[sri];
-            if (!equipmentMatchesAccountScope(rec, data.account_id, q)) continue;
-            if (!seen[rec.id]) { seen[rec.id] = true; hits.push(rec); }
+        try { addHits(JSON.parse(searchResult.body).data || []); } catch (se) {}
+      }
+      var idFields = ["CAC_Asset_ID", "Name", "Customer_Asset_Number"];
+      var textFields = ["Name", "Serial_Number", "Asset_Model_Number", "CAC_Asset_ID", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      var exactFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      for (var ti = 0; ti < searchTerms.length; ti++) {
+        var term = searchTerms[ti];
+        await collectWordSearch(term);
+        for (var idi = 0; idi < idFields.length; idi++) {
+          await collectCriteriaSearch(idFields[idi], "equals", term);
+          await collectCriteriaSearch(idFields[idi], "starts_with", term);
+        }
+        for (var efi = 0; efi < exactFields.length; efi++) {
+          if (idFields.indexOf(exactFields[efi]) >= 0) continue;
+          await collectCriteriaSearch(exactFields[efi], "equals", term);
+        }
+        if (!isAmdQuery) {
+          for (var tfi = 0; tfi < textFields.length; tfi++) {
+            await collectCriteriaSearch(textFields[tfi], "starts_with", term);
           }
-        } catch (se) {}
-      }
-      if (isAssetIdLike) {
-        var idFields = ["CAC_Asset_ID", "Name", "Customer_Asset_Number"];
-        for (var idi = 0; idi < idFields.length; idi++) await collectEquipmentSearch(idFields[idi], "contains");
-      }
-      for (var sfi = 0; sfi < searchFields.length; sfi++) await collectEquipmentSearch(searchFields[sfi], "equals");
-      if (!hits.length) {
-        var containsFields = ["Name", "Serial_Number", "Asset_Model_Number", "CAC_Asset_ID", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
-        for (var cfi = 0; cfi < containsFields.length; cfi++) await collectEquipmentSearch(containsFields[cfi], "contains");
-      }
-      async function hydrateEquipmentRecord(id) {
-        if (!id || seen[id]) return null;
-        var getResult = await req({
-          hostname: "www.zohoapis.com",
-          path: "/crm/v3/Equipments/" + id + "?fields=" + searchFieldList,
-          method: "GET",
-          headers: { "Authorization": "Zoho-oauthtoken " + token }
-        });
-        if (getResult.status < 200 || getResult.status >= 300) return null;
-        try {
-          var fullRec = (JSON.parse(getResult.body).data || [])[0];
-          return fullRec || null;
-        } catch (ge) { return null; }
-      }
-      if (!hits.length) {
-        var safe = String(q).replace(/'/g, "''");
-        var coql = "select id, Name, Account, CAC_Asset_ID, Customer_Asset_Number, Serial_Number, Asset_Model_Number, Asset_Brand, Asset_Type, Asset_Series, Asset_Category, Asset_Function, Building, Additional_Designator, Asset_Environment, Confined_Space, Nameplate_Additional_Info, Description_Instructions from Equipments where (Name like '%" + safe + "%' or CAC_Asset_ID like '%" + safe + "%' or Customer_Asset_Number like '%" + safe + "%' or Serial_Number like '%" + safe + "%') limit 20";
-        var coqlBody = JSON.stringify({ select_query: coql });
-        try {
-          var coqlResult = await req({
-            hostname: "www.zohoapis.com",
-            path: "/crm/v7/coql",
-            method: "POST",
-            headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(coqlBody) }
-          }, coqlBody);
-          if (coqlResult.status >= 200 && coqlResult.status < 300) {
-            var coqlRows = (JSON.parse(coqlResult.body).data || []);
-            for (var ci = 0; ci < coqlRows.length; ci++) {
-              var crec = coqlRows[ci];
-              if (!crec || !crec.id) continue;
-              if (!equipmentMatchesAccountScope(crec, data.account_id, q)) continue;
-              if (seen[crec.id]) continue;
-              var fullRec = await hydrateEquipmentRecord(crec.id);
-              var useRec = fullRec || crec;
-              seen[useRec.id] = true;
-              hits.push(useRec);
-            }
-          }
-        } catch (ce) {}
+        }
       }
       return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: hits.slice(0, 20) }) };
     }
