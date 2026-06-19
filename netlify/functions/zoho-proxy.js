@@ -514,6 +514,114 @@ exports.handler = async function(event) {
       return JSON.stringify(body);
     }
 
+    function sleepMs(ms) {
+      return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+
+    async function zohoEquipmentPut(token, equipmentId, equipment, applyLayoutRules) {
+      var payload = equipmentWriteBody(equipment || {}, applyLayoutRules);
+      var path = applyLayoutRules
+        ? "/crm/v8/Equipments/" + equipmentId
+        : "/crm/v3/Equipments/" + equipmentId;
+      return req({
+        hostname: "www.zohoapis.com",
+        path: path,
+        method: "PUT",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
+      }, payload);
+    }
+
+    function pickTempCategoryForLayout(currentCategory, targetCategory, categoryValues) {
+      var preferred = { "Open Channel Flow": "Flow Meter", "Flow Meter": "Open Channel Flow" };
+      var current = String(currentCategory || "").trim();
+      var target = String(targetCategory || "").trim();
+      var pref = preferred[target];
+      if (pref && pref !== target && categoryValues.indexOf(pref) >= 0 && pref !== current) return pref;
+      for (var i = 0; i < categoryValues.length; i++) {
+        var v = categoryValues[i];
+        if (v && v !== target && v !== current) return v;
+      }
+      for (var j = 0; j < categoryValues.length; j++) {
+        if (categoryValues[j] && categoryValues[j] !== target) return categoryValues[j];
+      }
+      return null;
+    }
+
+    function zohoWriteFailed(result) {
+      if (result.status < 200 || result.status >= 300) return true;
+      try {
+        var row = (JSON.parse(result.body).data || [])[0];
+        return row && row.status === "error";
+      } catch (e) {}
+      return false;
+    }
+
+    function zohoWriteErrorMessage(result) {
+      try {
+        var row = (JSON.parse(result.body).data || [])[0];
+        if (row && row.message) return row.message;
+        return result.body;
+      } catch (e) {
+        return result.body;
+      }
+    }
+
+    if (data.action === "activate_equipment_category_layout") {
+      var layoutEquipmentId = data.equipment_id;
+      var layoutCategory = String(data.category || "").trim();
+      var layoutExtension = data.extension || {};
+      var layoutCategoryValues = Array.isArray(data.category_values) ? data.category_values : [];
+      if (!layoutEquipmentId || !layoutCategory) {
+        return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "equipment_id and category are required" }) };
+      }
+
+      var getCategoryResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/" + layoutEquipmentId + "?fields=Asset_Category",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      var currentCategory = "";
+      if (getCategoryResult.status >= 200 && getCategoryResult.status < 300) {
+        try { currentCategory = String((JSON.parse(getCategoryResult.body).data || [])[0].Asset_Category || "").trim(); } catch (ge) {}
+      }
+
+      var tempCategory = pickTempCategoryForLayout(currentCategory, layoutCategory, layoutCategoryValues);
+      var steps = [];
+
+      if (tempCategory) {
+        var tempResult = await zohoEquipmentPut(token, layoutEquipmentId, { Asset_Category: tempCategory }, true);
+        steps.push({ step: "temp_category", category: tempCategory, status: tempResult.status });
+        if (zohoWriteFailed(tempResult)) {
+          return { statusCode: tempResult.status >= 400 ? tempResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Temporary category swap failed: " + zohoWriteErrorMessage(tempResult), steps: steps }) };
+        }
+        await sleepMs(450);
+      }
+
+      var targetPayload = Object.assign({ Asset_Category: layoutCategory }, layoutExtension);
+      var activateResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
+      steps.push({ step: "target_layout_rules", category: layoutCategory, status: activateResult.status });
+      if (zohoWriteFailed(activateResult)) {
+        return { statusCode: activateResult.status >= 400 ? activateResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category layout activation failed: " + zohoWriteErrorMessage(activateResult), steps: steps }) };
+      }
+      await sleepMs(450);
+
+      var confirmResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
+      steps.push({ step: "confirm_layout_rules", category: layoutCategory, status: confirmResult.status });
+      if (zohoWriteFailed(confirmResult)) {
+        return { statusCode: confirmResult.status >= 400 ? confirmResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category layout confirmation failed: " + zohoWriteErrorMessage(confirmResult), steps: steps }) };
+      }
+      await sleepMs(350);
+
+      var persistResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, false);
+      steps.push({ step: "persist_category_fields", category: layoutCategory, status: persistResult.status });
+      if (zohoWriteFailed(persistResult)) {
+        return { statusCode: persistResult.status >= 400 ? persistResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category persist save failed: " + zohoWriteErrorMessage(persistResult), steps: steps }) };
+      }
+
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, current_category: currentCategory, temp_category: tempCategory, target_category: layoutCategory, steps: steps }) };
+    }
+
     if (data.action === "update_equipment") {
       var applyLayoutRules = !!data.apply_layout_rules;
       var updateEquipmentPayload = equipmentWriteBody(data.equipment || {}, applyLayoutRules);
