@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="267";
+var FP_VERSION="268";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -2690,21 +2690,28 @@ function tempCategoryForLayoutSwap(targetCategory){
 }
 async function activateZohoCategoryLayoutOnce(equipmentId,category){
   if(!equipmentId||!category)return;
+  try{
+    await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:""});
+  }catch(clearErr){
+    console.log("Category layout clear:",clearErr&&clearErr.message?clearErr.message:clearErr);
+  }
+  await waitMs(250);
   var temp=tempCategoryForLayoutSwap(category);
   if(temp){
     try{
-      await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:temp});
+      await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:temp},{applyLayoutRules:true});
     }catch(swapErr){
       console.log("Category layout swap (temporary category):",swapErr&&swapErr.message?swapErr.message:swapErr);
     }
-  }else{
-    try{
-      await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:""});
-    }catch(clearErr){
-      console.log("Category layout clear:",clearErr&&clearErr.message?clearErr.message:clearErr);
-    }
+    await waitMs(250);
   }
   await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:category},{applyLayoutRules:true});
+}
+async function persistZohoCategoryLayoutSave(equipmentId,category,extension){
+  if(!equipmentId||!category)return;
+  var payload={Asset_Category:category};
+  if(extension&&Object.keys(extension).length)Object.assign(payload,extension);
+  await postEquipmentToZoho("update_equipment",equipmentId,payload);
 }
 async function activateZohoCategoryLayout(equipmentId,category){
   if(!equipmentId||!category)return;
@@ -2720,10 +2727,9 @@ async function finalizeZohoCategoryLayoutSave(equipmentId,category,extension){
   assetStatus("Confirming asset category layout in Zoho...",false);
   await waitMs(350);
   await activateZohoCategoryLayoutOnce(equipmentId,category);
-  if(ext){
-    assetStatus("Re-saving category fields after layout confirmation...",false);
-    await postEquipmentToZoho("update_equipment",equipmentId,ext);
-  }
+  assetStatus(ext?"Saving asset category and fields in Zoho...":"Saving asset category in Zoho...",false);
+  await waitMs(250);
+  await persistZohoCategoryLayoutSave(equipmentId,category,ext);
 }
 function assetPayloadWithoutCategory(payload){
   var out=Object.assign({},payload||{});
