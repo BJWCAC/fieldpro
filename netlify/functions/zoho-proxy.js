@@ -353,7 +353,7 @@ exports.handler = async function(event) {
     if (data.action === "get_equipment") {
       var equipmentGetResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number,Cal_Factor_K_Factor,Sensor_Model_Number,Sensor_Serial_Number,Pipe_Size",
+        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number,Cal_Factor_K_factor_Etc,Model_Number,Serial_Number1,Pipe_Size",
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
@@ -364,7 +364,7 @@ exports.handler = async function(event) {
       var q = String(data.query || "").replace(/"/g, "").trim();
       if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
       var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
-      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date_Installed,Location,Room,Sensor_Model_Number,Sensor_Serial_Number,Sensor_Additional_Information,Engineering_Units,Display_Size_d_Readability,Input_Engineering_Units,Input_PV_Zero_Parameter,Input_PV_Zero,Input_PV_Span_Parameter,Input_PV_Span,Output_Engineering_Units,Output_PV_Zero_Parameter,Output_PV_Zero,Output_PV_Span_Parameter,Output_PV_Span,Cal_Factor_K_Factor,Pipe_Size,Damping_Seconds,Subform_1,Date";
+      var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date,Location,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Damping_Seconds,Subform_1";
       var seen = {};
       var hits = [];
       async function collectEquipmentSearch(field, operator) {
