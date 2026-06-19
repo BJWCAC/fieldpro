@@ -141,6 +141,19 @@ Standard button classes (always pair with `.bsm` or `-lg` size as needed):
 
 Do not use undefined classes (e.g. `.bb` without a matching rule) or `.bg-lg` for primary tab entry actions — use `.bb-lg` or `.bs-lg` instead.
 
+## Button processing feedback rules
+
+Every interactive button in CapStone must give clear feedback when the user taps it:
+
+- **Pressed state** — on press, apply the shared `.btn-armed` styling (darker/pressed background via `filter: brightness` and slight scale). This applies to all `button` elements and `label.fbtn` file-picker buttons.
+- **Processing state** — while a network request or other async work is in progress, show a **spinner on the button** (`.is-busy`) and disable the button so it cannot be double-tapped.
+- **Global indicator** — the header **Processing…** badge (`#fp-global-busy`) must appear whenever `fetchWithTimeout` has an active request anywhere in the app.
+- **Implementation** — use the shared helpers in `src/app.js`: `initButtonFeedback()` (wired in `bootApp()`), `fetchWithTimeout()` (increments/decrements global busy count), and `withBusy(element, fn)` for async work that does not go through `fetchWithTimeout`.
+- **Opt out** — only use `data-no-busy` on controls that should never show button busy state (rare; document why in the PR).
+- **New buttons** — any new button added to any tab must work with this system automatically; do not add one-off spinners unless there is a documented exception.
+
+Going forward, a PR that adds buttons without visible processing feedback should not be considered complete.
+
 ## Required field rules
 
 If a field is required:

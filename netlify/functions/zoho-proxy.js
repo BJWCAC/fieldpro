@@ -304,16 +304,22 @@ exports.handler = async function(event) {
       return a.id || "";
     }
 
-    function equipmentMatchesAccountScope(rec, accountId, q) {
-      if (!accountId) return true;
-      if (equipmentAccountId(rec) === accountId) return true;
+    function equipmentBypassAccountFilter(rec, q) {
       var qLower = String(q || "").trim().toLowerCase();
       if (!qLower) return false;
       var cac = String(rec.CAC_Asset_ID || "").trim().toLowerCase();
-      if (cac && cac === qLower) return true;
+      if (cac && (cac === qLower || cac.indexOf(qLower) >= 0)) return true;
       var cust = String(rec.Customer_Asset_Number || "").trim().toLowerCase();
-      if (cust && cust === qLower) return true;
+      if (cust && (cust === qLower || cust.indexOf(qLower) >= 0)) return true;
+      var name = String(rec.Name || "").trim().toLowerCase();
+      if (name && name.indexOf(qLower) >= 0) return true;
       return false;
+    }
+
+    function equipmentMatchesAccountScope(rec, accountId, q) {
+      if (!accountId) return true;
+      if (equipmentAccountId(rec) === accountId) return true;
+      return equipmentBypassAccountFilter(rec, q);
     }
 
     function subformAssetId(row) {
@@ -406,12 +412,15 @@ exports.handler = async function(event) {
     }
 
     if (data.action === "search_equipment_assets") {
-      var q = String(data.query || "").replace(/"/g, "").trim();
-      if (!q) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
+      var qRaw = String(data.query || "").replace(/"/g, "").trim();
+      if (!qRaw) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
+      var amdMatch = qRaw.match(/AMD\d+/i);
+      var q = amdMatch ? amdMatch[0] : qRaw;
       var searchFields = ["CAC_Asset_ID", "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
       var searchFieldList = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date,Location,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Damping_Seconds,Flume_Weir_Type,Flume_Weir_Size_Length,Distance_Measurement_Units,Exponent,Da1_and_DA2,DA2_License_Number,Totalizer_Display,Display,Subform_1";
       var seen = {};
       var hits = [];
+      var isAssetIdLike = /^AMD[\w-]*$/i.test(q) || q.length <= 16;
       async function collectEquipmentSearch(field, operator) {
         var crit = encodeURIComponent("(" + field + ":" + operator + ":" + q + ")");
         var searchResult = await req({
@@ -431,10 +440,54 @@ exports.handler = async function(event) {
           }
         } catch (se) {}
       }
+      if (isAssetIdLike) {
+        var idFields = ["CAC_Asset_ID", "Name", "Customer_Asset_Number"];
+        for (var idi = 0; idi < idFields.length; idi++) await collectEquipmentSearch(idFields[idi], "contains");
+      }
       for (var sfi = 0; sfi < searchFields.length; sfi++) await collectEquipmentSearch(searchFields[sfi], "equals");
       if (!hits.length) {
         var containsFields = ["Name", "Serial_Number", "Asset_Model_Number", "CAC_Asset_ID", "Building", "Additional_Designator", "Customer_Asset_Number", "Asset_Brand", "Asset_Type", "Asset_Series"];
         for (var cfi = 0; cfi < containsFields.length; cfi++) await collectEquipmentSearch(containsFields[cfi], "contains");
+      }
+      async function hydrateEquipmentRecord(id) {
+        if (!id || seen[id]) return null;
+        var getResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/Equipments/" + id + "?fields=" + searchFieldList,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (getResult.status < 200 || getResult.status >= 300) return null;
+        try {
+          var fullRec = (JSON.parse(getResult.body).data || [])[0];
+          return fullRec || null;
+        } catch (ge) { return null; }
+      }
+      if (!hits.length) {
+        var safe = String(q).replace(/'/g, "''");
+        var coql = "select id, Name, Account, CAC_Asset_ID, Customer_Asset_Number, Serial_Number, Asset_Model_Number, Asset_Brand, Asset_Type, Asset_Series, Asset_Category, Asset_Function, Building, Additional_Designator, Asset_Environment, Confined_Space, Nameplate_Additional_Info, Description_Instructions from Equipments where (Name like '%" + safe + "%' or CAC_Asset_ID like '%" + safe + "%' or Customer_Asset_Number like '%" + safe + "%' or Serial_Number like '%" + safe + "%') limit 20";
+        var coqlBody = JSON.stringify({ select_query: coql });
+        try {
+          var coqlResult = await req({
+            hostname: "www.zohoapis.com",
+            path: "/crm/v7/coql",
+            method: "POST",
+            headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(coqlBody) }
+          }, coqlBody);
+          if (coqlResult.status >= 200 && coqlResult.status < 300) {
+            var coqlRows = (JSON.parse(coqlResult.body).data || []);
+            for (var ci = 0; ci < coqlRows.length; ci++) {
+              var crec = coqlRows[ci];
+              if (!crec || !crec.id) continue;
+              if (!equipmentMatchesAccountScope(crec, data.account_id, q)) continue;
+              if (seen[crec.id]) continue;
+              var fullRec = await hydrateEquipmentRecord(crec.id);
+              var useRec = fullRec || crec;
+              seen[useRec.id] = true;
+              hits.push(useRec);
+            }
+          }
+        } catch (ce) {}
       }
       return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: hits.slice(0, 20) }) };
     }

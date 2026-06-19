@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v256
+Current live version: v257
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=256
 ```
 
@@ -94,6 +94,7 @@ Related docs (detail, not status):
 | v254 | — | **Assets: Ultra 4 prefix fix (Pulsar)** — correct prefix 174111 (e.g. 1741110002XX-XXP); also Brand Pulsar + Type Ultrasonic Flow |
 | v255 | — | **Assets: Set Up Input/Output polish** — Engineering Units lookup dropdowns from Zoho CustomModule8; PV @ Zero/Span as numeric fields |
 | v256 | — | **Assets: search without account required** — CAC ID / customer asset # search all accounts; load sets account from Zoho record |
+| v257 | — | **Assets: AMD/CAC asset search fix** — Name contains + COQL fallback; account bypass when query matches name/CAC/customer #; **Global button processing feedback** — header Processing badge, pressed + spinner states on all buttons |
 
 ### UI / workflow polish
 
