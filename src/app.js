@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="255";
+var FP_VERSION="256";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1526,6 +1526,19 @@ function renderAssetForm(){
 function renderAssetModeControls(){renderAssetSetupUi();}
 function setAssetMode(mode){setAssetSetupMode(mode==="update"?"update":(A.sel?"deal_add":"account_add"));}
 function renderAssetModeBanner(){renderAssetSetupUi();}
+function equipmentRecordAccount(r){
+  if(!r||!r.Account)return{id:"",name:""};
+  if(typeof r.Account==="string")return{id:r.Account,name:""};
+  return{id:r.Account.id||"",name:r.Account.name||""};
+}
+function applyLoadedAssetAccount(r){
+  var acct=equipmentRecordAccount(r);
+  if(!acct.id&&!acct.name)return;
+  A.asset.standaloneAccount={id:acct.id,name:acct.name||assetLookupName(r.Account)||""};
+  A.asset.linkMode="account";
+  setAssetInput("asset-account",A.asset.standaloneAccount.name);
+  renderAssetSetupUi();
+}
 function assetLookupId(v){if(!v)return"";if(typeof v==="string")return v;return v.id||"";}
 function assetLookupName(v){if(!v)return"";if(typeof v==="string")return v;return v.name||v.id||"";}
 function originalAssetSnapshot(r){return r?{id:r.id,cacId:r.CAC_Asset_ID||"",name:r.Name||"",account:assetLookupName(r.Account)||"",brand:r.Asset_Brand||"",type:r.Asset_Type||"",model:r.Asset_Model_Number||"",serial:r.Serial_Number||"",series:r.Asset_Series||"",building:r.Building||"",designator:r.Additional_Designator||"",description:r.Description_Instructions||"",nameplateAdditional:r.Nameplate_Additional_Info||""}:null;}
@@ -1595,19 +1608,25 @@ function renderAssetSearchResults(){
   box.style.display="block";
   box.innerHTML=A.asset.searchResults.map(function(r,i){
     var title=esc(r.CAC_Asset_ID||r.Name||"Asset");
-    var meta=[r.Asset_Brand,r.Asset_Type,r.Asset_Series,r.Name,r.Asset_Model_Number,r.Serial_Number,r.Customer_Asset_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
+    var acct=esc(assetLookupName(r.Account)||"");
+    var meta=[acct?"Account: "+acct:"",r.Asset_Brand,r.Asset_Type,r.Asset_Series,r.Name,r.Asset_Model_Number,r.Serial_Number,r.Customer_Asset_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
     return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
   }).join("");
 }
 async function searchExistingAssets(){
   try{
-    if(!assetSaveAccountId()){assetStatus("Pick an account in Asset setup first.",true);return;}
     var q=assetInput("asset-search");if(!q){assetStatus("Enter a CAC ID, serial, model, brand, type, name, building, or designator.",true);return;}
     await refreshZohoToken();
     assetStatus("Searching existing assets...",false);
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search_equipment_assets",token:A.zohoToken,account_id:assetSaveAccountId()||"",query:q})},30000);
+    var acctId=assetSaveAccountId()||"";
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search_equipment_assets",token:A.zohoToken,account_id:acctId,query:q})},30000);
     var txt=await r.text();if(!r.ok)throw new Error("Asset search "+r.status+": "+txt.substring(0,160));
-    var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();assetStatus(A.asset.searchResults.length?"Select an existing asset to load it for update.":"No matching assets found.",!A.asset.searchResults.length);
+    var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();
+    if(!A.asset.searchResults.length){
+      assetStatus(acctId?"No matching assets found for this account. CAC ID and customer asset number searches also check all accounts.":"No matching assets found.",true);
+      return;
+    }
+    assetStatus("Select an existing asset to load it for update.",false);
   }catch(e){assetStatus("Asset search failed: "+e.message,true);}
 }
 function searchAssetByCurrentField(id){
@@ -1640,6 +1659,7 @@ function loadExistingAssetFromSearch(idx){
   setAssetSelectIfPresent("asset-environment",r.Asset_Environment||"");
   setAssetSelectIfPresent("asset-confined",r.Confined_Space||"");
   applyDynamicFieldsFromRecord(r);
+  applyLoadedAssetAccount(r);
   setAssetInput("asset-nameplate-additional",r.Nameplate_Additional_Info||"");
   setAssetInput("asset-description",r.Description_Instructions||"");
   setAssetInput("asset-search",r.CAC_Asset_ID||r.Serial_Number||r.Name||"");
