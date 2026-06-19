@@ -68,7 +68,7 @@
     "Output_PV_Zero": { "label": "Output PV @ Zero", "widget": "text" },
     "Output_PV_Span_Parameter": { "label": "Output PV Span Parameter", "widget": "text" },
     "Output_PV_Span": { "label": "Output PV @ Span", "widget": "text" },
-    "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text" },
+    "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text", "zohoType": "double" },
     "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
     "Damping_Seconds": { "label": "Damping Seconds", "widget": "text" }
   },

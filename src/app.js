@@ -31,7 +31,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="248";
+var FP_VERSION="249";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -967,15 +967,44 @@ function syncDynamicFieldValuesFromDom(){
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   var box=el("asset-category-fields");if(!box)return;
   box.querySelectorAll("[data-api]").forEach(function(e){
-    A.asset.dynamicValues[e.getAttribute("data-api")]=e.value||"";
+    var api=e.getAttribute("data-api");
+    var domVal=e.value||"";
+    if(domVal||A.asset.dynamicValues[api]==null||A.asset.dynamicValues[api]==="")A.asset.dynamicValues[api]=domVal;
   });
 }
-function collectDynamicAssetPayload(includeBlank){
+function normalizeCalFactorForZoho(val){
+  var v=extractValTrim(val);if(!v)return null;
+  var m=String(v).match(/([0-9]+(?:\.[0-9]+)?)/);
+  if(!m)return v;
+  var n=parseFloat(m[1]);
+  return isNaN(n)?v:n;
+}
+function formatDynamicValueForZoho(api,val){
+  var s=String(val==null?"":val).trim();
+  if(!s)return null;
+  if(api==="Cal_Factor_K_Factor")return normalizeCalFactorForZoho(s);
+  if(api==="Damping_Seconds"){
+    var n=parseFloat(s);
+    return isNaN(n)?s:n;
+  }
+  return s;
+}
+function finalizeDynamicValuesBeforeSave(){
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   syncDynamicFieldValuesFromDom();
+  var calEl=el(assetDynId("Cal_Factor_K_Factor"));
+  var calVal=(calEl&&calEl.value)||A.asset.dynamicValues.Cal_Factor_K_Factor||"";
+  calVal=normalizeCalFactorForZoho(calVal);
+  if(calVal!=null&&calVal!=="")A.asset.dynamicValues.Cal_Factor_K_Factor=String(calVal);
+}
+function collectDynamicAssetPayload(includeBlank){
+  finalizeDynamicValuesBeforeSave();
   var out={};
   Object.keys(A.asset.dynamicValues||{}).forEach(function(api){
-    var v=String(A.asset.dynamicValues[api]||"").trim();
-    if(includeBlank||v)out[api]=v;
+    var raw=A.asset.dynamicValues[api];
+    var v=formatDynamicValueForZoho(api,raw);
+    if(v==null||v===""){if(includeBlank)out[api]="";return;}
+    out[api]=v;
   });
   return out;
 }
@@ -1775,7 +1804,11 @@ function applySensorExtraction(x){
   var count=0;
   if(sensorModel){A.asset.dynamicValues.Sensor_Model_Number=String(sensorModel);count++;}
   if(sensorSerial){A.asset.dynamicValues.Sensor_Serial_Number=String(sensorSerial);count++;}
-  if(cal){A.asset.dynamicValues.Cal_Factor_K_Factor=String(cal);count++;}
+  if(cal){
+    var calVal=normalizeCalFactorForZoho(cal);
+    A.asset.dynamicValues.Cal_Factor_K_Factor=String(calVal);
+    count++;
+  }
   if(x.nominal_diameter){
     var pipeMatch=matchPipeSizeFromDiameter(String(x.nominal_diameter));
     if(pipeMatch){A.asset.dynamicValues.Pipe_Size=pipeMatch;count++;}
@@ -1804,8 +1837,10 @@ function applyExtractedDynamicFields(x){
 }
 function setCalFactorField(val){
   if(!val)return;
+  var calVal=normalizeCalFactorForZoho(val);
+  if(calVal==null||calVal==="")return;
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
-  A.asset.dynamicValues.Cal_Factor_K_Factor=String(val);
+  A.asset.dynamicValues.Cal_Factor_K_Factor=String(calVal);
   var kEl=el(assetDynId("Cal_Factor_K_Factor"));
   if(kEl)kEl.value=A.asset.dynamicValues.Cal_Factor_K_Factor;
 }
@@ -2131,7 +2166,10 @@ function assetPayload(opts){
     Asset_Environment:assetInput("asset-environment"),
     Confined_Space:assetInput("asset-confined")
   };
-  function setOptional(apiName,value){if(includeBlank||value)payload[apiName]=value||"";}
+  function setOptional(apiName,value){
+    if(value==null||value===""){if(includeBlank)payload[apiName]="";return;}
+    payload[apiName]=value;
+  }
   setOptional("Asset_Series",assetInput("asset-series"));
   setOptional("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
   setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
@@ -2176,7 +2214,10 @@ async function saveEquipmentRecord(){
   if(A.asset.currentAssetId)body.equipment_id=A.asset.currentAssetId;
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},30000);
   var txt=await r.text();if(!r.ok)throw new Error("Zoho equipment "+r.status+": "+txt.substring(0,160));
-  var equipmentId=A.asset.currentAssetId||equipmentIdFromResponse(JSON.parse(txt));
+  var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
+  var row=parsed&&parsed.data&&parsed.data[0];
+  if(row&&row.status==="error")throw new Error(row.message||row.code||"Zoho rejected equipment save");
+  var equipmentId=A.asset.currentAssetId||equipmentIdFromResponse(parsed);
   if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
   A.asset.currentAssetId=equipmentId;
   return equipmentId;
