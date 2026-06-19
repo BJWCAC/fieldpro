@@ -9,6 +9,7 @@
     "CapStone asset search checks CAC_Asset_ID, Serial_Number, Asset_Model_Number, Name, Building, Additional_Designator, Customer_Asset_Number, Asset_Brand, Asset_Type, and Asset_Series with equals first, then contains fallback.",
     "Flow Meter dynamic fields use zohoApiName in assetFieldRegistry when Zoho CRM api_name differs from CapStone key (e.g. Cal_Factor_K_Factor → Cal_Factor_K_factor_Etc, Sensor_Model_Number → Model_Number).",
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Open Channel Flow is the category for flume/weir assets.",
+    "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
@@ -59,16 +60,16 @@
     "Sensor_Additional_Information": { "label": "Sensor Additional Information", "widget": "textarea", "rows": 2, "zohoApiName": "Sensor_Additional_information" },
     "Engineering_Units": { "label": "Engineering Units", "widget": "select", "picklist": "Engineering_Units" },
     "Display_Size_d_Readability": { "label": "Display Size (d) / Readability", "widget": "text", "zohoApiName": "Instrument_Resolution_Increment_Amount" },
-    "Input_Engineering_Units": { "label": "Input Engineering Units", "widget": "text", "zohoApiName": "Measurement_Type_Input", "note": "Zoho lookup in CRM; CapStone sends display name" },
+    "Input_Engineering_Units": { "label": "Input Engineering Units", "widget": "lookup", "lookupSource": "engineeringUnits", "zohoApiName": "Measurement_Type_Input" },
     "Input_PV_Zero_Parameter": { "label": "Input PV Zero Parameter", "widget": "text", "zohoApiName": "Empty_Parameter_1" },
-    "Input_PV_Zero": { "label": "Input PV @ Zero", "widget": "text", "zohoApiName": "Empty_Distance" },
+    "Input_PV_Zero": { "label": "Input PV @ Zero", "widget": "number", "zohoApiName": "Empty_Distance", "zohoType": "double" },
     "Input_PV_Span_Parameter": { "label": "Input PV Span Parameter", "widget": "text", "zohoApiName": "Span_Parameter_1" },
-    "Input_PV_Span": { "label": "Input PV @ Span", "widget": "text", "zohoApiName": "Span_Distance" },
-    "Output_Engineering_Units": { "label": "Output Engineering Units", "widget": "text", "zohoApiName": "Measurement_Units_Type_Output", "note": "Zoho lookup in CRM; CapStone sends display name" },
+    "Input_PV_Span": { "label": "Input PV @ Span", "widget": "number", "zohoApiName": "Span_Distance", "zohoType": "double" },
+    "Output_Engineering_Units": { "label": "Output Engineering Units", "widget": "lookup", "lookupSource": "engineeringUnits", "zohoApiName": "Measurement_Units_Type_Output" },
     "Output_PV_Zero_Parameter": { "label": "Output PV Zero Parameter", "widget": "text", "zohoApiName": "Output_PV_Zero_Parameter_1" },
-    "Output_PV_Zero": { "label": "Output PV @ Zero", "widget": "text", "zohoApiName": "PV_Zero" },
+    "Output_PV_Zero": { "label": "Output PV @ Zero", "widget": "number", "zohoApiName": "PV_Zero", "zohoType": "double" },
     "Output_PV_Span_Parameter": { "label": "Output PV Span Parameter", "widget": "text", "zohoApiName": "Output_PV_Span_Parameter_1" },
-    "Output_PV_Span": { "label": "Output PV @ Span", "widget": "text", "zohoApiName": "PV_Span" },
+    "Output_PV_Span": { "label": "Output PV @ Span", "widget": "number", "zohoApiName": "PV_Span", "zohoType": "double" },
     "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text", "zohoApiName": "Cal_Factor_K_factor_Etc" },
     "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
     "Damping_Seconds": { "label": "Damping Seconds", "widget": "text", "zohoType": "double" },
@@ -80,6 +81,10 @@
     "DA2_License_Number": { "label": "DA2 License Number", "widget": "text" },
     "Totalizer_Display": { "label": "Totalizer Display Units", "widget": "select", "picklist": "Totalizer_Display" },
     "Rosemount_LOI_Display": { "label": "Rosemount LOI Display", "widget": "select", "picklist": "Display", "zohoApiName": "Display" }
+  },
+  "engineeringUnitsLookup": {
+    "moduleApiName": "CustomModule8",
+    "nameField": "Name"
   },
   "categoryLayouts": {
     "Flow Meter": {
