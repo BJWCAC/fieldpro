@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v254
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=254
+Current live version: v255
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=255
 ```
 
 ---
@@ -92,6 +92,7 @@ Related docs (detail, not status):
 | v252 | — | **Assets: Open Channel Flow layout trim** — Rosemount Details section removed from Open Channel Flow category |
 | v253 | — | **Assets: Ultra 4 part-number series rule (initial)** — P/N prefix 1744111 → Ultra 4 |
 | v254 | — | **Assets: Ultra 4 prefix fix (Pulsar)** — correct prefix 174111 (e.g. 1741110002XX-XXP); also Brand Pulsar + Type Ultrasonic Flow |
+| v255 | — | **Assets: Set Up Input/Output polish** — Engineering Units lookup dropdowns from Zoho CustomModule8; PV @ Zero/Span as numeric fields |
 
 ### UI / workflow polish
 
@@ -153,7 +154,7 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Asset category field rollout** | Open Channel Flow shipped v251; next: Gas Detector, Analytical, Lift Station, Scales & Balances |
+| Medium | **Asset category field rollout** | Open Channel Flow shipped v251; Set Up I/O lookup dropdowns v255; next: Gas Detector, Analytical, Lift Station, Scales & Balances |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |

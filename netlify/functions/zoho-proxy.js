@@ -350,6 +350,39 @@ exports.handler = async function(event) {
       return { statusCode: dealUpdateResult.status, headers: h, body: JSON.stringify({ ok: dealUpdateResult.status >= 200 && dealUpdateResult.status < 300, already_linked: exists, response: dealUpdateResult.body }) };
     }
 
+    if (data.action === "list_engineering_units") {
+      var euModule = String(data.module_api_name || "CustomModule8");
+      var euNameField = String(data.name_field || "Name");
+      var euFields = encodeURIComponent(euNameField);
+      var euPage = 1;
+      var euRows = [];
+      while (euPage <= 20) {
+        var euResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + encodeURIComponent(euModule) + "?fields=" + euFields + "&per_page=200&page=" + euPage,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (euResult.status === 204) break;
+        if (euResult.status < 200 || euResult.status >= 300) {
+          return { statusCode: euResult.status, headers: h, body: euResult.body };
+        }
+        var euParsed = {};
+        try { euParsed = JSON.parse(euResult.body); } catch (euErr) { break; }
+        var euBatch = euParsed.data || [];
+        if (!euBatch.length) break;
+        for (var eui = 0; eui < euBatch.length; eui++) {
+          var euRec = euBatch[eui];
+          if (!euRec || !euRec.id) continue;
+          euRows.push({ id: euRec.id, name: euRec[euNameField] || euRec.Name || "" });
+        }
+        if (!euParsed.info || !euParsed.info.more_records) break;
+        euPage++;
+      }
+      euRows.sort(function(a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: euRows }) };
+    }
+
     if (data.action === "get_equipment") {
       var equipmentGetResult = await req({
         hostname: "www.zohoapis.com",

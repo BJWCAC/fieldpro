@@ -32,8 +32,8 @@ var ASSET_EXTRACT_EH_SENSOR="Endress+Hauser Promag sensor / flow-tube label rule
 var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- order_number / part_number / model_number: map to sensor_model_number when they are the sensor order or part code.\n- serial_number: map to sensor_serial_number when it is the sensor serial.\n- k_factor / cal_factor → Cal Factor field (Cal. Fact., calibration factor, K-factor on sensor or flow-tube label).\n- manufacturer: sensor brand if shown.\n- nominal_diameter / ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\n"+ASSET_EXTRACT_EH_SENSOR+"\n\nDo not guess unreadable characters.";
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="254";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
+var FP_VERSION="255";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -945,6 +945,47 @@ async function loadEquipmentConfig(){
   return A.equipmentConfig;
 }
 function assetFieldRegistry(){return(A.equipmentConfig&&A.equipmentConfig.assetFieldRegistry)||{};}
+function engineeringUnitsLookupConfig(){return A.equipmentConfig&&A.equipmentConfig.engineeringUnitsLookup||null;}
+function engineeringUnitLookupOptions(){
+  if(A.engineeringUnitLookups&&A.engineeringUnitLookups.length)return A.engineeringUnitLookups;
+  return assetPicklistValues("Engineering_Units").map(function(name){return{id:name,name:name};});
+}
+function resolveEngineeringUnitLookupId(val){
+  var s=String(val||"").trim();if(!s)return null;
+  var opts=engineeringUnitLookupOptions();
+  for(var i=0;i<opts.length;i++){
+    if(String(opts[i].id)===s)return String(opts[i].id);
+    if(String(opts[i].name)===s)return String(opts[i].id);
+  }
+  return/^\d{10,}$/.test(s)?s:null;
+}
+function engineeringUnitLookupLabel(val){
+  var s=String(val||"").trim();if(!s)return"";
+  var opts=engineeringUnitLookupOptions();
+  for(var i=0;i<opts.length;i++){
+    if(String(opts[i].id)===s||String(opts[i].name)===s)return opts[i].name||opts[i].id;
+  }
+  return s;
+}
+async function loadEngineeringUnitLookups(){
+  if(A.engineeringUnitLookups&&A.engineeringUnitLookups.length)return A.engineeringUnitLookups;
+  if(A.engineeringUnitLookupsLoading)return A.engineeringUnitLookups||[];
+  var cfg=engineeringUnitsLookupConfig();
+  if(!cfg||!cfg.moduleApiName||!A.zohoToken)return [];
+  A.engineeringUnitLookupsLoading=true;
+  try{
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"list_engineering_units",token:A.zohoToken,module_api_name:cfg.moduleApiName,name_field:cfg.nameField||"Name"})},30000);
+    if(!r.ok)throw new Error("Engineering units "+r.status);
+    var d={};try{d=await r.json();}catch(e){}
+    A.engineeringUnitLookups=(d&&d.data)||[];
+  }catch(e){
+    console.log("engineering unit lookups",e);
+    A.engineeringUnitLookups=[];
+  }finally{
+    A.engineeringUnitLookupsLoading=false;
+  }
+  return A.engineeringUnitLookups;
+}
 function zohoApiNameForRegistryKey(key){
   var def=assetFieldRegistry()[key];
   return(def&&def.zohoApiName)||key;
@@ -968,6 +1009,10 @@ function zohoFieldValueFromRecord(r,registryKey){
   if(def&&def.widget==="multiselect"){
     if(Array.isArray(raw))return raw.filter(function(v){return v&&v!=="None";});
     return String(raw).split(";").map(function(s){return s.trim();}).filter(function(v){return v&&v!=="None";});
+  }
+  if(def&&def.widget==="lookup"){
+    if(typeof raw==="object")return raw.id||raw.name||"";
+    return String(raw);
   }
   return typeof raw==="object"?(raw.name||raw.id||""):String(raw);
 }
@@ -1036,6 +1081,12 @@ function formatDynamicValueForZoho(api,val){
     if(!arr.length)return null;
     return arr;
   }
+  if(def&&def.widget==="lookup"){
+    var lookupId=resolveEngineeringUnitLookupId(val);
+    if(!lookupId)return null;
+    if(/^\d{10,}$/.test(lookupId))return{id:lookupId};
+    return lookupId;
+  }
   var s=String(val==null?"":val).trim();
   if(!s)return null;
   if(api==="Cal_Factor_K_Factor"){
@@ -1091,6 +1142,11 @@ function renderDynFieldBlock(def,fullWidth){
   if(def.widget==="select"&&def.picklist){
     var opts=assetPicklistValues(def.picklist);
     return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><select id='"+id+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+opts.map(function(v){return"<option value='"+esc(v)+"'"+(v===val?" selected":"")+">"+esc(v)+"</option>";}).join("")+"</select>"+wrapEnd;
+  }
+  if(def.widget==="lookup"){
+    var luOpts=engineeringUnitLookupOptions();
+    var luVal=resolveEngineeringUnitLookupId(val)||String(val||"");
+    return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><select id='"+id+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+luOpts.map(function(o){return"<option value='"+esc(o.id)+"'"+(String(o.id)===String(luVal)||String(o.name)===String(val)?" selected":"")+">"+esc(o.name||o.id)+"</option>";}).join("")+"</select>"+wrapEnd;
   }
   if(def.widget==="textarea"){
     return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><textarea id='"+id+"' data-api='"+esc(def.apiName)+"' rows='"+(def.rows||2)+"'>"+esc(val)+"</textarea>"+wrapEnd;
@@ -1446,6 +1502,8 @@ function renderAssetForm(){
   setAssetInput("asset-account",assetSaveAccountName());
   setAssetInput("asset-location",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
   loadEquipmentConfig().then(function(){
+    return loadEngineeringUnitLookups();
+  }).then(function(){
     fillAssetSelect("asset-category","Asset_Category","Select category");
     fillAssetSelect("asset-function","Asset_Function","Select function");
     fillAssetSelect("asset-brand","Asset_Brand","Select brand");
@@ -1588,8 +1646,10 @@ function loadExistingAssetFromSearch(idx){
   var box=el("asset-search-results");if(box)box.style.display="none";
   renderAssetReplacementPanel();
   renderAssetSetupUi();
-  renderAssetCategoryFields();
-  updateAssetSaveState();
+  loadEngineeringUnitLookups().then(function(){
+    renderAssetCategoryFields();
+    updateAssetSaveState();
+  });
 }
 function assetPhotoFingerprint(dataUrl){
   var s=String(dataUrl||"");
@@ -2380,7 +2440,10 @@ function assetUpdateNoteContent(){
   syncDynamicFieldValuesFromDom();
   Object.keys(registry).forEach(function(api){
     var v=A.asset.dynamicValues&&A.asset.dynamicValues[api];
-    if(Array.isArray(v)?v.length:v)lines.push("- "+registry[api].label+": "+(Array.isArray(v)?v.join(", "):v));
+    if(Array.isArray(v)?v.length:v){
+      var label=registry[api].widget==="lookup"?engineeringUnitLookupLabel(v):(Array.isArray(v)?v.join(", "):v);
+      lines.push("- "+registry[api].label+": "+label);
+    }
   });
   if(A.asset.subformRows&&A.asset.subformRows.length){
     lines.push("- Input/Output setups: "+A.asset.subformRows.length+" row(s)");
