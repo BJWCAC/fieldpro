@@ -22,16 +22,18 @@ function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
 var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number, order_number, part_number, series, serial_number, k_factor, cal_factor, nominal_diameter, ratings, visible_text";
+var ASSET_PART_PREFIX_SERIES=[{prefix:"174111",series:"Ultra 4",brand:"Pulsar",assetType:"Ultrasonic Flow"}];
+var ASSET_EXTRACT_ULTRA4="Pulsar Ultra 4 flow controller: If Part Number (P/N) or model/order code digits start with 174111 (example 1741110002XX-XXP), Asset Series = Ultra 4, Brand = Pulsar, Asset Type = Ultrasonic Flow. Keep the full catalog string as Model Number.";
 var ASSET_EXTRACT_MAGMETER_CAL="Magnetic flow meter calibration (all brands): Most magmeters show Cal Factor, Cal. Fact., Calibration Factor, K-Factor, or K Factor on the nameplate. Put that numeric value in k_factor (and cal_factor if needed). This maps to the Zoho Cal Factor field — do not omit when visible on the plate.";
 var ASSET_EXTRACT_EH_MAGMETER="Endress+Hauser magnetic flow meter (Promag) nameplate rules:\n- device_name → Asset Series: transmitter/product family exactly as printed (e.g. Proline Promag W 400, Promag 50P). NOT the order code.\n- order_number → Asset Model Number: FULL Order Code (Ord. Cd. / Order code), e.g. 5W4B80-AAI7/0. Copy the entire string including slashes and suffixes.\n- serial_number: Ser. No. exactly (often ~11 chars, e.g. M801B416000).\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor (e.g. 1.2345) → Cal Factor field.\n- nominal_diameter: DN / pipe size if shown (e.g. DN 80 / 3 inch).\n- ratings: combine DN, PN, liner, electrodes, power supply, enclosure IP, outputs if readable (exclude cal factor if already in k_factor).\n- asset_type: Magnetic Flow Meter when applicable.\nDo NOT put Order Code in series. Do NOT truncate Order Code.";
-var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
+var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_ULTRA4+"\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
 var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, order_number, part_number, manufacturer, model_number, serial_number, k_factor, cal_factor, nominal_diameter, ratings, visible_text";
 var ASSET_EXTRACT_EH_SENSOR="Endress+Hauser Promag sensor / flow-tube label rules:\n- sensor_model_number → Sensor Model Number: FULL order code on the sensor or flow-tube tag (often different from the transmitter Order Code).\n- sensor_serial_number → Sensor Serial Number: Ser. No. on the sensor tag.\n- order_number / part_number: use for sensor_model_number when that is the order or part code on the sensor label.\n- serial_number: use for sensor_serial_number when Ser. No. is on the sensor tag.\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor on the sensor tag → Cal Factor field (same Zoho field as transmitter).\n- nominal_diameter / ratings: capture DN, liner, electrodes, PN when visible.";
 var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- order_number / part_number / model_number: map to sensor_model_number when they are the sensor order or part code.\n- serial_number: map to sensor_serial_number when it is the sensor serial.\n- k_factor / cal_factor → Cal Factor field (Cal. Fact., calibration factor, K-factor on sensor or flow-tube label).\n- manufacturer: sensor brand if shown.\n- nominal_diameter / ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\n"+ASSET_EXTRACT_EH_SENSOR+"\n\nDo not guess unreadable characters.";
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="252";
+var FP_VERSION="254";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -1949,6 +1951,21 @@ function matchPipeSizeFromDiameter(dn){
 }
 function extractValTrim(v){v=String(v||"").trim();return v||null;}
 function extractAlnumKey(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function partNumberDigits(s){return String(s||"").replace(/\D/g,"");}
+function matchKnownPartPrefixRule(fields){
+  for(var ri=0;ri<ASSET_PART_PREFIX_SERIES.length;ri++){
+    var rule=ASSET_PART_PREFIX_SERIES[ri];
+    for(var fi=0;fi<fields.length;fi++){
+      var digits=partNumberDigits(fields[fi]);
+      if(digits&&digits.indexOf(rule.prefix)===0)return rule;
+    }
+  }
+  return null;
+}
+function inferSeriesFromKnownPartPrefixes(fields){
+  var rule=matchKnownPartPrefixRule(fields);
+  return rule?rule.series:null;
+}
 function inferSeriesFromModel(model){
   if(!model)return null;
   var m=String(model),best="";
@@ -1999,6 +2016,12 @@ function normalizeExtractedPartModelSeries(x){
     }
   }
   if(pn&&mn&&extractAlnumKey(pn)===extractAlnumKey(mn))pn=null;
+  var prefixRule=matchKnownPartPrefixRule([pn,ord,mn,x.visible_text]);
+  if(prefixRule){
+    ser=prefixRule.series;
+    if(prefixRule.brand&&!mfg)x.manufacturer=prefixRule.brand;
+    if(prefixRule.assetType&&!x.asset_type&&!x.equipment_type)x.asset_type=prefixRule.assetType;
+  }
   var cf=extractValTrim(x.cal_factor);
   if(cf&&!x.k_factor)x.k_factor=cf;
   x.part_number=pn;
