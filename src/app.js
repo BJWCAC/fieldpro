@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="263";
+var FP_VERSION="264";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpBtnReleaseTimer=null;
@@ -559,12 +559,15 @@ window.setAssetMode=setAssetMode;
 window.setAssetSetupMode=setAssetSetupMode;
 window.setAssetIntent=setAssetIntent;
 window.resetAssetIntent=resetAssetIntent;
+window.startAssetAccountAdd=startAssetAccountAdd;
 window.startAssetDealAdd=startAssetDealAdd;
 window.setAssetLinkMode=setAssetLinkMode;
 window.openAssetAccountPicker=openAssetAccountPicker;
 window.closeAssetAccountPicker=closeAssetAccountPicker;
 window.applyAssetAccountPickerFilters=applyAssetAccountPickerFilters;
 window.pickAssetAccount=pickAssetAccount;
+window.applyAssetPicklistNearMatch=applyAssetPicklistNearMatch;
+window.requestAssetPicklistValue=requestAssetPicklistValue;
 window.addAssetSubformRow=addAssetSubformRow;
 window.removeAssetSubformRow=removeAssetSubformRow;
 window.startAssetReplacement=startAssetReplacement;
@@ -1134,6 +1137,7 @@ function syncAssetCategoryLayoutUi(){
     return loadEngineeringUnitLookups();
   }).then(function(){
     renderAssetCategoryFields({skipDomSync:true});
+    mirrorInputPvToOutput();
     updateAssetSaveState();
   });
 }
@@ -1229,6 +1233,22 @@ function collectDynamicAssetPayload(includeBlank){
   });
   return out;
 }
+function picklistValuesForDynamicField(def){
+  var cat=assetInput("asset-category");
+  if(def&&def.categoryPicklistValues&&cat&&def.categoryPicklistValues[cat])return def.categoryPicklistValues[cat].slice();
+  return assetPicklistValues(def.picklist);
+}
+function mirrorInputPvToOutput(){
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  syncDynamicFieldValuesFromDom();
+  [["Input_PV_Zero","Output_PV_Zero"],["Input_PV_Span","Output_PV_Span"]].forEach(function(pair){
+    var v=A.asset.dynamicValues[pair[0]];
+    if(v==null||v==="")return;
+    A.asset.dynamicValues[pair[1]]=String(v);
+    var outEl=el(assetDynId(pair[1]));
+    if(outEl)outEl.value=A.asset.dynamicValues[pair[1]];
+  });
+}
 function subformPicklistValues(fieldApi){
   var sf=assetSubformConfig();
   var f=sf&&sf.fields&&sf.fields[fieldApi];
@@ -1251,7 +1271,7 @@ function renderDynFieldBlock(def,fullWidth){
     return html;
   }
   if(def.widget==="select"&&def.picklist){
-    var opts=assetPicklistValues(def.picklist);
+    var opts=picklistValuesForDynamicField(def);
     return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><select id='"+id+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+opts.map(function(v){return"<option value='"+esc(v)+"'"+(v===val?" selected":"")+">"+esc(v)+"</option>";}).join("")+"</select>"+wrapEnd;
   }
   if(def.widget==="lookup"){
@@ -1368,11 +1388,22 @@ function applyDynamicFieldsFromRecord(r){
 }
 function bindDynamicFieldHandlers(){
   var box=el("asset-category-fields");if(!box)return;
+  var inputPvApis={Input_PV_Zero:true,Input_PV_Span:true};
   box.querySelectorAll("[data-api]").forEach(function(e){
     if(e._dynBound)return;
     e._dynBound=true;
-    e.addEventListener("input",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
-    e.addEventListener("change",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
+    e.addEventListener("input",function(){
+      syncDynamicFieldValuesFromDom();
+      if(inputPvApis[e.getAttribute("data-api")])mirrorInputPvToOutput();
+      scheduleAssetDraftSave();
+      updateAssetSaveState();
+    });
+    e.addEventListener("change",function(){
+      syncDynamicFieldValuesFromDom();
+      if(inputPvApis[e.getAttribute("data-api")])mirrorInputPvToOutput();
+      scheduleAssetDraftSave();
+      updateAssetSaveState();
+    });
   });
   box.querySelectorAll(".asset-multiselect input[type=checkbox]").forEach(function(e){
     if(e._msBound)return;
@@ -1419,8 +1450,7 @@ function renderAssetCategoryFields(opts){
   bindDynamicFieldHandlers();
 }
 function onAssetCategoryChange(){
-  renderAssetCategoryFields();
-  updateAssetSaveState();
+  syncAssetCategoryLayoutUi();
   scheduleAssetDraftSave();
 }
 function setAssetDraftStatus(msg,isErr){var e=el("asset-draft-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.color=isErr?"#991b1b":"#2d6b60";e.style.background=isErr?"#fee2e2":"#fff";e.style.borderColor=isErr?"#ef4444":"#b2ddd6";}else e.style.display="none";}
@@ -1429,7 +1459,7 @@ function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-s
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;try{localStorage.setItem("fp_asset_draft",JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
 function clearAssetDraft(){try{localStorage.removeItem("fp_asset_draft");}catch(e){}setAssetDraftStatus("",false);}
-function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.intent=d.intent||(d.mode==="update"?"update":(d.currentAssetId?"update":"add"));A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];normalizeAssetPhotos();renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}renderAssetCategoryFields();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
+function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.intent=d.intent||(d.mode==="update"?"update":(d.currentAssetId?"update":"add"));A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];normalizeAssetPhotos();renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}syncAssetCategoryLayoutUi();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
 function assetDraftSummary(d,label){
   var f=d&&d.fields||{};
   var deal=d&&d.deal;
@@ -1514,6 +1544,15 @@ function setAssetSetupMode(setup){
 function setAssetLinkMode(mode){
   setAssetSetupMode(mode==="account"?"account_add":(A.sel?"deal_add":"account_add"));
 }
+function startAssetAccountAdd(){
+  if(A.asset.intent!=="add")A.asset.intent="add";
+  if(assetSetupMode()==="account_add"&&assetSaveAccountId()){
+    openAssetAccountPicker();
+    return;
+  }
+  setAssetSetupMode("account_add");
+  if(!assetSaveAccountId())openAssetAccountPicker();
+}
 function startAssetDealAdd(){
   if(!A.asset.intent)A.asset.intent="add";
   A.asset.mode="add";
@@ -1555,7 +1594,10 @@ function renderAssetSetupUi(){
     dealBtn.className="asset-setup-btn asset-path-btn"+(setup==="deal_add"?" on":"");
     dealBtn.textContent=setup==="deal_add"&&A.sel?"Linked to deal — change":"Pick deal & link new asset";
   }
-  if(acctBtn)acctBtn.className="asset-setup-btn asset-path-btn"+(setup==="account_add"?" on":"");
+  if(acctBtn){
+    acctBtn.className="asset-setup-btn asset-path-btn"+(setup==="account_add"?" on":"");
+    acctBtn.textContent=setup==="account_add"&&assetSaveAccountId()?"Account picked — change":"Account only — pick account";
+  }
   if(dealCtx){
     if(setup==="deal_add"&&A.sel){
       dealCtx.style.display="block";
@@ -1564,7 +1606,7 @@ function renderAssetSetupUi(){
     }else dealCtx.style.display="none";
   }
   var needsAccountPick=setup==="account_add"&&!assetSaveAccountId();
-  if(pickRow)pickRow.style.display=(intent==="add"&&needsAccountPick)?"block":"none";
+  if(pickRow)pickRow.style.display=(intent==="add"&&setup==="account_add"&&assetSaveAccountId())?"block":"none";
   if(picked){
     if(A.asset.standaloneAccount&&A.asset.standaloneAccount.name)picked.textContent="Account: "+A.asset.standaloneAccount.name;
     else if(needsAccountPick)picked.textContent="Choose the Zoho Account for this new equipment.";
@@ -1650,7 +1692,7 @@ function renderAssetSaveChecklist(){
   box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Asset Save Checklist</div>"+
     reportChecklistItem(hasIntent,"Add or update selected",A.asset.intent==="update"?"Update Existing Asset":(A.asset.intent==="add"?"Add New Asset":"Choose Add New or Update Existing first."))+
     reportChecklistItem(assetEntryReady()||A.asset.intent!=="add","Setup complete",assetEntryReady()?(A.asset.intent==="update"?"Asset loaded — form ready.":(A.asset.linkMode==="deal"?"Deal linked — form ready.":"Account picked — form ready.")):(A.asset.intent==="update"?"Search and load an existing asset.":(A.asset.intent==="add"?(A.asset.linkMode==="deal"?"Pick a deal to continue.":"Pick an account to continue."):"Select Add New or Update Existing.")))+
-    reportChecklistItem(hasAccount,"Account for Equipments",hasAccount?(assetSaveAccountName()||"Account ready"):"Pick a deal or Account only + Pick Account.")+
+    reportChecklistItem(hasAccount,"Account for Equipments",hasAccount?(assetSaveAccountName()||"Account ready"):"Pick a deal or use Account only — pick account.")+
     reportChecklistItem(!hasDeal||hasAccount,"Deal link (optional)",hasDeal?"Will link asset to the active Deal after save.":"Saving to account only — no deal link.")+
     reportChecklistItem(!missing.length,"Required fields complete",missing.length?missing.join(", "):"All required asset fields are complete.")+
     reportChecklistItem(updateReady,"Existing asset loaded",A.asset.intent==="update"?(updateReady?"Loaded existing asset will be updated.":"Search and load an existing asset first."):"Not required for Add New Asset.")+
@@ -1678,7 +1720,7 @@ function renderAssetForm(){
     if(A.sel&&A.asset.mode==="add"&&A.asset.linkMode!=="account"){A.asset.linkMode="deal";A.asset.standaloneAccount=null;}
     else if(!A.sel&&A.asset.mode==="add"&&A.asset.linkMode==="deal")A.asset.linkMode="account";
     renderAssetSetupUi();
-    renderAssetCategoryFields();
+    syncAssetCategoryLayoutUi();
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
@@ -1885,7 +1927,14 @@ function renderAssetPhotos(){
     var lbl=esc(assetPhotoRoleLabel(p));
     return"<button type='button' class='asset-photo-item' onclick='editAssetPhotoLabel("+i+")' title='Tap to change label'><img src='"+p.data+"' alt='Asset photo'/><span class='asset-photo-label'>"+lbl+"</span></button>";
   }).join("");
-  if(A.asset.photos.length)showEl("asset-photo-wrap");else hideEl("asset-photo-wrap");
+  var extractBtn=el("asset-extract-btn");
+  if(A.asset.photos.length){
+    showEl("asset-photo-wrap");
+    if(extractBtn)extractBtn.style.display="block";
+  }else{
+    hideEl("asset-photo-wrap");
+    if(extractBtn)extractBtn.style.display="none";
+  }
 }
 async function labelNewAssetPhotos(startIdx){
   for(var i=startIdx;i<A.asset.photos.length;i++){
@@ -2009,7 +2058,26 @@ function buildPicklistRequestPayload(miss){
     requestedAt:new Date().toISOString()
   };
 }
+function ensurePicklistRequestPanelHandlers(){
+  var panel=el("asset-picklist-request-panel");
+  if(!panel||panel._picklistClickBound)return;
+  panel._picklistClickBound=true;
+  panel.addEventListener("click",function(ev){
+    var useBtn=ev.target.closest("[data-picklist-use]");
+    if(useBtn){
+      ev.preventDefault();
+      applyAssetPicklistNearMatch(useBtn.getAttribute("data-field-api"),useBtn.getAttribute("data-near-value"));
+      return;
+    }
+    var reqBtn=ev.target.closest("[data-picklist-request]");
+    if(reqBtn){
+      ev.preventDefault();
+      requestAssetPicklistValue(reqBtn.getAttribute("data-field-api"));
+    }
+  });
+}
 function renderAssetPicklistRequestPanel(){
+  ensurePicklistRequestPanelHandlers();
   var panel=el("asset-picklist-request-panel");if(!panel)return;
   var misses=getAssetPicklistMisses();
   if(!misses.length){panel.style.display="none";panel.innerHTML="";return;}
@@ -2017,8 +2085,8 @@ function renderAssetPicklistRequestPanel(){
   var rows=misses.map(function(m){
     var key=picklistRequestKey(m.fieldApi,m.proposedValue);
     var sent=isPicklistRequestSent(key);
-    var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center'><span style='font-size:11px;color:#92400e'>Similar in Zoho:</span><button type='button' class='bb bsm' onclick='applyAssetPicklistNearMatch("+JSON.stringify(m.fieldApi)+","+JSON.stringify(m.nearMatch)+")'>Use "+esc(m.nearMatch)+"</button></div>"):"";
-    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' onclick=\"requestAssetPicklistValue('"+esc(m.fieldApi)+"')\">Request addition</button>";
+    var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center'><span style='font-size:11px;color:#92400e'>Similar in Zoho:</span><button type='button' class='bb bsm' data-picklist-use='1' data-field-api='"+esc(m.fieldApi)+"' data-near-value='"+esc(m.nearMatch)+"'>Use "+esc(m.nearMatch)+"</button></div>"):"";
+    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' data-picklist-request='1' data-field-api='"+esc(m.fieldApi)+"'>Request addition</button>";
     return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Tap Use if the Zoho value matches, or Request addition for a new picklist value.</div></div><div style='flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end'>"+action+"</div></div>";
   }).join("");
   panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
@@ -2477,7 +2545,7 @@ function reopenSavedAsset(idx){
 function validateAssetForm(){
   var missing=markAssetRequiredFields();
   if(A.asset.linkMode==="account"){
-    if(!assetSaveAccountId())missing.unshift("Zoho Account (tap Pick Account)");
+    if(!assetSaveAccountId())missing.unshift("Zoho Account (tap Account only — pick account)");
   }else{
     if(!A.sel)missing.unshift("Deal (pick Add New → Pick deal & link)");
     if(A.sel&&!A.sel.Account_Id)missing.unshift("Zoho Account ID (refresh deals from Zoho)");
@@ -2569,7 +2637,7 @@ async function saveEquipmentRecord(){
   syncSubformRowsFromDom();
   var includeBlank=!!A.asset.currentAssetId;
   var fullPayload=assetPayload({includeBlank:includeBlank});
-  if(!fullPayload.Account||!fullPayload.Account.id)throw new Error("Account is required — pick a deal or use Account only and choose an account");
+  if(!fullPayload.Account||!fullPayload.Account.id)throw new Error("Account is required — pick a deal or tap Account only — pick account");
   var existing=A.asset.currentAssetId?{equipment_id:A.asset.currentAssetId}:await findExistingEquipmentBySerial();
   if(existing&&existing.equipment_id&&!A.asset.currentAssetId){
     var label=(existing.equipment&&existing.equipment.Name)||assetInput("asset-name")||"this asset";

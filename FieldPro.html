@@ -283,13 +283,13 @@
         <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">How should this new asset be linked in Zoho?</div>
         <div class="asset-setup-options">
           <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="startAssetDealAdd()">Pick deal &amp; link new asset</button>
-          <button type="button" id="asset-setup-account-add" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('account_add')">Account only — no deal link</button>
+          <button type="button" id="asset-setup-account-add" class="asset-setup-btn asset-path-btn" onclick="startAssetAccountAdd()">Account only — pick account</button>
         </div>
       </div>
       <div id="asset-setup-deal-context" class="asset-setup-context" style="display:none"></div>
       <div id="asset-account-pick-row" class="asset-setup-context" style="display:none">
-        <button type="button" class="bb-lg" onclick="openAssetAccountPicker()" style="margin-bottom:6px">Pick Account</button>
-        <div id="asset-account-picked" style="font-size:12px;color:var(--dim);line-height:1.5"></div>
+        <div id="asset-account-picked" style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:6px"></div>
+        <button type="button" class="bg bsm" onclick="openAssetAccountPicker()">Change account</button>
       </div>
       <div id="asset-setup-update-panel" style="display:none;margin-top:10px">
         <details class="help-box nested" data-help-id="assets-search">
@@ -340,8 +340,7 @@
       <label class="fbtn bb-lg">Take Nameplate Photo<input id="asset-photo-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="assetPhotoSelected(this)"/></label>
       <label class="fbtn bb-lg">Upload Nameplate Photos<input id="asset-photo-upload-input" type="file" accept="image/*" multiple style="display:none" onchange="assetPhotoSelected(this)"/></label>
     </div>
-    <button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="margin-bottom:10px">Extract with AI</button>
-    <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 3 per type).</div></div>
+    <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 3 per type).</div></div>
     <div class="g2" style="margin-bottom:8px">
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
@@ -878,7 +877,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=262"></script>
+<script src="src/app.js?v=264"></script>
 
 </body>
 </html>

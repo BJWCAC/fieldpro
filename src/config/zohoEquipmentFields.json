@@ -59,7 +59,7 @@
     "Sensor_Model_Number": { "label": "Sensor Model Number", "widget": "text", "zohoApiName": "Model_Number" },
     "Sensor_Serial_Number": { "label": "Sensor Serial Number", "widget": "text", "zohoApiName": "Serial_Number1" },
     "Sensor_Additional_Information": { "label": "Sensor Additional Information", "widget": "textarea", "rows": 2, "zohoApiName": "Sensor_Additional_information" },
-    "Engineering_Units": { "label": "Engineering Units", "widget": "select", "picklist": "Engineering_Units" },
+    "Engineering_Units": { "label": "Engineering Units", "widget": "select", "picklist": "Engineering_Units", "categoryPicklistValues": { "Open Channel Flow": ["In H2O", "FT H2O"] } },
     "Display_Size_d_Readability": { "label": "Display Size (d) / Readability", "widget": "text", "zohoApiName": "Instrument_Resolution_Increment_Amount" },
     "Input_Engineering_Units": { "label": "Input Engineering Units", "widget": "lookup", "lookupSource": "engineeringUnits", "zohoApiName": "Measurement_Type_Input" },
     "Input_PV_Zero_Parameter": { "label": "Input PV Zero Parameter", "widget": "text", "zohoApiName": "Empty_Parameter_1" },
