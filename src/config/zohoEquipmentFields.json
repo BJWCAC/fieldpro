@@ -154,11 +154,6 @@
           "fields": ["Flume_Weir_Type", "Flume_Weir_Size_Length", "Distance_Measurement_Units", "Exponent"]
         },
         {
-          "id": "rosemountDetails",
-          "title": "Rosemount Details",
-          "fields": ["Da1_and_DA2", "DA2_License_Number", "Totalizer_Display", "Rosemount_LOI_Display"]
-        },
-        {
           "id": "subform",
           "title": "Input and Output Set ups",
           "subform": "Subform_1"
