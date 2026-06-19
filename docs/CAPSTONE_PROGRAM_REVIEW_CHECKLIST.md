@@ -104,6 +104,8 @@ Check:
 - [ ] Deal Instrument_Description refreshes when asset already linked.
 - [ ] Loading an existing asset populates form fields.
 - [ ] Replace Instrument workflow works.
+- [ ] Category-specific sections appear in CapStone when Asset Category is selected (first select, not only after reload).
+- [ ] After CapStone save, Zoho Equipments record shows the correct category layout sections without manually reselecting Asset Category (all categories with categoryLayouts).
 - [ ] Asset History panel displays loaded asset data.
 - [ ] Required fields highlight light red when missing.
 - [ ] Save is blocked until required fields are complete.
