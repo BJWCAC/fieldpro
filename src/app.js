@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="265";
+var FP_VERSION="266";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -83,17 +83,25 @@ function initNoAutofill(root){
     });
   });
 }
+function resolveEngineeringUnitDefault(names){
+  var list=Array.isArray(names)?names:[names];
+  for(var i=0;i<list.length;i++){
+    var id=resolveEngineeringUnitLookupId(list[i]);
+    if(id)return id;
+  }
+  return resolveEngineeringUnitLookupId(list[0])||list[0]||"";
+}
 function applyCategoryFieldDefaults(category){
   if(!category)return;
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   if(!A.asset.dynamicValues.Engineering_Units)setDynamicAssetField("Engineering_Units","GPM US");
-  if(category==="Open Channel Flow"||category==="Flow Meter"){
+  if(category==="Open Channel Flow"){
     if(!A.asset.dynamicValues.Input_Engineering_Units){
-      var inEu=resolveEngineeringUnitLookupId("In H2O")||"In H2O";
+      var inEu=resolveEngineeringUnitDefault(["Inches H2O","H2O Inches","In H2O"]);
       setDynamicAssetField("Input_Engineering_Units",inEu);
     }
     if(!A.asset.dynamicValues.Output_Engineering_Units){
-      var outEu=resolveEngineeringUnitLookupId("4-20 mA")||"4-20 mA";
+      var outEu=resolveEngineeringUnitDefault(["4-20 mA","4-20mA"]);
       setDynamicAssetField("Output_Engineering_Units",outEu);
     }
   }
