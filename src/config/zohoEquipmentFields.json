@@ -8,6 +8,7 @@
     "Subform_1 rows are nested under the parent Equipments record payload, not standalone records.",
     "CapStone asset search checks CAC_Asset_ID, Serial_Number, Asset_Model_Number, Name, Building, Additional_Designator, Customer_Asset_Number, Asset_Brand, Asset_Type, and Asset_Series with equals first, then contains fallback.",
     "Flow Meter dynamic fields use zohoApiName in assetFieldRegistry when Zoho CRM api_name differs from CapStone key (e.g. Cal_Factor_K_Factor → Cal_Factor_K_factor_Etc, Sensor_Model_Number → Model_Number).",
+    "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Open Channel Flow is the category for flume/weir assets.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
@@ -70,7 +71,15 @@
     "Output_PV_Span": { "label": "Output PV @ Span", "widget": "text", "zohoApiName": "PV_Span" },
     "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text", "zohoApiName": "Cal_Factor_K_factor_Etc" },
     "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
-    "Damping_Seconds": { "label": "Damping Seconds", "widget": "text", "zohoType": "double" }
+    "Damping_Seconds": { "label": "Damping Seconds", "widget": "text", "zohoType": "double" },
+    "Flume_Weir_Type": { "label": "Flume / Weir Type", "widget": "select", "picklist": "Flume_Weir_Type" },
+    "Flume_Weir_Size_Length": { "label": "Flume / Weir Size / Length", "widget": "text" },
+    "Distance_Measurement_Units": { "label": "Distance Measurement Units", "widget": "select", "picklist": "Distance_Measurement_Units" },
+    "Exponent": { "label": "Exponent", "widget": "text", "zohoType": "double" },
+    "Da1_and_DA2": { "label": "DA1 and DA2", "widget": "multiselect", "picklist": "Da1_and_DA2" },
+    "DA2_License_Number": { "label": "DA2 License Number", "widget": "text" },
+    "Totalizer_Display": { "label": "Totalizer Display Units", "widget": "select", "picklist": "Totalizer_Display" },
+    "Rosemount_LOI_Display": { "label": "Rosemount LOI Display", "widget": "select", "picklist": "Display", "zohoApiName": "Display" }
   },
   "categoryLayouts": {
     "Flow Meter": {
@@ -111,6 +120,50 @@
           "subform": "Subform_1"
         }
       ]
+    },
+    "Open Channel Flow": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "setupInput",
+          "title": "Set Up Input",
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+        },
+        {
+          "id": "setupOutput",
+          "title": "Set Up Output",
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "ocmDetails",
+          "title": "OCM — Open Channel Flume, Weir Details",
+          "fields": ["Flume_Weir_Type", "Flume_Weir_Size_Length", "Distance_Measurement_Units", "Exponent"]
+        },
+        {
+          "id": "rosemountDetails",
+          "title": "Rosemount Details",
+          "fields": ["Da1_and_DA2", "DA2_License_Number", "Totalizer_Display", "Rosemount_LOI_Display"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
     }
   },
   "modules": {
@@ -122,7 +175,6 @@
           "type": "picklist",
           "values": [
             "Flow Meter",
-            "Flow",
             "Open Channel Flow",
             "Gas Detector",
             "Analytical",

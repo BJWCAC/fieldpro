@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v250
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=250
+Current live version: v251
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=251
 ```
 
 ---
@@ -88,6 +88,7 @@ Related docs (detail, not status):
 | v248 | #139 | **Assets: sensor label Cal Factor extract** — Cal. Fact. / K-factor from sensor-labeled photos → Cal Factor field |
 | v249 | #141 | **Assets: Cal Factor Zoho sync fix** — preserve extracted cal on save; numeric normalization |
 | v250 | — | **Assets: Zoho field API name mapping** — Cal_Factor_K_factor_Etc, Model_Number, Serial_Number1, etc. from live CRM metadata |
+| v251 | — | **Assets: Open Channel Flow category fields** — OCM flume/weir + Rosemount sections; remove deprecated Flow category from CapStone picker |
 
 ### UI / workflow polish
 
@@ -149,6 +150,7 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
+| Medium | **Asset category field rollout** | Open Channel Flow shipped v251; next: Gas Detector, Analytical, Lift Station, Scales & Balances |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
