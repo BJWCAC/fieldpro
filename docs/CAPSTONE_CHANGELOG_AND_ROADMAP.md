@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v266
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=266
+Current live version: v268
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=267
 ```
 
 ---
@@ -104,6 +104,8 @@ Related docs (detail, not status):
 | v264 | — | **Assets: category fields + UX polish** — category select waits for config before showing sections; Account only opens account picker (one button); Extract AI below photos; picklist Use works on first tap; Input PV Zero/Span mirrors to Output |
 | v265 | — | **Global button busy + scroll + autofill** — `wrapAction` on all CapStone actions; tabs/deal cards show pressed/spinner; scroll restored after DOM updates; block username/password autofill on fields; Display Engineering Units defaults GPM US (full picklist); Input defaults In H2O; Output defaults 4-20 mA |
 | v266 | — | **Open Channel Flow EU defaults** — Set Up Input defaults Inches H2O; Set Up Output defaults 4-20 mA (Open Channel Flow only) |
+| v267 | — | **Zoho category layout confirm pass** — swap via temporary category (OCF↔Flow Meter), double activate + re-save category fields so Open Channel Flow layout applies without manual Zoho reselect |
+| v268 | — | **Zoho OCF layout persist fix** — always clear category before temp swap; apply layout_rules on temp category; final save includes Asset_Category + category fields together (matches Zoho reselect-then-save) |
 
 ### UI / workflow polish
 
