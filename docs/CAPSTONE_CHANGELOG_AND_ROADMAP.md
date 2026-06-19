@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v251
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=251
+Current live version: v252
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=252
 ```
 
 ---
@@ -88,7 +88,8 @@ Related docs (detail, not status):
 | v248 | #139 | **Assets: sensor label Cal Factor extract** — Cal. Fact. / K-factor from sensor-labeled photos → Cal Factor field |
 | v249 | #141 | **Assets: Cal Factor Zoho sync fix** — preserve extracted cal on save; numeric normalization |
 | v250 | — | **Assets: Zoho field API name mapping** — Cal_Factor_K_factor_Etc, Model_Number, Serial_Number1, etc. from live CRM metadata |
-| v251 | — | **Assets: Open Channel Flow category fields** — OCM flume/weir + Rosemount sections; remove deprecated Flow category from CapStone picker |
+| v251 | — | **Assets: Open Channel Flow category fields** — OCM flume/weir sections; remove deprecated Flow category from CapStone picker |
+| v252 | — | **Assets: Open Channel Flow layout trim** — Rosemount Details section removed from Open Channel Flow category |
 
 ### UI / workflow polish
 
