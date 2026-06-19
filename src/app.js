@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="262";
+var FP_VERSION="263";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpBtnReleaseTimer=null;
@@ -1130,7 +1130,9 @@ function splitAssetPayloadForCategoryLayout(payload){
 function syncAssetCategoryLayoutUi(){
   var cat=assetInput("asset-category");
   if(!cat){renderAssetCategoryFields();return Promise.resolve();}
-  return loadEngineeringUnitLookups().then(function(){
+  return loadEquipmentConfig().then(function(){
+    return loadEngineeringUnitLookups();
+  }).then(function(){
     renderAssetCategoryFields({skipDomSync:true});
     updateAssetSaveState();
   });
@@ -2488,9 +2490,11 @@ function equipmentSaveError(parsed,httpStatus,txt){
   if(row&&row.status==="error")throw new Error(row.message||row.code||"Zoho rejected equipment save");
   if(!httpStatus||httpStatus<200||httpStatus>=300)throw new Error("Zoho equipment "+(httpStatus||"?")+": "+String(txt||"").substring(0,160));
 }
-async function postEquipmentToZoho(action,equipmentId,payload){
+async function postEquipmentToZoho(action,equipmentId,payload,opts){
+  opts=opts||{};
   var body={action:action,token:A.zohoToken,equipment:payload||{}};
   if(equipmentId)body.equipment_id=equipmentId;
+  if(opts.applyLayoutRules)body.apply_layout_rules=true;
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},30000);
   var txt=await r.text();
   var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
@@ -2499,7 +2503,17 @@ async function postEquipmentToZoho(action,equipmentId,payload){
 }
 async function activateZohoCategoryLayout(equipmentId,category){
   if(!equipmentId||!category)return;
-  await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:category});
+  try{
+    await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:""});
+  }catch(clearErr){
+    console.log("Asset category clear before layout activation:",clearErr&&clearErr.message?clearErr.message:clearErr);
+  }
+  await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:category},{applyLayoutRules:true});
+}
+function assetPayloadWithoutCategory(payload){
+  var out=Object.assign({},payload||{});
+  delete out.Asset_Category;
+  return out;
 }
 function assetPayload(opts){
   opts=opts||{};
@@ -2570,7 +2584,14 @@ async function saveEquipmentRecord(){
   var isCreate=!equipmentId;
   if(isCreate){
     assetStatus("Creating equipment asset in Zoho...",false);
-    var created=await postEquipmentToZoho("create_equipment",null,split.core);
+    var createPayload=assetPayloadWithoutCategory(split.core);
+    var created;
+    try{
+      created=await postEquipmentToZoho("create_equipment",null,createPayload);
+    }catch(createErr){
+      if(!split.category||!/mandatory|required/i.test(String(createErr&&createErr.message||createErr)))throw createErr;
+      created=await postEquipmentToZoho("create_equipment",null,split.core);
+    }
     equipmentId=equipmentIdFromResponse(created);
     if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
     A.asset.currentAssetId=equipmentId;
@@ -2584,12 +2605,14 @@ async function saveEquipmentRecord(){
     }
   }else{
     assetStatus("Updating existing equipment asset in Zoho...",false);
-    var combined=Object.assign({},split.core,split.extension);
-    await postEquipmentToZoho("update_equipment",equipmentId,combined);
+    await postEquipmentToZoho("update_equipment",equipmentId,assetPayloadWithoutCategory(split.core));
     if(split.category){
       assetStatus("Refreshing asset category layout in Zoho...",false);
       await activateZohoCategoryLayout(equipmentId,split.category);
-      if(hasExtension)await postEquipmentToZoho("update_equipment",equipmentId,split.extension);
+    }
+    if(hasExtension){
+      assetStatus("Saving category-specific fields in Zoho...",false);
+      await postEquipmentToZoho("update_equipment",equipmentId,split.extension);
     }
   }
   return equipmentId;

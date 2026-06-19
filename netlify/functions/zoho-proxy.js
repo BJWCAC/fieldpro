@@ -508,11 +508,21 @@ exports.handler = async function(event) {
       return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, equipment_id: equipmentFound && equipmentFound.id || null, equipment: equipmentFound || null }) };
     }
 
+    function equipmentWriteBody(equipment, applyLayoutRules) {
+      var body = { data: [equipment || {}] };
+      if (applyLayoutRules) body.apply_feature_execution = [{ name: "layout_rules" }];
+      return JSON.stringify(body);
+    }
+
     if (data.action === "update_equipment") {
-      var updateEquipmentPayload = JSON.stringify({ data: [data.equipment || {}] });
+      var applyLayoutRules = !!data.apply_layout_rules;
+      var updateEquipmentPayload = equipmentWriteBody(data.equipment || {}, applyLayoutRules);
+      var updateEquipmentPath = applyLayoutRules
+        ? "/crm/v8/Equipments/" + data.equipment_id
+        : "/crm/v3/Equipments/" + data.equipment_id;
       var updateEquipmentResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments/" + data.equipment_id,
+        path: updateEquipmentPath,
         method: "PUT",
         headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(updateEquipmentPayload) }
       }, updateEquipmentPayload);
@@ -520,10 +530,12 @@ exports.handler = async function(event) {
     }
 
     if (data.action === "create_equipment") {
-      var equipmentPayload = JSON.stringify({ data: [data.equipment || {}] });
+      var createApplyLayoutRules = !!data.apply_layout_rules;
+      var equipmentPayload = equipmentWriteBody(data.equipment || {}, createApplyLayoutRules);
+      var equipmentPath = createApplyLayoutRules ? "/crm/v8/Equipments" : "/crm/v3/Equipments";
       var equipmentResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments",
+        path: equipmentPath,
         method: "POST",
         headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(equipmentPayload) }
       }, equipmentPayload);
