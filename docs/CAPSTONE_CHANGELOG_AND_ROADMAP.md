@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v268
+Current live version: v269
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=267
 ```
 
@@ -106,6 +106,7 @@ Related docs (detail, not status):
 | v266 | — | **Open Channel Flow EU defaults** — Set Up Input defaults Inches H2O; Set Up Output defaults 4-20 mA (Open Channel Flow only) |
 | v267 | — | **Zoho category layout confirm pass** — swap via temporary category (OCF↔Flow Meter), double activate + re-save category fields so Open Channel Flow layout applies without manual Zoho reselect |
 | v268 | — | **Zoho OCF layout persist fix** — always clear category before temp swap; apply layout_rules on temp category; final save includes Asset_Category + category fields together (matches Zoho reselect-then-save) |
+| v269 | — | **Asset category layout rule (all categories)** — document required Zoho save sequence in `CAPSTONE_DEVELOPMENT_RULES.md`; field-test checklist; config note that new categories use shared layout activation path |
 
 ### UI / workflow polish
 

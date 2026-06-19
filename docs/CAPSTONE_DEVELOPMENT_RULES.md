@@ -270,6 +270,38 @@ For assets:
 - Deals can reference assets through `Assets_and_Checklist`
 - `Assets` is the lookup field in that subform
 
+### Asset category Zoho layout rules (all categories)
+
+This applies to **every** `Asset_Category` value — current and future (Flow Meter, Open Channel Flow, Gas Detector, Analytical, Lift Station, Scales & Balances, and any category added later).
+
+Zoho CRM layout rules control which sections and fields appear on the Equipments record. CapStone must activate that layout on save so technicians do not have to open Zoho and reselect the category manually.
+
+**Zoho API limitation:** v8 `layout_rules` via API only supports the **Set Mandatory Field** action. **Show Section / Show Field** rules do not run through the API alone. CapStone works around this by simulating a category change in Zoho, then saving again with the category included — the same effect as reselecting the category in the Zoho UI and clicking Save.
+
+**Required save sequence** (implemented in `saveEquipmentRecord()` — do not bypass or special-case individual categories):
+
+1. Save **core fields without** `Asset_Category` (create or update).
+2. **Activate layout:** clear `Asset_Category` → set a **temporary** category with `layout_rules` → set the **target** category with `layout_rules` (v8 API via Netlify proxy).
+3. Save **category-specific fields** (extension payload from `categoryLayouts` in `src/config/zohoEquipmentFields.json`).
+4. **Confirm layout** — repeat the clear / temp / target activation pass.
+5. **Final persist** — one normal v3 update with `Asset_Category` **and** category-specific fields together (mimics manual Zoho reselect + Save).
+
+**When adding a new asset category to CapStone:**
+
+- Add the category to `categoryLayouts` in `src/config/zohoEquipmentFields.json` with sections and field registry keys.
+- Use exact Zoho picklist `actual_value` strings for `Asset_Category`.
+- Reuse the existing save path — **do not** add category-specific save logic unless Zoho documents a different requirement.
+- Verify in Zoho CRM after CapStone save: conditional sections appear **without** manually changing the category dropdown.
+- Ensure Netlify `zoho-proxy.js` is deployed so `apply_layout_rules` uses `/crm/v8/Equipments`.
+
+**CapStone UI:** category-specific fields render from `categoryLayouts` via `syncAssetCategoryLayoutUi()` / `renderAssetCategoryFields()`. Always load equipment config before rendering category sections.
+
+**Do not:**
+
+- Set `Asset_Category` in the first create/update payload together with core fields (layout will not activate).
+- Assume `layout_rules` alone will show/hide sections in Zoho.
+- Ship a new category without a Zoho layout verification step on a real Equipments record.
+
 ## WorkDrive rules
 
 When working with WorkDrive:
