@@ -148,11 +148,28 @@ Every interactive button in CapStone must give clear feedback when the user taps
 - **Pressed state** — on press, apply the shared `.btn-armed` styling (darker/pressed background via `filter: brightness` and slight scale). This applies to all `button` elements and `label.fbtn` file-picker buttons.
 - **Processing state** — while a network request or other async work is in progress, show a **spinner on the button** (`.is-busy`) and disable the button so it cannot be double-tapped.
 - **Global indicator** — the header **Processing…** badge (`#fp-global-busy`) must appear whenever `fetchWithTimeout` has an active request anywhere in the app.
-- **Implementation** — use the shared helpers in `src/app.js`: `initButtonFeedback()` (wired in `bootApp()`), `fetchWithTimeout()` (increments/decrements global busy count), and `withBusy(element, fn)` for async work that does not go through `fetchWithTimeout`.
+- **Implementation** — use the shared helpers in `src/app.js`: `initButtonFeedback()` (wired in `bootApp()`), `fetchWithTimeout()` (increments/decrements global busy count), `wrapAction()` + `installActionWrappers()` for all onclick/async handlers, and `withBusy(element, fn)` for async work that does not go through `fetchWithTimeout`.
 - **Opt out** — only use `data-no-busy` on controls that should never show button busy state (rare; document why in the PR).
 - **New buttons** — any new button added to any tab must work with this system automatically; do not add one-off spinners unless there is a documented exception.
 
 Going forward, a PR that adds buttons without visible processing feedback should not be considered complete.
+
+## Scroll position preservation rules
+
+When CapStone re-renders part of the screen after a user action (checklist updates, category fields, picklist panel, setup cards, etc.), the viewport must **not jump away** from where the user was working.
+
+- **Remember before DOM updates** — call `fpRememberView()` before replacing `innerHTML` or other layout-changing updates.
+- **Restore after paint** — call `fpRestoreView()` (or use `fpAfterDomUpdate(fn)` which wraps both) after the DOM update so scroll position and focus return to the last interaction.
+- **Do not auto-scroll** on validation toasts or incidental status updates unless the user explicitly navigated to a new tab/step.
+- **New re-render paths** — any new dynamic panel or checklist must use the shared helpers; do not call `scrollIntoView` or `window.scrollTo(0,0)` after inline edits without user intent.
+
+## Autofill / credential prompt rules
+
+CapStone fields are instrument data, not login forms. Prevent browsers from offering username/password autofill:
+
+- Run `initNoAutofill()` at boot and on dynamically rendered asset category fields.
+- Set `autocomplete="off"`, `data-form-type="other"`, and non-login `name` attributes on inputs, textareas, and selects.
+- Use the readonly-on-focus trick for editable text fields where mobile browsers still prompt credentials.
 
 ## Zoho search API rules
 
