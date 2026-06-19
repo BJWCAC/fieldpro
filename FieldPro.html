@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=257"/>
+<link rel="stylesheet" href="src/styles.css?v=260"/>
 
 </head>
 <body>
@@ -259,8 +259,8 @@
     <div class="help-box-body">
       <p>The Assets tab saves equipment to Zoho <strong>Equipments</strong>, links the asset to the active Deal, and records update notes on both records.</p>
       <ul>
-        <li>Pick <strong>Asset Category</strong> to show category-specific fields (Flow Meter pilot: sensor, display, setup, pipe size, subform).</li>
-        <li>Tap <strong>Pick deal &amp; add new</strong> to choose a deal without leaving Assets (same search as Deals tab).</li>
+        <li>Start with <strong>Add New Asset</strong> or <strong>Update Existing Asset</strong> — CapStone shows only the steps that apply.</li>
+        <li>Pick <strong>Asset Category</strong> to show category-specific fields (Flow Meter / Open Channel Flow: sensor, display, setup I/O, subform).</li>
         <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
         <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
@@ -269,16 +269,22 @@
   </details>
   <div class="card">
     <div class="stitle">Add Asset to Zoho</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Choose how you are saving, then capture the nameplate, review fields, and save to Zoho Equipments.</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Start by choosing whether you are adding a new asset or updating an existing one. CapStone shows only the steps that apply.</div>
     <div id="asset-status" class="err-box" style="display:none"></div>
     <div id="asset-draft-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#2d6b60"></div>
     <div id="asset-save-checklist" class="report-save-checklist"></div>
     <div id="asset-setup-card" class="asset-setup-card">
-      <div class="stitle" style="margin-bottom:8px">Asset setup</div>
-      <div class="asset-setup-options">
-        <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="startAssetDealAdd()">Pick deal &amp; add new</button>
-        <button type="button" id="asset-setup-account-add" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('account_add')">Add new — account only (no deal)</button>
-        <button type="button" id="asset-setup-update" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('update')">Update existing — search first</button>
+      <div class="stitle" style="margin-bottom:8px">What are you doing?</div>
+      <div id="asset-intent-step" class="asset-setup-options">
+        <button type="button" id="asset-intent-add" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('add')">Add New Asset</button>
+        <button type="button" id="asset-intent-update" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('update')">Update Existing Asset</button>
+      </div>
+      <div id="asset-add-path-step" style="display:none">
+        <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">How should this new asset be linked in Zoho?</div>
+        <div class="asset-setup-options">
+          <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="startAssetDealAdd()">Pick deal &amp; link new asset</button>
+          <button type="button" id="asset-setup-account-add" class="asset-setup-btn asset-path-btn" onclick="setAssetSetupMode('account_add')">Account only — no deal link</button>
+        </div>
       </div>
       <div id="asset-setup-deal-context" class="asset-setup-context" style="display:none"></div>
       <div id="asset-account-pick-row" class="asset-setup-context" style="display:none">
@@ -313,7 +319,11 @@
           <div id="asset-history-panel" style="display:none;margin-top:10px;background:#f8fffc;border:1px solid #b2ddd6;border-radius:8px;padding:10px;font-size:12px;line-height:1.6"></div>
         </div>
       </div>
+      <div id="asset-intent-change-row" style="display:none;margin-top:10px">
+        <button type="button" class="bg bsm" onclick="resetAssetIntent()">← Change add / update choice</button>
+      </div>
     </div>
+    <div id="asset-entry-panel" style="display:none">
     <div id="asset-mode-banner" style="display:none;margin-bottom:10px;border-radius:8px;padding:10px;font-size:12px;line-height:1.5"></div>
     <details class="help-box nested" data-help-id="assets-photos">
       <summary>Help: Nameplate Photos &amp; AI Extract</summary>
@@ -372,6 +382,7 @@
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
     <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="resetAssetFormForNext()" style="display:none">Save Another Asset</button></div>
     <div id="asset-saved-list" style="display:none;margin-top:12px"></div>
+    </div>
   </div>
 </div>
 
@@ -867,7 +878,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=259"></script>
+<script src="src/app.js?v=260"></script>
 
 </body>
 </html>
