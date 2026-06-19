@@ -33,10 +33,71 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="264";
+var FP_VERSION="265";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
+var _fpLastClickedBtn=null;
+var _fpScrollY=0;
+var _fpFocusEl=null;
 var _fpBtnReleaseTimer=null;
+function fpActionSelector(){return "button, label.fbtn, .tab, .deal-card, .tog-row, .asset-setup-btn, .asset-path-btn, .map-popup-btn, .map-site-btn, .field-ai-btn, .pending-sync-tab, .asset-photo-item";}
+function fpRememberView(){
+  _fpScrollY=window.pageYOffset||document.documentElement.scrollTop||0;
+  _fpFocusEl=document.activeElement;
+}
+function fpRestoreView(){
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      window.scrollTo({top:_fpScrollY,left:0,behavior:"auto"});
+      if(_fpFocusEl&&document.contains(_fpFocusEl)&&typeof _fpFocusEl.focus==="function"){
+        try{_fpFocusEl.focus({preventScroll:true});}catch(e){try{_fpFocusEl.focus();}catch(e2){}}
+      }
+    });
+  });
+}
+function fpAfterDomUpdate(fn){
+  fpRememberView();
+  var result=fn();
+  fpRestoreView();
+  return result;
+}
+function initNoAutofill(root){
+  var scope=root||document;
+  scope.querySelectorAll("input:not([type=file]):not([type=checkbox]):not([type=radio]), textarea, select").forEach(function(node){
+    if(node.id==="key-in"){node.setAttribute("autocomplete","off");return;}
+    node.setAttribute("autocomplete","off");
+    node.setAttribute("autocorrect","off");
+    node.setAttribute("autocapitalize","off");
+    node.setAttribute("spellcheck","false");
+    if(!node.getAttribute("data-lpignore"))node.setAttribute("data-lpignore","true");
+    if(!node.getAttribute("data-form-type"))node.setAttribute("data-form-type","other");
+    if(!node.getAttribute("name")&&node.id)node.setAttribute("name","fp-"+node.id.replace(/^asset-/,""));
+    if(node.tagName==="INPUT"&&node.type==="text"&&!node.readOnly)node.setAttribute("inputmode","text");
+    if(node._fpNoAutofillBound)return;
+    node._fpNoAutofillBound=true;
+    if(node.readOnly||node.tagName==="SELECT")return;
+    node.addEventListener("focus",function(){
+      if(node.readOnly)return;
+      node.setAttribute("readonly","readonly");
+      setTimeout(function(){node.removeAttribute("readonly");},120);
+    });
+  });
+}
+function applyCategoryFieldDefaults(category){
+  if(!category)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  if(!A.asset.dynamicValues.Engineering_Units)setDynamicAssetField("Engineering_Units","GPM US");
+  if(category==="Open Channel Flow"||category==="Flow Meter"){
+    if(!A.asset.dynamicValues.Input_Engineering_Units){
+      var inEu=resolveEngineeringUnitLookupId("In H2O")||"In H2O";
+      setDynamicAssetField("Input_Engineering_Units",inEu);
+    }
+    if(!A.asset.dynamicValues.Output_Engineering_Units){
+      var outEu=resolveEngineeringUnitLookupId("4-20 mA")||"4-20 mA";
+      setDynamicAssetField("Output_Engineering_Units",outEu);
+    }
+  }
+}
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -484,6 +545,8 @@ function bootApp(){
     updateCaptureModeStatus();
     bindHelpBoxes();
     initButtonFeedback();
+    initNoAutofill();
+    installActionWrappers();
     loadTechniciansFromZoho({silent:true}).catch(function(){});
     setupAssetFieldAiButtons();
     restoreFieldAiUiFromQueue();
@@ -589,7 +652,9 @@ function setGlobalBusy(on){
 function clearActiveButtonBusy(){
   if(_fpActiveBtn){
     _fpActiveBtn.classList.remove("is-busy");
-    if(!_fpActiveBtn.hasAttribute("data-keep-disabled"))_fpActiveBtn.disabled=false;
+    if(!_fpActiveBtn.hasAttribute("data-keep-disabled")){
+      if(_fpActiveBtn.tagName==="BUTTON"||_fpActiveBtn.tagName==="INPUT"||(_fpActiveBtn.tagName==="LABEL"&&_fpActiveBtn.classList.contains("fbtn")))_fpActiveBtn.disabled=false;
+    }
     _fpActiveBtn=null;
   }
   if(_fpBtnReleaseTimer){clearTimeout(_fpBtnReleaseTimer);_fpBtnReleaseTimer=null;}
@@ -608,34 +673,59 @@ function markButtonBusy(btn){
   clearActiveButtonBusy();
   _fpActiveBtn=btn;
   btn.classList.add("is-busy");
-  btn.disabled=true;
+  if(btn.tagName==="BUTTON"||btn.tagName==="INPUT"||(btn.tagName==="LABEL"&&btn.classList.contains("fbtn")))btn.disabled=true;
   if(_fpBtnReleaseTimer)clearTimeout(_fpBtnReleaseTimer);
   _fpBtnReleaseTimer=setTimeout(function(){
     if(_fpBusyCount===0)clearActiveButtonBusy();
     _fpBtnReleaseTimer=null;
-  },10000);
+  },120000);
+}
+function wrapAction(fn){
+  if(typeof fn!=="function"||fn._fpWrapped)return fn;
+  var wrapped=function(){
+    var btn=_fpLastClickedBtn;
+    markButtonBusy(btn);
+    incGlobalBusy();
+    var result;
+    try{result=fn.apply(this,arguments);}
+    catch(err){decGlobalBusy();throw err;}
+    if(result&&typeof result.then==="function"){
+      return result.then(function(v){return v;},function(e){throw e;}).finally(function(){decGlobalBusy();});
+    }
+    decGlobalBusy();
+    return result;
+  };
+  wrapped._fpWrapped=true;
+  wrapped._fpOriginal=fn;
+  return wrapped;
+}
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","confirmAssetPhotoDescription","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
+function installActionWrappers(){
+  FP_ACTION_NAMES.forEach(function(name){
+    if(typeof window[name]==="function")window[name]=wrapAction(window[name]);
+  });
+  Object.keys(window).forEach(function(name){
+    if(FP_WRAP_SKIP[name])return;
+    var fn=window[name];
+    if(typeof fn==="function"&&fn.constructor&&fn.constructor.name==="AsyncFunction"&&!fn._fpWrapped){
+      window[name]=wrapAction(fn);
+    }
+  });
 }
 function initButtonFeedback(){
   document.addEventListener("pointerdown",function(e){
-    var btn=e.target.closest("button, label.fbtn");
+    var btn=e.target.closest(fpActionSelector());
+    _fpLastClickedBtn=btn;
     if(btn&&!btn.disabled&&btn.getAttribute("data-no-busy")===null)btn.classList.add("btn-armed");
   },true);
   document.addEventListener("pointerup",function(e){
-    var btn=e.target.closest("button, label.fbtn");
+    var btn=e.target.closest(fpActionSelector());
     if(btn)btn.classList.remove("btn-armed");
   },true);
   document.addEventListener("pointercancel",function(e){
-    var btn=e.target.closest("button, label.fbtn");
+    var btn=e.target.closest(fpActionSelector());
     if(btn)btn.classList.remove("btn-armed");
-  },true);
-  document.addEventListener("click",function(e){
-    var btn=e.target.closest("button, label.fbtn");
-    if(!btn||btn.disabled||btn.getAttribute("data-no-busy")!==null)return;
-    if(btn.type==="file"||btn.querySelector('input[type="file"]'))return;
-    markButtonBusy(btn);
-    setTimeout(function(){
-      if(_fpActiveBtn===btn&&_fpBusyCount===0)clearActiveButtonBusy();
-    },180);
   },true);
 }
 async function withBusy(btnOrId,fn){
@@ -989,7 +1079,6 @@ function selectDeal(id,opts){
     return;
   }
   go("capture");
-  setTimeout(function(){window.scrollTo({top:0,behavior:"smooth"});},50);
 }
 function importCSV(input){
   var file=input.files[0];if(!file)return;
@@ -1136,9 +1225,12 @@ function syncAssetCategoryLayoutUi(){
   return loadEquipmentConfig().then(function(){
     return loadEngineeringUnitLookups();
   }).then(function(){
+    applyCategoryFieldDefaults(cat);
+    fpRememberView();
     renderAssetCategoryFields({skipDomSync:true});
     mirrorInputPvToOutput();
     updateAssetSaveState();
+    fpRestoreView();
   });
 }
 function assetDynId(api){return"asset-dyn-"+String(api||"").replace(/[^a-zA-Z0-9_]/g,"_");}
@@ -1426,7 +1518,10 @@ function renderAssetCategoryFields(opts){
   }
   var cat=assetInput("asset-category");
   var layout=categoryLayout(cat);
-  if(!layout||!layout.sections||!layout.sections.length){box.innerHTML="";box.style.display="none";return;}
+  if(!layout||!layout.sections||!layout.sections.length){
+    fpAfterDomUpdate(function(){box.innerHTML="";box.style.display="none";});
+    return;
+  }
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   if(!A.asset.subformRows)A.asset.subformRows=[];
   var registry=assetFieldRegistry();
@@ -1445,9 +1540,12 @@ function renderAssetCategoryFields(opts){
     }
     html+="</div>";
   });
-  box.innerHTML=html;
-  box.style.display="block";
-  bindDynamicFieldHandlers();
+  fpAfterDomUpdate(function(){
+    box.innerHTML=html;
+    box.style.display="block";
+    bindDynamicFieldHandlers();
+    initNoAutofill(box);
+  });
 }
 function onAssetCategoryChange(){
   syncAssetCategoryLayoutUi();
@@ -1580,6 +1678,7 @@ function applyAssetDealPick(){
   if(A.sel)showToast("Deal linked: "+(A.sel.Deal_Name||A.sel.Account_Name||"deal"),3500);
 }
 function renderAssetSetupUi(){
+  fpRememberView();
   var intent=A.asset.intent;
   var setup=assetSetupMode();
   var intentStep=el("asset-intent-step"),addPathStep=el("asset-add-path-step"),changeRow=el("asset-intent-change-row"),entryPanel=el("asset-entry-panel");
@@ -1617,6 +1716,7 @@ function renderAssetSetupUi(){
     var b=el("asset-mode-banner");
     if(b){b.style.display="block";b.style.background="#f0fdf4";b.style.border="1px solid #86efac";b.style.color="#166534";b.innerHTML="<strong>Loaded:</strong> "+esc(assetInput("asset-name")||"Asset")+" — save to add a new update note.";}
   }else{var b2=el("asset-mode-banner");if(b2)b2.style.display="none";}
+  fpRestoreView();
 }
 async function ensureAssetAccountsLoaded(){
   if(A.assetAccountsCache&&A.assetAccountsCache.length)return A.assetAccountsCache;
@@ -1689,7 +1789,7 @@ function renderAssetSaveChecklist(){
   var hasIntent=!!A.asset.intent;
   var updateReady=A.asset.intent!=="update"||!!A.asset.currentAssetId;
   var photoCount=A.asset.photos.length,pendingCount=getPendingUploads().length;
-  box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Asset Save Checklist</div>"+
+  var html="<div class='stitle' style='margin-bottom:8px'>Asset Save Checklist</div>"+
     reportChecklistItem(hasIntent,"Add or update selected",A.asset.intent==="update"?"Update Existing Asset":(A.asset.intent==="add"?"Add New Asset":"Choose Add New or Update Existing first."))+
     reportChecklistItem(assetEntryReady()||A.asset.intent!=="add","Setup complete",assetEntryReady()?(A.asset.intent==="update"?"Asset loaded — form ready.":(A.asset.linkMode==="deal"?"Deal linked — form ready.":"Account picked — form ready.")):(A.asset.intent==="update"?"Search and load an existing asset.":(A.asset.intent==="add"?(A.asset.linkMode==="deal"?"Pick a deal to continue.":"Pick an account to continue."):"Select Add New or Update Existing.")))+
     reportChecklistItem(hasAccount,"Account for Equipments",hasAccount?(assetSaveAccountName()||"Account ready"):"Pick a deal or use Account only — pick account.")+
@@ -1699,6 +1799,7 @@ function renderAssetSaveChecklist(){
     reportChecklistItem(true,"Photos",photoCount?photoCount+" photo"+(photoCount!==1?"s":"")+" selected.":"No asset photos selected.")+
     reportChecklistItem(true,"Deal Asset Notes",hasDeal?(assetInput("asset-deal-notes")||"Default note will be used."):"Not used without a deal.")+
     reportChecklistItem(!pendingCount,"Pending Sync",pendingCount?pendingCount+" item"+(pendingCount!==1?"s":"")+" pending sync.":"No pending sync items.");
+  fpAfterDomUpdate(function(){box.innerHTML=html;});
 }
 function renderAssetForm(){
   ensureAssetContext();
@@ -2082,6 +2183,7 @@ function renderAssetPicklistRequestPanel(){
   var misses=getAssetPicklistMisses();
   if(!misses.length){panel.style.display="none";panel.innerHTML="";return;}
   panel.style.display="block";
+  fpAfterDomUpdate(function(){
   var rows=misses.map(function(m){
     var key=picklistRequestKey(m.fieldApi,m.proposedValue);
     var sent=isPicklistRequestSent(key);
@@ -2090,6 +2192,7 @@ function renderAssetPicklistRequestPanel(){
     return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Tap Use if the Zoho value matches, or Request addition for a new picklist value.</div></div><div style='flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end'>"+action+"</div></div>";
   }).join("");
   panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
+  });
 }
 async function sendPicklistRequestPayload(payload){
   var r=await fetchWithTimeout(PICKLIST_REQUEST_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
@@ -3295,7 +3398,7 @@ async function assetPhotoAttachmentName(prefix,photo,idx){
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
   try{requireOnline("Asset save");}catch(e){assetStatus(e.message,true);showToast(e.message,6000);return;}
-  var missing=validateAssetForm();if(missing.length){assetStatus("Cannot save yet: "+missing.join(", "),true);showToast(missing[0]+" required",5000);var st=el("asset-status");if(st){st.style.display="block";try{st.scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}}updateAssetSaveState();return;}
+  var missing=validateAssetForm();if(missing.length){assetStatus("Cannot save yet: "+missing.join(", "),true);showToast(missing[0]+" required",5000);updateAssetSaveState();return;}
   if(A.asset.mode==="update"&&!A.asset.currentAssetId){assetStatus("Search and load an existing asset before saving an update.",true);updateAssetSaveState();return;}
   if(!A.asset.currentAssetId){
     var searchHint=assetInput("asset-search")||assetInput("asset-serial")||assetInput("asset-model");
@@ -3713,10 +3816,18 @@ function checkGen(){
 async function callAPI(opts){
   var body={model:"claude-sonnet-4-6",max_tokens:opts.maxTok||4000,messages:[{role:"user",content:opts.content}]};
   if(opts.sys)body.system=opts.sys;
+  incGlobalBusy();
   var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
-  var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
-  clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("API "+r.status+": "+e.substring(0,150));}
-  return r.json();
+  try{
+    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("API "+r.status+": "+e.substring(0,150));}
+    return r.json();
+  }catch(err){
+    clearTimeout(timer);
+    throw err;
+  }finally{
+    decGlobalBusy();
+  }
 }
 function getText(d){return(d.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("\n");}
 function compressPhoto(dataUrl,maxW,quality){
