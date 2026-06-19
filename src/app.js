@@ -31,7 +31,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="249";
+var FP_VERSION="250";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -943,6 +943,34 @@ async function loadEquipmentConfig(){
   return A.equipmentConfig;
 }
 function assetFieldRegistry(){return(A.equipmentConfig&&A.equipmentConfig.assetFieldRegistry)||{};}
+function zohoApiNameForRegistryKey(key){
+  var def=assetFieldRegistry()[key];
+  return(def&&def.zohoApiName)||key;
+}
+function registryKeyForZohoApi(zohoApi){
+  var reg=assetFieldRegistry();
+  var keys=Object.keys(reg);
+  for(var i=0;i<keys.length;i++){
+    if(reg[keys[i]].zohoApiName===zohoApi)return keys[i];
+  }
+  return reg[zohoApi]?zohoApi:null;
+}
+function zohoFieldValueFromRecord(r,registryKey){
+  if(!r)return null;
+  var zohoApi=zohoApiNameForRegistryKey(registryKey);
+  if(r[zohoApi]!=null&&r[zohoApi]!=="")return r[zohoApi];
+  if(r[registryKey]!=null&&r[registryKey]!=="")return r[registryKey];
+  return null;
+}
+function mapDynamicValuesToZohoPayload(dyn){
+  var out={};
+  Object.keys(dyn||{}).forEach(function(key){
+    var def=assetFieldRegistry()[key];
+    if(def&&def.note&&def.note.indexOf("No separate Zoho field")>=0)return;
+    out[zohoApiNameForRegistryKey(key)]=dyn[key];
+  });
+  return out;
+}
 function categoryLayout(cat){var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};return layouts[cat]||null;}
 function assetDynId(api){return"asset-dyn-"+String(api||"").replace(/[^a-zA-Z0-9_]/g,"_");}
 function assetSubformConfig(){
@@ -982,7 +1010,10 @@ function normalizeCalFactorForZoho(val){
 function formatDynamicValueForZoho(api,val){
   var s=String(val==null?"":val).trim();
   if(!s)return null;
-  if(api==="Cal_Factor_K_Factor")return normalizeCalFactorForZoho(s);
+  if(api==="Cal_Factor_K_Factor"){
+    var cal=normalizeCalFactorForZoho(s);
+    return cal==null||cal===""?null:String(cal);
+  }
   if(api==="Damping_Seconds"){
     var n=parseFloat(s);
     return isNaN(n)?s:n;
@@ -1102,7 +1133,7 @@ function applyDynamicFieldsFromRecord(r){
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   var registry=assetFieldRegistry();
   Object.keys(registry).forEach(function(api){
-    var v=r[api];
+    var v=zohoFieldValueFromRecord(r,api);
     if(v==null||v==="")return;
     A.asset.dynamicValues[api]=typeof v==="object"?(v.name||v.id||""):String(v);
   });
@@ -2180,7 +2211,7 @@ function assetPayload(opts){
   if(repl)desc=desc?(desc+"\n\n"+repl):repl;
   setOptional("Description_Instructions",desc);
   setOptional("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
-  var dyn=collectDynamicAssetPayload(includeBlank);
+  var dyn=mapDynamicValuesToZohoPayload(collectDynamicAssetPayload(includeBlank));
   Object.keys(dyn).forEach(function(k){setOptional(k,dyn[k]);});
   var subRows=assetSubformPayload();
   if(subRows.length)payload.Subform_1=subRows;
