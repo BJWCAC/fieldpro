@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=244"/>
+<link rel="stylesheet" href="src/styles.css?v=257"/>
 
 </head>
 <body>
@@ -21,6 +21,7 @@
     <div id="hdr-deal-name"></div>
   </div>
   <div id="hdr-r">
+    <div id="fp-global-busy" class="fp-global-busy" aria-live="polite" aria-hidden="true"><span class="fp-global-busy-spin"></span><span>Processing…</span></div>
     <div id="hb-gps" class="hb hb-b" style="display:none">GPS</div>
     <button type="button" onclick="openQuickStart()" style="background:transparent;border:1px solid var(--bdr);color:var(--green);border-radius:4px;padding:3px 8px;font-size:14px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">?</button>
     <button type="button" onclick="go('settings')" style="background:transparent;border:1px solid var(--bdr);color:var(--amber);border-radius:4px;padding:3px 8px;font-size:14px;cursor:pointer">&#9881;</button>
@@ -866,7 +867,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=256"></script>
+<script src="src/app.js?v=257"></script>
 
 </body>
 </html>
