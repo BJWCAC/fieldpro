@@ -63,6 +63,7 @@ body.light .card{background:#fff}
 .asset-setup-btn{min-height:52px;text-align:left;line-height:1.35;white-space:normal}
 .asset-setup-context{margin-top:8px;padding:8px 10px;background:#f8fffc;border:1px solid #b2ddd6;border-radius:8px;font-size:12px;line-height:1.55}
 .asset-setup-context .asset-setup-pick-deal{margin-top:8px}
+.asset-intent-btn{font-size:16px;padding:16px 20px}
 .bpu{background:#006a90;color:#fff;padding:9px 16px;font-size:13px}
 .bsm{padding:5px 10px;font-size:11px}
 .bfull{width:100%}

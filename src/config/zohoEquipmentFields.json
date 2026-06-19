@@ -796,7 +796,7 @@
         "note": "Written as an array of row objects inside the parent Equipments record payload, not as standalone records.",
         "capstoneColumns": [
           { "apiName": "Output_Type", "label": "Function", "widget": "select" },
-          { "apiName": "Input_Output_Type", "label": "Engineering Unit", "widget": "text" },
+          { "apiName": "Input_Output_Type", "label": "Engineering Unit", "widget": "lookup", "lookupSource": "engineeringUnits" },
           { "apiName": "Zero_Parameter", "label": "LRV Parameter", "widget": "text" },
           { "apiName": "Output_Zero", "label": "LRV", "widget": "number" },
           { "apiName": "Span_Parameter", "label": "URV Parameter", "widget": "text" },
