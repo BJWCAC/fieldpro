@@ -31,7 +31,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="250";
+var FP_VERSION="251";
 var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/submit-recording";
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
@@ -957,10 +957,17 @@ function registryKeyForZohoApi(zohoApi){
 }
 function zohoFieldValueFromRecord(r,registryKey){
   if(!r)return null;
+  var def=assetFieldRegistry()[registryKey];
   var zohoApi=zohoApiNameForRegistryKey(registryKey);
-  if(r[zohoApi]!=null&&r[zohoApi]!=="")return r[zohoApi];
-  if(r[registryKey]!=null&&r[registryKey]!=="")return r[registryKey];
-  return null;
+  var raw=null;
+  if(r[zohoApi]!=null&&r[zohoApi]!=="")raw=r[zohoApi];
+  else if(r[registryKey]!=null&&r[registryKey]!=="")raw=r[registryKey];
+  if(raw==null||raw==="")return null;
+  if(def&&def.widget==="multiselect"){
+    if(Array.isArray(raw))return raw.filter(function(v){return v&&v!=="None";});
+    return String(raw).split(";").map(function(s){return s.trim();}).filter(function(v){return v&&v!=="None";});
+  }
+  return typeof raw==="object"?(raw.name||raw.id||""):String(raw);
 }
 function mapDynamicValuesToZohoPayload(dyn){
   var out={};
@@ -994,8 +1001,20 @@ function assetSubformColumns(){
 function syncDynamicFieldValuesFromDom(){
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   var box=el("asset-category-fields");if(!box)return;
+  var msDone={};
+  box.querySelectorAll(".asset-multiselect[data-api]").forEach(function(wrap){
+    var api=wrap.getAttribute("data-api");
+    msDone[api]=true;
+    var vals=[];
+    wrap.querySelectorAll("input[type=checkbox][data-ms-val]:checked").forEach(function(cb){
+      vals.push(cb.getAttribute("data-ms-val"));
+    });
+    A.asset.dynamicValues[api]=vals;
+  });
   box.querySelectorAll("[data-api]").forEach(function(e){
+    if(e.type==="checkbox")return;
     var api=e.getAttribute("data-api");
+    if(msDone[api])return;
     var domVal=e.value||"";
     if(domVal||A.asset.dynamicValues[api]==null||A.asset.dynamicValues[api]==="")A.asset.dynamicValues[api]=domVal;
   });
@@ -1008,13 +1027,20 @@ function normalizeCalFactorForZoho(val){
   return isNaN(n)?v:n;
 }
 function formatDynamicValueForZoho(api,val){
+  var def=assetFieldRegistry()[api];
+  if(def&&def.widget==="multiselect"){
+    var arr=Array.isArray(val)?val.slice():String(val==null?"":val).split(";").map(function(s){return s.trim();}).filter(Boolean);
+    arr=arr.filter(function(v){return v&&v!=="None";});
+    if(!arr.length)return null;
+    return arr;
+  }
   var s=String(val==null?"":val).trim();
   if(!s)return null;
   if(api==="Cal_Factor_K_Factor"){
     var cal=normalizeCalFactorForZoho(s);
     return cal==null||cal===""?null:String(cal);
   }
-  if(api==="Damping_Seconds"){
+  if(api==="Damping_Seconds"||api==="Exponent"||(def&&def.zohoType==="double")){
     var n=parseFloat(s);
     return isNaN(n)?s:n;
   }
@@ -1034,7 +1060,7 @@ function collectDynamicAssetPayload(includeBlank){
   Object.keys(A.asset.dynamicValues||{}).forEach(function(api){
     var raw=A.asset.dynamicValues[api];
     var v=formatDynamicValueForZoho(api,raw);
-    if(v==null||v===""){if(includeBlank)out[api]="";return;}
+    if(v==null||v===""||(Array.isArray(v)&&!v.length)){if(includeBlank)out[api]=Array.isArray(raw)?[]:"";return;}
     out[api]=v;
   });
   return out;
@@ -1050,6 +1076,16 @@ function renderDynFieldBlock(def,fullWidth){
   var req=def.required?" *":"";
   var wrapStart=fullWidth?"<div style='margin-bottom:8px'>":"<div>";
   var wrapEnd="</div>";
+  if(def.widget==="multiselect"&&def.picklist){
+    var opts=assetPicklistValues(def.picklist).filter(function(v){return v!=="None";});
+    var selected=Array.isArray(val)?val.slice():String(val||"").split(";").map(function(s){return s.trim();}).filter(Boolean);
+    var html=wrapStart+"<label class='lbl'>"+esc(def.label)+req+"</label><div class='asset-multiselect' data-api='"+esc(def.apiName)+"'>";
+    opts.forEach(function(v){
+      html+="<label class='asset-multiselect-opt'><input type='checkbox' data-ms-val='"+esc(v)+"'"+(selected.indexOf(v)>=0?" checked":"")+"/> "+esc(v)+"</label>";
+    });
+    html+="</div>"+wrapEnd;
+    return html;
+  }
   if(def.widget==="select"&&def.picklist){
     var opts=assetPicklistValues(def.picklist);
     return wrapStart+"<label class='lbl' for='"+id+"'>"+esc(def.label)+req+"</label><select id='"+id+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+opts.map(function(v){return"<option value='"+esc(v)+"'"+(v===val?" selected":"")+">"+esc(v)+"</option>";}).join("")+"</select>"+wrapEnd;
@@ -1134,8 +1170,8 @@ function applyDynamicFieldsFromRecord(r){
   var registry=assetFieldRegistry();
   Object.keys(registry).forEach(function(api){
     var v=zohoFieldValueFromRecord(r,api);
-    if(v==null||v==="")return;
-    A.asset.dynamicValues[api]=typeof v==="object"?(v.name||v.id||""):String(v);
+    if(v==null||v===""||(Array.isArray(v)&&!v.length))return;
+    A.asset.dynamicValues[api]=v;
   });
   if(r.Subform_1&&Array.isArray(r.Subform_1)){
     A.asset.subformRows=r.Subform_1.map(function(row){
@@ -1155,6 +1191,11 @@ function bindDynamicFieldHandlers(){
     if(e._dynBound)return;
     e._dynBound=true;
     e.addEventListener("input",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
+    e.addEventListener("change",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
+  });
+  box.querySelectorAll(".asset-multiselect input[type=checkbox]").forEach(function(e){
+    if(e._msBound)return;
+    e._msBound=true;
     e.addEventListener("change",function(){syncDynamicFieldValuesFromDom();scheduleAssetDraftSave();updateAssetSaveState();});
   });
   box.querySelectorAll("[data-subform]").forEach(function(e){
@@ -2316,7 +2357,7 @@ function assetUpdateNoteContent(){
   syncDynamicFieldValuesFromDom();
   Object.keys(registry).forEach(function(api){
     var v=A.asset.dynamicValues&&A.asset.dynamicValues[api];
-    if(v)lines.push("- "+registry[api].label+": "+v);
+    if(Array.isArray(v)?v.length:v)lines.push("- "+registry[api].label+": "+(Array.isArray(v)?v.join(", "):v));
   });
   if(A.asset.subformRows&&A.asset.subformRows.length){
     lines.push("- Input/Output setups: "+A.asset.subformRows.length+" row(s)");
