@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="257";
+var FP_VERSION="258";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpBtnReleaseTimer=null;
@@ -1694,7 +1694,7 @@ async function searchExistingAssets(){
     var txt=await r.text();if(!r.ok)throw new Error("Asset search "+r.status+": "+txt.substring(0,160));
     var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();
     if(!A.asset.searchResults.length){
-      assetStatus(acctId?"No matching assets found. AMD/CAC ID, customer asset #, and name matches search all accounts — try the exact AMD number (e.g. AMD2913).":"No matching assets found. Try an AMD/CAC ID, serial, or asset name.",true);
+      assetStatus("No matching assets found for \""+q+"\". Try the exact AMD/CAC ID (e.g. AMD2913). Account is optional for AMD searches.",true);
       return;
     }
     assetStatus("Found "+A.asset.searchResults.length+" asset(s). Select one to load for update.",false);

@@ -154,6 +154,16 @@ Every interactive button in CapStone must give clear feedback when the user taps
 
 Going forward, a PR that adds buttons without visible processing feedback should not be considered complete.
 
+## Zoho search API rules
+
+When searching Zoho CRM modules (especially `Equipments`):
+
+- The Search API `fields` parameter is limited to **50 fields**. Exceeding this returns `LIMIT_EXCEEDED` and **zero results** — always count fields before adding new ones to search requests.
+- Valid search operators are `equals`, `starts_with`, `in`, `not_equal`, comparisons, and `between`. **`contains` is invalid** and returns `INVALID_QUERY`.
+- For text fields, `equals` behaves like a contains match in Zoho Search API.
+- Prefer **`word` search** (`/crm/v3/{module}/search?word=...`) for AMD/CAC IDs and other global lookup terms.
+- COQL requires a separate OAuth scope; do not rely on COQL unless token scopes include it.
+
 ## Required field rules
 
 If a field is required:
