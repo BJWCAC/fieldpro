@@ -280,11 +280,8 @@ Zoho CRM layout rules control which sections and fields appear on the Equipments
 
 **Required save sequence** (implemented in `saveEquipmentRecord()` — do not bypass or special-case individual categories):
 
-1. Save **core fields without** `Asset_Category` (create or update).
-2. **Activate layout:** clear `Asset_Category` → set a **temporary** category with `layout_rules` → set the **target** category with `layout_rules` (v8 API via Netlify proxy).
-3. Save **category-specific fields** (extension payload from `categoryLayouts` in `src/config/zohoEquipmentFields.json`).
-4. **Confirm layout** — repeat the clear / temp / target activation pass.
-5. **Final persist** — one normal v3 update with `Asset_Category` **and** category-specific fields together (mimics manual Zoho reselect + Save).
+1. Save **core fields only** — omit `Asset_Category` and all category-specific fields from the first create/update payload.
+2. **Activate layout** via Netlify proxy action `activate_equipment_category_layout`: read current category → swap to temporary category with `layout_rules` → set target category with `layout_rules` and category fields → confirm with `layout_rules` → final persist save (category + fields).
 
 **When adding a new asset category to CapStone:**
 
@@ -292,7 +289,7 @@ Zoho CRM layout rules control which sections and fields appear on the Equipments
 - Use exact Zoho picklist `actual_value` strings for `Asset_Category`.
 - Reuse the existing save path — **do not** add category-specific save logic unless Zoho documents a different requirement.
 - Verify in Zoho CRM after CapStone save: conditional sections appear **without** manually changing the category dropdown.
-- Ensure Netlify `zoho-proxy.js` is deployed so `apply_layout_rules` uses `/crm/v8/Equipments`.
+- Ensure Netlify `zoho-proxy.js` is deployed — layout activation uses server-side `activate_equipment_category_layout` (v8 `layout_rules` on temp + target, then v3 persist).
 
 **CapStone UI:** category-specific fields render from `categoryLayouts` via `syncAssetCategoryLayoutUi()` / `renderAssetCategoryFields()`. Always load equipment config before rendering category sections.
 

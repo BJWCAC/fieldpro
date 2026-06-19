@@ -33,7 +33,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="269";
+var FP_VERSION="270";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -2681,60 +2681,35 @@ async function postEquipmentToZoho(action,equipmentId,payload,opts){
   return parsed;
 }
 /* Zoho Asset_Category layout activation — required for EVERY category (see CAPSTONE_DEVELOPMENT_RULES.md). */
-function tempCategoryForLayoutSwap(targetCategory){
-  var preferred={"Open Channel Flow":"Flow Meter","Flow Meter":"Open Channel Flow"};
-  var vals=assetPicklistValues("Asset_Category");
-  var pick=preferred[targetCategory];
-  if(pick&&vals.indexOf(pick)>=0)return pick;
-  for(var i=0;i<vals.length;i++){if(vals[i]&&vals[i]!==targetCategory)return vals[i];}
-  return null;
-}
-async function activateZohoCategoryLayoutOnce(equipmentId,category){
+async function postEquipmentCategoryLayoutActivation(equipmentId,category,extension){
   if(!equipmentId||!category)return;
-  try{
-    await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:""});
-  }catch(clearErr){
-    console.log("Category layout clear:",clearErr&&clearErr.message?clearErr.message:clearErr);
+  var ext=extension&&Object.keys(extension).length?extension:{};
+  assetStatus("Applying asset category layout in Zoho (this may take a few seconds)...",false);
+  var body={
+    action:"activate_equipment_category_layout",
+    token:A.zohoToken,
+    equipment_id:equipmentId,
+    category:category,
+    extension:ext,
+    category_values:assetPicklistValues("Asset_Category")
+  };
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},90000);
+  var txt=await r.text();
+  var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
+  if(!r.ok||parsed.ok===false){
+    var detail=parsed&&parsed.error?parsed.error:String(txt||"").substring(0,220);
+    throw new Error("Zoho category layout failed: "+detail);
   }
-  await waitMs(250);
-  var temp=tempCategoryForLayoutSwap(category);
-  if(temp){
-    try{
-      await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:temp},{applyLayoutRules:true});
-    }catch(swapErr){
-      console.log("Category layout swap (temporary category):",swapErr&&swapErr.message?swapErr.message:swapErr);
-    }
-    await waitMs(250);
-  }
-  await postEquipmentToZoho("update_equipment",equipmentId,{Asset_Category:category},{applyLayoutRules:true});
-}
-async function persistZohoCategoryLayoutSave(equipmentId,category,extension){
-  if(!equipmentId||!category)return;
-  var payload={Asset_Category:category};
-  if(extension&&Object.keys(extension).length)Object.assign(payload,extension);
-  await postEquipmentToZoho("update_equipment",equipmentId,payload);
-}
-async function activateZohoCategoryLayout(equipmentId,category){
-  if(!equipmentId||!category)return;
-  await activateZohoCategoryLayoutOnce(equipmentId,category);
-}
-async function finalizeZohoCategoryLayoutSave(equipmentId,category,extension){
-  if(!equipmentId||!category)return;
-  var ext=extension&&Object.keys(extension).length?extension:null;
-  if(ext){
-    assetStatus("Saving category-specific fields in Zoho...",false);
-    await postEquipmentToZoho("update_equipment",equipmentId,ext);
-  }
-  assetStatus("Confirming asset category layout in Zoho...",false);
-  await waitMs(350);
-  await activateZohoCategoryLayoutOnce(equipmentId,category);
-  assetStatus(ext?"Saving asset category and fields in Zoho...":"Saving asset category in Zoho...",false);
-  await waitMs(250);
-  await persistZohoCategoryLayoutSave(equipmentId,category,ext);
+  return parsed;
 }
 function assetPayloadWithoutCategory(payload){
   var out=Object.assign({},payload||{});
   delete out.Asset_Category;
+  return out;
+}
+function assetPayloadWithoutCategoryExtensions(payload,category){
+  var out=assetPayloadWithoutCategory(payload);
+  categoryLayoutExtensionApis(category).forEach(function(api){delete out[api];});
   return out;
 }
 function assetPayload(opts){
@@ -2787,6 +2762,7 @@ async function findExistingEquipmentBySerial(){
   return null;
 }
 async function saveEquipmentRecord(){
+  await loadEquipmentConfig();
   finalizeDynamicValuesBeforeSave();
   syncSubformRowsFromDom();
   var includeBlank=!!A.asset.currentAssetId;
@@ -2802,14 +2778,14 @@ async function saveEquipmentRecord(){
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
+  var coreSavePayload=split.category?assetPayloadWithoutCategoryExtensions(split.core,split.category):assetPayloadWithoutCategory(split.core);
   var equipmentId=A.asset.currentAssetId;
   var isCreate=!equipmentId;
   if(isCreate){
     assetStatus("Creating equipment asset in Zoho...",false);
-    var createPayload=assetPayloadWithoutCategory(split.core);
     var created;
     try{
-      created=await postEquipmentToZoho("create_equipment",null,createPayload);
+      created=await postEquipmentToZoho("create_equipment",null,coreSavePayload);
     }catch(createErr){
       if(!split.category||!/mandatory|required/i.test(String(createErr&&createErr.message||createErr)))throw createErr;
       created=await postEquipmentToZoho("create_equipment",null,split.core);
@@ -2818,20 +2794,16 @@ async function saveEquipmentRecord(){
     if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
     A.asset.currentAssetId=equipmentId;
     if(split.category){
-      assetStatus("Activating asset category layout in Zoho...",false);
-      await activateZohoCategoryLayout(equipmentId,split.category);
-      await finalizeZohoCategoryLayoutSave(equipmentId,split.category,hasExtension?split.extension:null);
+      await postEquipmentCategoryLayoutActivation(equipmentId,split.category,split.extension);
     }else if(hasExtension){
       assetStatus("Saving category-specific fields in Zoho...",false);
       await postEquipmentToZoho("update_equipment",equipmentId,split.extension);
     }
   }else{
     assetStatus("Updating existing equipment asset in Zoho...",false);
-    await postEquipmentToZoho("update_equipment",equipmentId,assetPayloadWithoutCategory(split.core));
+    await postEquipmentToZoho("update_equipment",equipmentId,coreSavePayload);
     if(split.category){
-      assetStatus("Refreshing asset category layout in Zoho...",false);
-      await activateZohoCategoryLayout(equipmentId,split.category);
-      await finalizeZohoCategoryLayoutSave(equipmentId,split.category,hasExtension?split.extension:null);
+      await postEquipmentCategoryLayoutActivation(equipmentId,split.category,split.extension);
     }else if(hasExtension){
       assetStatus("Saving category-specific fields in Zoho...",false);
       await postEquipmentToZoho("update_equipment",equipmentId,split.extension);

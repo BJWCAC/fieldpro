@@ -10,7 +10,7 @@
     "Flow Meter dynamic fields use zohoApiName in assetFieldRegistry when Zoho CRM api_name differs from CapStone key (e.g. Cal_Factor_K_Factor → Cal_Factor_K_factor_Etc, Sensor_Model_Number → Model_Number).",
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Open Channel Flow is the category for flume/weir assets.",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
-    "Asset category layout activation on Zoho save applies to ALL Asset_Category values (current and future). CapStone uses phased save + clear/temp/target category swap with v8 layout_rules + final persist (category + category fields). See docs/CAPSTONE_DEVELOPMENT_RULES.md — do not bypass for new categories; add categoryLayouts in this file instead.",
+    "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
