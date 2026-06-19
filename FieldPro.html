@@ -290,8 +290,8 @@
           <div class="help-box-body">
             <p>Search first whenever the instrument may already exist in Zoho. Loading a match fills the form for update instead of creating a duplicate record.</p>
             <ul>
-              <li>Search by CAC ID, serial, model, brand, type, series, name, building, or designator.</li>
-              <li>Matching serial + account triggers an update confirmation before save.</li>
+              <li>Search by CAC ID, serial, model, brand, type, series, name, building, or designator. Account is optional — CAC ID and customer asset number always search all accounts.</li>
+              <li>Picking an account narrows serial/model/brand searches to that site; a wrong account can hide those matches but not a direct CAC ID.</li>
               <li>Use <strong>Replace Instrument</strong> when documenting a swap to a new unit.</li>
             </ul>
           </div>
@@ -866,7 +866,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=255"></script>
+<script src="src/app.js?v=256"></script>
 
 </body>
 </html>

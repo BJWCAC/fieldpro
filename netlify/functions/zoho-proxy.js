@@ -304,6 +304,18 @@ exports.handler = async function(event) {
       return a.id || "";
     }
 
+    function equipmentMatchesAccountScope(rec, accountId, q) {
+      if (!accountId) return true;
+      if (equipmentAccountId(rec) === accountId) return true;
+      var qLower = String(q || "").trim().toLowerCase();
+      if (!qLower) return false;
+      var cac = String(rec.CAC_Asset_ID || "").trim().toLowerCase();
+      if (cac && cac === qLower) return true;
+      var cust = String(rec.Customer_Asset_Number || "").trim().toLowerCase();
+      if (cust && cust === qLower) return true;
+      return false;
+    }
+
     function subformAssetId(row) {
       var a = row && row.Assets;
       if (!a) return "";
@@ -414,7 +426,7 @@ exports.handler = async function(event) {
           var foundRows = (JSON.parse(searchResult.body).data || []);
           for (var sri = 0; sri < foundRows.length; sri++) {
             var rec = foundRows[sri];
-            if (data.account_id && equipmentAccountId(rec) !== data.account_id) continue;
+            if (!equipmentMatchesAccountScope(rec, data.account_id, q)) continue;
             if (!seen[rec.id]) { seen[rec.id] = true; hits.push(rec); }
           }
         } catch (se) {}
