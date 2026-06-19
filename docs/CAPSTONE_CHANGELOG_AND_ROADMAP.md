@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v263
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=263
+Current live version: v264
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=264
 ```
 
 ---
@@ -101,6 +101,7 @@ Related docs (detail, not status):
 | v261 | — | **Assets: category layout activation on save** — phased Zoho save activates Asset Category layout rules (category touch + category fields after create); CapStone reload syncs category sections when loading assets |
 | v262 | — | **Assets: save typo fix** — `finalizeDynamicValuesBeforeSave` (was broken reference blocking all asset saves) |
 | v263 | — | **Assets: Zoho category layout fix** — clear-then-set Asset_Category with v8 `layout_rules`; create/update core without category first; CapStone always loads equipment config before rendering category fields |
+| v264 | — | **Assets: category fields + UX polish** — category select waits for config before showing sections; Account only opens account picker (one button); Extract AI below photos; picklist Use works on first tap; Open Channel Flow Engineering Units limited to In H2O / FT H2O; Input PV Zero/Span mirrors to Output |
 
 ### UI / workflow polish
 
