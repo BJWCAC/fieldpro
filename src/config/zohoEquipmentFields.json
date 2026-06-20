@@ -11,7 +11,8 @@
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Flow Open Channel is the Zoho category for flume/weir assets (word order matches Zoho picklist actual_value).",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
-    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration (Damping_Seconds) 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006.",
+    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006.",
+    "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
@@ -74,7 +75,8 @@
     "Output_PV_Span": { "label": "Output PV @ Span", "widget": "number", "zohoApiName": "PV_Span", "zohoType": "double" },
     "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text", "zohoApiName": "Cal_Factor_K_factor_Etc" },
     "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
-    "Damping_Seconds": { "label": "Duration (Damping Seconds)", "widget": "text", "zohoType": "double" },
+    "Duration": { "label": "Duration", "widget": "text", "zohoType": "double" },
+    "Damping_Seconds": { "label": "Damping Seconds", "widget": "text", "zohoType": "double" },
     "Flume_Weir_Type": { "label": "Flume / Weir Type", "widget": "select", "picklist": "Flume_Weir_Type" },
     "Flume_Weir_Size_Length": { "label": "Flume / Weir Size / Length", "widget": "text" },
     "Distance_Measurement_Units": { "label": "Distance Measurement Units", "widget": "select", "picklist": "Distance_Measurement_Units" },
@@ -190,9 +192,9 @@
           "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
         },
         {
-          "id": "duration",
-          "title": "Duration (Damping)",
-          "fields": ["Damping_Seconds"]
+          "id": "durationDamping",
+          "title": "Duration & Damping",
+          "fields": ["Duration", "Damping_Seconds"]
         },
         {
           "id": "setupOutput",
@@ -218,7 +220,7 @@
         "Engineering_Units": "GPM US",
         "Input_Engineering_Units": { "lookup": ["H2O Inches", "Inches H2O", "In H2O"] },
         "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
-        "Damping_Seconds": "0.75"
+        "Duration": "0.75"
       },
       "conditional": [
         {
