@@ -1,4 +1,5 @@
 const https = require("https");
+var PROXY_BUILD = "273";
 
 exports.handler = async function(event) {
   const h = {
@@ -24,6 +25,49 @@ exports.handler = async function(event) {
   try {
     var data = JSON.parse(event.body);
     var token = data.token;
+
+    if (data.action === "ping_proxy") {
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({
+          ok: true,
+          proxy_build: PROXY_BUILD,
+          layout_activation: true,
+          reopen_confirm: true,
+          picklist_resolve: true
+        })
+      };
+    }
+
+    async function resolveAssetCategoryValue(token, inputValue) {
+      var want = String(inputValue || "").trim();
+      if (!want) return want;
+      var fieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Equipments",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (fieldsResult.status < 200 || fieldsResult.status >= 300) return want;
+      try {
+        var fields = JSON.parse(fieldsResult.body).fields || [];
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== "Asset_Category") continue;
+          var opts = f.pick_list_values || [];
+          for (var oi = 0; oi < opts.length; oi++) {
+            var opt = opts[oi];
+            if (!opt || opt.type === "unused") continue;
+            var actual = String(opt.actual_value || "").trim();
+            var display = String(opt.display_value || "").trim();
+            if (actual === want || display === want) return actual || want;
+            if (actual.toLowerCase() === want.toLowerCase() || display.toLowerCase() === want.toLowerCase()) return actual || display || want;
+          }
+        }
+      } catch (re) {}
+      return want;
+    }
 
     if (data.action === "get_technicians") {
       var fieldsResult = await req({
@@ -575,6 +619,7 @@ exports.handler = async function(event) {
       if (!layoutEquipmentId || !layoutCategory) {
         return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "equipment_id and category are required" }) };
       }
+      layoutCategory = await resolveAssetCategoryValue(token, layoutCategory);
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
@@ -631,7 +676,7 @@ exports.handler = async function(event) {
           }
           await sleepMs(450);
         }
-        return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "initial", current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
+        return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "initial", proxy_build: PROXY_BUILD, resolved_category: layoutCategory, current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
       }
 
       var cycle2 = await runCategoryReselectCycle("reopen_confirm", currentCategory);
@@ -654,7 +699,7 @@ exports.handler = async function(event) {
         return { statusCode: resaveV3.status >= 400 ? resaveV3.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v3) failed: " + zohoWriteErrorMessage(resaveV3), steps: steps }) };
       }
 
-      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "reopen_confirm", current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "reopen_confirm", proxy_build: PROXY_BUILD, resolved_category: layoutCategory, current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
     }
 
     if (data.action === "update_equipment") {

@@ -34,7 +34,8 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="272";
+var FP_VERSION="273";
+var MIN_ZOHO_PROXY_BUILD=273;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -170,7 +171,7 @@ function go(n){
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="map"&&typeof initAccountsMapTab==="function")initAccountsMapTab();
-  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();}
+  if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();if(typeof checkZohoProxyDeploy==="function")checkZohoProxyDeploy(true);}
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -634,6 +635,7 @@ window.togglePlaudAutoPull=togglePlaudAutoPull;
 window.assetPhotoSelected=assetPhotoSelected;
 window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.saveAssetToZoho=saveAssetToZoho;
+window.checkZohoProxyDeploy=checkZohoProxyDeploy;
 window.resetAssetFormForNext=resetAssetFormForNext;
 window.searchExistingAssets=searchExistingAssets;
 window.searchAssetByCurrentField=searchAssetByCurrentField;
@@ -720,7 +722,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","confirmAssetPhotoDescription","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","confirmAssetPhotoDescription","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -2770,6 +2772,34 @@ async function postEquipmentToZoho(action,equipmentId,payload,opts){
   return parsed;
 }
 /* Zoho Asset_Category layout activation — required for EVERY category (see CAPSTONE_DEVELOPMENT_RULES.md). */
+async function checkZohoProxyDeploy(silent){
+  var statusEl=el("zoho-proxy-status");
+  if(statusEl&&!silent)statusEl.textContent="Checking Zoho proxy...";
+  try{
+    await refreshZohoToken();
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"ping_proxy",token:A.zohoToken})},15000);
+    var txt=await r.text();
+    var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok){
+      var failMsg="Zoho proxy check failed ("+(r.status||"?")+"). In Netlify: Deploys → Trigger deploy → Clear cache and deploy site. Then Settings → Check Zoho Proxy.";
+      if(statusEl)statusEl.textContent=failMsg;
+      return{ok:false,message:failMsg};
+    }
+    var build=parseInt(d.proxy_build,10)||0;
+    if(build<MIN_ZOHO_PROXY_BUILD||!d.layout_activation){
+      var oldMsg="Zoho proxy build "+(d.proxy_build||"?")+" is too old — CapStone v"+FP_VERSION+" needs build "+MIN_ZOHO_PROXY_BUILD+"+. Netlify: Deploys → Clear cache and deploy site.";
+      if(statusEl)statusEl.textContent=oldMsg;
+      return{ok:false,message:oldMsg,proxy_build:build};
+    }
+    var okMsg="Zoho proxy OK (build "+d.proxy_build+") — category layout activation ready.";
+    if(statusEl)statusEl.textContent=okMsg;
+    return{ok:true,message:okMsg,proxy_build:build};
+  }catch(e){
+    var errMsg="Zoho proxy unreachable: "+(e.message||e);
+    if(statusEl)statusEl.textContent=errMsg;
+    return{ok:false,message:errMsg};
+  }
+}
 async function postEquipmentCategoryLayoutActivation(equipmentId,category,extension){
   if(!equipmentId||!category)return;
   category=normalizeAssetCategoryKey(category);
@@ -2788,6 +2818,7 @@ async function postEquipmentCategoryLayoutActivation(equipmentId,category,extens
   var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
   if(!r.ok||parsed.ok===false){
     var detail=parsed&&parsed.error?parsed.error:String(txt||"").substring(0,220);
+    if(/Unknown action/i.test(detail))detail="Netlify proxy missing layout support — deploy with Clear cache and deploy site, then Settings → Check Zoho Proxy.";
     throw new Error("Zoho category layout failed: "+detail);
   }
   assetStatus("Confirming category layout in Zoho (reopen + reselect pass)...",false);
@@ -2894,6 +2925,8 @@ async function saveEquipmentRecord(){
     if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
     A.asset.currentAssetId=equipmentId;
     if(split.category){
+      var proxyCheck=await checkZohoProxyDeploy(true);
+      if(!proxyCheck.ok)throw new Error(proxyCheck.message);
       await postEquipmentCategoryLayoutActivation(equipmentId,split.category,split.extension);
     }else if(hasExtension){
       assetStatus("Saving category-specific fields in Zoho...",false);
@@ -2903,6 +2936,8 @@ async function saveEquipmentRecord(){
     assetStatus("Updating existing equipment asset in Zoho...",false);
     await postEquipmentToZoho("update_equipment",equipmentId,coreSavePayload);
     if(split.category){
+      var proxyCheck=await checkZohoProxyDeploy(true);
+      if(!proxyCheck.ok)throw new Error(proxyCheck.message);
       await postEquipmentCategoryLayoutActivation(equipmentId,split.category,split.extension);
     }else if(hasExtension){
       assetStatus("Saving category-specific fields in Zoho...",false);
