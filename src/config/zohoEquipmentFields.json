@@ -187,7 +187,12 @@
         {
           "id": "setupInput",
           "title": "Set Up Input",
-          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span", "Damping_Seconds"]
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+        },
+        {
+          "id": "duration",
+          "title": "Duration (Damping)",
+          "fields": ["Damping_Seconds"]
         },
         {
           "id": "setupOutput",

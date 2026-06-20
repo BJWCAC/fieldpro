@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="285";
+var FP_VERSION="286";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1233,8 +1233,14 @@ async function loadEquipmentConfig(){
 function assetFieldRegistry(){return(A.equipmentConfig&&A.equipmentConfig.assetFieldRegistry)||{};}
 function engineeringUnitsLookupConfig(){return A.equipmentConfig&&A.equipmentConfig.engineeringUnitsLookup||null;}
 function engineeringUnitLookupOptions(){
-  if(A.engineeringUnitLookups&&A.engineeringUnitLookups.length)return A.engineeringUnitLookups;
-  return assetPicklistValues("Engineering_Units").map(function(name){return{id:name,name:name};});
+  var opts;
+  if(A.engineeringUnitLookups&&A.engineeringUnitLookups.length)opts=A.engineeringUnitLookups;
+  else opts=assetPicklistValues("Engineering_Units").map(function(name){return{id:name,name:name};});
+  if(!Array.isArray(opts))opts=assetPicklistValues("Engineering_Units").map(function(name){return{id:name,name:name};});
+  return opts.map(function(o){
+    if(typeof o==="string")return{id:o,name:o};
+    return{id:o.id!=null?o.id:o.name,name:o.name||o.id||""};
+  });
 }
 function resolveEngineeringUnitLookupId(val){
   var s=String(val||"").trim();if(!s)return null;
@@ -1631,15 +1637,18 @@ function splitAssetPayloadForCategoryLayout(payload){
   });
   return{core:core,extension:extension,category:category};
 }
+var _assetCategoryLayoutSeq=0;
 function syncAssetCategoryLayoutUi(){
   var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
   if(!cat){renderAssetCategoryFields();return Promise.resolve();}
+  var seq=++_assetCategoryLayoutSeq;
   var box=el("asset-category-fields");
   if(box){
     box.style.display="block";
     box.innerHTML="<div class='e-sub' style='padding:10px 0;color:var(--dim)'>Loading category fields…</div>";
   }
   return loadEquipmentConfig().then(function(){
+    if(seq!==_assetCategoryLayoutSeq)return;
     resetCategoryDynamicStateForCategory(cat);
     categoryDynamicFieldDefs(cat).forEach(function(d){
       if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
@@ -1649,14 +1658,19 @@ function syncAssetCategoryLayoutUi(){
     mirrorInputPvToOutput();
     updateAssetSaveState();
     scrollAssetCategoryFieldsIntoView();
-    return loadEngineeringUnitLookups();
+    return loadEngineeringUnitLookups().catch(function(e){
+      console.log("engineering unit lookups follow-up",e);
+      return [];
+    });
   }).then(function(){
-    if(assetInput("asset-category")!==cat)return;
+    if(seq!==_assetCategoryLayoutSeq)return;
+    if(normalizeAssetCategoryKey(assetInput("asset-category"))!==cat)return;
     applyCategoryFieldDefaults(cat);
     renderAssetCategoryFields({skipDomSync:true});
     mirrorInputPvToOutput();
     updateAssetSaveState();
   }).catch(function(err){
+    if(seq!==_assetCategoryLayoutSeq)return;
     if(box)box.innerHTML="<div class='e-sub' style='padding:10px 0;color:#991b1b'>Could not load category fields: "+esc(err&&err.message?err.message:String(err))+"</div>";
     throw err;
   });
@@ -1869,7 +1883,13 @@ function renderDynFieldBlock(def,fullWidth){
     var luOpts=engineeringUnitLookupOptions();
     var luVal=isDynamicFieldTouched(def.apiName)?(resolveEngineeringUnitLookupId(val)||String(val||"")):"";
     var luLabel=isDynamicFieldTouched(def.apiName)?(engineeringUnitLookupLabel(val)||engineeringUnitLookupLabel(luVal)||String(val||"")):"";
-    var hasOpt=luVal&&luOpts.some(function(o){return String(o.id)===String(luVal)||String(o.name)===String(val)||String(o.name)===String(luVal);});
+    var hasOpt=false;
+    if(luVal){
+      for(var li=0;li<luOpts.length;li++){
+        var o=luOpts[li];
+        if(String(o.id)===String(luVal)||String(o.name)===String(val)||String(o.name)===String(luVal)){hasOpt=true;break;}
+      }
+    }
     var extraOpt=(luVal&&!hasOpt)?"<option value='"+esc(luVal)+"' selected>"+esc(luLabel||luVal)+"</option>":"";
     return wrapStart+"<label class='lbl' for='"+id+"'>"+dynamicFieldLabel(def)+"</label><select id='"+id+"' class='"+missCls.trim()+"' data-api='"+esc(def.apiName)+"'><option value=''>Select</option>"+extraOpt+luOpts.map(function(o){return"<option value='"+esc(o.id)+"'"+(String(o.id)===String(luVal)||String(o.name)===String(val)||String(o.name)===String(luVal)?" selected":"")+">"+esc(o.name||o.id)+"</option>";}).join("")+"</select>"+wrapEnd;
   }
@@ -2054,6 +2074,7 @@ function renderAssetCategoryFields(opts){
   if(!A.asset.subformRows)A.asset.subformRows=[];
   var registry=assetFieldRegistry();
   var html="";
+  try{
   layout.sections.forEach(function(sec){
     if(sec.subform){html+=renderAssetSubformSection(sec);return;}
     html+="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div>";
@@ -2061,13 +2082,22 @@ function renderAssetCategoryFields(opts){
     for(var i=0;i<defs.length;i++){
       var d=defs[i];
       if(d.widget==="textarea"){html+=renderDynFieldBlock(d,true);continue;}
+      if(defs.length===1){html+=renderDynFieldBlock(d,true);continue;}
       if(i+1<defs.length&&defs[i+1].widget!=="textarea"){
         html+="<div class='g2' style='margin-bottom:8px'>"+renderDynFieldBlock(d,false)+renderDynFieldBlock(defs[i+1],false)+"</div>";
         i++;
-      }else html+="<div class='g2' style='margin-bottom:8px'>"+renderDynFieldBlock(d,false)+"<div></div></div>";
+      }else html+=renderDynFieldBlock(d,true);
     }
     html+="</div>";
   });
+  }catch(err){
+    console.log("renderAssetCategoryFields",err);
+    fpAfterDomUpdate(function(){
+      box.innerHTML="<div class='e-sub' style='padding:10px 0;color:#991b1b'>Could not render category fields: "+esc(err.message||String(err))+"</div>";
+      box.style.display="block";
+    });
+    return;
+  }
   fpAfterDomUpdate(function(){
     box.innerHTML=html;
     box.style.display="block";
@@ -2380,7 +2410,8 @@ function renderAssetForm(){
     if(A.sel&&A.asset.mode==="add"&&A.asset.linkMode!=="account"){A.asset.linkMode="deal";A.asset.standaloneAccount=null;}
     else if(!A.sel&&A.asset.mode==="add"&&A.asset.linkMode==="deal")A.asset.linkMode="account";
     renderAssetSetupUi();
-    syncAssetCategoryLayoutUi();
+    if(assetInput("asset-category"))syncAssetCategoryLayoutUi();
+    else renderAssetCategoryFields();
     updateAssetSaveState();
   }).catch(function(e){assetStatus(e.message,true);});
   renderSavedAssets();
