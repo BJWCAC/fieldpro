@@ -853,17 +853,11 @@
             "system_set": true
           },
           "Output_Type": {
-            "label": "Output Signal Type",
+            "label": "Function",
             "type": "picklist",
             "values": [
-              "0-10 V DC",
-              "0-20 mA",
-              "1-5 V DC",
-              "4-20 mA",
-              "FT H2O",
-              "Inches H2O",
-              "PSI",
-              "Pulse"
+              "Input",
+              "Output"
             ]
           },
           "Output_Zero": {

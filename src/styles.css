@@ -17,6 +17,7 @@ input::placeholder,textarea::placeholder{color:#64748b}
 textarea{resize:vertical}select{appearance:none}
 select option{background:#fff;color:#0f2420}
 .asset-required-missing{background:#fee2e2!important;border-color:#ef4444!important}
+.asset-multiselect.asset-required-missing{border:1px solid #ef4444!important;background:#fee2e2!important;border-radius:6px;padding:6px}
 body.light input,body.light textarea,body.light select{background:#fff;color:var(--text);border-color:var(--bdr)}
 #app{display:flex;flex-direction:column;min-height:100vh}
 #hdr{background:linear-gradient(135deg,#0a1a18,#051210);border-bottom:2px solid var(--amber);padding:8px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;position:sticky;top:0;z-index:100}
