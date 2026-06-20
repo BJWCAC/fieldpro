@@ -281,7 +281,7 @@ Zoho CRM layout rules control which sections and fields appear on the Equipments
 **Required save sequence** (implemented in `saveEquipmentRecord()` — do not bypass or special-case individual categories):
 
 1. Save **core fields only** — omit `Asset_Category` and all category-specific fields from the first create/update payload.
-2. **Activate layout** via Netlify proxy `activate_equipment_category_layout` — **initial pass** (category-only temp swap + reselect, then extension fields), then **reopen confirm pass** (read record again, temp swap + reselect, full resave with category + fields) to mimic manual Zoho reopen → reselect category → Save.
+2. **Activate layout** via Netlify proxy `activate_equipment_category_layout` — **initial pass** (pause, category-only temp swap + double reselect when category unchanged, then extension fields), then **reopen confirm pass** after a longer wait (read record again, pause, temp swap + double reselect, full resave with category + fields) to mimic manual Zoho pause → reopen → click Asset Category → select same value again → Save.
 
 **When adding a new asset category to CapStone:**
 

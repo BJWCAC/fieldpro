@@ -165,11 +165,49 @@
           "subform": "Subform_1"
         }
       ]
+    },
+    "Open Channel Flow Meter": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "setupInput",
+          "title": "Set Up Input",
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+        },
+        {
+          "id": "setupOutput",
+          "title": "Set Up Output",
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "ocmDetails",
+          "title": "OCM — Open Channel Flume, Weir Details",
+          "fields": ["Flume_Weir_Type", "Flume_Weir_Size_Length", "Distance_Measurement_Units", "Exponent"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
     }
   },
   "modules": {
     "Equipments": {
-      "module_api_name": "Equipments",
       "picklists": {
         "Asset_Category": {
           "label": "Asset Category",
@@ -177,6 +215,7 @@
           "values": [
             "Flow Meter",
             "Open Channel Flow",
+            "Open Channel Flow Meter",
             "Gas Detector",
             "Analytical",
             "Lift Station",

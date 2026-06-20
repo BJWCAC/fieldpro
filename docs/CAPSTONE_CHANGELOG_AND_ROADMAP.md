@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v273
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=273
+Current live version: v274
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=274
 ```
 
 ---
@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v274 | — | **Zoho OCF update layout fix** — longer pauses between category reselect steps; double-select same category on update/reopen pass (Open Channel Flow Meter); proxy resolves OCF picklist from live Zoho metadata; Settings requires proxy build 274+ |
 | v273 | — | **Zoho proxy verify + picklist resolve** — Settings → Check Zoho Proxy (build 273+); block category save if proxy outdated; resolve Asset_Category from live Zoho picklist metadata |
 
 ### UI / workflow polish

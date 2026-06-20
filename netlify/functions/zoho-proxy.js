@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "273";
+var PROXY_BUILD = "274";
 
 exports.handler = async function(event) {
   const h = {
@@ -63,10 +63,53 @@ exports.handler = async function(event) {
             var display = String(opt.display_value || "").trim();
             if (actual === want || display === want) return actual || want;
             if (actual.toLowerCase() === want.toLowerCase() || display.toLowerCase() === want.toLowerCase()) return actual || display || want;
+            if (/open\s*channel\s*flow/i.test(want) && (/open\s*channel\s*flow/i.test(actual) || /open\s*channel\s*flow/i.test(display))) return actual || display || want;
           }
         }
       } catch (re) {}
       return want;
+    }
+
+    async function loadAssetCategoryPicklistValues(token) {
+      var vals = [];
+      var fieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Equipments",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (fieldsResult.status >= 200 && fieldsResult.status < 300) {
+        try {
+          var fields = JSON.parse(fieldsResult.body).fields || [];
+          for (var fi = 0; fi < fields.length; fi++) {
+            var f = fields[fi];
+            if (f.api_name !== "Asset_Category") continue;
+            (f.pick_list_values || []).forEach(function(opt) {
+              if (!opt || opt.type === "unused") return;
+              var v = String(opt.actual_value || opt.display_value || "").trim();
+              if (v && vals.indexOf(v) < 0) vals.push(v);
+            });
+          }
+        } catch (le) {}
+      }
+      return vals;
+    }
+
+    function isOpenChannelFlowCategory(cat) {
+      return /open\s*channel\s*flow/i.test(String(cat || ""));
+    }
+
+    function isFlowMeterCategory(cat) {
+      return /^flow\s*meter$/i.test(String(cat || "").trim());
+    }
+
+    function categoriesEquivalent(a, b) {
+      a = String(a || "").trim();
+      b = String(b || "").trim();
+      if (!a || !b) return false;
+      if (a === b) return true;
+      if (isOpenChannelFlowCategory(a) && isOpenChannelFlowCategory(b)) return true;
+      return false;
     }
 
     if (data.action === "get_technicians") {
@@ -576,17 +619,30 @@ exports.handler = async function(event) {
     }
 
     function pickTempCategoryForLayout(currentCategory, targetCategory, categoryValues) {
-      var preferred = { "Open Channel Flow": "Flow Meter", "Flow Meter": "Open Channel Flow" };
       var current = String(currentCategory || "").trim();
       var target = String(targetCategory || "").trim();
+      if (isOpenChannelFlowCategory(target)) {
+        for (var oi = 0; oi < categoryValues.length; oi++) {
+          var fm = categoryValues[oi];
+          if (fm && isFlowMeterCategory(fm) && !categoriesEquivalent(fm, current)) return fm;
+        }
+        if (!isFlowMeterCategory(current) && categoryValues.indexOf("Flow Meter") >= 0) return "Flow Meter";
+      }
+      if (isFlowMeterCategory(target)) {
+        for (var oj = 0; oj < categoryValues.length; oj++) {
+          var ocf = categoryValues[oj];
+          if (ocf && isOpenChannelFlowCategory(ocf) && !categoriesEquivalent(ocf, current)) return ocf;
+        }
+      }
+      var preferred = { "Open Channel Flow": "Flow Meter", "Flow Meter": "Open Channel Flow" };
       var pref = preferred[target];
       if (pref && pref !== target && categoryValues.indexOf(pref) >= 0 && pref !== current) return pref;
       for (var i = 0; i < categoryValues.length; i++) {
         var v = categoryValues[i];
-        if (v && v !== target && v !== current) return v;
+        if (v && v !== target && v !== current && !categoriesEquivalent(v, target)) return v;
       }
       for (var j = 0; j < categoryValues.length; j++) {
-        if (categoryValues[j] && categoryValues[j] !== target) return categoryValues[j];
+        if (categoryValues[j] && categoryValues[j] !== target && !categoriesEquivalent(categoryValues[j], target)) return categoryValues[j];
       }
       return null;
     }
@@ -620,6 +676,10 @@ exports.handler = async function(event) {
         return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "equipment_id and category are required" }) };
       }
       layoutCategory = await resolveAssetCategoryValue(token, layoutCategory);
+      var zohoCategoryValues = await loadAssetCategoryPicklistValues(token);
+      var mergedCategoryValues = layoutCategoryValues.slice();
+      zohoCategoryValues.forEach(function(v) { if (v && mergedCategoryValues.indexOf(v) < 0) mergedCategoryValues.push(v); });
+      layoutCategoryValues = mergedCategoryValues;
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
@@ -634,6 +694,11 @@ exports.handler = async function(event) {
 
       async function runCategoryReselectCycle(cycleName, currentCategory) {
         var cycleSteps = [];
+        var sameCategory = categoriesEquivalent(currentCategory, layoutCategory);
+        var pauseBefore = reopenConfirm ? 2800 : (sameCategory ? 1600 : 900);
+        await sleepMs(pauseBefore);
+        cycleSteps.push({ cycle: cycleName, step: "pause_before_reselect", ms: pauseBefore, same_category: sameCategory });
+
         var tempCategory = pickTempCategoryForLayout(currentCategory, layoutCategory, layoutCategoryValues);
         if (tempCategory) {
           var tempResult = await zohoEquipmentPut(token, layoutEquipmentId, { Asset_Category: tempCategory }, true);
@@ -641,16 +706,20 @@ exports.handler = async function(event) {
           if (zohoWriteFailed(tempResult)) {
             return { ok: false, error: "Temporary category swap failed: " + zohoWriteErrorMessage(tempResult), steps: cycleSteps };
           }
-          await sleepMs(reopenConfirm ? 650 : 500);
+          await sleepMs(reopenConfirm ? 2000 : 1400);
           currentCategory = tempCategory;
         }
+
         var catOnly = { Asset_Category: layoutCategory };
-        var selectResult = await zohoEquipmentPut(token, layoutEquipmentId, catOnly, true);
-        cycleSteps.push({ cycle: cycleName, step: "select_target_category", category: layoutCategory, status: selectResult.status });
-        if (zohoWriteFailed(selectResult)) {
-          return { ok: false, error: "Target category select failed: " + zohoWriteErrorMessage(selectResult), steps: cycleSteps };
+        var selectPasses = reopenConfirm ? 2 : (sameCategory ? 2 : 1);
+        for (var pi = 0; pi < selectPasses; pi++) {
+          var selectResult = await zohoEquipmentPut(token, layoutEquipmentId, catOnly, true);
+          cycleSteps.push({ cycle: cycleName, step: "select_target_category_" + (pi + 1), category: layoutCategory, status: selectResult.status });
+          if (zohoWriteFailed(selectResult)) {
+            return { ok: false, error: "Target category select failed: " + zohoWriteErrorMessage(selectResult), steps: cycleSteps };
+          }
+          await sleepMs(pi < selectPasses - 1 ? (reopenConfirm ? 2000 : 1400) : (reopenConfirm ? 1500 : 1000));
         }
-        await sleepMs(reopenConfirm ? 650 : 500);
         return { ok: true, steps: cycleSteps, currentCategory: layoutCategory };
       }
 
@@ -659,7 +728,7 @@ exports.handler = async function(event) {
       steps.push({ step: "read_category", category: currentCategory });
 
       if (reopenConfirm) {
-        await sleepMs(800);
+        await sleepMs(2800);
         currentCategory = await readCurrentCategory();
         steps.push({ step: "reopen_read_category", category: currentCategory });
       } else {
@@ -691,7 +760,7 @@ exports.handler = async function(event) {
       if (zohoWriteFailed(resaveV8)) {
         return { statusCode: resaveV8.status >= 400 ? resaveV8.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v8) failed: " + zohoWriteErrorMessage(resaveV8), steps: steps }) };
       }
-      await sleepMs(450);
+      await sleepMs(1500);
 
       var resaveV3 = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, false);
       steps.push({ step: "resave_category_and_fields_v3", category: layoutCategory, status: resaveV3.status });

@@ -34,8 +34,8 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="273";
-var MIN_ZOHO_PROXY_BUILD=273;
+var FP_VERSION="274";
+var MIN_ZOHO_PROXY_BUILD=274;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1221,6 +1221,11 @@ function normalizeAssetCategoryKey(cat){
   var keys=Object.keys(layouts);
   for(var i=0;i<keys.length;i++){
     if(keys[i].toLowerCase()===c.toLowerCase())return keys[i];
+  }
+  if(/open\s*channel\s*flow/i.test(c)){
+    for(var j=0;j<keys.length;j++){
+      if(/open\s*channel\s*flow/i.test(keys[j])&&!/^flow\s*meter$/i.test(keys[j]))return keys[j];
+    }
   }
   return c;
 }
@@ -2822,7 +2827,7 @@ async function postEquipmentCategoryLayoutActivation(equipmentId,category,extens
     throw new Error("Zoho category layout failed: "+detail);
   }
   assetStatus("Confirming category layout in Zoho (reopen + reselect pass)...",false);
-  await waitMs(600);
+  await waitMs(2500);
   var body2=Object.assign({},body,{reopen_confirm:true});
   var r2=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body2)},120000);
   var txt2=await r2.text();
