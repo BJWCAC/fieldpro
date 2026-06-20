@@ -293,6 +293,8 @@ Zoho CRM layout rules control which sections and fields appear on the Equipments
 
 **CapStone UI:** category-specific fields render from `categoryLayouts` via `syncAssetCategoryLayoutUi()` / `renderAssetCategoryFields()`. Always load equipment config before rendering category sections.
 
+**Category suggested defaults:** `categorySuggestedDefaults` in `src/config/zohoEquipmentFields.json` defines per-category suggestion hints (shown as `(suggested: …)` — user must still tap/select each field). Conditional rules use main-form Brand and Series (e.g. Flow Open Channel + Pulsar + Ultra 4 → P005 / P006). Changing Brand or Series refreshes suggestions.
+
 **Do not:**
 
 - Set `Asset_Category` in the first create/update payload together with core fields (layout will not activate).
