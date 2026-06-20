@@ -11,6 +11,7 @@
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Flow Open Channel is the Zoho category for flume/weir assets (word order matches Zoho picklist actual_value).",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
+    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration (Damping_Seconds) 0.75; P005/P006 when Brand Pulsar + Series Ultra 4.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
@@ -73,7 +74,7 @@
     "Output_PV_Span": { "label": "Output PV @ Span", "widget": "number", "zohoApiName": "PV_Span", "zohoType": "double" },
     "Cal_Factor_K_Factor": { "label": "Cal Factor, K Factor, Etc.", "widget": "text", "zohoApiName": "Cal_Factor_K_factor_Etc" },
     "Pipe_Size": { "label": "Pipe Size", "widget": "select", "picklist": "Pipe_Size" },
-    "Damping_Seconds": { "label": "Damping Seconds", "widget": "text", "zohoType": "double" },
+    "Damping_Seconds": { "label": "Duration (Damping Seconds)", "widget": "text", "zohoType": "double" },
     "Flume_Weir_Type": { "label": "Flume / Weir Type", "widget": "select", "picklist": "Flume_Weir_Type" },
     "Flume_Weir_Size_Length": { "label": "Flume / Weir Size / Length", "widget": "text" },
     "Distance_Measurement_Units": { "label": "Distance Measurement Units", "widget": "select", "picklist": "Distance_Measurement_Units" },
@@ -186,7 +187,7 @@
         {
           "id": "setupInput",
           "title": "Set Up Input",
-          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span", "Damping_Seconds"]
         },
         {
           "id": "setupOutput",
@@ -204,6 +205,32 @@
           "subform": "Subform_1"
         }
       ]
+    }
+  },
+  "categorySuggestedDefaults": {
+    "Flow Open Channel": {
+      "fields": {
+        "Engineering_Units": "GPM US",
+        "Input_Engineering_Units": { "lookup": ["H2O Inches", "Inches H2O", "In H2O"] },
+        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
+        "Damping_Seconds": "0.75"
+      },
+      "conditional": [
+        {
+          "when": { "brand": "Pulsar", "series": "Ultra 4" },
+          "fields": {
+            "Input_PV_Zero_Parameter": "P005",
+            "Input_PV_Span_Parameter": "P006"
+          }
+        }
+      ]
+    },
+    "Flow Meter": {
+      "fields": {
+        "Engineering_Units": "GPM US",
+        "Input_Engineering_Units": { "lookup": ["In H2O", "Inches H2O", "H2O Inches"] },
+        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] }
+      }
     }
   },
   "modules": {

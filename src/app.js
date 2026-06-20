@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="277";
+var FP_VERSION="278";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1277,21 +1277,84 @@ function dynamicFieldLabel(def){
   var req=" *";
   return esc(def.label)+req+(hint?" <span style='font-weight:400;color:var(--dim)'>(suggested: "+esc(hint)+")</span>":"");
 }
+function assetRuleContext(){
+  return{
+    brand:String(assetInput("asset-brand")||"").trim(),
+    series:String(assetInput("asset-series")||"").trim()
+  };
+}
+function matchesSuggestedWhen(when,ctx){
+  if(!when)return true;
+  if(when.brand&&when.brand!==ctx.brand)return false;
+  if(when.series&&when.series!==ctx.series)return false;
+  return true;
+}
+function applyOneSuggestedField(has,api,spec,force){
+  if(!has[api]||spec==null)return;
+  if(!A.asset.dynamicSuggested)A.asset.dynamicSuggested={};
+  if(!force&&A.asset.dynamicSuggested[api]!=null)return;
+  if(typeof spec==="string"){
+    A.asset.dynamicSuggested[api]=spec;
+    return;
+  }
+  if(spec&&spec.lookup){
+    var resolved=resolveEngineeringUnitDefault(spec.lookup);
+    if(resolved)A.asset.dynamicSuggested[api]=resolved;
+  }
+}
+function categorySuggestedDefaultsRule(category){
+  var cfg=(A.equipmentConfig&&A.equipmentConfig.categorySuggestedDefaults)||{};
+  var norm=normalizeAssetCategoryKey(category);
+  if(cfg[norm])return cfg[norm];
+  if(isOpenChannelFlowCategory(norm)&&cfg["Flow Open Channel"])return cfg["Flow Open Channel"];
+  return null;
+}
+function applyCategorySuggestedRule(rule,has,ctx){
+  if(!rule||!A.asset.dynamicSuggested)A.asset.dynamicSuggested={};
+  Object.keys(rule.fields||{}).forEach(function(api){
+    applyOneSuggestedField(has,api,rule.fields[api],false);
+  });
+  (rule.conditional||[]).forEach(function(block){
+    Object.keys(block.fields||{}).forEach(function(api){
+      delete A.asset.dynamicSuggested[api];
+    });
+  });
+  (rule.conditional||[]).forEach(function(block){
+    if(!matchesSuggestedWhen(block.when,ctx))return;
+    Object.keys(block.fields||{}).forEach(function(api){
+      applyOneSuggestedField(has,api,block.fields[api],true);
+    });
+  });
+}
 function applyCategoryFieldDefaults(category){
   if(!category)return;
   if(!A.asset.dynamicSuggested)A.asset.dynamicSuggested={};
-  var defs=categoryDynamicFieldDefs(category);
+  var norm=normalizeAssetCategoryKey(category);
+  var defs=categoryDynamicFieldDefs(norm);
   var has={};
   defs.forEach(function(d){has[d.apiName]=true;});
+  var rule=categorySuggestedDefaultsRule(category);
+  if(rule){
+    applyCategorySuggestedRule(rule,has,assetRuleContext());
+    return;
+  }
   if(has.Engineering_Units&&!A.asset.dynamicSuggested.Engineering_Units)A.asset.dynamicSuggested.Engineering_Units="GPM US";
-  if(has.Input_Engineering_Units&&!A.asset.dynamicSuggested.Input_Engineering_Units){
-    var inEu=resolveEngineeringUnitDefault(["Inches H2O","H2O Inches","In H2O"])||resolveEngineeringUnitDefault(["In H2O"]);
-    if(inEu)A.asset.dynamicSuggested.Input_Engineering_Units=inEu;
-  }
-  if(has.Output_Engineering_Units&&!A.asset.dynamicSuggested.Output_Engineering_Units){
-    var outEu=resolveEngineeringUnitDefault(["4-20 mA","4-20mA"]);
-    if(outEu)A.asset.dynamicSuggested.Output_Engineering_Units=outEu;
-  }
+}
+function refreshCategoryFieldSuggestions(){
+  var cat=assetInput("asset-category");
+  if(!cat||!categoryLayout(cat))return;
+  syncDynamicFieldValuesFromDom();
+  syncSubformRowsFromDom();
+  categoryDynamicFieldDefs(normalizeAssetCategoryKey(cat)).forEach(function(d){
+    if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
+  });
+  applyCategoryFieldDefaults(cat);
+  renderAssetCategoryFields({skipDomSync:true});
+  updateAssetSaveState();
+}
+function onAssetBrandOrSeriesChange(){
+  refreshCategoryFieldSuggestions();
+  renderAssetPicklistRequestPanel();
 }
 function resetCategoryDynamicStateForCategory(category){
   var cat=normalizeAssetCategoryKey(category);
@@ -1371,6 +1434,9 @@ function syncAssetCategoryLayoutUi(){
   }
   return loadEquipmentConfig().then(function(){
     resetCategoryDynamicStateForCategory(cat);
+    categoryDynamicFieldDefs(cat).forEach(function(d){
+      if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
+    });
     applyCategoryFieldDefaults(cat);
     renderAssetCategoryFields();
     mirrorInputPvToOutput();
@@ -2904,6 +2970,11 @@ function setupAssetRequiredHandlers(){
     catEl._categoryLayoutBound=true;
     catEl.addEventListener("change",onAssetCategoryChange);
   }
+  ["asset-brand","asset-series"].forEach(function(id){
+    var e=el(id);if(!e||e._suggestBound)return;
+    e._suggestBound=true;
+    e.addEventListener("change",onAssetBrandOrSeriesChange);
+  });
   A.assetReqHandlersBound=true;
 }
 function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes"];}

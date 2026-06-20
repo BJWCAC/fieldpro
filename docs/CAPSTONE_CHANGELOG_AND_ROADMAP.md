@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v277
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=277
+Current live version: v278
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=278
 ```
 
 ---
@@ -110,6 +110,8 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v278 | — | **Flow Open Channel suggested defaults** — Input EU H2O Inches, Output 4-20 mA, Display GPM US, Duration 0.75; P005/P006 when Brand Pulsar + Series Ultra 4; refreshes on brand/series change |
+| v277 | — | **Category fields touch-required** — all Asset Category layout fields (Set Up Input/Output, sensor, OCM, etc.) use mandatory light-red styling until explicitly entered; defaults shown as suggestions only |
 | v276 | — | **Subform Input/Output fixes** — Function picklist Input/Output; stop triple-saving Subform_1 during layout activation; mandatory touch-required red styling on all subform fields; Engineering Unit hint 4-20 mA for Output |
 | v275 | — | **Flow Open Channel category fix** — Zoho picklist actual_value is **Flow Open Channel** (not Open Channel Flow); proxy + CapStone normalize all OCF variants; Settings requires proxy build 275+ |
 | v274 | — | **Zoho OCF update layout fix** — longer pauses between category reselect steps; double-select same category on update/reopen pass; proxy resolves OCF picklist from live Zoho metadata; Settings requires proxy build 274+ |
