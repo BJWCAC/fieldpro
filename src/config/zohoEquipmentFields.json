@@ -11,7 +11,7 @@
     "CapStone Asset Category dropdown omits deprecated Zoho value Flow; Flow Open Channel is the Zoho category for flume/weir assets (word order matches Zoho picklist actual_value).",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
-    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration (Damping_Seconds) 0.75; P005/P006 when Brand Pulsar + Series Ultra 4.",
+    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Duration (Damping_Seconds) 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, Output 4-20 mA.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
   "assetCapturePhase1": {
@@ -212,7 +212,6 @@
       "fields": {
         "Engineering_Units": "GPM US",
         "Input_Engineering_Units": { "lookup": ["H2O Inches", "Inches H2O", "In H2O"] },
-        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
         "Damping_Seconds": "0.75"
       },
       "conditional": [
@@ -220,7 +219,8 @@
           "when": { "brand": "Pulsar", "series": "Ultra 4" },
           "fields": {
             "Input_PV_Zero_Parameter": "P005",
-            "Input_PV_Span_Parameter": "P006"
+            "Input_PV_Span_Parameter": "P006",
+            "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] }
           }
         }
       ]
