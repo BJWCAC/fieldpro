@@ -852,8 +852,8 @@
     <label class="lbl" for="asset-photo-desc-input">Short Description</label>
     <input id="asset-photo-desc-input" name="fp-photo-label" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="transmitter-label, sensor-label, wiring" style="margin-bottom:10px"/>
     <div class="g2">
-      <button type="button" class="bg bfull" onclick="cancelAssetPhotoDescription()">Use Default</button>
-      <button type="button" class="bp bfull" onclick="confirmAssetPhotoDescription()">Use Label</button>
+      <button type="button" class="bg bfull" data-no-busy onclick="cancelAssetPhotoDescription()">Use Default</button>
+      <button type="button" id="asset-photo-label-confirm" class="bp bfull" data-no-busy onclick="confirmAssetPhotoDescription()">Use Label</button>
     </div>
   </div>
 </div>
@@ -883,7 +883,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=278"></script>
+<script src="src/app.js?v=279"></script>
 
 </body>
 </html>

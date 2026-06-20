@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="278";
+var FP_VERSION="279";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -152,6 +152,8 @@ async function checkForAppUpdate(){
 }
 function el(id){return document.getElementById(id);}
 function go(n){
+  if(typeof saveAssetDraftNow==="function"&&typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
+  if(typeof saveCaptureDraftNow==="function"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
   ["deals","capture","assets","inbox","report","history","map","settings"].forEach(function(x){
     var p=el("p-"+x),t=el("t-"+x);
     if(p)p.classList.toggle("on",x===n);
@@ -582,7 +584,13 @@ async function startCapStone(){
   setupPlaudForegroundPull();
   try{
     document.addEventListener("visibilitychange",function(){
-      if(document.visibilityState==="hidden"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
+      if(document.visibilityState!=="hidden")return;
+      if(typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
+      if(typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
+    });
+    window.addEventListener("pagehide",function(){
+      if(typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
+      if(typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
     });
   }catch(e){}
 }
@@ -713,7 +721,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","confirmAssetPhotoDescription","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -1873,7 +1881,26 @@ function onAssetCategoryChange(){
   scheduleAssetDraftSave();
 }
 function setAssetDraftStatus(msg,isErr){var e=el("asset-draft-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.color=isErr?"#991b1b":"#2d6b60";e.style.background=isErr?"#fee2e2":"#fff";e.style.borderColor=isErr?"#ef4444":"#b2ddd6";}else e.style.display="none";}
-function assetDraftHasWork(){return !!(A.asset.currentAssetId||A.asset.photos.length||assetFieldIdsToClear().some(function(id){return assetInput(id);})||assetInput("asset-search")||A.asset.replacementMode);}
+function assetDraftHasWork(){
+  if(A.asset.intent)return true;
+  if(A.asset.mode&&A.asset.mode!=="add")return true;
+  if(A.asset.linkMode==="account"&&A.asset.standaloneAccount)return true;
+  if(A.asset.currentAssetId||A.asset.photos.length||A.asset.replacementMode)return true;
+  if(assetFieldIdsToClear().some(function(id){return assetInput(id);}))return true;
+  if(assetInput("asset-search"))return true;
+  if(A.asset.dynamicValues&&Object.keys(A.asset.dynamicValues).some(function(k){
+    var v=A.asset.dynamicValues[k];
+    return v!=null&&v!==""&&!(Array.isArray(v)&&!v.length);
+  }))return true;
+  if(A.asset.subformRows&&A.asset.subformRows.some(function(row){
+    return Object.keys(row||{}).some(function(k){return String(row[k]||"").trim();});
+  }))return true;
+  return false;
+}
+function saveAllTabDraftsNow(){
+  if(typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
+  if(typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
+}
 function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});syncDynamicFieldValuesFromDom();syncSubformRowsFromDom();return{version:1,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:A.asset.mode,intent:A.asset.intent,linkMode:A.asset.linkMode,standaloneAccount:A.asset.standaloneAccount,currentAssetId:A.asset.currentAssetId,activeDealKey:A.asset.activeDealKey,loadedOriginal:A.asset.loadedOriginal,replacementMode:A.asset.replacementMode,photos:A.asset.photos,lastUploadedPhotoFingerprints:A.asset.lastUploadedPhotoFingerprints,dynamicValues:A.asset.dynamicValues||{},dynamicSuggested:A.asset.dynamicSuggested||{},dynamicTouched:A.asset.dynamicTouched||{},subformRows:A.asset.subformRows||[],subformTouched:A.asset.subformTouched||{},fields:fields};}
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;try{localStorage.setItem("fp_asset_draft",JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
@@ -3756,6 +3783,19 @@ function updateAssetPhotoRoleButtons(role){
     if(btn)btn.classList.toggle("on",key===role);
   });
 }
+function updateAssetPhotoLabelUi(){
+  var role=A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
+  var inp=el("asset-photo-desc-input");
+  var confirmBtn=el("asset-photo-label-confirm");
+  var text=inp?String(inp.value||"").trim():"";
+  var ok=role!=="other"||text.length>0;
+  if(confirmBtn){
+    confirmBtn.disabled=!ok;
+    confirmBtn.classList.toggle("blocked",!ok);
+    confirmBtn.style.opacity=ok?"1":"0.55";
+  }
+  updateAssetPhotoRoleButtons(role);
+}
 function finalizeAssetPhotoLabel(desc,role){
   var photo=A.assetPhotoLabelPhoto;
   var resolver=A.assetPhotoLabelResolver||A.assetPhotoDescResolver;
@@ -3807,8 +3847,13 @@ function requestAssetPhotoLabel(photo,idx,opts){
       inp.value=photo.shortDescription||ASSET_PHOTO_ROLES[A.assetPhotoLabelRole].short;
       if(A.assetPhotoLabelRole==="other"&&!photo.shortDescription)inp.value="";
       inp.placeholder=A.assetPhotoLabelRole==="other"?"Describe this photo (required)":"transmitter-label, sensor-label, wiring";
+      if(!inp._photoLabelInputBound){
+        inp._photoLabelInputBound=true;
+        inp.addEventListener("input",updateAssetPhotoLabelUi);
+        inp.addEventListener("change",updateAssetPhotoLabelUi);
+      }
     }
-    updateAssetPhotoRoleButtons(A.assetPhotoLabelRole);
+    updateAssetPhotoLabelUi();
     if(m){
       m.style.display="flex";
       initNoAutofill(m);
@@ -3837,11 +3882,13 @@ function pickAssetPhotoRole(role){
   if(role==="other"){
     inp.placeholder="Describe this photo (required)";
     if(!cur||defaults.indexOf(cur)>=0)inp.value="";
+    updateAssetPhotoLabelUi();
     try{inp.focus();}catch(e){}
     return;
   }
   inp.placeholder="transmitter-label, sensor-label, wiring";
   if(!cur||defaults.indexOf(cur)>=0)inp.value=roleDef.short;
+  updateAssetPhotoLabelUi();
 }
 function closeAssetPhotoDescriptionModal(){var m=el("assetphotomodal");if(m)m.style.display="none";}
 function confirmAssetPhotoDescription(){
@@ -3850,6 +3897,7 @@ function confirmAssetPhotoDescription(){
 }
 function cancelAssetPhotoDescription(){
   var role=A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
+  if(role==="other")role=ASSET_PHOTO_ROLE_DEFAULT;
   finalizeAssetPhotoLabel(ASSET_PHOTO_ROLES[role].short,role);
 }
 async function assetPhotoAttachmentName(prefix,photo,idx){

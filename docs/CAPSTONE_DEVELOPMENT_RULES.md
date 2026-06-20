@@ -163,6 +163,17 @@ When CapStone re-renders part of the screen after a user action (checklist updat
 - **Do not auto-scroll** on validation toasts or incidental status updates unless the user explicitly navigated to a new tab/step.
 - **New re-render paths** — any new dynamic panel or checklist must use the shared helpers; do not call `scrollIntoView` or `window.scrollTo(0,0)` after inline edits without user intent.
 
+## Tab draft persistence rules
+
+Every CapStone tab that collects user work must **autosave draft state** so switching tabs, backgrounding the app, or refreshing does not lose in-progress data.
+
+- **Capture** — `fp_capture_draft` in `localStorage` + History backup on visibility change.
+- **Assets** — `fp_asset_draft` in `localStorage`; includes form fields, photos/labels, category dynamic values, subform rows, intent/mode, and deal/account context.
+- **On tab switch** — `go()` calls `saveCaptureDraftNow()` / `saveAssetDraftNow()` when that tab has work in progress.
+- **On background / page hide** — save capture + asset drafts (capture also writes History when possible).
+- **On cold start** — offer restore via confirm dialog (`maybeRestoreCaptureDraft`, `maybeRestoreAssetDraft`).
+- **New tabs** — add `build*Draft`, `save*DraftNow`, `schedule*DraftSave`, `*DraftHasWork`, and wire into `go()` + visibility/pagehide. Document the storage key in this section.
+
 ## Autofill / credential prompt rules
 
 CapStone fields are instrument data, not login forms. Prevent browsers from offering username/password autofill:
