@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="283";
+var FP_VERSION="284";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1458,6 +1458,35 @@ function applyCategorySuggestedRule(rule,has,ctx){
     });
   });
 }
+function resolveSuggestedValueForField(def,suggested){
+  if(suggested==null||suggested==="")return"";
+  if(!def)return String(suggested);
+  if(def.widget==="lookup")return resolveEngineeringUnitLookupId(suggested)||String(suggested);
+  if(def.widget==="select"&&def.picklist){
+    var opts=picklistValuesForDynamicField(def);
+    var s=String(suggested);
+    for(var i=0;i<opts.length;i++){
+      if(opts[i]===s||opts[i].toLowerCase()===s.toLowerCase())return opts[i];
+    }
+    return s;
+  }
+  return String(suggested);
+}
+function applyCategorySuggestedValues(category){
+  if(!category||!A.asset.dynamicSuggested)return;
+  if(!A.asset.dynamicValues)A.asset.dynamicValues={};
+  var norm=normalizeAssetCategoryKey(category);
+  categoryDynamicFieldDefs(norm).forEach(function(def){
+    var api=def.apiName;
+    var suggested=A.asset.dynamicSuggested[api];
+    if(!suggested)return;
+    if(isDynamicFieldTouched(api)&&dynamicFieldIsFilled(def,A.asset.dynamicValues[api]))return;
+    var storeVal=resolveSuggestedValueForField(def,suggested);
+    if(!storeVal)return;
+    A.asset.dynamicValues[api]=storeVal;
+    markDynamicFieldTouched(api);
+  });
+}
 function applyCategoryFieldDefaults(category){
   if(!category)return;
   if(!A.asset.dynamicSuggested)A.asset.dynamicSuggested={};
@@ -1468,9 +1497,11 @@ function applyCategoryFieldDefaults(category){
   var rule=categorySuggestedDefaultsRule(category);
   if(rule){
     applyCategorySuggestedRule(rule,has,assetRuleContext());
+    applyCategorySuggestedValues(category);
     return;
   }
   if(has.Engineering_Units&&!A.asset.dynamicSuggested.Engineering_Units)A.asset.dynamicSuggested.Engineering_Units="GPM US";
+  applyCategorySuggestedValues(category);
 }
 function refreshCategoryFieldSuggestionsIfReady(){
   var cat=assetInput("asset-category");
@@ -1636,7 +1667,7 @@ function syncDynamicFieldValuesFromDom(){
     var api=e.getAttribute("data-api");
     if(msDone[api])return;
     var domVal=e.value||"";
-    if(isDynamicFieldTouched(api)||domVal)A.asset.dynamicValues[api]=domVal;
+    if(isDynamicFieldTouched(api))A.asset.dynamicValues[api]=domVal;
   });
 }
 function normalizeCalFactorForZoho(val){

@@ -318,7 +318,7 @@ Zoho CRM layout rules control which sections and fields appear on the Equipments
 
 **CapStone UI:** category-specific fields render from `categoryLayouts` via `syncAssetCategoryLayoutUi()` / `renderAssetCategoryFields()`. Always load equipment config before rendering category sections.
 
-**Category suggested defaults:** `categorySuggestedDefaults` in `src/config/zohoEquipmentFields.json` defines per-category suggestion hints (shown as `(suggested: …)` — user must still tap/select each field). **Flow Open Channel (all new and updated assets):** Display Engineering Units → GPM US; Set Up Input Engineering Units → H2O Inches; Set Up Output Engineering Units → 4-20 mA; Duration → 0.75. **When Brand = Pulsar and Series = Ultra 4:** Input PV Zero Parameter → P005; Input PV Span Parameter → P006. CapStone re-applies suggestions when Brand/Series change, after AI extract fills Brand/Series, after Asset Category is selected (if Brand/Series are already filled), and again after engineering-unit lookups finish loading.
+**Category suggested defaults:** `categorySuggestedDefaults` in `src/config/zohoEquipmentFields.json` defines per-category default values for empty category layout fields. CapStone **auto-fills** these when Asset Category is selected and rules match (including after AI extract sets Brand/Series). **Flow Open Channel:** Display Engineering Units → GPM US; Set Up Input Engineering Units → H2O Inches; Set Up Output Engineering Units → 4-20 mA; Duration → 0.75. **When Brand = Pulsar and Series = Ultra 4:** Input PV Zero Parameter → P005; Input PV Span Parameter → P006. Re-applies when Brand/Series change, after AI extract, and after engineering-unit lookups finish loading. User-edited values are not overwritten.
 
 **Do not:**
 
