@@ -12,6 +12,7 @@
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
     "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, P838, P839.",
+    "Flow Meter categorySuggestedDefaults: Display GPM US; Set Up Input GPM US; Set Up Output 4-20 mA; Duration 0.75; same Pulsar Ultra 4 PV parameters as Flow Open Channel.",
     "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
   ],
@@ -114,6 +115,11 @@
           "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
         },
         {
+          "id": "durationDamping",
+          "title": "Duration & Damping",
+          "fields": ["Duration", "Damping_Seconds"]
+        },
+        {
           "id": "setupOutput",
           "title": "Set Up Output",
           "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
@@ -121,7 +127,7 @@
         {
           "id": "flowMeterDetails",
           "title": "Flow Meter Details",
-          "fields": ["Cal_Factor_K_Factor", "Pipe_Size", "Damping_Seconds"]
+          "fields": ["Cal_Factor_K_Factor", "Pipe_Size"]
         },
         {
           "id": "subform",
@@ -237,9 +243,21 @@
     "Flow Meter": {
       "fields": {
         "Engineering_Units": "GPM US",
-        "Input_Engineering_Units": { "lookup": ["In H2O", "Inches H2O", "H2O Inches"] },
-        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] }
-      }
+        "Input_Engineering_Units": { "lookup": ["GPM US"] },
+        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
+        "Duration": "0.75"
+      },
+      "conditional": [
+        {
+          "when": { "brand": "Pulsar", "series": "Ultra 4" },
+          "fields": {
+            "Input_PV_Zero_Parameter": "P005",
+            "Input_PV_Span_Parameter": "P006",
+            "Output_PV_Zero_Parameter": "P838",
+            "Output_PV_Span_Parameter": "P839"
+          }
+        }
+      ]
     }
   },
   "modules": {
