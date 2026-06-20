@@ -33,8 +33,8 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="275";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[],subformTouched:{}}};
+var FP_VERSION="276";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1245,7 +1245,7 @@ function categoryLayoutExtensionApis(category){
   if(!layout||!layout.sections||!layout.sections.length)return[];
   var apis={};
   layout.sections.forEach(function(sec){
-    if(sec.subform){apis.Subform_1=true;return;}
+    if(sec.subform)return;
     (sec.fields||[]).forEach(function(registryKey){
       var def=assetFieldRegistry()[registryKey];
       var api=def&&def.zohoApiName?def.zohoApiName:registryKey;
@@ -1413,6 +1413,63 @@ function subformPicklistValues(fieldApi){
   var f=sf&&sf.fields&&sf.fields[fieldApi];
   return f&&f.values?f.values:[];
 }
+function assetSubformRequiredApis(){
+  return["Output_Type","Input_Output_Type","Zero_Parameter","Output_Zero","Span_Parameter","Output_Span","Pulses_per_Unit"];
+}
+function subformTouchKey(ri,api){return String(ri)+"_"+String(api||"");}
+function markSubformFieldTouched(ri,api){
+  if(!A.asset.subformTouched)A.asset.subformTouched={};
+  A.asset.subformTouched[subformTouchKey(ri,api)]=true;
+}
+function isSubformFieldTouched(ri,api){
+  return!!(A.asset.subformTouched&&A.asset.subformTouched[subformTouchKey(ri,api)]);
+}
+function markSubformRowTouchedFromData(row,ri){
+  if(!row)return;
+  assetSubformRequiredApis().forEach(function(api){
+    if(row[api]!=null&&String(row[api]).trim())markSubformFieldTouched(ri,api);
+  });
+  if(row.Description!=null&&String(row.Description).trim())markSubformFieldTouched(ri,"Description");
+}
+function subformFieldMissingClass(ri,api,val){
+  if(assetSubformRequiredApis().indexOf(api)<0)return"";
+  var touched=isSubformFieldTouched(ri,api);
+  var filled=String(val||"").trim();
+  return!touched||!filled?" asset-required-missing":"";
+}
+function subformEngineeringUnitHint(row){
+  var fn=String(row&&row.Output_Type||"").trim().toLowerCase();
+  if(fn==="output")return" (suggested: 4-20 mA)";
+  return"";
+}
+function subformRowHasAnyValue(row){
+  return Object.keys(row||{}).some(function(k){return String(row[k]||"").trim();});
+}
+function markSubformRequiredFields(){
+  syncSubformRowsFromDom();
+  var missing=[];
+  var cols=assetSubformColumns();
+  var colLabel={};
+  cols.forEach(function(c){colLabel[c.apiName]=c.label;});
+  (A.asset.subformRows||[]).forEach(function(row,ri){
+    if(!subformRowHasAnyValue(row))return;
+    assetSubformRequiredApis().forEach(function(api){
+      var touched=isSubformFieldTouched(ri,api);
+      var filled=String(row[api]||"").trim();
+      if(!touched||!filled)missing.push("Subform row "+(ri+1)+": "+(colLabel[api]||api));
+    });
+  });
+  var body=el("asset-subform-body");
+  if(body){
+    body.querySelectorAll("[data-subform][data-api]").forEach(function(e){
+      var ri=parseInt(e.getAttribute("data-subform"),10);
+      var api=e.getAttribute("data-api");
+      var val=e.value||"";
+      e.classList.toggle("asset-required-missing",subformFieldMissingClass(ri,api,val).indexOf("asset-required-missing")>=0);
+    });
+  }
+  return missing;
+}
 function renderDynFieldBlock(def,fullWidth){
   var id=assetDynId(def.apiName);
   var val=(A.asset.dynamicValues&&A.asset.dynamicValues[def.apiName])||"";
@@ -1449,28 +1506,33 @@ function renderDynFieldBlock(def,fullWidth){
 }
 function renderAssetSubformSection(sec){
   if(!A.asset.subformRows)A.asset.subformRows=[];
+  if(!A.asset.subformTouched)A.asset.subformTouched={};
   var cols=assetSubformColumns();
   var html="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div><div class='asset-subform-wrap'><table class='asset-subform-table'><thead><tr>";
-  cols.forEach(function(c){html+="<th>"+esc(c.label)+"</th>";});
+  cols.forEach(function(c){
+    var hint=c.apiName==="Input_Output_Type"?subformEngineeringUnitHint({Output_Type:"Output"}):"";
+    html+="<th>"+esc(c.label)+esc(hint)+"</th>";
+  });
   html+="<th></th></tr></thead><tbody id='asset-subform-body'>";
   A.asset.subformRows.forEach(function(row,ri){
     html+="<tr>";
     cols.forEach(function(c){
       var v=row[c.apiName]!=null?String(row[c.apiName]):"";
+      var missCls=subformFieldMissingClass(ri,c.apiName,v);
       html+="<td>";
       if(c.widget==="select"){
         var opts=subformPicklistValues(c.apiName);
-        html+="<select data-subform='"+ri+"' data-api='"+esc(c.apiName)+"'>";
-        html+="<option value=''></option>"+opts.map(function(o){return"<option value='"+esc(o)+"'"+(o===v?" selected":"")+">"+esc(o)+"</option>";}).join("");
+        html+="<select class='"+missCls.trim()+"' data-subform='"+ri+"' data-api='"+esc(c.apiName)+"'>";
+        html+="<option value=''>Select</option>"+opts.map(function(o){return"<option value='"+esc(o)+"'"+(o===v?" selected":"")+">"+esc(o)+"</option>";}).join("");
         html+="</select>";
       }else if(c.widget==="lookup"){
         var luOpts=engineeringUnitLookupOptions();
         var luVal=resolveEngineeringUnitLookupId(v)||String(v||"");
-        html+="<select data-subform='"+ri+"' data-api='"+esc(c.apiName)+"'>";
-        html+="<option value=''></option>"+luOpts.map(function(o){return"<option value='"+esc(o.id)+"'"+(String(o.id)===String(luVal)||String(o.name)===String(v)?" selected":"")+">"+esc(o.name||o.id)+"</option>";}).join("");
+        html+="<select class='"+missCls.trim()+"' data-subform='"+ri+"' data-api='"+esc(c.apiName)+"'" +(c.apiName==="Input_Output_Type"?" title='Select engineering unit (4-20 mA typical for Output)'":"")+">";
+        html+="<option value=''>Select</option>"+luOpts.map(function(o){return"<option value='"+esc(o.id)+"'"+(String(o.id)===String(luVal)||String(o.name)===String(v)?" selected":"")+">"+esc(o.name||o.id)+"</option>";}).join("");
         html+="</select>";
       }else{
-        html+="<input data-subform='"+ri+"' data-api='"+esc(c.apiName)+"' type='"+(c.widget==="number"?"number":"text")+"' value='"+esc(v)+"'/>";
+        html+="<input class='"+missCls.trim()+"' data-subform='"+ri+"' data-api='"+esc(c.apiName)+"' type='"+(c.widget==="number"?"number":"text")+"' value='"+esc(v)+"'/>";
       }
       html+="</td>";
     });
@@ -1496,17 +1558,22 @@ function addAssetSubformRow(){
   A.asset.subformRows.push({});
   renderAssetCategoryFields({skipDomSync:true});
   scheduleAssetDraftSave();
+  updateAssetSaveState();
 }
 function removeAssetSubformRow(idx){
   syncSubformRowsFromDom();
   A.asset.subformRows.splice(idx,1);
   renderAssetCategoryFields({skipDomSync:true});
   scheduleAssetDraftSave();
+  updateAssetSaveState();
 }
 function assetSubformPayload(){
   syncSubformRowsFromDom();
-  return(A.asset.subformRows||[]).filter(function(row){
-    return Object.keys(row).some(function(k){return String(row[k]||"").trim();});
+  return(A.asset.subformRows||[]).filter(function(row,ri){
+    if(!subformRowHasAnyValue(row))return false;
+    return assetSubformRequiredApis().every(function(api){
+      return isSubformFieldTouched(ri,api)&&String(row[api]||"").trim();
+    });
   }).map(function(row){
     var out={};
     assetSubformColumns().forEach(function(c){
@@ -1543,7 +1610,9 @@ function applyDynamicFieldsFromRecord(r){
       });
       return copy;
     });
-  }else A.asset.subformRows=[];
+    A.asset.subformTouched={};
+    A.asset.subformRows.forEach(function(row,ri){markSubformRowTouchedFromData(row,ri);});
+  }else{A.asset.subformRows=[];A.asset.subformTouched={};}
 }
 function bindDynamicFieldHandlers(){
   var box=el("asset-category-fields");if(!box)return;
@@ -1572,8 +1641,17 @@ function bindDynamicFieldHandlers(){
   box.querySelectorAll("[data-subform]").forEach(function(e){
     if(e._subBound)return;
     e._subBound=true;
-    e.addEventListener("input",function(){syncSubformRowsFromDom();scheduleAssetDraftSave();});
-    e.addEventListener("change",function(){syncSubformRowsFromDom();scheduleAssetDraftSave();});
+    function onSubformEdit(){
+      var ri=parseInt(e.getAttribute("data-subform"),10);
+      var api=e.getAttribute("data-api");
+      markSubformFieldTouched(ri,api);
+      syncSubformRowsFromDom();
+      scheduleAssetDraftSave();
+      updateAssetSaveState();
+    }
+    e.addEventListener("input",onSubformEdit);
+    e.addEventListener("change",onSubformEdit);
+    e.addEventListener("blur",onSubformEdit);
   });
 }
 function renderAssetCategoryFields(opts){
@@ -1612,6 +1690,7 @@ function renderAssetCategoryFields(opts){
     box.style.display="block";
     bindDynamicFieldHandlers();
     initNoAutofill(box);
+    updateAssetSaveState();
   });
 }
 function onAssetCategoryChange(){
@@ -1625,11 +1704,11 @@ function onAssetCategoryChange(){
 }
 function setAssetDraftStatus(msg,isErr){var e=el("asset-draft-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";e.style.color=isErr?"#991b1b":"#2d6b60";e.style.background=isErr?"#fee2e2":"#fff";e.style.borderColor=isErr?"#ef4444":"#b2ddd6";}else e.style.display="none";}
 function assetDraftHasWork(){return !!(A.asset.currentAssetId||A.asset.photos.length||assetFieldIdsToClear().some(function(id){return assetInput(id);})||assetInput("asset-search")||A.asset.replacementMode);}
-function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});syncDynamicFieldValuesFromDom();syncSubformRowsFromDom();return{version:1,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:A.asset.mode,intent:A.asset.intent,linkMode:A.asset.linkMode,standaloneAccount:A.asset.standaloneAccount,currentAssetId:A.asset.currentAssetId,activeDealKey:A.asset.activeDealKey,loadedOriginal:A.asset.loadedOriginal,replacementMode:A.asset.replacementMode,photos:A.asset.photos,lastUploadedPhotoFingerprints:A.asset.lastUploadedPhotoFingerprints,dynamicValues:A.asset.dynamicValues||{},subformRows:A.asset.subformRows||[],fields:fields};}
+function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});syncDynamicFieldValuesFromDom();syncSubformRowsFromDom();return{version:1,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:A.asset.mode,intent:A.asset.intent,linkMode:A.asset.linkMode,standaloneAccount:A.asset.standaloneAccount,currentAssetId:A.asset.currentAssetId,activeDealKey:A.asset.activeDealKey,loadedOriginal:A.asset.loadedOriginal,replacementMode:A.asset.replacementMode,photos:A.asset.photos,lastUploadedPhotoFingerprints:A.asset.lastUploadedPhotoFingerprints,dynamicValues:A.asset.dynamicValues||{},subformRows:A.asset.subformRows||[],subformTouched:A.asset.subformTouched||{},fields:fields};}
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;try{localStorage.setItem("fp_asset_draft",JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
 function clearAssetDraft(){try{localStorage.removeItem("fp_asset_draft");}catch(e){}setAssetDraftStatus("",false);}
-function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.intent=d.intent||(d.mode==="update"?"update":(d.currentAssetId?"update":"add"));A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];normalizeAssetPhotos();renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}syncAssetCategoryLayoutUi();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
+function restoreAssetDraft(d){if(!d)return;A.sel=d.deal||A.sel;A.location=d.location||A.location;A.asset.mode=d.mode||"add";A.asset.intent=d.intent||(d.mode==="update"?"update":(d.currentAssetId?"update":"add"));A.asset.linkMode=d.linkMode||"deal";A.asset.standaloneAccount=d.standaloneAccount||null;A.asset.currentAssetId=d.currentAssetId||null;A.asset.activeDealKey=d.activeDealKey||selectedAssetDealKey();A.asset.loadedOriginal=d.loadedOriginal||null;A.asset.replacementMode=!!d.replacementMode;A.asset.photos=d.photos||[];A.asset.lastUploadedPhotoFingerprints=d.lastUploadedPhotoFingerprints||{};A.asset.dynamicValues=d.dynamicValues||{};A.asset.subformRows=d.subformRows||[];A.asset.subformTouched=d.subformTouched||{};normalizeAssetPhotos();renderAssetSetupUi();renderAssetPhotos();if(d.fields){Object.keys(d.fields).forEach(function(id){setAssetInput(id,d.fields[id]||"");});}syncAssetCategoryLayoutUi();renderAssetReplacementPanel();renderSavedAssets();updateDealUI();updateLocationUI();updateAssetSaveState();}
 function assetDraftSummary(d,label){
   var f=d&&d.fields||{};
   var deal=d&&d.deal;
@@ -2683,7 +2762,7 @@ function markAssetRequiredFields(){
   return missing;
 }
 function updateAssetSaveState(){
-  var missing=markAssetRequiredFields();
+  var missing=markAssetRequiredFields().concat(markSubformRequiredFields());
   var btn=el("asset-save-btn");
   if(btn){
     var needsExisting=A.asset.mode==="update"&&!A.asset.currentAssetId;
@@ -2735,7 +2814,7 @@ function clearAssetEntryState(msg,keepSavedItems){
   clearAssetDraft();
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
   A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
-  A.asset.dynamicValues={};A.asset.subformRows=[];
+  A.asset.dynamicValues={};A.asset.subformRows=[];A.asset.subformTouched={};
   A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;if(!keepSavedItems)A.asset.savedItems=[];
   renderAssetPhotos();renderSavedAssets();renderAssetCategoryFields();
   var next=el("asset-next-btn");if(next)next.style.display="none";
@@ -2757,7 +2836,7 @@ function reopenSavedAsset(idx){
   renderSavedAssets();renderAssetReplacementPanel();renderAssetSetupUi();syncAssetCategoryLayoutUi();
 }
 function validateAssetForm(){
-  var missing=markAssetRequiredFields();
+  var missing=markAssetRequiredFields().concat(markSubformRequiredFields());
   if(A.asset.linkMode==="account"){
     if(!assetSaveAccountId())missing.unshift("Zoho Account (tap Account only — pick account)");
   }else{
@@ -2815,7 +2894,8 @@ async function checkZohoProxyDeploy(silent){
 async function postEquipmentCategoryLayoutActivation(equipmentId,category,extension){
   if(!equipmentId||!category)return;
   category=normalizeAssetCategoryKey(category);
-  var ext=extension&&Object.keys(extension).length?extension:{};
+  var ext=extension&&Object.keys(extension).length?Object.assign({},extension):{};
+  delete ext.Subform_1;
   assetStatus("Applying asset category layout in Zoho (first pass)...",false);
   var body={
     action:"activate_equipment_category_layout",
