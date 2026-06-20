@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v285
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=285
+Current live version: v286
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=286
 ```
 
 ---
@@ -110,6 +110,8 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v287 | — | **Duration and Damping as separate fields** — Flow Open Channel shows both Duration and Damping Seconds side by side; default 0.75 applies to Duration only; asset search includes Duration |
+| v286 | — | **Fix FOC category layout load** — guard concurrent category renders; safe lookup option handling; Duration & Damping section between Set Up Input and Set Up Output |
 | v285 | — | **Fix category default auto-fill wipe** — pre-render DOM sync was clearing applied defaults from empty selects; skip sync on category re-render; push values to DOM after render; lookup options include resolved default |
 | v284 | — | **Auto-fill all category suggested defaults** — GPM US, H2O Inches, 4-20 mA, 0.75, P005/P006 apply to empty fields consistently (not just Output EU); fix phantom DOM sync on untouched selects |
 | v283 | — | **Category suggested defaults after AI extract** — refresh Flow Open Channel / conditional P005–P006 hints when Brand/Series filled by extract or category selected afterward; re-apply lookup defaults after engineering-unit load |
@@ -117,7 +119,7 @@ Related docs (detail, not status):
 | v281 | — | **Asset field auto-advance** — after picklist select or Enter on text/number, focus moves to next field (main form + category layout) |
 | v280 | — | **FOC Output 4-20 mA for all assets** — Set Up Output Engineering Units suggested 4-20 mA for every Flow Open Channel new/update |
 | v279 | — | **Asset photo Other label fix + tab draft persistence** — Use Label enables when Other text entered; asset draft saves on tab switch/background; FOC P005/P006 when Pulsar + Ultra 4 |
-| v278 | — | **Flow Open Channel suggested defaults** — Input EU H2O Inches, Display GPM US, Duration 0.75; P005/P006 when Brand Pulsar + Series Ultra 4; refreshes on brand/series change |
+| v278 | — | **Flow Open Channel suggested defaults** — Input EU H2O Inches, Display GPM US, Duration 0.75; P005/P006 when Brand Pulsar + Series Ultra 4; refreshes on brand/series change (Duration is separate from Damping Seconds) |
 | v277 | — | **Category fields touch-required** — all Asset Category layout fields (Set Up Input/Output, sensor, OCM, etc.) use mandatory light-red styling until explicitly entered; defaults shown as suggestions only |
 | v276 | — | **Subform Input/Output fixes** — Function picklist Input/Output; stop triple-saving Subform_1 during layout activation; mandatory touch-required red styling on all subform fields; Engineering Unit hint 4-20 mA for Output |
 | v275 | — | **Flow Open Channel category fix** — Zoho picklist actual_value is **Flow Open Channel** (not Open Channel Flow); proxy + CapStone normalize all OCF variants; Settings requires proxy build 275+ |
