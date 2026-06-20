@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="282";
+var FP_VERSION="283";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1219,7 +1219,7 @@ function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++)
 // ASSETS / EQUIPMENTS
 function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
-function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}}}
+function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldSuggestionsIfReady,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
 function assetPicklistValues(field){var p=assetPicklists()[field];return p&&p.values||[];}
 function fillAssetSelect(id,field,placeholder){var e=el(id);if(!e)return;var cur=e.value;var vals=assetPicklistValues(field);e.innerHTML="<option value=''>"+(placeholder||"Select")+"</option>"+vals.map(function(v){return"<option value='"+esc(v)+"'>"+esc(v)+"</option>";}).join("");if(cur)e.value=cur;}
@@ -1356,9 +1356,11 @@ function markDynamicFieldTouched(api){
 function isDynamicFieldTouched(api){
   return!!(A.asset.dynamicTouched&&A.asset.dynamicTouched[api]);
 }
-function dynamicFieldSuggestedHint(api){
+function dynamicFieldSuggestedHint(api,def){
   var s=A.asset.dynamicSuggested&&A.asset.dynamicSuggested[api];
-  return s?String(s):"";
+  if(!s)return"";
+  if(def&&def.widget==="lookup")return engineeringUnitLookupLabel(s)||String(s);
+  return String(s);
 }
 function dynamicFieldDisplayValue(api,def){
   if(!isDynamicFieldTouched(api))return def&&def.widget==="multiselect"?[]:"";
@@ -1380,21 +1382,43 @@ function dynamicFieldMissingClass(api,def,val){
   return"";
 }
 function dynamicFieldLabel(def){
-  var hint=dynamicFieldSuggestedHint(def.apiName);
+  var hint=dynamicFieldSuggestedHint(def.apiName,def);
   var req=" *";
   return esc(def.label)+req+(hint?" <span style='font-weight:400;color:var(--dim)'>(suggested: "+esc(hint)+")</span>":"");
 }
 function assetRuleContext(){
   return{
     brand:String(assetInput("asset-brand")||"").trim(),
-    series:String(assetInput("asset-series")||"").trim()
+    series:String(assetInput("asset-series")||"").trim(),
+    brandOther:String(assetInput("asset-brand-other")||"").trim(),
+    seriesOther:String(assetInput("asset-series-other")||"").trim()
   };
 }
 function matchesSuggestedWhen(when,ctx){
   if(!when)return true;
-  if(when.brand&&when.brand!==ctx.brand)return false;
-  if(when.series&&when.series!==ctx.series)return false;
+  if(when.brand){
+    var brand=ctx.brand;
+    if(brand==="1 Other"||brand==="Other")brand=ctx.brandOther||brand;
+    if(!picklistContextMatch(when.brand,brand,"Asset_Brand"))return false;
+  }
+  if(when.series){
+    var series=ctx.series;
+    if(series==="Other")series=ctx.seriesOther||series;
+    if(!picklistContextMatch(when.series,series,"Asset_Series"))return false;
+  }
   return true;
+}
+function picklistContextMatch(expected,actual,fieldApi){
+  expected=String(expected||"").trim();
+  actual=String(actual||"").trim();
+  if(!expected)return true;
+  if(!actual)return false;
+  if(expected===actual)return true;
+  if(expected.toLowerCase()===actual.toLowerCase())return true;
+  if(fieldApi&&exactPicklistMatch(fieldApi,actual)===expected)return true;
+  if(fieldApi&&assetPicklistNearMatch(fieldApi,actual)===expected)return true;
+  var np=normalizePicklistCompare(expected),na=normalizePicklistCompare(actual);
+  return !!(np&&na&&np===na);
 }
 function applyOneSuggestedField(has,api,spec,force){
   if(!has[api]||spec==null)return;
@@ -1407,6 +1431,7 @@ function applyOneSuggestedField(has,api,spec,force){
   if(spec&&spec.lookup){
     var resolved=resolveEngineeringUnitDefault(spec.lookup);
     if(resolved)A.asset.dynamicSuggested[api]=resolved;
+    else if(Array.isArray(spec.lookup)&&spec.lookup[0])A.asset.dynamicSuggested[api]=spec.lookup[0];
   }
 }
 function categorySuggestedDefaultsRule(category){
@@ -1446,6 +1471,11 @@ function applyCategoryFieldDefaults(category){
     return;
   }
   if(has.Engineering_Units&&!A.asset.dynamicSuggested.Engineering_Units)A.asset.dynamicSuggested.Engineering_Units="GPM US";
+}
+function refreshCategoryFieldSuggestionsIfReady(){
+  var cat=assetInput("asset-category");
+  if(!cat||!categoryLayout(cat))return;
+  refreshCategoryFieldSuggestions();
 }
 function refreshCategoryFieldSuggestions(){
   var cat=assetInput("asset-category");
@@ -1552,6 +1582,7 @@ function syncAssetCategoryLayoutUi(){
     return loadEngineeringUnitLookups();
   }).then(function(){
     if(assetInput("asset-category")!==cat)return;
+    applyCategoryFieldDefaults(cat);
     renderAssetCategoryFields();
     mirrorInputPvToOutput();
     updateAssetSaveState();
@@ -2405,6 +2436,7 @@ function setAssetSelectIfPresent(id,value){
     e.value=v;
   }
   if(id==="asset-category"&&v&&assetInput("asset-category")===v)syncAssetCategoryLayoutUi();
+  else if((id==="asset-brand"||id==="asset-series")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))refreshCategoryFieldSuggestionsIfReady();
 }
 function loadExistingAssetFromSearch(idx){
   var r=A.asset.searchResults[idx];if(!r)return;
@@ -2734,8 +2766,8 @@ function applyAssetExtraction(x){
   var seriesVal=x.series||"";
   if(seriesVal&&fullModel&&extractAlnumKey(seriesVal)===extractAlnumKey(fullModel))seriesVal="";
   var series=exactPicklistMatch("Asset_Series",seriesVal);
-  if(series)setAssetInput("asset-series",series);
-  else if(seriesVal){setAssetInput("asset-series","Other");setAssetInput("asset-series-other",seriesVal);}
+  if(series)setAssetSelectIfPresent("asset-series",series);
+  else if(seriesVal){setAssetSelectIfPresent("asset-series","Other");setAssetInput("asset-series-other",seriesVal);}
   setAssetInput("asset-model",fullModel);
   setAssetInput("asset-serial",x.serial_number||x.serial||"");
   applyExtractedDynamicFields(x);
@@ -2750,6 +2782,7 @@ function applyAssetExtraction(x){
   if(x.ratings)notes.push("Process / Electrical: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-nameplate-additional",notes.join("\n"));
+  refreshCategoryFieldSuggestionsIfReady();
   updateAssetSaveState();
   renderAssetPicklistRequestPanel();
 }
