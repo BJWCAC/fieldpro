@@ -212,6 +212,7 @@
       "fields": {
         "Engineering_Units": "GPM US",
         "Input_Engineering_Units": { "lookup": ["H2O Inches", "Inches H2O", "In H2O"] },
+        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
         "Damping_Seconds": "0.75"
       },
       "conditional": [
@@ -219,8 +220,7 @@
           "when": { "brand": "Pulsar", "series": "Ultra 4" },
           "fields": {
             "Input_PV_Zero_Parameter": "P005",
-            "Input_PV_Span_Parameter": "P006",
-            "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] }
+            "Input_PV_Span_Parameter": "P006"
           }
         }
       ]

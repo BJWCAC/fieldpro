@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{}}};
-var FP_VERSION="280";
+var FP_VERSION="282";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -62,6 +62,100 @@ function fpAfterDomUpdate(fn){
   var result=fn();
   fpRestoreView();
   return result;
+}
+var AUTO_ADVANCE_SELECTOR="input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not([type=button]):not([type=submit]):not([type=password]),select,textarea[data-auto-advance='enter']";
+function isAutoAdvanceEligible(e){
+  if(!e||e.disabled||e.readOnly)return false;
+  if(e.getAttribute("data-no-auto-advance")!==null)return false;
+  if(e.tagName==="TEXTAREA"&&e.getAttribute("data-auto-advance")!=="enter")return false;
+  return true;
+}
+function isAutoAdvanceFieldVisible(e){
+  if(!e||!isAutoAdvanceEligible(e))return false;
+  var p=e;
+  while(p&&p!==document.body){
+    if(p.style&&p.style.display==="none")return false;
+    p=p.parentElement;
+  }
+  try{
+    var st=getComputedStyle(e);
+    if(st.display==="none"||st.visibility==="hidden")return false;
+  }catch(ve){}
+  return!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);
+}
+function autoAdvanceFocusRoots(){
+  var modals=[];
+  document.querySelectorAll(".smodal").forEach(function(m){
+    if(m.style.display&&m.style.display!=="none")modals.push(m);
+  });
+  if(modals.length)return modals;
+  var pane=document.querySelector(".pane.on");
+  return pane?[pane]:[];
+}
+function collectAutoAdvanceFields(root){
+  var list=[];
+  if(!root)return list;
+  root.querySelectorAll(AUTO_ADVANCE_SELECTOR).forEach(function(e){
+    if(isAutoAdvanceFieldVisible(e))list.push(e);
+  });
+  return list;
+}
+function autoAdvanceFocusableElements(){
+  var all=[];
+  autoAdvanceFocusRoots().forEach(function(root){
+    collectAutoAdvanceFields(root).forEach(function(e){
+      if(all.indexOf(e)<0)all.push(e);
+    });
+  });
+  return all;
+}
+function focusAutoAdvanceElement(e){
+  if(!e)return false;
+  try{e.focus({preventScroll:true});}catch(err){try{e.focus();}catch(e2){return false;}}
+  if(e.tagName==="INPUT"&&e.type!=="date"&&typeof e.select==="function"){
+    try{e.select();}catch(se){}
+  }
+  return true;
+}
+function focusNextAutoAdvanceField(fromEl){
+  var all=autoAdvanceFocusableElements();
+  var idx=-1;
+  for(var i=0;i<all.length;i++){if(all[i]===fromEl){idx=i;break;}}
+  if(idx<0)return false;
+  for(var j=idx+1;j<all.length;j++){
+    if(focusAutoAdvanceElement(all[j]))return true;
+  }
+  return false;
+}
+function fieldHasAutoAdvanceValue(e){
+  if(!e)return false;
+  if(e.tagName==="SELECT")return!!String(e.value||"").trim();
+  return!!String(e.value||"").trim();
+}
+function maybeAutoAdvanceField(e,evt){
+  if(!e||!isAutoAdvanceEligible(e))return;
+  if(!fieldHasAutoAdvanceValue(e))return;
+  if(e.tagName==="TEXTAREA"){
+    if(!evt||evt.type!=="keydown"||evt.key!=="Enter"||evt.shiftKey)return;
+    evt.preventDefault();
+  }else if(evt&&evt.type==="keydown"){
+    if(evt.key!=="Enter")return;
+    evt.preventDefault();
+  }else if(e.tagName!=="SELECT")return;
+  setTimeout(function(){focusNextAutoAdvanceField(e);},50);
+}
+function bindAutoAdvanceField(node){
+  if(!node||node._autoAdvanceBound||!isAutoAdvanceEligible(node))return;
+  node._autoAdvanceBound=true;
+  node.addEventListener("change",function(){maybeAutoAdvanceField(node);});
+  node.addEventListener("keydown",function(evt){maybeAutoAdvanceField(node,evt);});
+}
+function installAutoAdvanceInRoot(root){
+  var scope=root||document;
+  scope.querySelectorAll(AUTO_ADVANCE_SELECTOR).forEach(bindAutoAdvanceField);
+}
+function installAutoAdvanceAll(){
+  document.querySelectorAll(".pane, .smodal").forEach(installAutoAdvanceInRoot);
 }
 function initNoAutofill(root){
   var scope=root||document;
@@ -96,6 +190,7 @@ function initNoAutofill(root){
       setTimeout(function(){node.removeAttribute("readonly");},120);
     });
   });
+  installAutoAdvanceInRoot(scope);
 }
 function resolveEngineeringUnitDefault(names){
   var list=Array.isArray(names)?names:[names];
@@ -165,6 +260,7 @@ function go(n){
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="map"&&typeof initAccountsMapTab==="function")initAccountsMapTab();
   if(n==="settings"){if(typeof updateStorageInfo==="function")updateStorageInfo();if(typeof renderCorrections==="function")renderCorrections();if(typeof setTechnicianUI==="function")setTechnicianUI();if(typeof renderPendingUploads==="function")renderPendingUploads();if(typeof renderPendingAi==="function")renderPendingAi();if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();if(typeof checkZohoProxyDeploy==="function")checkZohoProxyDeploy(true);}
+  if(typeof installAutoAdvanceAll==="function")installAutoAdvanceAll();
 }
 function bindHelpBoxes(){
   var boxes=document.querySelectorAll("details.help-box[data-help-id]");
@@ -452,6 +548,7 @@ function openTechnicianPrompt(){
   var m=el("techmodal");if(!m)return;
   setTechnicianUI();
   m.style.display="flex";
+  initNoAutofill(m);
   var s=el("tech-prompt-select");if(s){try{s.focus();}catch(e){}}
 }
 function closeTechnicianPrompt(){var m=el("techmodal");if(m)m.style.display="none";}
@@ -488,6 +585,7 @@ function enterKey(){
   var saved="";try{saved=localStorage.getItem("fp_api_key")||"";}catch(e){}
   if(inp)inp.value=saved||API_KEY||"";
   m.style.display="flex";
+  initNoAutofill(m);
   if(inp){try{inp.focus();}catch(e){}}
 }
 function saveApiKey(){
@@ -561,6 +659,7 @@ function bootApp(){
     bindHelpBoxes();
     initButtonFeedback();
     initNoAutofill();
+    installAutoAdvanceAll();
     installActionWrappers();
     loadTechniciansFromZoho({silent:true}).catch(function(){});
     setupAssetFieldAiButtons();
@@ -3002,6 +3101,7 @@ function setupAssetRequiredHandlers(){
     e._suggestBound=true;
     e.addEventListener("change",onAssetBrandOrSeriesChange);
   });
+  installAutoAdvanceInRoot(el("p-assets"));
   A.assetReqHandlersBound=true;
 }
 function assetFieldIdsToClear(){return ["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes"];}
@@ -5270,7 +5370,11 @@ function openDealPickerModal(){
     });
   }
   applyInboxDealPickerFilters();
-  var m=el("inboxdealmodal");if(m)m.style.display="flex";
+  var m=el("inboxdealmodal");
+  if(m){
+    m.style.display="flex";
+    initNoAutofill(m);
+  }
 }
 function openInboxDealPicker(itemId){
   if(!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
