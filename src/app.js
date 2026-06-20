@@ -3808,6 +3808,7 @@ function finalizeAssetPhotoLabel(desc,role){
       showToast("Enter a short description for Other photos.",4500);
       var inpOther=el("asset-photo-desc-input");
       if(inpOther)try{inpOther.focus();}catch(e){}
+      updateAssetPhotoLabelUi();
       return;
     }
   }else{
