@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="271";
+var FP_VERSION="272";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1211,7 +1211,21 @@ function mapDynamicValuesToZohoPayload(dyn){
   });
   return out;
 }
-function categoryLayout(cat){var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};return layouts[cat]||null;}
+function normalizeAssetCategoryKey(cat){
+  var c=String(cat||"").trim();
+  if(!c)return"";
+  var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};
+  if(layouts[c])return c;
+  var keys=Object.keys(layouts);
+  for(var i=0;i<keys.length;i++){
+    if(keys[i].toLowerCase()===c.toLowerCase())return keys[i];
+  }
+  return c;
+}
+function categoryLayout(cat){
+  var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};
+  return layouts[normalizeAssetCategoryKey(cat)]||null;
+}
 function categoryLayoutExtensionApis(category){
   var layout=categoryLayout(category);
   if(!layout||!layout.sections||!layout.sections.length)return[];
@@ -1228,7 +1242,7 @@ function categoryLayoutExtensionApis(category){
   return Object.keys(apis);
 }
 function splitAssetPayloadForCategoryLayout(payload){
-  var category=String(payload.Asset_Category||"").trim();
+  var category=normalizeAssetCategoryKey(payload.Asset_Category||"");
   var extApis=categoryLayoutExtensionApis(category);
   var core=Object.assign({},payload);
   var extension={};
@@ -1241,7 +1255,7 @@ function splitAssetPayloadForCategoryLayout(payload){
   return{core:core,extension:extension,category:category};
 }
 function syncAssetCategoryLayoutUi(){
-  var cat=assetInput("asset-category");
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
   if(!cat){renderAssetCategoryFields();return Promise.resolve();}
   var box=el("asset-category-fields");
   if(box){
@@ -1587,6 +1601,11 @@ function renderAssetCategoryFields(opts){
   });
 }
 function onAssetCategoryChange(){
+  var catEl=el("asset-category");
+  if(catEl){
+    var norm=normalizeAssetCategoryKey(catEl.value);
+    if(norm&&catEl.value!==norm)catEl.value=norm;
+  }
   syncAssetCategoryLayoutUi();
   scheduleAssetDraftSave();
 }
@@ -2753,8 +2772,9 @@ async function postEquipmentToZoho(action,equipmentId,payload,opts){
 /* Zoho Asset_Category layout activation — required for EVERY category (see CAPSTONE_DEVELOPMENT_RULES.md). */
 async function postEquipmentCategoryLayoutActivation(equipmentId,category,extension){
   if(!equipmentId||!category)return;
+  category=normalizeAssetCategoryKey(category);
   var ext=extension&&Object.keys(extension).length?extension:{};
-  assetStatus("Applying asset category layout in Zoho (this may take a few seconds)...",false);
+  assetStatus("Applying asset category layout in Zoho (first pass)...",false);
   var body={
     action:"activate_equipment_category_layout",
     token:A.zohoToken,
@@ -2763,14 +2783,24 @@ async function postEquipmentCategoryLayoutActivation(equipmentId,category,extens
     extension:ext,
     category_values:assetPicklistValues("Asset_Category")
   };
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},90000);
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},120000);
   var txt=await r.text();
   var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
   if(!r.ok||parsed.ok===false){
     var detail=parsed&&parsed.error?parsed.error:String(txt||"").substring(0,220);
     throw new Error("Zoho category layout failed: "+detail);
   }
-  return parsed;
+  assetStatus("Confirming category layout in Zoho (reopen + reselect pass)...",false);
+  await waitMs(600);
+  var body2=Object.assign({},body,{reopen_confirm:true});
+  var r2=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body2)},120000);
+  var txt2=await r2.text();
+  var parsed2={};try{parsed2=JSON.parse(txt2);}catch(e){}
+  if(!r2.ok||parsed2.ok===false){
+    var detail2=parsed2&&parsed2.error?parsed2.error:String(txt2||"").substring(0,220);
+    throw new Error("Zoho category layout confirm failed: "+detail2);
+  }
+  return parsed2;
 }
 function assetPayloadWithoutCategory(payload){
   var out=Object.assign({},payload||{});
@@ -2786,7 +2816,7 @@ function assetPayload(opts){
   opts=opts||{};
   var includeBlank=!!opts.includeBlank;
   var payload={
-    Asset_Category:assetInput("asset-category"),
+    Asset_Category:normalizeAssetCategoryKey(assetInput("asset-category")),
     Account:{id:assetSaveAccountId()},
     Name:assetInput("asset-name"),
     Asset_Function:assetInput("asset-function"),

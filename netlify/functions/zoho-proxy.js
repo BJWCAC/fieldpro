@@ -571,55 +571,90 @@ exports.handler = async function(event) {
       var layoutCategory = String(data.category || "").trim();
       var layoutExtension = data.extension || {};
       var layoutCategoryValues = Array.isArray(data.category_values) ? data.category_values : [];
+      var reopenConfirm = !!data.reopen_confirm;
       if (!layoutEquipmentId || !layoutCategory) {
         return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "equipment_id and category are required" }) };
       }
 
-      var getCategoryResult = await req({
-        hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments/" + layoutEquipmentId + "?fields=Asset_Category",
-        method: "GET",
-        headers: { "Authorization": "Zoho-oauthtoken " + token }
-      });
-      var currentCategory = "";
-      if (getCategoryResult.status >= 200 && getCategoryResult.status < 300) {
-        try { currentCategory = String((JSON.parse(getCategoryResult.body).data || [])[0].Asset_Category || "").trim(); } catch (ge) {}
+      async function readCurrentCategory() {
+        var getCategoryResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/Equipments/" + layoutEquipmentId + "?fields=Asset_Category",
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (getCategoryResult.status < 200 || getCategoryResult.status >= 300) return "";
+        try { return String((JSON.parse(getCategoryResult.body).data || [])[0].Asset_Category || "").trim(); } catch (ge) { return ""; }
       }
 
-      var tempCategory = pickTempCategoryForLayout(currentCategory, layoutCategory, layoutCategoryValues);
-      var steps = [];
-
-      if (tempCategory) {
-        var tempResult = await zohoEquipmentPut(token, layoutEquipmentId, { Asset_Category: tempCategory }, true);
-        steps.push({ step: "temp_category", category: tempCategory, status: tempResult.status });
-        if (zohoWriteFailed(tempResult)) {
-          return { statusCode: tempResult.status >= 400 ? tempResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Temporary category swap failed: " + zohoWriteErrorMessage(tempResult), steps: steps }) };
+      async function runCategoryReselectCycle(cycleName, currentCategory) {
+        var cycleSteps = [];
+        var tempCategory = pickTempCategoryForLayout(currentCategory, layoutCategory, layoutCategoryValues);
+        if (tempCategory) {
+          var tempResult = await zohoEquipmentPut(token, layoutEquipmentId, { Asset_Category: tempCategory }, true);
+          cycleSteps.push({ cycle: cycleName, step: "temp_category", category: tempCategory, status: tempResult.status });
+          if (zohoWriteFailed(tempResult)) {
+            return { ok: false, error: "Temporary category swap failed: " + zohoWriteErrorMessage(tempResult), steps: cycleSteps };
+          }
+          await sleepMs(reopenConfirm ? 650 : 500);
+          currentCategory = tempCategory;
         }
-        await sleepMs(450);
+        var catOnly = { Asset_Category: layoutCategory };
+        var selectResult = await zohoEquipmentPut(token, layoutEquipmentId, catOnly, true);
+        cycleSteps.push({ cycle: cycleName, step: "select_target_category", category: layoutCategory, status: selectResult.status });
+        if (zohoWriteFailed(selectResult)) {
+          return { ok: false, error: "Target category select failed: " + zohoWriteErrorMessage(selectResult), steps: cycleSteps };
+        }
+        await sleepMs(reopenConfirm ? 650 : 500);
+        return { ok: true, steps: cycleSteps, currentCategory: layoutCategory };
+      }
+
+      var steps = [];
+      var currentCategory = await readCurrentCategory();
+      steps.push({ step: "read_category", category: currentCategory });
+
+      if (reopenConfirm) {
+        await sleepMs(800);
+        currentCategory = await readCurrentCategory();
+        steps.push({ step: "reopen_read_category", category: currentCategory });
+      } else {
+        var cycle1 = await runCategoryReselectCycle("initial", currentCategory);
+        steps = steps.concat(cycle1.steps || []);
+        if (!cycle1.ok) {
+          return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: cycle1.error, steps: steps }) };
+        }
+        if (layoutExtension && Object.keys(layoutExtension).length) {
+          var extMid = await zohoEquipmentPut(token, layoutEquipmentId, layoutExtension, false);
+          steps.push({ step: "save_extension_fields", status: extMid.status });
+          if (zohoWriteFailed(extMid)) {
+            return { statusCode: extMid.status >= 400 ? extMid.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Extension field save failed: " + zohoWriteErrorMessage(extMid), steps: steps }) };
+          }
+          await sleepMs(450);
+        }
+        return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "initial", current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
+      }
+
+      var cycle2 = await runCategoryReselectCycle("reopen_confirm", currentCategory);
+      steps = steps.concat(cycle2.steps || []);
+      if (!cycle2.ok) {
+        return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: cycle2.error, steps: steps }) };
       }
 
       var targetPayload = Object.assign({ Asset_Category: layoutCategory }, layoutExtension);
-      var activateResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
-      steps.push({ step: "target_layout_rules", category: layoutCategory, status: activateResult.status });
-      if (zohoWriteFailed(activateResult)) {
-        return { statusCode: activateResult.status >= 400 ? activateResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category layout activation failed: " + zohoWriteErrorMessage(activateResult), steps: steps }) };
+      var resaveV8 = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
+      steps.push({ step: "resave_category_and_fields_v8", category: layoutCategory, status: resaveV8.status });
+      if (zohoWriteFailed(resaveV8)) {
+        return { statusCode: resaveV8.status >= 400 ? resaveV8.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v8) failed: " + zohoWriteErrorMessage(resaveV8), steps: steps }) };
       }
       await sleepMs(450);
 
-      var confirmResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
-      steps.push({ step: "confirm_layout_rules", category: layoutCategory, status: confirmResult.status });
-      if (zohoWriteFailed(confirmResult)) {
-        return { statusCode: confirmResult.status >= 400 ? confirmResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category layout confirmation failed: " + zohoWriteErrorMessage(confirmResult), steps: steps }) };
-      }
-      await sleepMs(350);
-
-      var persistResult = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, false);
-      steps.push({ step: "persist_category_fields", category: layoutCategory, status: persistResult.status });
-      if (zohoWriteFailed(persistResult)) {
-        return { statusCode: persistResult.status >= 400 ? persistResult.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category persist save failed: " + zohoWriteErrorMessage(persistResult), steps: steps }) };
+      var resaveV3 = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, false);
+      steps.push({ step: "resave_category_and_fields_v3", category: layoutCategory, status: resaveV3.status });
+      if (zohoWriteFailed(resaveV3)) {
+        return { statusCode: resaveV3.status >= 400 ? resaveV3.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v3) failed: " + zohoWriteErrorMessage(resaveV3), steps: steps }) };
       }
 
-      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, current_category: currentCategory, temp_category: tempCategory, target_category: layoutCategory, steps: steps }) };
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "reopen_confirm", current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
     }
 
     if (data.action === "update_equipment") {
