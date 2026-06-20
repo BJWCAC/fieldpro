@@ -1219,7 +1219,7 @@ function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++)
 // ASSETS / EQUIPMENTS
 function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
-function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldSuggestionsIfReady,0);}}
+function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldDefaultsOnly,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
 function assetPicklistValues(field){var p=assetPicklists()[field];return p&&p.values||[];}
 function fillAssetSelect(id,field,placeholder){var e=el(id);if(!e)return;var cur=e.value;var vals=assetPicklistValues(field);e.innerHTML="<option value=''>"+(placeholder||"Select")+"</option>"+vals.map(function(v){return"<option value='"+esc(v)+"'>"+esc(v)+"</option>";}).join("");if(cur)e.value=cur;}
@@ -1560,6 +1560,27 @@ function refreshCategoryFieldSuggestionsIfReady(){
   if(!cat||!categoryLayout(cat))return;
   refreshCategoryFieldSuggestions();
 }
+function categoryFieldsAreRendered(){
+  var box=el("asset-category-fields");
+  if(!box||box.style.display==="none")return false;
+  return !!box.querySelector(".asset-cat-section");
+}
+function refreshCategoryFieldDefaultsOnly(){
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
+  if(!cat||!categoryLayout(cat))return;
+  if(!categoryFieldsAreRendered()){
+    syncAssetCategoryLayoutUi();
+    return;
+  }
+  syncDynamicFieldValuesFromDom();
+  syncSubformRowsFromDom();
+  categoryDynamicFieldDefs(cat).forEach(function(d){
+    if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
+  });
+  applyCategoryFieldDefaults(cat);
+  syncCategoryDefaultValuesToDom();
+  updateAssetSaveState();
+}
 function refreshCategoryFieldSuggestions(){
   var cat=assetInput("asset-category");
   if(!cat||!categoryLayout(cat))return;
@@ -1573,7 +1594,7 @@ function refreshCategoryFieldSuggestions(){
   updateAssetSaveState();
 }
 function onAssetBrandOrSeriesChange(){
-  refreshCategoryFieldSuggestions();
+  refreshCategoryFieldDefaultsOnly();
   renderAssetPicklistRequestPanel();
 }
 function resetCategoryDynamicStateForCategory(category){
@@ -1681,6 +1702,11 @@ function syncAssetCategoryLayoutUi(){
     if(seq!==_assetCategoryLayoutSeq)return;
     if(box)box.innerHTML="<div class='e-sub' style='padding:10px 0;color:#991b1b'>Could not load category fields: "+esc(err&&err.message?err.message:String(err))+"</div>";
     throw err;
+  }).finally(function(){
+    if(seq!==_assetCategoryLayoutSeq)return;
+    if(categoryFieldsAreRendered())return;
+    if(normalizeAssetCategoryKey(assetInput("asset-category"))!==cat)return;
+    renderAssetCategoryFields({skipDomSync:true});
   });
 }
 function scrollAssetCategoryFieldsIntoView(){
@@ -2563,7 +2589,7 @@ function setAssetSelectIfPresent(id,value){
     e.value=v;
   }
   if(id==="asset-category"&&v&&assetInput("asset-category")===v)syncAssetCategoryLayoutUi();
-  else if((id==="asset-brand"||id==="asset-series")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))refreshCategoryFieldSuggestionsIfReady();
+  else if((id==="asset-brand"||id==="asset-series")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))refreshCategoryFieldDefaultsOnly();
 }
 function loadExistingAssetFromSearch(idx){
   var r=A.asset.searchResults[idx];if(!r)return;
@@ -2909,7 +2935,11 @@ function applyAssetExtraction(x){
   if(x.ratings)notes.push("Process / Electrical: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length)setAssetInput("asset-nameplate-additional",notes.join("\n"));
-  refreshCategoryFieldSuggestionsIfReady();
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
+  if(cat&&categoryLayout(cat)){
+    if(categoryFieldsAreRendered())refreshCategoryFieldDefaultsOnly();
+    else syncAssetCategoryLayoutUi();
+  }
   updateAssetSaveState();
   renderAssetPicklistRequestPanel();
 }
