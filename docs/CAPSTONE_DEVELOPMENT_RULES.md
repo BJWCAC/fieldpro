@@ -174,6 +174,17 @@ Every CapStone tab that collects user work must **autosave draft state** so swit
 - **On cold start** — offer restore via confirm dialog (`maybeRestoreCaptureDraft`, `maybeRestoreAssetDraft`).
 - **New tabs** — add `build*Draft`, `save*DraftNow`, `schedule*DraftSave`, `*DraftHasWork`, and wire into `go()` + visibility/pagehide. Document the storage key in this section.
 
+## Field auto-advance rules (Assets)
+
+Speed data entry on mobile by moving focus to the next visible field after the user completes the current one:
+
+- **Picklists / selects** — after a non-empty value is chosen (`change`), focus advances to the next field.
+- **Text / number inputs** — press **Enter** to advance (blur alone does not advance — avoids fighting tap-to-next-field on Android).
+- **Textareas** — no auto-advance (multi-line notes).
+- **Order** — main asset form top-to-bottom, then category layout fields in DOM order (including subform cells).
+- **Implementation** — `installAssetAutoAdvanceHandlers()` in `src/app.js`; call after static form bind and after category fields re-render. Use `focus({ preventScroll: true })` so auto-advance does not fight scroll preservation rules.
+- **New tabs with forms** — reuse this pattern or document why not.
+
 ## Autofill / credential prompt rules
 
 CapStone fields are instrument data, not login forms. Prevent browsers from offering username/password autofill:
