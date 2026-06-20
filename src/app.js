@@ -31,9 +31,10 @@ var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, o
 var ASSET_EXTRACT_EH_SENSOR="Endress+Hauser Promag sensor / flow-tube label rules:\n- sensor_model_number → Sensor Model Number: FULL order code on the sensor or flow-tube tag (often different from the transmitter Order Code).\n- sensor_serial_number → Sensor Serial Number: Ser. No. on the sensor tag.\n- order_number / part_number: use for sensor_model_number when that is the order or part code on the sensor label.\n- serial_number: use for sensor_serial_number when Ser. No. is on the sensor tag.\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor on the sensor tag → Cal Factor field (same Zoho field as transmitter).\n- nominal_diameter / ratings: capture DN, liner, electrodes, PN when visible.";
 var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- order_number / part_number / model_number: map to sensor_model_number when they are the sensor order or part code.\n- serial_number: map to sensor_serial_number when it is the sensor serial.\n- k_factor / cal_factor → Cal Factor field (Cal. Fact., calibration factor, K-factor on sensor or flow-tube label).\n- manufacturer: sensor brand if shown.\n- nominal_diameter / ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\n"+ASSET_EXTRACT_EH_SENSOR+"\n\nDo not guess unreadable characters.";
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
+var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="270";
+var FP_VERSION="271";
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -63,6 +64,13 @@ function fpAfterDomUpdate(fn){
 }
 function initNoAutofill(root){
   var scope=root||document;
+  var noAutofillNames={
+    "asset-account-search":"fp-acct-filter-q",
+    "asset-photo-desc-input":"fp-photo-label",
+    "asset-search":"fp-asset-q",
+    "inbox-d-search":"fp-inbox-deal-q"
+  };
+  var skipReadonlyIds={"asset-account-search":1,"asset-search":1,"inbox-d-search":1,"asset-photo-desc-input":1};
   scope.querySelectorAll("input:not([type=file]):not([type=checkbox]):not([type=radio]), textarea, select").forEach(function(node){
     if(node.id==="key-in"){node.setAttribute("autocomplete","off");return;}
     node.setAttribute("autocomplete","off");
@@ -70,14 +78,19 @@ function initNoAutofill(root){
     node.setAttribute("autocapitalize","off");
     node.setAttribute("spellcheck","false");
     if(!node.getAttribute("data-lpignore"))node.setAttribute("data-lpignore","true");
+    if(!node.getAttribute("data-1p-ignore"))node.setAttribute("data-1p-ignore","true");
+    if(!node.getAttribute("data-bwignore"))node.setAttribute("data-bwignore","true");
     if(!node.getAttribute("data-form-type"))node.setAttribute("data-form-type","other");
-    if(!node.getAttribute("name")&&node.id)node.setAttribute("name","fp-"+node.id.replace(/^asset-/,""));
+    var safeName=noAutofillNames[node.id];
+    if(!safeName&&node.id)safeName="fp-"+String(node.id).replace(/^asset-/,"").replace(/account/gi,"acct");
+    if(safeName)node.setAttribute("name",safeName);
     if(node.tagName==="INPUT"&&node.type==="text"&&!node.readOnly)node.setAttribute("inputmode","text");
+    if(node.id==="asset-account-search"&&node.type!=="search")node.setAttribute("type","search");
     if(node._fpNoAutofillBound)return;
     node._fpNoAutofillBound=true;
-    if(node.readOnly||node.tagName==="SELECT")return;
+    if(node.readOnly||node.tagName==="SELECT"||skipReadonlyIds[node.id])return;
     node.addEventListener("focus",function(){
-      if(node.readOnly)return;
+      if(node.readOnly||skipReadonlyIds[node.id])return;
       node.setAttribute("readonly","readonly");
       setTimeout(function(){node.removeAttribute("readonly");},120);
     });
@@ -1230,15 +1243,33 @@ function splitAssetPayloadForCategoryLayout(payload){
 function syncAssetCategoryLayoutUi(){
   var cat=assetInput("asset-category");
   if(!cat){renderAssetCategoryFields();return Promise.resolve();}
+  var box=el("asset-category-fields");
+  if(box){
+    box.style.display="block";
+    box.innerHTML="<div class='e-sub' style='padding:10px 0;color:var(--dim)'>Loading category fields…</div>";
+  }
   return loadEquipmentConfig().then(function(){
-    return loadEngineeringUnitLookups();
-  }).then(function(){
     applyCategoryFieldDefaults(cat);
-    fpRememberView();
-    renderAssetCategoryFields({skipDomSync:true});
+    renderAssetCategoryFields();
     mirrorInputPvToOutput();
     updateAssetSaveState();
-    fpRestoreView();
+    scrollAssetCategoryFieldsIntoView();
+    return loadEngineeringUnitLookups();
+  }).then(function(){
+    if(assetInput("asset-category")!==cat)return;
+    renderAssetCategoryFields();
+    mirrorInputPvToOutput();
+    updateAssetSaveState();
+  }).catch(function(err){
+    if(box)box.innerHTML="<div class='e-sub' style='padding:10px 0;color:#991b1b'>Could not load category fields: "+esc(err&&err.message?err.message:String(err))+"</div>";
+    throw err;
+  });
+}
+function scrollAssetCategoryFieldsIntoView(){
+  var box=el("asset-category-fields");
+  if(!box||box.style.display==="none")return;
+  requestAnimationFrame(function(){
+    try{box.scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
   });
 }
 function assetDynId(api){return"asset-dyn-"+String(api||"").replace(/[^a-zA-Z0-9_]/g,"_");}
@@ -1750,7 +1781,12 @@ async function ensureAssetAccountsLoaded(){
 function openAssetAccountPicker(){
   ensureAssetAccountsLoaded().then(function(){
     applyAssetAccountPickerFilters();
-    var m=el("assetaccountmodal");if(m)m.style.display="flex";
+    var m=el("assetaccountmodal");if(m){
+      m.style.display="flex";
+      initNoAutofill(m);
+      var qEl=el("asset-account-search");
+      if(qEl){try{qEl.focus();}catch(e){}}
+    }
   }).catch(function(e){showToast(e.message||"Could not load accounts",5000);});
 }
 function closeAssetAccountPicker(){var m=el("assetaccountmodal");if(m)m.style.display="none";}
@@ -1949,7 +1985,19 @@ function searchAssetByCurrentField(id){
   setAssetInput("asset-search",v);
   return searchExistingAssets();
 }
-function setAssetSelectIfPresent(id,value){var e=el(id);if(!e)return;var v=String(value||"");e.value=v;if(v&&e.value!==v){var opt=document.createElement("option");opt.value=v;opt.textContent=v;e.appendChild(opt);e.value=v;}}
+function setAssetSelectIfPresent(id,value){
+  var e=el(id);if(!e)return;
+  var v=String(value||"");
+  e.value=v;
+  if(v&&e.value!==v){
+    var opt=document.createElement("option");
+    opt.value=v;
+    opt.textContent=v;
+    e.appendChild(opt);
+    e.value=v;
+  }
+  if(id==="asset-category"&&v&&assetInput("asset-category")===v)syncAssetCategoryLayoutUi();
+}
 function loadExistingAssetFromSearch(idx){
   var r=A.asset.searchResults[idx];if(!r)return;
   clearAssetEntryState("Loaded existing asset for update.",true);
@@ -2004,6 +2052,28 @@ function normalizeAssetPhoto(photo){
     }
   }
   return photo;
+}
+function assetPhotoRoleDefaults(){
+  return Object.keys(ASSET_PHOTO_ROLES).map(function(k){return ASSET_PHOTO_ROLES[k].short;});
+}
+function assetPhotoCountByRole(role,excludePhoto){
+  normalizeAssetPhotos();
+  return A.asset.photos.filter(function(p){
+    if(excludePhoto&&p===excludePhoto)return false;
+    var r=p.photoRole||normalizeAssetPhotoRole(p.shortDescription);
+    return r===role;
+  }).length;
+}
+function assetPhotoRoleLimit(role){return ASSET_PHOTO_ROLE_LIMITS[role]!=null?ASSET_PHOTO_ROLE_LIMITS[role]:99;}
+function assetPhotoRoleNumber(photo,idx){
+  var role=photo.photoRole||normalizeAssetPhotoRole(photo.shortDescription)||"other";
+  var n=0;
+  for(var i=0;i<=idx&&i<A.asset.photos.length;i++){
+    var p=A.asset.photos[i];
+    var r=p.photoRole||normalizeAssetPhotoRole(p.shortDescription)||"other";
+    if(r===role)n++;
+  }
+  return n||1;
 }
 function normalizeAssetPhotos(){A.asset.photos.forEach(normalizeAssetPhoto);}
 function assetPhotoRoleLabel(photo){
@@ -3356,8 +3426,23 @@ function finalizeAssetPhotoLabel(desc,role){
   role=role||A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
   if(!ASSET_PHOTO_ROLES[role])role=normalizeAssetPhotoRole(desc,role);
   var roleDef=ASSET_PHOTO_ROLES[role]||ASSET_PHOTO_ROLES.other;
-  desc=String(desc||"").trim()||roleDef.short;
+  desc=String(desc||"").trim();
+  if(role==="other"){
+    if(!desc){
+      showToast("Enter a short description for Other photos.",4500);
+      var inpOther=el("asset-photo-desc-input");
+      if(inpOther)try{inpOther.focus();}catch(e){}
+      return;
+    }
+  }else{
+    desc=desc||roleDef.short;
+  }
   if(photo){
+    var limit=assetPhotoRoleLimit(role);
+    if(assetPhotoCountByRole(role,photo)>=limit){
+      showToast("Maximum "+limit+" "+roleDef.label+" photo"+(limit!==1?"s":"")+" allowed.",5000);
+      return;
+    }
     photo.shortDescription=desc;
     photo.photoRole=role;
     normalizeAssetPhoto(photo);
@@ -3382,10 +3467,17 @@ function requestAssetPhotoLabel(photo,idx,opts){
     A.assetPhotoLabelRole=photo.photoRole||ASSET_PHOTO_ROLE_DEFAULT;
     var img=el("asset-photo-desc-img"),inp=el("asset-photo-desc-input"),m=el("assetphotomodal");
     if(img)img.src=photo.data||"";
-    if(inp)inp.value=photo.shortDescription||ASSET_PHOTO_ROLES[A.assetPhotoLabelRole].short;
+    if(inp){
+      inp.value=photo.shortDescription||ASSET_PHOTO_ROLES[A.assetPhotoLabelRole].short;
+      if(A.assetPhotoLabelRole==="other"&&!photo.shortDescription)inp.value="";
+      inp.placeholder=A.assetPhotoLabelRole==="other"?"Describe this photo (required)":"transmitter-label, sensor-label, wiring";
+    }
     updateAssetPhotoRoleButtons(A.assetPhotoLabelRole);
-    if(m)m.style.display="flex";
-    setTimeout(function(){try{if(inp){inp.focus();inp.select();}}catch(e){}},50);
+    if(m){
+      m.style.display="flex";
+      initNoAutofill(m);
+    }
+    setTimeout(function(){try{if(inp){inp.focus();if(A.assetPhotoLabelRole!=="other")inp.select();}}catch(e){}},50);
   });
 }
 function requestAssetPhotoDescription(photo,idx){
@@ -3403,7 +3495,17 @@ function pickAssetPhotoRole(role){
   A.assetPhotoLabelRole=role;
   updateAssetPhotoRoleButtons(role);
   var inp=el("asset-photo-desc-input"),roleDef=ASSET_PHOTO_ROLES[role];
-  if(inp&&roleDef)inp.value=roleDef.short;
+  if(!inp||!roleDef)return;
+  var cur=String(inp.value||"").trim();
+  var defaults=assetPhotoRoleDefaults();
+  if(role==="other"){
+    inp.placeholder="Describe this photo (required)";
+    if(!cur||defaults.indexOf(cur)>=0)inp.value="";
+    try{inp.focus();}catch(e){}
+    return;
+  }
+  inp.placeholder="transmitter-label, sensor-label, wiring";
+  if(!cur||defaults.indexOf(cur)>=0)inp.value=roleDef.short;
 }
 function closeAssetPhotoDescriptionModal(){var m=el("assetphotomodal");if(m)m.style.display="none";}
 function confirmAssetPhotoDescription(){
@@ -3415,8 +3517,11 @@ function cancelAssetPhotoDescription(){
   finalizeAssetPhotoLabel(ASSET_PHOTO_ROLES[role].short,role);
 }
 async function assetPhotoAttachmentName(prefix,photo,idx){
-  var desc=sanitizeAssetFilePart(await requestAssetPhotoDescription(photo,idx));
-  return prefix+"-"+desc+"-"+(idx+1)+".jpg";
+  var desc=photo.shortDescription;
+  if(!desc)desc=await requestAssetPhotoDescription(photo,idx);
+  var role=photo.photoRole||normalizeAssetPhotoRole(desc)||"other";
+  var roleNum=assetPhotoRoleNumber(photo,idx);
+  return prefix+"-"+sanitizeAssetFilePart(desc)+"-"+role+"-"+roleNum+".jpg";
 }
 async function saveAssetToZoho(){
   if(A.asset.saving){showToast("Asset save already in progress",2500);return;}
