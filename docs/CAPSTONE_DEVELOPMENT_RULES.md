@@ -31,6 +31,7 @@ Any new tab or major screen must include:
 - visible warnings/errors
 - pending sync behavior if it writes to Zoho, WorkDrive, or another service
 - local draft/recovery behavior if the user can enter meaningful field data
+- **field auto-advance** on every editable input and picklist (see Field auto-advance rules)
 - matching button and card styling
 - documentation updates
 
@@ -174,16 +175,18 @@ Every CapStone tab that collects user work must **autosave draft state** so swit
 - **On cold start** — offer restore via confirm dialog (`maybeRestoreCaptureDraft`, `maybeRestoreAssetDraft`).
 - **New tabs** — add `build*Draft`, `save*DraftNow`, `schedule*DraftSave`, `*DraftHasWork`, and wire into `go()` + visibility/pagehide. Document the storage key in this section.
 
-## Field auto-advance rules (Assets)
+## Field auto-advance rules (all tabs)
 
-Speed data entry on mobile by moving focus to the next visible field after the user completes the current one:
+Speed data entry on mobile by moving focus to the next visible field after the user completes the current one. This is a **program-wide standard** — every tab with form fields must use the shared helpers, including any tab added in the future.
 
 - **Picklists / selects** — after a non-empty value is chosen (`change`), focus advances to the next field.
 - **Text / number inputs** — press **Enter** to advance (blur alone does not advance — avoids fighting tap-to-next-field on Android).
-- **Textareas** — no auto-advance (multi-line notes).
-- **Order** — main asset form top-to-bottom, then category layout fields in DOM order (including subform cells).
-- **Implementation** — `installAssetAutoAdvanceHandlers()` in `src/app.js`; call after static form bind and after category fields re-render. Use `focus({ preventScroll: true })` so auto-advance does not fight scroll preservation rules.
-- **New tabs with forms** — reuse this pattern or document why not.
+- **Textareas** — no auto-advance by default (multi-line notes, Wispr dictation). Opt in with `data-auto-advance="enter"` (Enter without Shift advances; Shift+Enter keeps a new line).
+- **Skip fields** — set `data-no-auto-advance` on search boxes, filters, or other fields that should not chain (e.g. asset search).
+- **Order** — DOM order within the active tab pane, or within an open modal when a modal is on screen (modals take priority over the tab behind them).
+- **Visibility** — skip hidden, disabled, and readonly fields; only advance to visible, enabled inputs.
+- **Implementation** — `installAutoAdvanceInRoot()` / `installAutoAdvanceAll()` in `src/app.js`; called from `initNoAutofill()` (dynamic panels), `bootApp()`, and `go()` after tab switches. Re-bind after any `innerHTML` re-render that replaces form nodes. Use `focus({ preventScroll: true })` so auto-advance does not fight scroll preservation rules.
+- **New tabs with forms** — wire auto-advance on boot and after dynamic renders; document any intentional exceptions in this section.
 
 ## Autofill / credential prompt rules
 
