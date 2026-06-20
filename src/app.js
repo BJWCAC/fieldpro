@@ -34,8 +34,8 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},subformRows:[]}};
-var FP_VERSION="274";
-var MIN_ZOHO_PROXY_BUILD=274;
+var FP_VERSION="275";
+var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -105,11 +105,17 @@ function resolveEngineeringUnitDefault(names){
   }
   return resolveEngineeringUnitLookupId(list[0])||list[0]||"";
 }
+function isOpenChannelFlowCategory(category){
+  var s=String(category||"").trim();
+  if(!s)return false;
+  if(/^flow\s*meter$/i.test(s))return false;
+  return /flow\s*open\s*channel|open\s*channel\s*flow/i.test(s);
+}
 function applyCategoryFieldDefaults(category){
   if(!category)return;
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   if(!A.asset.dynamicValues.Engineering_Units)setDynamicAssetField("Engineering_Units","GPM US");
-  if(category==="Open Channel Flow"){
+  if(isOpenChannelFlowCategory(category)){
     if(!A.asset.dynamicValues.Input_Engineering_Units){
       var inEu=resolveEngineeringUnitDefault(["Inches H2O","H2O Inches","In H2O"]);
       setDynamicAssetField("Input_Engineering_Units",inEu);
@@ -1222,9 +1228,10 @@ function normalizeAssetCategoryKey(cat){
   for(var i=0;i<keys.length;i++){
     if(keys[i].toLowerCase()===c.toLowerCase())return keys[i];
   }
-  if(/open\s*channel\s*flow/i.test(c)){
+  if(/flow\s*open\s*channel|open\s*channel\s*flow/i.test(c)){
+    if(layouts["Flow Open Channel"])return "Flow Open Channel";
     for(var j=0;j<keys.length;j++){
-      if(/open\s*channel\s*flow/i.test(keys[j])&&!/^flow\s*meter$/i.test(keys[j]))return keys[j];
+      if(/flow\s*open\s*channel|open\s*channel\s*flow/i.test(keys[j])&&!/^flow\s*meter$/i.test(keys[j]))return keys[j];
     }
   }
   return c;

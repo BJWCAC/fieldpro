@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "274";
+var PROXY_BUILD = "275";
 
 exports.handler = async function(event) {
   const h = {
@@ -63,7 +63,7 @@ exports.handler = async function(event) {
             var display = String(opt.display_value || "").trim();
             if (actual === want || display === want) return actual || want;
             if (actual.toLowerCase() === want.toLowerCase() || display.toLowerCase() === want.toLowerCase()) return actual || display || want;
-            if (/open\s*channel\s*flow/i.test(want) && (/open\s*channel\s*flow/i.test(actual) || /open\s*channel\s*flow/i.test(display))) return actual || display || want;
+            if (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(want) && (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(actual) || /flow\s*open\s*channel|open\s*channel\s*flow/i.test(display))) return actual || display || want;
           }
         }
       } catch (re) {}
@@ -96,7 +96,23 @@ exports.handler = async function(event) {
     }
 
     function isOpenChannelFlowCategory(cat) {
-      return /open\s*channel\s*flow/i.test(String(cat || ""));
+      var s = String(cat || "").trim();
+      if (!s) return false;
+      if (/^flow\s*meter$/i.test(s)) return false;
+      return /flow\s*open\s*channel|open\s*channel\s*flow/i.test(s);
+    }
+
+    function pickCanonicalOcfCategory(categoryValues) {
+      var list = Array.isArray(categoryValues) ? categoryValues : [];
+      for (var i = 0; i < list.length; i++) {
+        var v = String(list[i] || "").trim();
+        if (/^flow\s*open\s*channel$/i.test(v)) return v;
+      }
+      for (var j = 0; j < list.length; j++) {
+        var v2 = String(list[j] || "").trim();
+        if (isOpenChannelFlowCategory(v2)) return v2;
+      }
+      return "Flow Open Channel";
     }
 
     function isFlowMeterCategory(cat) {
@@ -634,9 +650,13 @@ exports.handler = async function(event) {
           if (ocf && isOpenChannelFlowCategory(ocf) && !categoriesEquivalent(ocf, current)) return ocf;
         }
       }
-      var preferred = { "Open Channel Flow": "Flow Meter", "Flow Meter": "Open Channel Flow" };
-      var pref = preferred[target];
+      var preferred = { "Flow Open Channel": "Flow Meter", "Flow Meter": "Flow Open Channel", "Open Channel Flow": "Flow Meter", "Flow Meter": "Open Channel Flow" };
+      var pref = preferred[target] || (isOpenChannelFlowCategory(target) ? "Flow Meter" : null);
       if (pref && pref !== target && categoryValues.indexOf(pref) >= 0 && pref !== current) return pref;
+      if (isOpenChannelFlowCategory(target)) {
+        var canon = pickCanonicalOcfCategory(categoryValues);
+        if (canon && canon !== target && canon !== current && categoryValues.indexOf(canon) >= 0) return canon;
+      }
       for (var i = 0; i < categoryValues.length; i++) {
         var v = categoryValues[i];
         if (v && v !== target && v !== current && !categoriesEquivalent(v, target)) return v;
@@ -680,6 +700,7 @@ exports.handler = async function(event) {
       var mergedCategoryValues = layoutCategoryValues.slice();
       zohoCategoryValues.forEach(function(v) { if (v && mergedCategoryValues.indexOf(v) < 0) mergedCategoryValues.push(v); });
       layoutCategoryValues = mergedCategoryValues;
+      if (isOpenChannelFlowCategory(layoutCategory)) layoutCategory = pickCanonicalOcfCategory(layoutCategoryValues);
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
