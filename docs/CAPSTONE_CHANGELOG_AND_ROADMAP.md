@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v282
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=282
+Current live version: v283
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=283
 ```
 
 ---
@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v283 | — | **Category suggested defaults after AI extract** — refresh Flow Open Channel / conditional P005–P006 hints when Brand/Series filled by extract or category selected afterward; re-apply lookup defaults after engineering-unit load |
 | v282 | — | **Program-wide field auto-advance** — picklist change or Enter on text/number advances to next field on all tabs and modals (Deals filters, Capture context, Assets, Map filters, Settings, deal/account pickers); documented as mandatory dev rule |
 | v281 | — | **Asset field auto-advance** — after picklist select or Enter on text/number, focus moves to next field (main form + category layout) |
 | v280 | — | **FOC Output 4-20 mA for all assets** — Set Up Output Engineering Units suggested 4-20 mA for every Flow Open Channel new/update |
