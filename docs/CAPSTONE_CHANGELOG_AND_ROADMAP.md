@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v289 | — | **Flow Meter category polish** — Duration & Damping section aligned with Flow Open Channel; Duration default 0.75; Pulsar Ultra 4 PV parameters; Cal Factor/Pipe Size only in Flow Meter Details |
 | v288 | — | **Subform Function save + Date Installed optional + P838/P839** — Input/Output Function (Output_Type) persists to Zoho; subform row IDs preserved; dedicated subform save pass; Date Installed red reminder but not mandatory; Pulsar Ultra 4 → Output PV P838/P839 |
 | v287 | — | **Duration and Damping as separate fields** — Flow Open Channel shows both Duration and Damping Seconds side by side; default 0.75 applies to Duration only; asset search includes Duration |
 | v286 | — | **Fix FOC category layout load** — guard concurrent category renders; safe lookup option handling; Duration & Damping section between Set Up Input and Set Up Output |
@@ -187,7 +188,7 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Asset category field rollout** | Open Channel Flow shipped v251; Set Up I/O lookup dropdowns v255; next: Gas Detector, Analytical, Lift Station, Scales & Balances |
+| Medium | **Asset category field rollout** | Flow Meter + Flow Open Channel polished (v289); next: Gas Detector, Analytical, Lift Station, Scales & Balances |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
