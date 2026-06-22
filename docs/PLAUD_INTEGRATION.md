@@ -47,6 +47,8 @@ Ambient and exploratory. Capture everything, embed, search, find signal later. S
 
 **Deferred in CapStone UI** until Fork A Inbox + link-to-deal is routine in the field. See changelog *Deferred*.
 
+**Bridge shipped (v306):** the **recordings repository** module (`Recordings`) gives a single searchable home for all recordings with keyword (Topics) search now — short of full embeddings/RAG. See *Recordings repository* below and `docs/RECORDINGS_MODULE_SETUP.md`.
+
 ---
 
 ## How a recording becomes a Zoho deal note
@@ -161,6 +163,19 @@ Possible but not recommended:
 - You would need a mapping (Plaud file/device → Zoho user) to route a recording to the right person's inbox, which the current device-local model does not need.
 
 Prefer one Plaud account per employee unless there is a specific reason to centralize.
+
+---
+
+## Recordings repository — single searchable home (v306+)
+
+By default a recording's only durable home is a **note on the linked deal**, which makes "search across everything" hard. CapStone v306+ adds an optional **recordings repository**: a dedicated Zoho CRM custom module (`Recordings`) that holds **one record per recording** — every Inbox item, linked to a deal or not.
+
+- **Lookups** to Deals and Accounts keep per-deal/per-account visibility (related lists) **and** give one module to browse, filter, and report on.
+- **Attribution** (`Recorded_By`) carries the v305 technician stamp.
+- **Topics** holds AI-extracted keywords — the practical search field, since Zoho CRM does not reliably full-text index long transcript fields.
+- **Save to Repository** works with or without a deal; **Save to Zoho** files the deal note *and* upserts the same repository record. Failures queue in Pending Sync.
+
+This is a lightweight near-term step toward **Fork B** (below): keyword search now via Zoho + Topics (+ full text in WorkDrive), semantic/RAG search later. Setup and exact field API names: `docs/RECORDINGS_MODULE_SETUP.md`.
 
 ---
 

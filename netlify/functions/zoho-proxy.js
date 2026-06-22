@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "283";
+var PROXY_BUILD = "284";
 
 exports.handler = async function(event) {
   const h = {
@@ -1375,6 +1375,72 @@ exports.handler = async function(event) {
         } catch (e3) {}
       }
       return { statusCode: result5.status, headers: h, body: result5.body };
+    }
+
+    if (data.action === "save_recording" || data.action === "update_recording") {
+      var RECORDINGS_MODULE = process.env.RECORDINGS_MODULE || data.module_api_name || "Recordings";
+      var RF = {
+        name: "Name",
+        date: "Recording_Date",
+        source: "Source",
+        recordedBy: "Recorded_By",
+        deal: "Deal",
+        account: "Account",
+        summary: "Summary",
+        transcript: "Transcript",
+        topics: "Topics",
+        plaudFileId: "Plaud_File_ID",
+        link: "Recording_Link",
+        status: "Status",
+        inboxItemId: "Inbox_Item_ID"
+      };
+      function recClip(v, n) {
+        v = (v == null ? "" : String(v));
+        return v.length > n ? v.slice(0, n - 16) + "\n…[truncated]" : v;
+      }
+      function recZohoDateTime(v) {
+        v = String(v || "").trim();
+        if (!v) return v;
+        return v.replace(/\.\d+Z$/, "+00:00").replace(/Z$/, "+00:00");
+      }
+      var rec = {};
+      rec[RF.name] = recClip(data.title || data.recording_title || "CapStone Recording", 250);
+      if (data.recording_date) rec[RF.date] = recZohoDateTime(data.recording_date);
+      if (data.source) rec[RF.source] = String(data.source);
+      if (data.recorded_by) rec[RF.recordedBy] = recClip(data.recorded_by, 250);
+      if (data.deal_id) rec[RF.deal] = { id: String(data.deal_id) };
+      if (data.account_id) rec[RF.account] = { id: String(data.account_id) };
+      if (data.summary) rec[RF.summary] = recClip(data.summary, 31900);
+      if (data.transcript) rec[RF.transcript] = recClip(data.transcript, 31900);
+      if (data.topics) rec[RF.topics] = recClip(data.topics, 250);
+      if (data.plaud_file_id) rec[RF.plaudFileId] = String(data.plaud_file_id);
+      if (data.recording_link) rec[RF.link] = String(data.recording_link);
+      if (data.status) rec[RF.status] = String(data.status);
+      if (data.inbox_item_id) rec[RF.inboxItemId] = String(data.inbox_item_id);
+      var recIsUpdate = data.action === "update_recording" && data.record_id;
+      var recPayload = JSON.stringify({ data: [rec] });
+      var recResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + encodeURIComponent(RECORDINGS_MODULE) + (recIsUpdate ? "/" + encodeURIComponent(data.record_id) : ""),
+        method: recIsUpdate ? "PUT" : "POST",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(recPayload) }
+      }, recPayload);
+      var recId = null;
+      try {
+        var recJson = JSON.parse(recResult.body);
+        recId = (recJson && recJson.data && recJson.data[0] && recJson.data[0].details && recJson.data[0].details.id) || null;
+      } catch (recParseErr) {}
+      return {
+        statusCode: recResult.status,
+        headers: h,
+        body: JSON.stringify({
+          ok: recResult.status >= 200 && recResult.status < 300,
+          record_id: recId || (recIsUpdate ? data.record_id : null),
+          module: RECORDINGS_MODULE,
+          raw: String(recResult.body || "").slice(0, 400),
+          proxy_build: PROXY_BUILD
+        })
+      };
     }
 
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };
