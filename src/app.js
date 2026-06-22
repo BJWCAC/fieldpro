@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="295";
+var FP_VERSION="296";
 var MIN_ZOHO_PROXY_BUILD=278;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1221,8 +1221,8 @@ function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
 function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldDefaultsOnly,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
-var ASSET_CATEGORY_PICKLIST_ORDER=["Flow Meter","Flow Open Channel","Open Channel Flow","Gas Detector","Analytical","Lift Station","Scales & Balances"];
-var DEPRECATED_ASSET_CATEGORIES={"Flow":true};
+var ASSET_CATEGORY_PICKLIST_ORDER=["Flow Meter","Flow Open Channel","Gas Detector","Analytical","Lift Station","Scales & Balances"];
+var DEPRECATED_ASSET_CATEGORIES={"Flow":true,"Open Channel Flow":true};
 function mergeAssetCategoryPicklistValues(extra){
   var seen={},out=[];
   function add(v){
@@ -1987,7 +1987,8 @@ function renderDynFieldBlock(def,fullWidth){
   var id=assetDynId(def.apiName);
   var val=dynamicFieldDisplayValue(def.apiName,def);
   var missCls=dynamicFieldMissingClass(def.apiName,def,val);
-  var wrapStart=fullWidth?"<div style='margin-bottom:8px'>":"<div>";
+  var wrapCls="asset-cat-field"+(fullWidth?" asset-cat-field-span2":"");
+  var wrapStart="<div class='"+wrapCls+"'>";
   var wrapEnd="</div>";
   if(def.widget==="multiselect"&&def.picklist){
     var opts=assetPicklistValues(def.picklist).filter(function(v){return v!=="None";});
@@ -2202,18 +2203,12 @@ function renderAssetCategoryFields(opts){
   try{
   layout.sections.forEach(function(sec){
     if(sec.subform){html+=renderAssetSubformSection(sec);return;}
-    html+="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div>";
+    html+="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div><div class='asset-cat-grid'>";
     var defs=(sec.fields||[]).map(function(api){var d=registry[api];return d?Object.assign({apiName:api},d):null;}).filter(Boolean);
-    for(var i=0;i<defs.length;i++){
-      var d=defs[i];
-      if(d.widget==="textarea"){html+=renderDynFieldBlock(d,true);continue;}
-      if(defs.length===1){html+=renderDynFieldBlock(d,true);continue;}
-      if(i+1<defs.length&&defs[i+1].widget!=="textarea"){
-        html+="<div class='g2' style='margin-bottom:8px'>"+renderDynFieldBlock(d,false)+renderDynFieldBlock(defs[i+1],false)+"</div>";
-        i++;
-      }else html+=renderDynFieldBlock(d,true);
-    }
-    html+="</div>";
+    defs.forEach(function(d){
+      html+=renderDynFieldBlock(d,d.widget==="textarea");
+    });
+    html+="</div></div>";
   });
   }catch(err){
     console.log("renderAssetCategoryFields",err);

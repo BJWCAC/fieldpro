@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "278";
+var PROXY_BUILD = "279";
 
 exports.handler = async function(event) {
   const h = {
@@ -114,11 +114,14 @@ exports.handler = async function(event) {
       }
 
       if (isOpenChannelFlowCategory(want)) {
+        for (var oc = 0; oc < options.length; oc++) {
+          if (/^flow\s*open\s*channel$/i.test(options[oc].actual)) return options[oc].actual;
+        }
         for (var oi = 0; oi < options.length; oi++) {
-          if (isOpenChannelFlowCategory(options[oi].actual)) return options[oi].actual;
+          if (isOpenChannelFlowCategory(options[oi].actual) && !isDeprecatedOcfAlias(options[oi].actual)) return options[oi].actual;
         }
         for (var od = 0; od < options.length; od++) {
-          if (isOpenChannelFlowCategory(options[od].display)) return options[od].actual;
+          if (isOpenChannelFlowCategory(options[od].display) && !isDeprecatedOcfAlias(options[od].actual)) return options[od].actual;
         }
       }
 
@@ -151,6 +154,10 @@ exports.handler = async function(event) {
       }
     }
 
+    function isDeprecatedOcfAlias(cat) {
+      return /^open\s*channel\s*flow$/i.test(String(cat || "").trim());
+    }
+
     async function loadAssetCategoryPicklistValues(token) {
       var vals = [];
       var fieldsResult = await req({
@@ -166,6 +173,7 @@ exports.handler = async function(event) {
             var v = String(opt.actual || "").trim();
             if (!v || vals.indexOf(v) >= 0) return;
             if (isDeprecatedFlowCategory(v) && options.some(function(o) { return isFlowMeterCategory(o.actual) || isFlowMeterCategory(o.display); })) return;
+            if (isDeprecatedOcfAlias(v) && options.some(function(o) { return /^flow\s*open\s*channel$/i.test(o.actual); })) return;
             vals.push(v);
           });
         } catch (le) {}
