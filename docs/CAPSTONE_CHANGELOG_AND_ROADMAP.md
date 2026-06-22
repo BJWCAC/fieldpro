@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v292 | — | **Asset draft restore on load** — preserve draft when loading existing asset; block partial draft saves mid-load; restore form fields, category fields, and photos after reload |
 | v291 | — | **Category layout category-only** — Flow Meter/FOC fields render from Asset Category only; brand/series update conditional defaults without re-render race; recover from stuck Loading state |
 | v290 | — | **Flow Meter Set Up Input default GPM US** — aligns Flow Meter input engineering unit auto-fill with display units |
 | v289 | — | **Flow Meter category polish** — Duration & Damping section aligned with Flow Open Channel; Duration default 0.75; Pulsar Ultra 4 PV parameters; Cal Factor/Pipe Size only in Flow Meter Details |
