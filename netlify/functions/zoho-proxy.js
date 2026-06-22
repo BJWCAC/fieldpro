@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "277";
+var PROXY_BUILD = "278";
 
 exports.handler = async function(event) {
   const h = {
@@ -50,6 +50,89 @@ exports.handler = async function(event) {
       };
     }
 
+    function isDeprecatedFlowCategory(cat) {
+      return /^flow$/i.test(String(cat || "").trim());
+    }
+
+    function pickCanonicalFlowMeterCategory(categoryValues) {
+      var list = Array.isArray(categoryValues) ? categoryValues : [];
+      for (var i = 0; i < list.length; i++) {
+        var v = String(list[i] || "").trim();
+        if (isFlowMeterCategory(v)) return v;
+      }
+      return "Flow Meter";
+    }
+
+    function assetCategoryPicklistOptions(fieldsBody) {
+      var options = [];
+      try {
+        var fields = (fieldsBody && fieldsBody.fields) || fieldsBody || [];
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== "Asset_Category") continue;
+          (f.pick_list_values || []).forEach(function(opt) {
+            if (!opt || opt.type === "unused") return;
+            var actual = String(opt.actual_value || "").trim();
+            var display = String(opt.display_value || "").trim();
+            if (!actual && !display) return;
+            options.push({ actual: actual || display, display: display || actual });
+          });
+        }
+      } catch (e) {}
+      return options;
+    }
+
+    function resolveAssetCategoryFromOptions(want, options) {
+      want = String(want || "").trim();
+      if (!want || !options.length) return want;
+
+      function actualExact(match) {
+        for (var i = 0; i < options.length; i++) {
+          if (options[i].actual === match) return options[i].actual;
+        }
+        return null;
+      }
+      function actualCaseInsensitive(match) {
+        var low = match.toLowerCase();
+        for (var j = 0; j < options.length; j++) {
+          if (options[j].actual.toLowerCase() === low) return options[j].actual;
+        }
+        return null;
+      }
+
+      var hit = actualExact(want) || actualCaseInsensitive(want);
+      if (hit) return hit;
+
+      if (isFlowMeterCategory(want)) {
+        for (var fm = 0; fm < options.length; fm++) {
+          if (isFlowMeterCategory(options[fm].actual)) return options[fm].actual;
+        }
+        for (var fd = 0; fd < options.length; fd++) {
+          if (isFlowMeterCategory(options[fd].display) && !isDeprecatedFlowCategory(options[fd].actual)) return options[fd].actual;
+        }
+        return want;
+      }
+
+      if (isOpenChannelFlowCategory(want)) {
+        for (var oi = 0; oi < options.length; oi++) {
+          if (isOpenChannelFlowCategory(options[oi].actual)) return options[oi].actual;
+        }
+        for (var od = 0; od < options.length; od++) {
+          if (isOpenChannelFlowCategory(options[od].display)) return options[od].actual;
+        }
+      }
+
+      var wantLow = want.toLowerCase();
+      for (var di = 0; di < options.length; di++) {
+        var opt = options[di];
+        if (opt.display !== want && opt.display.toLowerCase() !== wantLow) continue;
+        if (isFlowMeterCategory(want) && isDeprecatedFlowCategory(opt.actual)) continue;
+        return opt.actual || want;
+      }
+
+      return want;
+    }
+
     async function resolveAssetCategoryValue(token, inputValue) {
       var want = String(inputValue || "").trim();
       if (!want) return want;
@@ -61,24 +144,11 @@ exports.handler = async function(event) {
       });
       if (fieldsResult.status < 200 || fieldsResult.status >= 300) return want;
       try {
-        var fields = JSON.parse(fieldsResult.body).fields || [];
-        for (var fi = 0; fi < fields.length; fi++) {
-          var f = fields[fi];
-          if (f.api_name !== "Asset_Category") continue;
-          var opts = f.pick_list_values || [];
-          for (var oi = 0; oi < opts.length; oi++) {
-            var opt = opts[oi];
-            if (!opt || opt.type === "unused") continue;
-            var actual = String(opt.actual_value || "").trim();
-            var display = String(opt.display_value || "").trim();
-            if (actual === want || display === want) return actual || want;
-            if (actual.toLowerCase() === want.toLowerCase() || display.toLowerCase() === want.toLowerCase()) return actual || display || want;
-            if (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(want) && (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(actual) || /flow\s*open\s*channel|open\s*channel\s*flow/i.test(display))) return actual || display || want;
-            if (/^flow\s*meter$/i.test(want) && (/^flow\s*meter$/i.test(actual) || /^flow\s*meter$/i.test(display))) return actual || display || want;
-          }
-        }
-      } catch (re) {}
-      return want;
+        var options = assetCategoryPicklistOptions(JSON.parse(fieldsResult.body));
+        return resolveAssetCategoryFromOptions(want, options);
+      } catch (re) {
+        return want;
+      }
     }
 
     async function loadAssetCategoryPicklistValues(token) {
@@ -91,16 +161,13 @@ exports.handler = async function(event) {
       });
       if (fieldsResult.status >= 200 && fieldsResult.status < 300) {
         try {
-          var fields = JSON.parse(fieldsResult.body).fields || [];
-          for (var fi = 0; fi < fields.length; fi++) {
-            var f = fields[fi];
-            if (f.api_name !== "Asset_Category") continue;
-            (f.pick_list_values || []).forEach(function(opt) {
-              if (!opt || opt.type === "unused") return;
-              var v = String(opt.actual_value || opt.display_value || "").trim();
-              if (v && vals.indexOf(v) < 0) vals.push(v);
-            });
-          }
+          var options = assetCategoryPicklistOptions(JSON.parse(fieldsResult.body));
+          options.forEach(function(opt) {
+            var v = String(opt.actual || "").trim();
+            if (!v || vals.indexOf(v) >= 0) return;
+            if (isDeprecatedFlowCategory(v) && options.some(function(o) { return isFlowMeterCategory(o.actual) || isFlowMeterCategory(o.display); })) return;
+            vals.push(v);
+          });
         } catch (le) {}
       }
       return vals;
@@ -135,6 +202,7 @@ exports.handler = async function(event) {
       b = String(b || "").trim();
       if (!a || !b) return false;
       if (a === b) return true;
+      if (isFlowMeterCategory(a) && isFlowMeterCategory(b)) return true;
       if (isOpenChannelFlowCategory(a) && isOpenChannelFlowCategory(b)) return true;
       return false;
     }
@@ -653,7 +721,7 @@ exports.handler = async function(event) {
           var fm = categoryValues[oi];
           if (fm && isFlowMeterCategory(fm) && !categoriesEquivalent(fm, current)) return fm;
         }
-        if (!isFlowMeterCategory(current) && categoryValues.indexOf("Flow Meter") >= 0) return "Flow Meter";
+        if (!isFlowMeterCategory(current) && categoryValues.some(isFlowMeterCategory)) return pickCanonicalFlowMeterCategory(categoryValues);
       }
       if (isFlowMeterCategory(target)) {
         for (var oj = 0; oj < categoryValues.length; oj++) {
@@ -760,7 +828,8 @@ exports.handler = async function(event) {
       var mergedCategoryValues = layoutCategoryValues.slice();
       zohoCategoryValues.forEach(function(v) { if (v && mergedCategoryValues.indexOf(v) < 0) mergedCategoryValues.push(v); });
       layoutCategoryValues = mergedCategoryValues;
-      if (isOpenChannelFlowCategory(layoutCategory)) layoutCategory = pickCanonicalOcfCategory(layoutCategoryValues);
+      if (isFlowMeterCategory(layoutCategory)) layoutCategory = pickCanonicalFlowMeterCategory(layoutCategoryValues);
+      else if (isOpenChannelFlowCategory(layoutCategory)) layoutCategory = pickCanonicalOcfCategory(layoutCategoryValues);
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
