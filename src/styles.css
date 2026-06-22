@@ -145,6 +145,11 @@ body.light .hist-card{background:#fff}
 .asset-category-fields{margin:4px 0 10px}
 .asset-cat-section{border-top:1px solid #b2ddd6;padding-top:10px;margin-top:4px}
 .asset-cat-section-title{font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:14px;color:#2d6b60;margin-bottom:8px}
+.asset-cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.asset-cat-field{display:flex;flex-direction:column;min-width:0}
+.asset-cat-field .lbl{min-height:2.75em;display:flex;align-items:flex-end;margin-bottom:4px;line-height:1.25}
+.asset-cat-field input,.asset-cat-field select,.asset-cat-field textarea{width:100%}
+.asset-cat-field-span2{grid-column:1 / -1}
 .asset-subform-wrap{overflow-x:auto;margin-bottom:8px}
 .asset-subform-table{width:100%;border-collapse:collapse;font-size:11px}
 .asset-subform-table th,.asset-subform-table td{border:1px solid #b2ddd6;padding:4px;vertical-align:top;background:#fff}
