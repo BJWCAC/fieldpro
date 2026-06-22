@@ -33,9 +33,9 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="303";
-var MIN_ZOHO_PROXY_BUILD=282;
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
+var FP_VERSION="304";
+var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1385,6 +1385,11 @@ function categoryLayout(cat){
   var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};
   return layouts[normalizeAssetCategoryKey(cat)]||null;
 }
+function categoryLayoutHasSubform(cat){
+  var layout=categoryLayout(cat);
+  if(!layout||!layout.sections)return false;
+  return layout.sections.some(function(sec){return!!sec.subform;});
+}
 function isDynamicFieldSkippable(def){
   return def&&def.note&&def.note.indexOf("No separate Zoho field")>=0;
 }
@@ -1725,7 +1730,10 @@ function syncAssetCategoryLayoutUi(){
   }
   return loadEquipmentConfig().then(function(){
     if(seq!==_assetCategoryLayoutSeq)return;
-    resetCategoryDynamicStateForCategory(cat);
+    var picklistPromise=categoryLayoutHasSubform(cat)?refreshSubformOutputTypePicklist():Promise.resolve();
+    return picklistPromise.then(function(){
+      if(seq!==_assetCategoryLayoutSeq)return;
+      resetCategoryDynamicStateForCategory(cat);
     categoryDynamicFieldDefs(cat).forEach(function(d){
       if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
     });
@@ -1737,6 +1745,7 @@ function syncAssetCategoryLayoutUi(){
     return loadEngineeringUnitLookups().catch(function(e){
       console.log("engineering unit lookups follow-up",e);
       return [];
+    });
     });
   }).then(function(){
     if(seq!==_assetCategoryLayoutSeq)return;
@@ -1797,6 +1806,7 @@ function syncDynamicFieldValuesFromDom(){
     A.asset.dynamicValues[api]=vals;
   });
   box.querySelectorAll("[data-api]").forEach(function(e){
+    if(e.getAttribute("data-subform")!=null)return;
     if(e.type==="checkbox")return;
     var api=e.getAttribute("data-api");
     if(msDone[api])return;
@@ -1826,8 +1836,10 @@ function formatDynamicValueForZoho(api,val){
   }
   if(def&&def.widget==="lookup"){
     var lookupId=resolveEngineeringUnitLookupId(val);
-    if(!lookupId||!isZohoLookupRecordId(lookupId))return null;
-    return{id:String(lookupId)};
+    if(lookupId&&isZohoLookupRecordId(lookupId))return{id:String(lookupId)};
+    var name=String(val==null?"":val).trim();
+    if(name)return name;
+    return null;
   }
   if(def&&def.widget==="date"){
     var d=String(val==null?"":val).trim();
@@ -1867,9 +1879,58 @@ async function prepareAssetDynamicFieldsForSave(){
     for(var i=0;i<opts.length;i++){
       var oid=String(opts[i].id||"").trim();
       var oname=String(opts[i].name||"").trim().toLowerCase();
-      if(!isZohoLookupRecordId(oid))continue;
-      if(oname===rawStr||oid===rawStr){
+      if(oname===rawStr){
+        if(isZohoLookupRecordId(oid)){A.asset.dynamicValues[api]=oid;return;}
+        if(oid)A.asset.dynamicValues[api]=oid;
+        return;
+      }
+      if(isZohoLookupRecordId(oid)&&oid===rawStr){
         A.asset.dynamicValues[api]=oid;
+        return;
+      }
+    }
+  });
+}
+function assertResolvedDynamicLookupsBeforeSave(){
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
+  if(!cat)return;
+  var missing=[];
+  categoryDynamicFieldDefs(cat).forEach(function(def){
+    if(def.widget!=="lookup")return;
+    if(!isDynamicFieldTouched(def.apiName))return;
+    var val=A.asset.dynamicValues&&A.asset.dynamicValues[def.apiName];
+    if(!dynamicFieldIsFilled(def,val))return;
+    var lookupId=resolveEngineeringUnitLookupId(val);
+    if(lookupId&&isZohoLookupRecordId(lookupId))return;
+    if(String(val||"").trim())return;
+    missing.push(def.label||def.apiName);
+  });
+  if(missing.length)throw new Error("Could not resolve engineering unit lookup for: "+missing.join(", ")+". Wait for Engineering Units to load, reselect the value, then save again.");
+}
+async function prepareSubformRowsForSave(){
+  syncSubformRowsFromDom();
+  try{await loadEngineeringUnitLookups();}catch(e){console.log("engineering units before subform save",e);}
+  try{await refreshSubformOutputTypePicklist();}catch(e){console.log("subform function picklist before save",e);}
+  (A.asset.subformRows||[]).forEach(function(row,ri){
+    if(!row)return;
+    var fn=String(row.Output_Type||"").trim();
+    if(fn)markSubformFieldTouched(ri,"Output_Type");
+    var iot=row.Input_Output_Type;
+    if(iot==null||iot==="")return;
+    var lookupId=resolveEngineeringUnitLookupId(iot);
+    if(lookupId&&isZohoLookupRecordId(lookupId)){
+      row.Input_Output_Type=String(lookupId);
+      markSubformFieldTouched(ri,"Input_Output_Type");
+      return;
+    }
+    var opts=engineeringUnitLookupOptions();
+    var rawStr=String(iot).trim().toLowerCase();
+    for(var i=0;i<opts.length;i++){
+      var oname=String(opts[i].name||"").trim().toLowerCase();
+      var oid=String(opts[i].id||"").trim();
+      if(oname===rawStr&&isZohoLookupRecordId(oid)){
+        row.Input_Output_Type=oid;
+        markSubformFieldTouched(ri,"Input_Output_Type");
         return;
       }
     }
@@ -1916,7 +1977,65 @@ function mirrorInputPvToOutput(){
 function subformPicklistValues(fieldApi){
   var sf=assetSubformConfig();
   var f=sf&&sf.fields&&sf.fields[fieldApi];
-  return f&&f.values?f.values:[];
+  var base=f&&f.values?f.values.slice():[];
+  if(fieldApi==="Output_Type"){
+    base=mergeSubformFunctionPicklist(A.subformOutputTypePicklist,base,subformRowPicklistValues(fieldApi));
+  }
+  return base;
+}
+function subformRowPicklistValues(fieldApi){
+  var vals=[];
+  (A.asset.subformRows||[]).forEach(function(row){
+    var v=row&&row[fieldApi];
+    if(v==null||v==="")return;
+    var s=String(v).trim();
+    if(s&&vals.indexOf(s)<0)vals.push(s);
+  });
+  return vals;
+}
+function mergeSubformFunctionPicklist(zohoVals,staticVals,rowVals){
+  var seen={},out=[];
+  function add(v){
+    var s=String(v||"").trim();
+    if(!s||seen[s])return;
+    seen[s]=true;
+    out.push(s);
+  }
+  (zohoVals||[]).forEach(add);
+  (staticVals||[]).forEach(add);
+  (rowVals||[]).forEach(add);
+  return out;
+}
+function setSubformOutputTypePicklistValues(vals){
+  var merged=mergeSubformFunctionPicklist(vals,["Input","Output"],subformRowPicklistValues("Output_Type"));
+  A.subformOutputTypePicklist=merged;
+  if(!A.equipmentConfig||!A.equipmentConfig.modules||!A.equipmentConfig.modules.Equipments)return;
+  var sf=A.equipmentConfig.modules.Equipments.subform;
+  if(!sf)return;
+  if(!sf.fields)sf.fields={};
+  if(!sf.fields.Output_Type)sf.fields.Output_Type={label:"Function",type:"picklist",values:[]};
+  sf.fields.Output_Type.values=merged;
+}
+async function refreshSubformOutputTypePicklist(){
+  await loadEquipmentConfig();
+  var staticVals=(assetSubformConfig()&&assetSubformConfig().fields&&assetSubformConfig().fields.Output_Type&&assetSubformConfig().fields.Output_Type.values)||["Input","Output"];
+  var merged=mergeSubformFunctionPicklist(A.subformOutputTypePicklist,staticVals,subformRowPicklistValues("Output_Type"));
+  if(merged.length)setSubformOutputTypePicklistValues(merged);
+  if(!A.zohoToken)return merged;
+  if(A.subformOutputTypePicklistLoading)return A.subformOutputTypePicklist||merged;
+  A.subformOutputTypePicklistLoading=true;
+  try{
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_subform_function_picklist",token:A.zohoToken})},30000);
+    if(!r.ok)return merged;
+    var d={};try{d=await r.json();}catch(e){}
+    var zohoVals=d&&d.data;
+    if(Array.isArray(zohoVals)&&zohoVals.length){
+      merged=mergeSubformFunctionPicklist(zohoVals,staticVals,subformRowPicklistValues("Output_Type"));
+      setSubformOutputTypePicklistValues(merged);
+    }
+  }catch(e){console.log("subform function picklist",e);}
+  finally{A.subformOutputTypePicklistLoading=false;}
+  return A.subformOutputTypePicklist||merged;
 }
 function assetSubformRequiredApis(){
   return["Output_Type","Input_Output_Type","Zero_Parameter","Output_Zero","Span_Parameter","Output_Span"];
@@ -2109,8 +2228,8 @@ function assetSubformPayload(){
       if(v===""||v==null)return;
       if(c.widget==="lookup"){
         var lookupId=resolveEngineeringUnitLookupId(v);
-        if(!lookupId||!isZohoLookupRecordId(lookupId))return;
-        out[c.apiName]={id:String(lookupId)};
+        if(lookupId&&isZohoLookupRecordId(lookupId))out[c.apiName]={id:String(lookupId)};
+        else if(String(v||"").trim())out[c.apiName]=String(v).trim();
       }else if(c.widget==="number"){var n=parseFloat(v);if(!isNaN(n))out[c.apiName]=n;}else out[c.apiName]=String(v);
     });
     if(row.id)out.id=row.id;
@@ -2147,6 +2266,7 @@ function bindDynamicFieldHandlers(){
   var box=el("asset-category-fields");if(!box)return;
   var inputPvApis={Input_PV_Zero:true,Input_PV_Span:true};
   box.querySelectorAll("[data-api]").forEach(function(e){
+    if(e.getAttribute("data-subform")!=null)return;
     if(e._dynBound)return;
     e._dynBound=true;
     function onDynEdit(){
@@ -3646,6 +3766,7 @@ async function findExistingEquipmentBySerial(){
 async function saveEquipmentRecord(){
   await loadEquipmentConfig();
   await prepareAssetDynamicFieldsForSave();
+  assertResolvedDynamicLookupsBeforeSave();
   syncSubformRowsFromDom();
   var includeBlank=!!A.asset.currentAssetId;
   var fullPayload=assetPayload({includeBlank:includeBlank});
@@ -3697,8 +3818,10 @@ async function saveEquipmentRecord(){
   }
   var subRowsFinal=assetSubformPayload();
   if(subRowsFinal.length){
+    await prepareSubformRowsForSave();
+    subRowsFinal=assetSubformPayload();
     assetStatus("Saving Input/Output subform rows in Zoho...",false);
-    await postEquipmentToZoho("update_equipment",equipmentId,{Subform_1:subRowsFinal});
+    await postEquipmentToZoho("update_equipment",equipmentId,{Subform_1:subRowsFinal},{applyLayoutRules:true});
   }
   return equipmentId;
 }

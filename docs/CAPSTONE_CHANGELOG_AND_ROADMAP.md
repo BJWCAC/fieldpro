@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v303
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=303
+Current live version: v304
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=304
 ```
 
 ---
@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v304 | — | **Fix General Set Up I/O + subform Function sync** — resolve engineering-unit lookup names to Zoho IDs on save (client + proxy); load live subform Function picklist; dedicated subform save uses layout_rules; stop subform fields leaking into dynamic handlers; proxy build 283 |
 | v303 | — | **Fix duplicate Input/Output subform rows** — strip Subform_1 from core create/update payload; save subform rows once in dedicated final pass (Zoho was appending duplicates) |
 | v302 | — | **Fix General saving as Analytical in Zoho** — resolve Asset_Category to General actual_value (not legacy Analytical display alias); layout activation treats General and Analytical as distinct; proxy build 282 |
 | v301 | — | **General category layout fields** — sensor, display, setup I/O, duration &amp; damping, Subform_1 (Zoho General / legacy Analytical alias) |
