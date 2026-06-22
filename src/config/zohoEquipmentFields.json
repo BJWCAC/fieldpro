@@ -9,7 +9,7 @@
     "CapStone asset search uses Zoho word search plus equals/starts_with criteria (never contains — invalid in Zoho). Search field list is capped at 50 Zoho fields.",
     "Flow Meter dynamic fields use zohoApiName in assetFieldRegistry when Zoho CRM api_name differs from CapStone key (e.g. Cal_Factor_K_Factor → Cal_Factor_K_factor_Etc, Sensor_Model_Number → Model_Number).",
     "CapStone Asset Category dropdown uses Flow Open Channel (Zoho picklist actual_value). Legacy aliases Flow and Open Channel Flow are omitted from the picker but still normalize on load/save.",
-    "Zoho Asset Category actual_value General is shown in CapStone as General (legacy planning label Analytical normalizes to General and is omitted from the picker).",
+    "Zoho Asset Category actual_value General is shown in CapStone as General (legacy planning label Analytical normalizes to General and is omitted from the picker). CapStone save must write General actual_value — never map to deprecated Analytical when General exists in Zoho picklist metadata.",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs.",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
     "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, P838, P839.",
