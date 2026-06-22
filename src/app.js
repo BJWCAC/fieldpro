@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="292";
+var FP_VERSION="293";
 var MIN_ZOHO_PROXY_BUILD=275;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1221,6 +1221,47 @@ function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
 function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldDefaultsOnly,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
+var ASSET_CATEGORY_PICKLIST_ORDER=["Flow Meter","Flow Open Channel","Open Channel Flow","Gas Detector","Analytical","Lift Station","Scales & Balances"];
+var DEPRECATED_ASSET_CATEGORIES={"Flow":true};
+function mergeAssetCategoryPicklistValues(extra){
+  var seen={},out=[];
+  function add(v){
+    var s=String(v||"").trim();
+    if(!s||DEPRECATED_ASSET_CATEGORIES[s]||seen[s])return;
+    seen[s]=true;
+    out.push(s);
+  }
+  ASSET_CATEGORY_PICKLIST_ORDER.forEach(add);
+  var cfgVals=assetPicklists().Asset_Category&&assetPicklists().Asset_Category.values;
+  if(cfgVals)cfgVals.forEach(add);
+  var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};
+  Object.keys(layouts).forEach(add);
+  (extra||[]).forEach(add);
+  return out;
+}
+function setAssetCategoryPicklistValues(vals){
+  if(!A.equipmentConfig||!A.equipmentConfig.modules||!A.equipmentConfig.modules.Equipments)return;
+  var picklists=A.equipmentConfig.modules.Equipments.picklists;
+  if(!picklists.Asset_Category)picklists.Asset_Category={label:"Asset Category",type:"picklist",values:[]};
+  picklists.Asset_Category.values=vals;
+}
+async function refreshAssetCategoryPicklist(){
+  await loadEquipmentConfig();
+  var merged=mergeAssetCategoryPicklistValues();
+  setAssetCategoryPicklistValues(merged);
+  if(!A.zohoToken)return merged;
+  try{
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_asset_category_picklist",token:A.zohoToken})},30000);
+    if(!r.ok)return merged;
+    var d={};try{d=await r.json();}catch(e){}
+    var zohoVals=d&&d.data;
+    if(Array.isArray(zohoVals)&&zohoVals.length){
+      merged=mergeAssetCategoryPicklistValues(zohoVals);
+      setAssetCategoryPicklistValues(merged);
+    }
+  }catch(e){console.log("asset category picklist",e);}
+  return merged;
+}
 function assetPicklistValues(field){var p=assetPicklists()[field];return p&&p.values||[];}
 function fillAssetSelect(id,field,placeholder){var e=el(id);if(!e)return;var cur=e.value;var vals=assetPicklistValues(field);e.innerHTML="<option value=''>"+(placeholder||"Select")+"</option>"+vals.map(function(v){return"<option value='"+esc(v)+"'>"+esc(v)+"</option>";}).join("");if(cur)e.value=cur;}
 async function loadEquipmentConfig(){
@@ -2498,6 +2539,8 @@ function renderAssetForm(){
   var draftRestore=A.assetDraftRestored;
   var draftFields=A.asset._draftRestoreFields;
   loadEquipmentConfig().then(function(){
+    return refreshAssetCategoryPicklist();
+  }).then(function(){
     return loadEngineeringUnitLookups();
   }).then(function(){
     fillAssetSelect("asset-category","Asset_Category","Select category");
