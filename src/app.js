@@ -34,8 +34,8 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="304";
-var MIN_ZOHO_PROXY_BUILD=283;
+var FP_VERSION="306";
+var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -724,6 +724,7 @@ window.applyInboxDealPickerFilters=applyInboxDealPickerFilters;
 window.linkInboxToActiveDeal=linkInboxToActiveDeal;
 window.generateInboxSummary=generateInboxSummary;
 window.saveInboxToZoho=saveInboxToZoho;
+window.saveInboxToRepository=saveInboxToRepository;
 window.deleteInboxItem=deleteInboxItem;
 window.pullFromPlaud=pullFromPlaud;
 window.savePlaudRefreshToken=savePlaudRefreshToken;
@@ -820,7 +821,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","saveInboxToRepository","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -3950,6 +3951,28 @@ async function uploadPendingReportNote(item){
   var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Zoho note "+r.status+": "+txt.substring(0,120));}
 }
+function enqueueRecordingSave(item,error){
+  if(!item)return;
+  var items=getPendingUploads();
+  if(items.some(function(i){return i.type==="recording_save"&&i.inboxItemId===item.id;}))return;
+  enqueuePendingUpload({type:"recording_save",inboxItemId:item.id,recordingId:item.zohoRecordingId||null,
+    title:inboxRecordingTitle(item),recordingDate:item.created||new Date().toISOString(),source:item.source||"upload",
+    recordedBy:item.technician||"",dealId:item.dealId||null,accountId:item.accountId||null,
+    summary:item.summary||"",transcript:item.transcript||"",topics:item.topics||"",plaudFileId:item.plaudFileId||"",
+    recordingLink:item.recordingLink||"",status:item.dealId?"Linked":"New",
+    assetLabel:"Recordings repository record",filename:inboxRecordingTitle(item),error:error||""});
+}
+async function uploadPendingRecording(item){
+  await refreshZohoToken();
+  var payload={action:item.recordingId?"update_recording":"save_recording",token:A.zohoToken,record_id:item.recordingId||null,
+    title:item.title,recording_date:item.recordingDate,source:item.source,recorded_by:item.recordedBy,
+    deal_id:item.dealId,account_id:item.accountId,summary:item.summary,transcript:item.transcript,topics:item.topics,
+    plaud_file_id:item.plaudFileId,recording_link:item.recordingLink,status:item.status,inbox_item_id:item.inboxItemId};
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
+  var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+  if(!r.ok||!d.ok)throw new Error("Recordings repository "+r.status+": "+String((d&&d.raw)||txt).substring(0,140));
+  if(d.record_id){var inbox=getInboxItems();var it=inbox.find(function(x){return x.id===item.inboxItemId;});if(it){it.zohoRecordingId=d.record_id;saveInboxItems(inbox);}}
+}
 async function buildReportPdfPayload(){
   if(!A.report)return null;
   var pdfPhotos=A.reportPhotos&&A.reportPhotos.length>0?A.reportPhotos:A.photos;
@@ -4022,7 +4045,7 @@ async function retryPendingUploads(opts){
   var remaining=[];
   for(var i=0;i<items.length;i++){
     var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else if(item.type==="recording_save")await uploadPendingRecording(item);else throw new Error("Unknown pending upload type");}
     catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
   }
   A.pendingRetrying=false;
@@ -5739,7 +5762,8 @@ async function pullFromPlaud(opts){
           transcript:sd.transcript||"",
           assemblyTranscriptId:sd.assemblyTranscriptId||"",
           plaudFileId:fileMeta.id,
-          dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
+          technician:currentTechnicianName(),
+          dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,accountId:dealFields.accountId,summary:"",topics:"",
           error:"",pipelineMessage:sd.message||""
         });
         known[fileMeta.id]=true;
@@ -5815,12 +5839,13 @@ async function pollInboxTranscripts(){
   if(changed)saveInboxItems(items);
 }
 function inboxDealFieldsFromSel(){
-  if(!A.sel)return{dealId:null,dealName:"",accountName:"",status:"ready"};
+  if(!A.sel)return{dealId:null,dealName:"",accountName:"",accountId:"",status:"ready"};
   var acct=A.sel.Account_Name;
   return{
     dealId:A.sel.id,
     dealName:A.sel.Deal_Name||"",
     accountName:typeof acct==="object"?acct.name||"":acct||"",
+    accountId:A.sel.Account_Id||(typeof acct==="object"?acct.id||"":"")||"",
     status:"linked"
   };
 }
@@ -5978,9 +6003,9 @@ function renderInbox(){
     var summary=(item.summary||"").trim();
     return "<div class='hist-card inbox-card' data-inbox-id='"+esc(item.id)+"'>"+
       "<div class='h-acct'>"+esc(item.title||item.filename||"Recording")+"</div>"+
-      "<div class='h-meta'>"+ds+" — "+esc(item.source||"upload")+"</div>"+
+      "<div class='h-meta'>"+ds+" — "+esc(item.source||"upload")+(item.technician?" — "+esc(item.technician):"")+"</div>"+
       "<div style='font-size:12px;margin:6px 0'>"+dealLine+"</div>"+
-      "<div class='h-status'>"+inboxStatusChip(item)+"</div>"+
+      "<div class='h-status'>"+inboxStatusChip(item)+(item.zohoRecordingId?"<span class='h-chip ok'>In Repository</span>":"")+(item.topics?"<span class='h-chip'>Topics</span>":"")+"</div>"+
       "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
       (summary?"<div style='font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap'>"+esc(summary.substring(0,400))+(summary.length>400?"…":"")+"</div>":"")+
       (item.status==="transcribing"?"<div style='font-size:12px;color:#1e40af;background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px;margin-bottom:8px'>AssemblyAI transcribing… transcript will appear automatically (usually 1–3 min).</div>":"")+
@@ -5992,6 +6017,7 @@ function renderInbox(){
       (item.dealId?"":"<button class='bp bsm' onclick='linkInboxToDealPrompt(\""+esc(item.id)+"\")'>Link to Deal</button>")+
       (item.dealId||!A.sel?"":"<button class='bb bsm' onclick='linkInboxToActiveDeal(\""+esc(item.id)+"\")'>Use Active Deal</button>")+
       (transcript?"<button class='bs bsm' onclick='generateInboxSummary(\""+esc(item.id)+"\")'>Generate Summary</button>":"")+
+      ((item.summary||transcript)?"<button class='bb bsm' onclick='saveInboxToRepository(\""+esc(item.id)+"\")'>"+(item.zohoRecordingId?"Update Repository":"Save to Repository")+"</button>":"")+
       inboxSaveButtonHtml(item,transcript)+
       "<button class='bd bsm' onclick='deleteInboxItem(\""+esc(item.id)+"\")'>Remove</button>"+
       "</div></div></div>";
@@ -6005,7 +6031,7 @@ function addInboxManualNote(){
   var items=getInboxItems();
   var id="inbox"+Date.now();
   var dealFields=inboxDealFieldsFromSel();
-  items.push({id:id,created:new Date().toISOString(),source:"manual",status:dealFields.status,title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",error:""});
+  items.push({id:id,created:new Date().toISOString(),source:"manual",status:dealFields.status,title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",technician:currentTechnicianName(),dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,accountId:dealFields.accountId,summary:"",topics:"",error:""});
   saveInboxItems(items);
   showToast(dealFields.dealId?"Manual note added and linked to active deal":"Manual note added to Inbox",2500);
   go("inbox");
@@ -6039,7 +6065,8 @@ async function inboxAudioSelected(input){
       filename:file.name,
       transcript:d.transcript||"",
       assemblyTranscriptId:d.assemblyTranscriptId||"",
-      dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
+      technician:currentTechnicianName(),
+      dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,accountId:dealFields.accountId,summary:"",topics:"",
       error:"",pipelineMessage:d.message||""
     });
     saveInboxItems(items);
@@ -6066,6 +6093,7 @@ function linkInboxToDeal(itemId,dealId){
   item.dealId=deal.id;
   item.dealName=deal.Deal_Name||"";
   item.accountName=typeof deal.Account_Name==="object"?deal.Account_Name.name||"":deal.Account_Name||"";
+  item.accountId=deal.Account_Id||(typeof deal.Account_Name==="object"?deal.Account_Name.id||"":"")||"";
   item.status="linked";
   saveInboxItems(items);
   showToast("Linked to "+dealHeaderText(deal),3000);
@@ -6077,13 +6105,63 @@ async function generateInboxSummary(itemId){
   if(!API_KEY){enterKey();return;}
   showToast("Generating summary...",3000);
   try{
-    var promptText="Turn this field-service transcript into a concise structured note for a Zoho CRM deal. Use professional language. Include: visit summary, work discussed, findings, and next steps if present. Do not invent facts.\n\nTranscript:\n"+item.transcript;
+    var promptText="Turn this field-service transcript into a concise structured note for a Zoho CRM deal. Use professional language. Include: visit summary, work discussed, findings, and next steps if present. Do not invent facts.\n\nAfter the summary, add a final line that begins exactly with 'Topics:' followed by 5-10 comma-separated search keywords drawn from the transcript (people, companies, equipment, model/serial numbers, sites, and issues mentioned).\n\nTranscript:\n"+item.transcript;
     var data=await callAPI({content:[{type:"text",text:promptText}],maxTok:1200,ms:60000});
-    item.summary=getText(data).trim();
+    var full=getText(data).trim();
+    item.summary=full;
+    var tm=full.match(/Topics:\s*([^\n]+)/i);
+    item.topics=tm?tm[1].trim():(item.topics||"");
     saveInboxItems(items);
     showToast("Summary generated",2500);
     renderInbox();
   }catch(e){showToast("Summary failed: "+e.message,6000);}
+}
+function inboxRecordingTitle(item){
+  var base=(item.title||item.filename||"Recording").trim()||"Recording";
+  return (item.accountName?item.accountName+" — ":"")+base;
+}
+async function upsertInboxRecording(item){
+  await refreshZohoToken();
+  var payload={
+    action:item.zohoRecordingId?"update_recording":"save_recording",
+    token:A.zohoToken,
+    record_id:item.zohoRecordingId||null,
+    title:inboxRecordingTitle(item),
+    recording_date:item.created||new Date().toISOString(),
+    source:item.source||"upload",
+    recorded_by:item.technician||"",
+    deal_id:item.dealId||null,
+    account_id:item.accountId||null,
+    summary:item.summary||"",
+    transcript:item.transcript||"",
+    topics:item.topics||"",
+    plaud_file_id:item.plaudFileId||"",
+    recording_link:item.recordingLink||"",
+    status:item.dealId?"Linked":"New",
+    inbox_item_id:item.id
+  };
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
+  var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+  if(!r.ok||!d.ok)throw new Error("Repository "+r.status+": "+String((d&&d.raw)||txt).substring(0,140));
+  if(d.record_id)item.zohoRecordingId=d.record_id;
+  return d.record_id;
+}
+async function saveInboxToRepository(itemId){
+  var items=getInboxItems();
+  var item=items.find(function(i){return i.id===itemId;});
+  if(!item)return;
+  if(!(item.summary||item.transcript||"").trim()){showToast("Add a transcript or generate a summary first",3000);return;}
+  showToast(item.zohoRecordingId?"Updating repository record...":"Saving to recordings repository...",3000);
+  try{
+    await upsertInboxRecording(item);
+    item.error="";
+    saveInboxItems(items);
+    showToast("Saved to recordings repository",4000);
+  }catch(e){
+    enqueueRecordingSave(item,e.message);
+    saveInboxItems(items);
+    showToast("Repository save queued for Pending Sync — retry in Settings",6000);
+  }
 }
 async function saveInboxToZoho(itemId){
   var items=getInboxItems();
@@ -6094,8 +6172,9 @@ async function saveInboxToZoho(itemId){
   showToast("Saving to Zoho...",3000);
   try{
     await refreshZohoToken();
-    var title="CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString();
-    var content=body+"\n\n---\nSource: "+(item.source||"inbox")+"\nInbox item: "+item.id;
+    var tech=(item.technician||"").trim();
+    var title="CapStone Inbox — "+(item.dealName||"Deal")+(tech?" — "+tech:"")+" — "+new Date().toLocaleDateString();
+    var content=body+"\n\n---\nSource: "+(item.source||"inbox")+(tech?"\nRecorded by: "+tech:"")+"\nInbox item: "+item.id;
     var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:title,note_content:content})},30000);
     if(!r.ok){var err=await r.text();throw new Error("Zoho save "+r.status+": "+err.substring(0,120));}
     item.status="synced";
@@ -6103,15 +6182,24 @@ async function saveInboxToZoho(itemId){
     item.error="";
     saveInboxItems(items);
     showToast("Saved to Zoho",4000);
+    try{
+      await upsertInboxRecording(item);
+      saveInboxItems(items);
+    }catch(re){
+      enqueueRecordingSave(item,re.message);
+      saveInboxItems(items);
+      showToast("Deal note saved — repository record queued for sync",5000);
+    }
   }catch(e){
     item.status="pending_sync";
     item.error=e.message;
     saveInboxItems(items);
+    var techPending=(item.technician||"").trim();
     enqueueReportNoteSave({
       action:"save_note",
       deal_id:item.dealId,
-      note_title:"CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString(),
-      note_content:(item.summary||item.transcript||"")+"\n\nInbox: "+item.id
+      note_title:"CapStone Inbox — "+(item.dealName||"Deal")+(techPending?" — "+techPending:"")+" — "+new Date().toLocaleDateString(),
+      note_content:(item.summary||item.transcript||"")+(techPending?"\n\nRecorded by: "+techPending:"")+"\n\nInbox: "+item.id
     },e.message);
     showToast("Queued for Pending Sync — retry in Settings",6000);
   }

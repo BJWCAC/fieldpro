@@ -47,6 +47,8 @@ Ambient and exploratory. Capture everything, embed, search, find signal later. S
 
 **Deferred in CapStone UI** until Fork A Inbox + link-to-deal is routine in the field. See changelog *Deferred*.
 
+**Bridge shipped (v306):** the **recordings repository** module (`Recordings`) gives a single searchable home for all recordings with keyword (Topics) search now — short of full embeddings/RAG. See *Recordings repository* below and `docs/RECORDINGS_MODULE_SETUP.md`.
+
 ---
 
 ## How a recording becomes a Zoho deal note
@@ -133,6 +135,47 @@ Badge: **Inbox (n)** unlinked items — similar to Pending sync tab.
 - **Not** a replacement for Capture walkthroughs.
 - **Not** merged into History (History = local report drafts; Inbox = external voice waiting for deal).
 - **Not** Fork B search/RAG UI (deferred).
+
+---
+
+## Multiple Plaud units / multiple employees
+
+Adding a Plaud unit for a second employee does **not** require a server-side per-user inbox. CapStone's Inbox is already **per device**: the Plaud refresh token (`fp_plaud_tokens`) and the Inbox list (`fp_inbox`) both live in that phone's `localStorage`, and the device only auto-pulls recordings from the Plaud account its token belongs to.
+
+So "their individual inbox" already exists — it is whatever is on that employee's phone. The Zoho user (technician) field's job here is **attribution**, not routing.
+
+### Recommended regimen — one Plaud account per employee (default)
+
+Mirror the first unit. No code or infrastructure change is needed; the shared Netlify proxies and AssemblyAI key already serve any number of devices.
+
+1. Second **Plaud Note Pro** with its own **Plaud Starter account** — Cloud Sync **ON**, Plaud auto-transcribe **OFF** (same as unit 1).
+2. On the employee's phone, install CapStone and **select their name as Technician** (sourced from Zoho `Internal_Assets.Users` — the app's notion of the Zoho user).
+3. Run `plaud login` on a computer for that account; paste the **refresh token** into **Settings → Plaud Cloud Sync**; **Verify**; leave **Auto-pull ON** (see `docs/PLAUD_STAGE2_SETUP.md`).
+4. That device's Inbox now auto-pulls only that employee's recordings. They link to a deal → generate summary → Save to Zoho, exactly like unit 1.
+
+**Attribution (v305+):** the technician selected on the device is stamped onto each Inbox item and carried into the Zoho deal note (`Recorded by: <technician>` in the note title and body). This is how the Zoho user field designates which employee a Plaud recording came from. With separate accounts you get clean isolation **and** per-employee attribution on every note.
+
+### Alternative — one shared Plaud account, multiple units
+
+Possible but not recommended:
+
+- Every device holding that account's token pulls **all** recordings from **all** units into its Inbox (no isolation; everyone sees everyone's audio — a privacy concern).
+- You would need a mapping (Plaud file/device → Zoho user) to route a recording to the right person's inbox, which the current device-local model does not need.
+
+Prefer one Plaud account per employee unless there is a specific reason to centralize.
+
+---
+
+## Recordings repository — single searchable home (v306+)
+
+By default a recording's only durable home is a **note on the linked deal**, which makes "search across everything" hard. CapStone v306+ adds an optional **recordings repository**: a dedicated Zoho CRM custom module (`Recordings`) that holds **one record per recording** — every Inbox item, linked to a deal or not.
+
+- **Lookups** to Deals and Accounts keep per-deal/per-account visibility (related lists) **and** give one module to browse, filter, and report on.
+- **Attribution** (`Recorded_By`) carries the v305 technician stamp.
+- **Topics** holds AI-extracted keywords — the practical search field, since Zoho CRM does not reliably full-text index long transcript fields.
+- **Save to Repository** works with or without a deal; **Save to Zoho** files the deal note *and* upserts the same repository record. Failures queue in Pending Sync.
+
+This is a lightweight near-term step toward **Fork B** (below): keyword search now via Zoho + Topics (+ full text in WorkDrive), semantic/RAG search later. Setup and exact field API names: `docs/RECORDINGS_MODULE_SETUP.md`.
 
 ---
 
