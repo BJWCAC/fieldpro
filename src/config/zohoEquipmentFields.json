@@ -14,7 +14,8 @@
     "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, P838, P839.",
     "Flow Meter categorySuggestedDefaults: Display GPM US; Set Up Input GPM US; Set Up Output 4-20 mA; Duration 0.75; same Pulsar Ultra 4 PV parameters as Flow Open Channel.",
     "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
-    "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal."
+    "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal.",
+    "Gas Detector categoryLayouts: shared sensor/display/setup I/O/duration & damping sections plus Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)); Subform_1 grid."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
@@ -85,7 +86,9 @@
     "Da1_and_DA2": { "label": "DA1 and DA2", "widget": "multiselect", "picklist": "Da1_and_DA2" },
     "DA2_License_Number": { "label": "DA2 License Number", "widget": "text" },
     "Totalizer_Display": { "label": "Totalizer Display Units", "widget": "select", "picklist": "Totalizer_Display" },
-    "Rosemount_LOI_Display": { "label": "Rosemount LOI Display", "widget": "select", "picklist": "Display", "zohoApiName": "Display" }
+    "Rosemount_LOI_Display": { "label": "Rosemount LOI Display", "widget": "select", "picklist": "Display", "zohoApiName": "Display" },
+    "Gas_Sensor_Type": { "label": "Gas Sensor Type", "widget": "select", "picklist": "Gas_Sensor_Type" },
+    "Gas_Sensor_Type_s": { "label": "Gas Sensor Type(s)", "widget": "multiselect", "picklist": "Gas_Sensor_Type_s" }
   },
   "engineeringUnitsLookup": {
     "moduleApiName": "CustomModule8",
@@ -179,6 +182,50 @@
           "subform": "Subform_1"
         }
       ]
+    },
+    "Gas Detector": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "setupInput",
+          "title": "Set Up Input",
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+        },
+        {
+          "id": "durationDamping",
+          "title": "Duration & Damping",
+          "fields": ["Duration", "Damping_Seconds"]
+        },
+        {
+          "id": "setupOutput",
+          "title": "Set Up Output",
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "gasSensorInfo",
+          "title": "Gas Sensor Info",
+          "fields": ["Gas_Sensor_Type", "Gas_Sensor_Type_s"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
     }
   },
   "categorySuggestedDefaults": {
@@ -219,6 +266,12 @@
           }
         }
       ]
+    },
+    "Gas Detector": {
+      "fields": {
+        "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
+        "Duration": "0.75"
+      }
     }
   },
   "modules": {
