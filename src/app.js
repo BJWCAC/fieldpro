@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="302";
+var FP_VERSION="303";
 var MIN_ZOHO_PROXY_BUILD=282;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -3585,6 +3585,11 @@ function assetPayloadWithoutCategory(payload){
   delete out.Asset_Category;
   return out;
 }
+function assetPayloadWithoutSubform(payload){
+  var out=Object.assign({},payload||{});
+  delete out.Subform_1;
+  return out;
+}
 function assetPayloadWithoutCategoryExtensions(payload,category){
   var out=assetPayloadWithoutCategory(payload);
   categoryLayoutExtensionApis(category).forEach(function(api){delete out[api];});
@@ -3655,7 +3660,7 @@ async function saveEquipmentRecord(){
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
-  var coreSavePayload=split.category?assetPayloadWithoutCategoryExtensions(split.core,split.category):assetPayloadWithoutCategory(split.core);
+  var coreSavePayload=assetPayloadWithoutSubform(split.category?assetPayloadWithoutCategoryExtensions(split.core,split.category):assetPayloadWithoutCategory(split.core));
   var equipmentId=A.asset.currentAssetId;
   var isCreate=!equipmentId;
   if(isCreate){
@@ -3665,7 +3670,7 @@ async function saveEquipmentRecord(){
       created=await postEquipmentToZoho("create_equipment",null,coreSavePayload);
     }catch(createErr){
       if(!split.category||!/mandatory|required/i.test(String(createErr&&createErr.message||createErr)))throw createErr;
-      created=await postEquipmentToZoho("create_equipment",null,split.core);
+      created=await postEquipmentToZoho("create_equipment",null,assetPayloadWithoutSubform(split.core));
     }
     equipmentId=equipmentIdFromResponse(created);
     if(!equipmentId)throw new Error("Zoho did not return an equipment ID");
