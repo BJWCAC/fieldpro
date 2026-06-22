@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v300
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=300
+Current live version: v301
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=301
 ```
 
 ---
@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v301 | — | **General category layout fields** — sensor, display, setup I/O, duration &amp; damping, Subform_1 (Zoho General / legacy Analytical alias) |
 | v300 | — | **General / Analytical category alias** — CapStone picker shows Zoho **General**; legacy Analytical normalizes on load/save; proxy resolves General actual_value |
 | v298 | — | **Gas Detector layout trim** — remove Set Up Input/Output parent fields; keep Input and Output Set ups subform |
 | v297 | — | **Assets: Gas Detector category fields** — sensor, display, duration &amp; damping, Gas Sensor Info (type + multiselect), Subform_1; asset search includes Gas Sensor Type |
@@ -198,7 +199,7 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Asset category field rollout** | Flow Meter + Flow Open Channel polished (v289); Gas Detector shipped (v298); next: **General** (Zoho category; was planned as Analytical), Lift Station, Scales & Balances |
+| Medium | **Asset category field rollout** | Flow Meter + Flow Open Channel polished (v289); Gas Detector + **General** shipped (v301); next: Lift Station, Scales & Balances |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
