@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "282";
+var PROXY_BUILD = "283";
 
 exports.handler = async function(event) {
   const h = {
@@ -36,8 +36,18 @@ exports.handler = async function(event) {
           layout_activation: true,
           reopen_confirm: true,
           picklist_resolve: true,
-          asset_category_picklist: true
+          asset_category_picklist: true,
+          subform_function_picklist: true
         })
+      };
+    }
+
+    if (data.action === "get_subform_function_picklist") {
+      var functionPicklistValues = await loadSubformOutputTypePicklistValues(token);
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({ ok: true, data: functionPicklistValues, proxy_build: PROXY_BUILD })
       };
     }
 
@@ -194,6 +204,67 @@ exports.handler = async function(event) {
         } catch (le) {}
       }
       return vals;
+    }
+
+    function fieldsArrayFromBody(fieldsBody) {
+      return (fieldsBody && fieldsBody.fields) || fieldsBody || [];
+    }
+
+    function subformModuleApiFromFieldsBody(fieldsBody, subformFieldApi) {
+      try {
+        var fields = fieldsArrayFromBody(fieldsBody);
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== subformFieldApi) continue;
+          if (f.subform && f.subform.module) return String(f.subform.module).trim();
+          if (f.associated_module && f.associated_module.module) return String(f.associated_module.module).trim();
+        }
+      } catch (e) {}
+      return String(subformFieldApi || "").trim();
+    }
+
+    function picklistValuesFromFieldsBody(fieldsBody, fieldApi) {
+      var vals = [];
+      try {
+        var fields = fieldsArrayFromBody(fieldsBody);
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== fieldApi) continue;
+          (f.pick_list_values || []).forEach(function(opt) {
+            if (!opt) return;
+            var actual = String(opt.actual_value || opt.display_value || "").trim();
+            if (!actual || vals.indexOf(actual) >= 0) return;
+            vals.push(actual);
+          });
+        }
+      } catch (e) {}
+      return vals;
+    }
+
+    async function loadSubformOutputTypePicklistValues(token) {
+      var equipmentFieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Equipments",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (equipmentFieldsResult.status < 200 || equipmentFieldsResult.status >= 300) return [];
+      var subformModule = "Subform_1";
+      try {
+        subformModule = subformModuleApiFromFieldsBody(JSON.parse(equipmentFieldsResult.body), "Subform_1") || "Subform_1";
+      } catch (pe) {}
+      var subformFieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=" + encodeURIComponent(subformModule),
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (subformFieldsResult.status < 200 || subformFieldsResult.status >= 300) return [];
+      try {
+        return picklistValuesFromFieldsBody(JSON.parse(subformFieldsResult.body), "Output_Type");
+      } catch (se) {
+        return [];
+      }
     }
 
     function isOpenChannelFlowCategory(cat) {
@@ -816,8 +887,98 @@ exports.handler = async function(event) {
       Measurement_Units_Type_Output: true
     };
 
+    var engineeringUnitNameMapCache = null;
+
     function isZohoLookupId(val) {
       return /^\d{10,}$/.test(String(val || "").trim());
+    }
+
+    async function loadEngineeringUnitNameMap(token) {
+      if (engineeringUnitNameMapCache) return engineeringUnitNameMapCache;
+      var byName = {};
+      var byId = {};
+      var euPage = 1;
+      while (euPage <= 20) {
+        var euResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/CustomModule8?fields=Name&per_page=200&page=" + euPage,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (euResult.status === 204) break;
+        if (euResult.status < 200 || euResult.status >= 300) break;
+        var euParsed = {};
+        try { euParsed = JSON.parse(euResult.body); } catch (euErr) { break; }
+        var euBatch = euParsed.data || [];
+        if (!euBatch.length) break;
+        for (var eui = 0; eui < euBatch.length; eui++) {
+          var euRec = euBatch[eui];
+          if (!euRec || !euRec.id) continue;
+          var id = String(euRec.id).trim();
+          var name = String(euRec.Name || euRec.name || "").trim();
+          byId[id] = id;
+          if (name) byName[name.toLowerCase()] = id;
+        }
+        if (!euParsed.info || !euParsed.info.more_records) break;
+        euPage++;
+      }
+      engineeringUnitNameMapCache = { byName: byName, byId: byId };
+      return engineeringUnitNameMapCache;
+    }
+
+    function normalizeLookupFieldValue(val, nameMap) {
+      if (val == null || val === "") return null;
+      if (typeof val === "object") {
+        var objId = val.id != null ? String(val.id).trim() : "";
+        if (isZohoLookupId(objId)) return { id: objId };
+        if (objId && nameMap.byId[objId]) return { id: nameMap.byId[objId] };
+        var objName = String(val.name || "").trim().toLowerCase();
+        if (objName && nameMap.byName[objName]) return { id: nameMap.byName[objName] };
+      }
+      var s = String(val).trim();
+      if (!s) return null;
+      if (isZohoLookupId(s)) return { id: s };
+      var hit = nameMap.byName[s.toLowerCase()];
+      if (hit) return { id: hit };
+      return null;
+    }
+
+    function resolveSubformPicklistValue(val, picklistValues) {
+      var s = String(val || "").trim();
+      if (!s) return "";
+      var list = Array.isArray(picklistValues) ? picklistValues : [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i] === s) return list[i];
+        if (String(list[i]).toLowerCase() === s.toLowerCase()) return list[i];
+      }
+      return s;
+    }
+
+    async function resolveEquipmentPayloadLookups(token, equipment) {
+      var out = Object.assign({}, equipment || {});
+      var nameMap = await loadEngineeringUnitNameMap(token);
+      Object.keys(EQUIPMENT_LOOKUP_FIELDS).forEach(function(api) {
+        if (out[api] == null || out[api] === "") return;
+        var normalized = normalizeLookupFieldValue(out[api], nameMap);
+        if (normalized) out[api] = normalized;
+        else delete out[api];
+      });
+      if (Array.isArray(out.Subform_1) && out.Subform_1.length) {
+        var fnPicklist = await loadSubformOutputTypePicklistValues(token);
+        out.Subform_1 = out.Subform_1.map(function(row) {
+          var copy = Object.assign({}, row || {});
+          if (copy.Input_Output_Type != null && copy.Input_Output_Type !== "") {
+            var lu = normalizeLookupFieldValue(copy.Input_Output_Type, nameMap);
+            if (lu) copy.Input_Output_Type = lu;
+            else delete copy.Input_Output_Type;
+          }
+          if (copy.Output_Type != null && copy.Output_Type !== "") {
+            copy.Output_Type = resolveSubformPicklistValue(copy.Output_Type, fnPicklist);
+          }
+          return copy;
+        });
+      }
+      return out;
     }
 
     function normalizeEquipmentLookupField(val) {
@@ -843,8 +1004,14 @@ exports.handler = async function(event) {
       return out;
     }
 
+    async function sanitizeEquipmentExtensionPayloadAsync(token, extension, category) {
+      var out = Object.assign({}, extension || {});
+      if (category) out.Asset_Category = category;
+      return await resolveEquipmentPayloadLookups(token, out);
+    }
+
     async function saveEquipmentExtensionFields(token, equipmentId, category, extension, steps, stepLabel) {
-      var sanitized = sanitizeEquipmentExtensionPayload(extension, category);
+      var sanitized = await sanitizeEquipmentExtensionPayloadAsync(token, extension, category);
       delete sanitized.Subform_1;
       if (!sanitized || !Object.keys(sanitized).length) return { ok: true, skipped: true };
       var extMid = await zohoEquipmentPut(token, equipmentId, sanitized, true);
@@ -945,7 +1112,7 @@ exports.handler = async function(event) {
         return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: cycle2.error, steps: steps }) };
       }
 
-      var targetPayload = sanitizeEquipmentExtensionPayload(layoutExtension, layoutCategory);
+      var targetPayload = await sanitizeEquipmentExtensionPayloadAsync(token, layoutExtension, layoutCategory);
       delete targetPayload.Subform_1;
       var resaveV8 = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
       steps.push({ step: "resave_category_and_fields_v8", category: layoutCategory, status: resaveV8.status });
@@ -974,6 +1141,7 @@ exports.handler = async function(event) {
     if (data.action === "update_equipment") {
       var applyLayoutRules = !!data.apply_layout_rules;
       var updateEquipmentData = await resolveEquipmentCategoryField(token, data.equipment || {});
+      updateEquipmentData = await resolveEquipmentPayloadLookups(token, updateEquipmentData);
       var updateEquipmentPayload = equipmentWriteBody(updateEquipmentData, applyLayoutRules);
       var updateEquipmentPath = applyLayoutRules
         ? "/crm/v8/Equipments/" + data.equipment_id
@@ -990,6 +1158,7 @@ exports.handler = async function(event) {
     if (data.action === "create_equipment") {
       var createApplyLayoutRules = !!data.apply_layout_rules;
       var createEquipmentData = await resolveEquipmentCategoryField(token, data.equipment || {});
+      createEquipmentData = await resolveEquipmentPayloadLookups(token, createEquipmentData);
       var equipmentPayload = equipmentWriteBody(createEquipmentData, createApplyLayoutRules);
       var equipmentPath = createApplyLayoutRules ? "/crm/v8/Equipments" : "/crm/v3/Equipments";
       var equipmentResult = await req({
