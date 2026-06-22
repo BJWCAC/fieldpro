@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "275";
+var PROXY_BUILD = "276";
 
 exports.handler = async function(event) {
   const h = {
@@ -35,8 +35,18 @@ exports.handler = async function(event) {
           proxy_build: PROXY_BUILD,
           layout_activation: true,
           reopen_confirm: true,
-          picklist_resolve: true
+          picklist_resolve: true,
+          asset_category_picklist: true
         })
+      };
+    }
+
+    if (data.action === "get_asset_category_picklist") {
+      var categoryPicklistValues = await loadAssetCategoryPicklistValues(token);
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({ ok: true, data: categoryPicklistValues, proxy_build: PROXY_BUILD })
       };
     }
 
@@ -64,6 +74,7 @@ exports.handler = async function(event) {
             if (actual === want || display === want) return actual || want;
             if (actual.toLowerCase() === want.toLowerCase() || display.toLowerCase() === want.toLowerCase()) return actual || display || want;
             if (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(want) && (/flow\s*open\s*channel|open\s*channel\s*flow/i.test(actual) || /flow\s*open\s*channel|open\s*channel\s*flow/i.test(display))) return actual || display || want;
+            if (/^flow\s*meter$/i.test(want) && (/^flow\s*meter$/i.test(actual) || /^flow\s*meter$/i.test(display))) return actual || display || want;
           }
         }
       } catch (re) {}
