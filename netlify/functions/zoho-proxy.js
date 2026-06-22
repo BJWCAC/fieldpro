@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "280";
+var PROXY_BUILD = "281";
 
 exports.handler = async function(event) {
   const h = {
@@ -36,8 +36,18 @@ exports.handler = async function(event) {
           layout_activation: true,
           reopen_confirm: true,
           picklist_resolve: true,
-          asset_category_picklist: true
+          asset_category_picklist: true,
+          subform_function_picklist: true
         })
+      };
+    }
+
+    if (data.action === "get_subform_function_picklist") {
+      var functionPicklistValues = await loadSubformOutputTypePicklistValues(token);
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({ ok: true, data: functionPicklistValues, proxy_build: PROXY_BUILD })
       };
     }
 
@@ -179,6 +189,67 @@ exports.handler = async function(event) {
         } catch (le) {}
       }
       return vals;
+    }
+
+    function fieldsArrayFromBody(fieldsBody) {
+      return (fieldsBody && fieldsBody.fields) || fieldsBody || [];
+    }
+
+    function subformModuleApiFromFieldsBody(fieldsBody, subformFieldApi) {
+      try {
+        var fields = fieldsArrayFromBody(fieldsBody);
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== subformFieldApi) continue;
+          if (f.subform && f.subform.module) return String(f.subform.module).trim();
+          if (f.associated_module && f.associated_module.module) return String(f.associated_module.module).trim();
+        }
+      } catch (e) {}
+      return String(subformFieldApi || "").trim();
+    }
+
+    function picklistValuesFromFieldsBody(fieldsBody, fieldApi) {
+      var vals = [];
+      try {
+        var fields = fieldsArrayFromBody(fieldsBody);
+        for (var fi = 0; fi < fields.length; fi++) {
+          var f = fields[fi];
+          if (f.api_name !== fieldApi) continue;
+          (f.pick_list_values || []).forEach(function(opt) {
+            if (!opt) return;
+            var actual = String(opt.actual_value || opt.display_value || "").trim();
+            if (!actual || vals.indexOf(actual) >= 0) return;
+            vals.push(actual);
+          });
+        }
+      } catch (e) {}
+      return vals;
+    }
+
+    async function loadSubformOutputTypePicklistValues(token) {
+      var equipmentFieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Equipments",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (equipmentFieldsResult.status < 200 || equipmentFieldsResult.status >= 300) return [];
+      var subformModule = "Subform_1";
+      try {
+        subformModule = subformModuleApiFromFieldsBody(JSON.parse(equipmentFieldsResult.body), "Subform_1") || "Subform_1";
+      } catch (pe) {}
+      var subformFieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=" + encodeURIComponent(subformModule),
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (subformFieldsResult.status < 200 || subformFieldsResult.status >= 300) return [];
+      try {
+        return picklistValuesFromFieldsBody(JSON.parse(subformFieldsResult.body), "Output_Type");
+      } catch (se) {
+        return [];
+      }
     }
 
     function isOpenChannelFlowCategory(cat) {

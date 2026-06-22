@@ -15,7 +15,8 @@
     "Flow Meter categorySuggestedDefaults: Display GPM US; Set Up Input GPM US; Set Up Output 4-20 mA; Duration 0.75; same Pulsar Ultra 4 PV parameters as Flow Open Channel.",
     "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal.",
-    "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields."
+    "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields.",
+    "Subform_1 Function (Output_Type) picklist loads live from Zoho CRM subform field metadata so new gas types appear without a CapStone config update."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
@@ -891,7 +892,7 @@
         "label": "Input and Output Set ups",
         "note": "Written as an array of row objects inside the parent Equipments record payload, not as standalone records.",
         "capstoneColumns": [
-          { "apiName": "Output_Type", "label": "Function", "widget": "select" },
+          { "apiName": "Output_Type", "label": "Function", "widget": "select", "picklist": "Output_Type" },
           { "apiName": "Input_Output_Type", "label": "Engineering Unit", "widget": "lookup", "lookupSource": "engineeringUnits" },
           { "apiName": "Zero_Parameter", "label": "LRV Parameter", "widget": "text" },
           { "apiName": "Output_Zero", "label": "LRV", "widget": "number" },

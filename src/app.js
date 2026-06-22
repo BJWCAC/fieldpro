@@ -33,9 +33,9 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="298";
-var MIN_ZOHO_PROXY_BUILD=278;
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
+var FP_VERSION="299";
+var MIN_ZOHO_PROXY_BUILD=281;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1381,6 +1381,11 @@ function categoryLayout(cat){
   var layouts=(A.equipmentConfig&&A.equipmentConfig.categoryLayouts)||{};
   return layouts[normalizeAssetCategoryKey(cat)]||null;
 }
+function categoryLayoutHasSubform(cat){
+  var layout=categoryLayout(cat);
+  if(!layout||!layout.sections)return false;
+  return layout.sections.some(function(sec){return!!sec.subform;});
+}
 function isDynamicFieldSkippable(def){
   return def&&def.note&&def.note.indexOf("No separate Zoho field")>=0;
 }
@@ -1721,7 +1726,10 @@ function syncAssetCategoryLayoutUi(){
   }
   return loadEquipmentConfig().then(function(){
     if(seq!==_assetCategoryLayoutSeq)return;
-    resetCategoryDynamicStateForCategory(cat);
+    var picklistPromise=categoryLayoutHasSubform(cat)?refreshSubformOutputTypePicklist():Promise.resolve();
+    return picklistPromise.then(function(){
+      if(seq!==_assetCategoryLayoutSeq)return;
+      resetCategoryDynamicStateForCategory(cat);
     categoryDynamicFieldDefs(cat).forEach(function(d){
       if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
     });
@@ -1733,6 +1741,7 @@ function syncAssetCategoryLayoutUi(){
     return loadEngineeringUnitLookups().catch(function(e){
       console.log("engineering unit lookups follow-up",e);
       return [];
+    });
     });
   }).then(function(){
     if(seq!==_assetCategoryLayoutSeq)return;
@@ -1912,7 +1921,65 @@ function mirrorInputPvToOutput(){
 function subformPicklistValues(fieldApi){
   var sf=assetSubformConfig();
   var f=sf&&sf.fields&&sf.fields[fieldApi];
-  return f&&f.values?f.values:[];
+  var base=f&&f.values?f.values.slice():[];
+  if(fieldApi==="Output_Type"){
+    base=mergeSubformFunctionPicklist(A.subformOutputTypePicklist,base,subformRowPicklistValues(fieldApi));
+  }
+  return base;
+}
+function subformRowPicklistValues(fieldApi){
+  var vals=[];
+  (A.asset.subformRows||[]).forEach(function(row){
+    var v=row&&row[fieldApi];
+    if(v==null||v==="")return;
+    var s=String(v).trim();
+    if(s&&vals.indexOf(s)<0)vals.push(s);
+  });
+  return vals;
+}
+function mergeSubformFunctionPicklist(zohoVals,staticVals,rowVals){
+  var seen={},out=[];
+  function add(v){
+    var s=String(v||"").trim();
+    if(!s||seen[s])return;
+    seen[s]=true;
+    out.push(s);
+  }
+  (zohoVals||[]).forEach(add);
+  (staticVals||[]).forEach(add);
+  (rowVals||[]).forEach(add);
+  return out;
+}
+function setSubformOutputTypePicklistValues(vals){
+  var merged=mergeSubformFunctionPicklist(vals,["Input","Output"],subformRowPicklistValues("Output_Type"));
+  A.subformOutputTypePicklist=merged;
+  if(!A.equipmentConfig||!A.equipmentConfig.modules||!A.equipmentConfig.modules.Equipments)return;
+  var sf=A.equipmentConfig.modules.Equipments.subform;
+  if(!sf)return;
+  if(!sf.fields)sf.fields={};
+  if(!sf.fields.Output_Type)sf.fields.Output_Type={label:"Function",type:"picklist",values:[]};
+  sf.fields.Output_Type.values=merged;
+}
+async function refreshSubformOutputTypePicklist(){
+  await loadEquipmentConfig();
+  var staticVals=(assetSubformConfig()&&assetSubformConfig().fields&&assetSubformConfig().fields.Output_Type&&assetSubformConfig().fields.Output_Type.values)||["Input","Output"];
+  var merged=mergeSubformFunctionPicklist(A.subformOutputTypePicklist,staticVals,subformRowPicklistValues("Output_Type"));
+  if(merged.length)setSubformOutputTypePicklistValues(merged);
+  if(!A.zohoToken)return merged;
+  if(A.subformOutputTypePicklistLoading)return A.subformOutputTypePicklist||merged;
+  A.subformOutputTypePicklistLoading=true;
+  try{
+    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_subform_function_picklist",token:A.zohoToken})},30000);
+    if(!r.ok)return merged;
+    var d={};try{d=await r.json();}catch(e){}
+    var zohoVals=d&&d.data;
+    if(Array.isArray(zohoVals)&&zohoVals.length){
+      merged=mergeSubformFunctionPicklist(zohoVals,staticVals,subformRowPicklistValues("Output_Type"));
+      setSubformOutputTypePicklistValues(merged);
+    }
+  }catch(e){console.log("subform function picklist",e);}
+  finally{A.subformOutputTypePicklistLoading=false;}
+  return A.subformOutputTypePicklist||merged;
 }
 function assetSubformRequiredApis(){
   return["Output_Type","Input_Output_Type","Zero_Parameter","Output_Zero","Span_Parameter","Output_Span"];
