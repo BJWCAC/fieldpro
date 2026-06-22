@@ -297,7 +297,7 @@ For assets:
 
 ### Asset category Zoho layout rules (all categories)
 
-This applies to **every** `Asset_Category` value — current and future (Flow Meter, Flow Open Channel, Gas Detector, Analytical, Lift Station, Scales & Balances, and any category added later).
+This applies to **every** `Asset_Category` value — current and future (Flow Meter, Flow Open Channel, Gas Detector, General, Lift Station, Scales & Balances, and any category added later).
 
 Zoho CRM layout rules control which sections and fields appear on the Equipments record. CapStone must activate that layout on save so technicians do not have to open Zoho and reselect the category manually.
 
