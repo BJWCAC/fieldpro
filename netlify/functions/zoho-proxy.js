@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "276";
+var PROXY_BUILD = "277";
 
 exports.handler = async function(event) {
   const h = {
@@ -689,12 +689,61 @@ exports.handler = async function(event) {
 
     function zohoWriteErrorMessage(result) {
       try {
-        var row = (JSON.parse(result.body).data || [])[0];
+        var parsed = JSON.parse(result.body);
+        var row = (parsed.data || [])[0];
+        if (row && row.details && row.details.api_name) {
+          return (row.message || "invalid data") + " (" + row.details.api_name + ")";
+        }
         if (row && row.message) return row.message;
         return result.body;
       } catch (e) {
         return result.body;
       }
+    }
+
+    var EQUIPMENT_LOOKUP_FIELDS = {
+      Measurement_Type_Input: true,
+      Measurement_Units_Type_Output: true
+    };
+
+    function isZohoLookupId(val) {
+      return /^\d{10,}$/.test(String(val || "").trim());
+    }
+
+    function normalizeEquipmentLookupField(val) {
+      if (val == null || val === "") return null;
+      if (typeof val === "object") {
+        var id = val.id != null ? String(val.id).trim() : "";
+        return isZohoLookupId(id) ? { id: id } : null;
+      }
+      var s = String(val).trim();
+      if (!s) return null;
+      return isZohoLookupId(s) ? { id: s } : null;
+    }
+
+    function sanitizeEquipmentExtensionPayload(extension, category) {
+      var out = Object.assign({}, extension || {});
+      Object.keys(out).forEach(function(api) {
+        if (!EQUIPMENT_LOOKUP_FIELDS[api]) return;
+        var normalized = normalizeEquipmentLookupField(out[api]);
+        if (normalized) out[api] = normalized;
+        else delete out[api];
+      });
+      if (category) out.Asset_Category = category;
+      return out;
+    }
+
+    async function saveEquipmentExtensionFields(token, equipmentId, category, extension, steps, stepLabel) {
+      var sanitized = sanitizeEquipmentExtensionPayload(extension, category);
+      delete sanitized.Subform_1;
+      if (!sanitized || !Object.keys(sanitized).length) return { ok: true, skipped: true };
+      var extMid = await zohoEquipmentPut(token, equipmentId, sanitized, true);
+      steps.push({ step: stepLabel || "save_extension_fields", status: extMid.status, fields: Object.keys(sanitized) });
+      if (zohoWriteFailed(extMid)) {
+        return { ok: false, error: "Extension field save failed: " + zohoWriteErrorMessage(extMid) };
+      }
+      await sleepMs(450);
+      return { ok: true };
     }
 
     if (data.action === "activate_equipment_category_layout") {
@@ -770,12 +819,10 @@ exports.handler = async function(event) {
           return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: cycle1.error, steps: steps }) };
         }
         if (layoutExtension && Object.keys(layoutExtension).length) {
-          var extMid = await zohoEquipmentPut(token, layoutEquipmentId, layoutExtension, false);
-          steps.push({ step: "save_extension_fields", status: extMid.status });
-          if (zohoWriteFailed(extMid)) {
-            return { statusCode: extMid.status >= 400 ? extMid.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Extension field save failed: " + zohoWriteErrorMessage(extMid), steps: steps }) };
+          var extResult = await saveEquipmentExtensionFields(token, layoutEquipmentId, layoutCategory, layoutExtension, steps, "save_extension_fields");
+          if (!extResult.ok) {
+            return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: extResult.error, steps: steps }) };
           }
-          await sleepMs(450);
         }
         return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "initial", proxy_build: PROXY_BUILD, resolved_category: layoutCategory, current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
       }
@@ -786,7 +833,8 @@ exports.handler = async function(event) {
         return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: cycle2.error, steps: steps }) };
       }
 
-      var targetPayload = Object.assign({ Asset_Category: layoutCategory }, layoutExtension);
+      var targetPayload = sanitizeEquipmentExtensionPayload(layoutExtension, layoutCategory);
+      delete targetPayload.Subform_1;
       var resaveV8 = await zohoEquipmentPut(token, layoutEquipmentId, targetPayload, true);
       steps.push({ step: "resave_category_and_fields_v8", category: layoutCategory, status: resaveV8.status });
       if (zohoWriteFailed(resaveV8)) {

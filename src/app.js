@@ -34,8 +34,8 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="293";
-var MIN_ZOHO_PROXY_BUILD=275;
+var FP_VERSION="294";
+var MIN_ZOHO_PROXY_BUILD=277;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1807,6 +1807,9 @@ function normalizeCalFactorForZoho(val){
   var n=parseFloat(m[1]);
   return isNaN(n)?v:n;
 }
+function isZohoLookupRecordId(id){
+  return/^\d{10,}$/.test(String(id||"").trim());
+}
 function formatDynamicValueForZoho(api,val){
   var def=assetFieldRegistry()[api];
   if(def&&def.widget==="multiselect"){
@@ -1817,9 +1820,14 @@ function formatDynamicValueForZoho(api,val){
   }
   if(def&&def.widget==="lookup"){
     var lookupId=resolveEngineeringUnitLookupId(val);
-    if(!lookupId)return null;
-    if(/^\d{10,}$/.test(lookupId))return{id:lookupId};
-    return lookupId;
+    if(!lookupId||!isZohoLookupRecordId(lookupId))return null;
+    return{id:String(lookupId)};
+  }
+  if(def&&def.widget==="date"){
+    var d=String(val==null?"":val).trim();
+    if(!d)return null;
+    var m=d.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m?m[1]:d;
   }
   var s=String(val==null?"":val).trim();
   if(!s)return null;
@@ -1827,11 +1835,39 @@ function formatDynamicValueForZoho(api,val){
     var cal=normalizeCalFactorForZoho(s);
     return cal==null||cal===""?null:String(cal);
   }
-  if(api==="Damping_Seconds"||api==="Exponent"||(def&&def.zohoType==="double")){
+  if(api==="Duration"||api==="Damping_Seconds"||api==="Exponent"||(def&&def.zohoType==="double")){
     var n=parseFloat(s);
-    return isNaN(n)?s:n;
+    return isNaN(n)?null:n;
   }
   return s;
+}
+async function prepareAssetDynamicFieldsForSave(){
+  finalizeDynamicValuesBeforeSave();
+  syncDynamicFieldValuesFromDom();
+  try{await loadEngineeringUnitLookups();}catch(e){console.log("engineering units before asset save",e);}
+  var registry=assetFieldRegistry();
+  Object.keys(A.asset.dynamicValues||{}).forEach(function(api){
+    if(!isDynamicFieldTouched(api))return;
+    var def=registry[api];
+    if(!def||def.widget!=="lookup")return;
+    var raw=A.asset.dynamicValues[api];
+    var lookupId=resolveEngineeringUnitLookupId(raw);
+    if(lookupId&&isZohoLookupRecordId(lookupId)){
+      A.asset.dynamicValues[api]=String(lookupId);
+      return;
+    }
+    var opts=engineeringUnitLookupOptions();
+    var rawStr=String(raw==null?"":raw).trim().toLowerCase();
+    for(var i=0;i<opts.length;i++){
+      var oid=String(opts[i].id||"").trim();
+      var oname=String(opts[i].name||"").trim().toLowerCase();
+      if(!isZohoLookupRecordId(oid))continue;
+      if(oname===rawStr||oid===rawStr){
+        A.asset.dynamicValues[api]=oid;
+        return;
+      }
+    }
+  });
 }
 function finalizeDynamicValuesBeforeSave(){
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
@@ -2066,8 +2102,8 @@ function assetSubformPayload(){
       if(v===""||v==null)return;
       if(c.widget==="lookup"){
         var lookupId=resolveEngineeringUnitLookupId(v);
-        if(!lookupId)return;
-        out[c.apiName]=/^\d{10,}$/.test(String(lookupId))?{id:lookupId}:lookupId;
+        if(!lookupId||!isZohoLookupRecordId(lookupId))return;
+        out[c.apiName]={id:String(lookupId)};
       }else if(c.widget==="number"){var n=parseFloat(v);if(!isNaN(n))out[c.apiName]=n;}else out[c.apiName]=String(v);
     });
     if(row.id)out.id=row.id;
@@ -3602,7 +3638,7 @@ async function findExistingEquipmentBySerial(){
 }
 async function saveEquipmentRecord(){
   await loadEquipmentConfig();
-  finalizeDynamicValuesBeforeSave();
+  await prepareAssetDynamicFieldsForSave();
   syncSubformRowsFromDom();
   var includeBlank=!!A.asset.currentAssetId;
   var fullPayload=assetPayload({includeBlank:includeBlank});
