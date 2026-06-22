@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "281";
+var PROXY_BUILD = "282";
 
 exports.handler = async function(event) {
   const h = {
@@ -126,11 +126,15 @@ exports.handler = async function(event) {
       }
 
       if (isGeneralCategory(want) || isAnalyticalCategory(want)) {
+        var generalActual = actualExact("General") || actualCaseInsensitive("General");
+        if (generalActual && isGeneralCategory(generalActual)) return generalActual;
         for (var gi = 0; gi < options.length; gi++) {
-          if (isGeneralCategory(options[gi].actual) || isGeneralCategory(options[gi].display)) return options[gi].actual;
+          if (isGeneralCategory(options[gi].actual)) return options[gi].actual;
         }
-        for (var gai = 0; gai < options.length; gai++) {
-          if (isAnalyticalCategory(options[gai].actual)) return options[gai].actual;
+        if (isAnalyticalCategory(want)) {
+          for (var gai = 0; gai < options.length; gai++) {
+            if (isAnalyticalCategory(options[gai].actual)) return options[gai].actual;
+          }
         }
         return "General";
       }
@@ -212,6 +216,15 @@ exports.handler = async function(event) {
       return "Flow Open Channel";
     }
 
+    function pickCanonicalGeneralCategory(categoryValues) {
+      var list = Array.isArray(categoryValues) ? categoryValues : [];
+      for (var i = 0; i < list.length; i++) {
+        var v = String(list[i] || "").trim();
+        if (isGeneralCategory(v)) return v;
+      }
+      return "General";
+    }
+
     function isFlowMeterCategory(cat) {
       return /^flow\s*meter$/i.test(String(cat || "").trim());
     }
@@ -231,7 +244,8 @@ exports.handler = async function(event) {
       if (a === b) return true;
       if (isFlowMeterCategory(a) && isFlowMeterCategory(b)) return true;
       if (isOpenChannelFlowCategory(a) && isOpenChannelFlowCategory(b)) return true;
-      if ((isGeneralCategory(a) || isAnalyticalCategory(a)) && (isGeneralCategory(b) || isAnalyticalCategory(b))) return true;
+      if (isGeneralCategory(a) && isGeneralCategory(b)) return true;
+      if (isAnalyticalCategory(a) && isAnalyticalCategory(b)) return true;
       return false;
     }
 
@@ -858,7 +872,7 @@ exports.handler = async function(event) {
       layoutCategoryValues = mergedCategoryValues;
       if (isFlowMeterCategory(layoutCategory)) layoutCategory = pickCanonicalFlowMeterCategory(layoutCategoryValues);
       else if (isOpenChannelFlowCategory(layoutCategory)) layoutCategory = pickCanonicalOcfCategory(layoutCategoryValues);
-      else if (isGeneralCategory(layoutCategory) || isAnalyticalCategory(layoutCategory)) layoutCategory = await resolveAssetCategoryValue(token, "General");
+      else if (isGeneralCategory(layoutCategory) || isAnalyticalCategory(layoutCategory)) layoutCategory = pickCanonicalGeneralCategory(layoutCategoryValues);
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
@@ -949,9 +963,18 @@ exports.handler = async function(event) {
       return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "reopen_confirm", proxy_build: PROXY_BUILD, resolved_category: layoutCategory, current_category: currentCategory, target_category: layoutCategory, steps: steps }) };
     }
 
+    async function resolveEquipmentCategoryField(token, equipment) {
+      var out = Object.assign({}, equipment || {});
+      if (out.Asset_Category) {
+        out.Asset_Category = await resolveAssetCategoryValue(token, out.Asset_Category);
+      }
+      return out;
+    }
+
     if (data.action === "update_equipment") {
       var applyLayoutRules = !!data.apply_layout_rules;
-      var updateEquipmentPayload = equipmentWriteBody(data.equipment || {}, applyLayoutRules);
+      var updateEquipmentData = await resolveEquipmentCategoryField(token, data.equipment || {});
+      var updateEquipmentPayload = equipmentWriteBody(updateEquipmentData, applyLayoutRules);
       var updateEquipmentPath = applyLayoutRules
         ? "/crm/v8/Equipments/" + data.equipment_id
         : "/crm/v3/Equipments/" + data.equipment_id;
@@ -966,7 +989,8 @@ exports.handler = async function(event) {
 
     if (data.action === "create_equipment") {
       var createApplyLayoutRules = !!data.apply_layout_rules;
-      var equipmentPayload = equipmentWriteBody(data.equipment || {}, createApplyLayoutRules);
+      var createEquipmentData = await resolveEquipmentCategoryField(token, data.equipment || {});
+      var equipmentPayload = equipmentWriteBody(createEquipmentData, createApplyLayoutRules);
       var equipmentPath = createApplyLayoutRules ? "/crm/v8/Equipments" : "/crm/v3/Equipments";
       var equipmentResult = await req({
         hostname: "www.zohoapis.com",
