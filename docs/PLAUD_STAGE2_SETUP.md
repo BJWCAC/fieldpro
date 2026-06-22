@@ -66,6 +66,18 @@ The token stays on the device (localStorage). It is sent to the Netlify `plaud-p
 
 ---
 
+## Add another employee / another Plaud unit
+
+The Inbox is **per device** — each phone stores its own Plaud token (`fp_plaud_tokens`) and its own Inbox (`fp_inbox`), and pulls only from the Plaud account its token belongs to. To add a second unit:
+
+1. Give the second employee their own **Plaud Note Pro** and their own **Plaud Starter account** (Cloud Sync ON, auto-transcribe OFF).
+2. On their phone, open CapStone and pick **their name as Technician** in Settings.
+3. Run **steps 1–3 above** with *their* `refresh_token`.
+
+Their device auto-pulls only their recordings. CapStone stamps the device's selected technician onto each Inbox item and the resulting Zoho deal note (`Recorded by: …`), so every note shows which employee the recording came from. See `docs/PLAUD_INTEGRATION.md` → *Multiple Plaud units / multiple employees*.
+
+---
+
 ## Security notes
 
 - Do not share your refresh token in chat or email

@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="304";
+var FP_VERSION="305";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -5739,6 +5739,7 @@ async function pullFromPlaud(opts){
           transcript:sd.transcript||"",
           assemblyTranscriptId:sd.assemblyTranscriptId||"",
           plaudFileId:fileMeta.id,
+          technician:currentTechnicianName(),
           dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
           error:"",pipelineMessage:sd.message||""
         });
@@ -5978,7 +5979,7 @@ function renderInbox(){
     var summary=(item.summary||"").trim();
     return "<div class='hist-card inbox-card' data-inbox-id='"+esc(item.id)+"'>"+
       "<div class='h-acct'>"+esc(item.title||item.filename||"Recording")+"</div>"+
-      "<div class='h-meta'>"+ds+" — "+esc(item.source||"upload")+"</div>"+
+      "<div class='h-meta'>"+ds+" — "+esc(item.source||"upload")+(item.technician?" — "+esc(item.technician):"")+"</div>"+
       "<div style='font-size:12px;margin:6px 0'>"+dealLine+"</div>"+
       "<div class='h-status'>"+inboxStatusChip(item)+"</div>"+
       "<div style='font-size:12px;color:var(--sub);margin:8px 0;line-height:1.5;white-space:pre-wrap'>"+preview+"</div>"+
@@ -6005,7 +6006,7 @@ function addInboxManualNote(){
   var items=getInboxItems();
   var id="inbox"+Date.now();
   var dealFields=inboxDealFieldsFromSel();
-  items.push({id:id,created:new Date().toISOString(),source:"manual",status:dealFields.status,title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",error:""});
+  items.push({id:id,created:new Date().toISOString(),source:"manual",status:dealFields.status,title:title.trim()||"Manual note",transcript:transcript.trim(),filename:"",technician:currentTechnicianName(),dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",error:""});
   saveInboxItems(items);
   showToast(dealFields.dealId?"Manual note added and linked to active deal":"Manual note added to Inbox",2500);
   go("inbox");
@@ -6039,6 +6040,7 @@ async function inboxAudioSelected(input){
       filename:file.name,
       transcript:d.transcript||"",
       assemblyTranscriptId:d.assemblyTranscriptId||"",
+      technician:currentTechnicianName(),
       dealId:dealFields.dealId,dealName:dealFields.dealName,accountName:dealFields.accountName,summary:"",
       error:"",pipelineMessage:d.message||""
     });
@@ -6094,8 +6096,9 @@ async function saveInboxToZoho(itemId){
   showToast("Saving to Zoho...",3000);
   try{
     await refreshZohoToken();
-    var title="CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString();
-    var content=body+"\n\n---\nSource: "+(item.source||"inbox")+"\nInbox item: "+item.id;
+    var tech=(item.technician||"").trim();
+    var title="CapStone Inbox — "+(item.dealName||"Deal")+(tech?" — "+tech:"")+" — "+new Date().toLocaleDateString();
+    var content=body+"\n\n---\nSource: "+(item.source||"inbox")+(tech?"\nRecorded by: "+tech:"")+"\nInbox item: "+item.id;
     var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:title,note_content:content})},30000);
     if(!r.ok){var err=await r.text();throw new Error("Zoho save "+r.status+": "+err.substring(0,120));}
     item.status="synced";
@@ -6107,11 +6110,12 @@ async function saveInboxToZoho(itemId){
     item.status="pending_sync";
     item.error=e.message;
     saveInboxItems(items);
+    var techPending=(item.technician||"").trim();
     enqueueReportNoteSave({
       action:"save_note",
       deal_id:item.dealId,
-      note_title:"CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString(),
-      note_content:(item.summary||item.transcript||"")+"\n\nInbox: "+item.id
+      note_title:"CapStone Inbox — "+(item.dealName||"Deal")+(techPending?" — "+techPending:"")+" — "+new Date().toLocaleDateString(),
+      note_content:(item.summary||item.transcript||"")+(techPending?"\n\nRecorded by: "+techPending:"")+"\n\nInbox: "+item.id
     },e.message);
     showToast("Queued for Pending Sync — retry in Settings",6000);
   }
