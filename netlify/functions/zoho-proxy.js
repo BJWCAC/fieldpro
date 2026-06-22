@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "280";
+var PROXY_BUILD = "281";
 
 exports.handler = async function(event) {
   const h = {
@@ -125,6 +125,16 @@ exports.handler = async function(event) {
         }
       }
 
+      if (isGeneralCategory(want) || isAnalyticalCategory(want)) {
+        for (var gi = 0; gi < options.length; gi++) {
+          if (isGeneralCategory(options[gi].actual) || isGeneralCategory(options[gi].display)) return options[gi].actual;
+        }
+        for (var gai = 0; gai < options.length; gai++) {
+          if (isAnalyticalCategory(options[gai].actual)) return options[gai].actual;
+        }
+        return "General";
+      }
+
       var wantLow = want.toLowerCase();
       for (var di = 0; di < options.length; di++) {
         var opt = options[di];
@@ -174,6 +184,7 @@ exports.handler = async function(event) {
             if (!v || vals.indexOf(v) >= 0) return;
             if (isDeprecatedFlowCategory(v) && options.some(function(o) { return isFlowMeterCategory(o.actual) || isFlowMeterCategory(o.display); })) return;
             if (isDeprecatedOcfAlias(v) && options.some(function(o) { return /^flow\s*open\s*channel$/i.test(o.actual); })) return;
+            if (isAnalyticalCategory(v) && options.some(function(o) { return isGeneralCategory(o.actual) || isGeneralCategory(o.display); })) return;
             vals.push(v);
           });
         } catch (le) {}
@@ -205,6 +216,14 @@ exports.handler = async function(event) {
       return /^flow\s*meter$/i.test(String(cat || "").trim());
     }
 
+    function isGeneralCategory(cat) {
+      return /^general$/i.test(String(cat || "").trim());
+    }
+
+    function isAnalyticalCategory(cat) {
+      return /^analytical$/i.test(String(cat || "").trim());
+    }
+
     function categoriesEquivalent(a, b) {
       a = String(a || "").trim();
       b = String(b || "").trim();
@@ -212,6 +231,7 @@ exports.handler = async function(event) {
       if (a === b) return true;
       if (isFlowMeterCategory(a) && isFlowMeterCategory(b)) return true;
       if (isOpenChannelFlowCategory(a) && isOpenChannelFlowCategory(b)) return true;
+      if ((isGeneralCategory(a) || isAnalyticalCategory(a)) && (isGeneralCategory(b) || isAnalyticalCategory(b))) return true;
       return false;
     }
 
@@ -838,6 +858,7 @@ exports.handler = async function(event) {
       layoutCategoryValues = mergedCategoryValues;
       if (isFlowMeterCategory(layoutCategory)) layoutCategory = pickCanonicalFlowMeterCategory(layoutCategoryValues);
       else if (isOpenChannelFlowCategory(layoutCategory)) layoutCategory = pickCanonicalOcfCategory(layoutCategoryValues);
+      else if (isGeneralCategory(layoutCategory) || isAnalyticalCategory(layoutCategory)) layoutCategory = await resolveAssetCategoryValue(token, "General");
 
       async function readCurrentCategory() {
         var getCategoryResult = await req({
