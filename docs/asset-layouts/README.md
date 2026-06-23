@@ -18,6 +18,6 @@ Reference screenshots for CapStone `categoryLayouts` in `src/config/zohoEquipmen
 | Flow Meter Details (Cal Factor, Pipe Size, Damping) | Flow Meter | Shipped |
 | Gas Sensor Info | Gas Detector | Shipped |
 | **LS Details** (LS Shape, LS Diameter, Number of Pumps) | **Lift Station** | Shipped (v306) |
-| Scales (Scale Class) | Scales & Balances | Planned |
+| Scales (Scale Class) | Scales & Balances | Shipped (v307) |
 
 The `.xlsx` files are Excel workbooks with a single embedded JPEG (not tabular data) — open in Excel or use the matching `.jpg`.
