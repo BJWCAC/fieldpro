@@ -19,7 +19,8 @@
     "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields.",
     "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
     "Flow Meter categoryLayouts: includes Rosemount Details (DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display) for magnetic flow meters — not Lift Station or Open Channel Flow.",
-    "Lift Station categoryLayouts: sensor, display, LS Details (LS Shape, LS Diameter, Number of Pumps), and Subform_1 — no flow, gas, Rosemount, or scales-specific blocks."
+    "Lift Station categoryLayouts: sensor, display, LS Details (LS Shape, LS Diameter, Number of Pumps), and Subform_1 — no flow, gas, Rosemount, or scales-specific blocks.",
+    "Scales & Balances categoryLayouts: sensor, display, Scales (Scale Class), and Subform_1 — no flow, gas, LS, or Rosemount blocks."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
@@ -95,7 +96,8 @@
     "Gas_Sensor_Type_s": { "label": "Gas Sensor Type(s)", "widget": "multiselect", "picklist": "Gas_Sensor_Type_s" },
     "LS_Shape": { "label": "LS Shape", "widget": "select", "picklist": "LS_Shape" },
     "LS_Diameter": { "label": "LS Diameter", "widget": "number", "zohoType": "double" },
-    "Number_of_Pumps": { "label": "Number of Pumps", "widget": "number", "zohoType": "integer" }
+    "Number_of_Pumps": { "label": "Number of Pumps", "widget": "number", "zohoType": "integer" },
+    "Scale_Class": { "label": "Scale Class", "widget": "select", "picklist": "Scale_Class" }
   },
   "engineeringUnitsLookup": {
     "moduleApiName": "CustomModule8",
@@ -289,6 +291,35 @@
           "id": "lsDetails",
           "title": "LS Details",
           "fields": ["LS_Shape", "LS_Diameter", "Number_of_Pumps"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
+    },
+    "Scales & Balances": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "scales",
+          "title": "Scales",
+          "fields": ["Scale_Class"]
         },
         {
           "id": "subform",
