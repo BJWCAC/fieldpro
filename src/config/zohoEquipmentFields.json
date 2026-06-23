@@ -17,7 +17,9 @@
     "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal.",
     "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields.",
-    "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks."
+    "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
+    "Flow Meter categoryLayouts: includes Rosemount Details (DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display) for magnetic flow meters — not Lift Station or Open Channel Flow.",
+    "Lift Station categoryLayouts (planned): LS Details per docs/asset-layouts/all-fields.jpg — LS Shape, LS Diameter, Number of Pumps."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
@@ -128,6 +130,11 @@
           "id": "setupOutput",
           "title": "Set Up Output",
           "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "rosemountDetails",
+          "title": "Rosemount Details",
+          "fields": ["Da1_and_DA2", "DA2_License_Number", "Totalizer_Display", "Rosemount_LOI_Display"]
         },
         {
           "id": "flowMeterDetails",
