@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-08
-Current live version: v304
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=304
+Current live version: v305
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=305
 ```
 
 ---
@@ -110,6 +110,7 @@ Related docs (detail, not status):
 | v270 | — | **Zoho category layout server fix** — Netlify `activate_equipment_category_layout` runs temp swap + double v8 layout_rules + persist in one server request; core save strips category extension fields; requires Netlify deploy |
 | v271 | — | **Asset UX fixes** — category fields show immediately on select (loading state + scroll into view); account picker search no longer triggers login autofill; Other photo labels preserved; per-role photo limits (3 transmitter, 3 sensor, 6 other) and unique upload filenames |
 | v272 | — | **Zoho OCF layout reopen confirm** — two-pass category activation: initial temp swap/reselect + extension save, then reopen confirm pass (read record, reselect category, v8+v3 resave); normalize Asset Category key for CapStone layout rendering |
+| v305 | — | **Flow Meter Rosemount Details** — DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display on Flow Meter layout (magnetic flow meter); restore layout reference images in `docs/asset-layouts/` |
 | v304 | — | **Fix General Set Up I/O + subform Function sync** — resolve engineering-unit lookup names to Zoho IDs on save (client + proxy); load live subform Function picklist; dedicated subform save uses layout_rules; stop subform fields leaking into dynamic handlers; proxy build 283 |
 | v303 | — | **Fix duplicate Input/Output subform rows** — strip Subform_1 from core create/update payload; save subform rows once in dedicated final pass (Zoho was appending duplicates) |
 | v302 | — | **Fix General saving as Analytical in Zoho** — resolve Asset_Category to General actual_value (not legacy Analytical display alias); layout activation treats General and Analytical as distinct; proxy build 282 |
@@ -202,7 +203,7 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| Medium | **Asset category field rollout** | Flow Meter + Flow Open Channel polished (v289); Gas Detector + **General** shipped (v301); next: Lift Station, Scales & Balances |
+| Medium | **Asset category field rollout** | Flow Meter + Flow Open Channel polished (v289); Gas Detector + General shipped (v301); **Lift Station next** (LS Details: LS Shape, LS Diameter, Number of Pumps — see `docs/asset-layouts/all-fields.jpg`); then Scales & Balances |
 | Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
