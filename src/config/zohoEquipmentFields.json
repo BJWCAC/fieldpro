@@ -19,7 +19,7 @@
     "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields.",
     "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
     "Flow Meter categoryLayouts: includes Rosemount Details (DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display) for magnetic flow meters — not Lift Station or Open Channel Flow.",
-    "Lift Station categoryLayouts (planned): LS Details per docs/asset-layouts/all-fields.jpg — LS Shape, LS Diameter, Number of Pumps."
+    "Lift Station categoryLayouts: sensor, display, LS Details (LS Shape, LS Diameter, Number of Pumps), and Subform_1 — no flow, gas, Rosemount, or scales-specific blocks."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
@@ -92,7 +92,10 @@
     "Totalizer_Display": { "label": "Totalizer Display Units", "widget": "select", "picklist": "Totalizer_Display" },
     "Rosemount_LOI_Display": { "label": "Rosemount LOI Display", "widget": "select", "picklist": "Display", "zohoApiName": "Display" },
     "Gas_Sensor_Type": { "label": "Gas Sensor Type", "widget": "select", "picklist": "Gas_Sensor_Type" },
-    "Gas_Sensor_Type_s": { "label": "Gas Sensor Type(s)", "widget": "multiselect", "picklist": "Gas_Sensor_Type_s" }
+    "Gas_Sensor_Type_s": { "label": "Gas Sensor Type(s)", "widget": "multiselect", "picklist": "Gas_Sensor_Type_s" },
+    "LS_Shape": { "label": "LS Shape", "widget": "select", "picklist": "LS_Shape" },
+    "LS_Diameter": { "label": "LS Diameter", "widget": "number", "zohoType": "double" },
+    "Number_of_Pumps": { "label": "Number of Pumps", "widget": "number", "zohoType": "integer" }
   },
   "engineeringUnitsLookup": {
     "moduleApiName": "CustomModule8",
@@ -257,6 +260,35 @@
           "id": "setupOutput",
           "title": "Set Up Output",
           "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+        },
+        {
+          "id": "subform",
+          "title": "Input and Output Set ups",
+          "subform": "Subform_1"
+        }
+      ]
+    },
+    "Lift Station": {
+      "sections": [
+        {
+          "id": "assetInfoExtras",
+          "title": "Asset Information (additional)",
+          "fields": ["Customer_Asset_Number", "Frequency", "Date_Installed", "Location", "Room"]
+        },
+        {
+          "id": "sensor",
+          "title": "Sensor (Other attached Parts)",
+          "fields": ["Sensor_Model_Number", "Sensor_Serial_Number", "Sensor_Additional_Information"]
+        },
+        {
+          "id": "display",
+          "title": "Display Information",
+          "fields": ["Engineering_Units", "Display_Size_d_Readability"]
+        },
+        {
+          "id": "lsDetails",
+          "title": "LS Details",
+          "fields": ["LS_Shape", "LS_Diameter", "Number_of_Pumps"]
         },
         {
           "id": "subform",
