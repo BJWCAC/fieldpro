@@ -8,13 +8,13 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v307**
+Current milestone build: **v308**
 
 Status and roadmap: `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md`
 
 ## Current milestone: CapStone Android field workflow
 
-Build v307 builds on the Android field workflow with the Inbox voice pipeline, Accounts Map, and full asset category layouts, on top of the earlier reliability hardening for poor cell service:
+Build v308 builds on the Android field workflow with the Inbox voice pipeline, Accounts Map, full asset category layouts, and cloud key sync, on top of the earlier reliability hardening for poor cell service:
 
 - technician selection on each device (loaded from Zoho `Internal_Assets.Users`)
 - Zoho deal selection with Deal Selection Workflow card
@@ -25,6 +25,7 @@ Build v307 builds on the Android field workflow with the Inbox voice pipeline, A
 - **Inbox tab** — stage unassigned voice recordings, transcribe with AssemblyAI, link to a deal, and save to Zoho
 - **Plaud auto-pull** — Plaud cloud recordings pull into the Inbox automatically
 - **Accounts Map tab** — Leaflet/OpenStreetMap view of Zoho accounts with deal-stage pins, clustering, and filters
+- **Key Sync (Cloud)** — back up and restore your API key and app settings across devices, keyed by Zoho technician name and protected by a passphrase (see `docs/CAPSTONE_KEY_SYNC.md`)
 - equipment asset save/update workflow with draft autosave
 - **Asset Category layouts** — category-driven fields for Flow Meter, Flow Open Channel, Gas Detector, General, Lift Station, and Scales &amp; Balances
 - per-field → AI extract with an offline Pending AI queue
@@ -55,7 +56,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=308
    ```
 
 3. Tap the Chrome menu.
@@ -199,7 +200,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=308
 ```
 
 Update the version number when a later build is released.
@@ -251,7 +252,7 @@ Stress test (poor signal):
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=308
 ```
 
 If needed, close Chrome fully and reopen CapStone.
@@ -289,7 +290,7 @@ Future reports should use stable filenames. Older duplicate files may need to be
 
 ## Training materials
 
-Android training script (recording on hold — script updated for v307):
+Android training script (recording on hold — script updated for v308):
 
 ```text
 docs/CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md
