@@ -20,9 +20,14 @@ The whitelist of `localStorage` keys backed up / restored:
 | `fp_auto_save_phone_photos` | Auto-save photos to phone toggle |
 | `fp_record_audio` | Record audio in video toggle |
 | `fp_theme` | Light / dark theme |
+| `fp_key_sync_auto` | Auto-backup toggle (on unless turned off) |
 
 Reports, capture drafts, photos, deal cache, and History are **not** synced — they
 stay on the device.
+
+**Not synced (device-only):** `fp_sync_pass` — the passphrase stays on each phone
+for security. You must enter/save the same passphrase on every device before Restore
+works.
 
 ## How a technician uses it
 
@@ -30,8 +35,9 @@ stay on the device.
 2. Go to **Settings → Key Sync (Cloud)**.
 3. Type a **sync passphrase** (4+ characters) and tap **Save passphrase on this device**.
    Keep this passphrase private — it protects your keys in the cloud.
-4. Tap **Back up keys to cloud**. CapStone uploads your encrypted settings under
-   your technician name.
+4. Turn on **Auto-backup keys to cloud** (default on). After you change your API key,
+   Plaud connection, or app toggles, CapStone uploads to the cloud within ~8 seconds.
+   You can still tap **Back up keys to cloud** anytime for an immediate backup.
 5. On another device, select the **same technician name**, enter the **same
    passphrase**, and tap **Restore keys to this device**. The API key and synced
    settings are pulled down and applied immediately.
@@ -86,6 +92,13 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 
 ## Not in Phase 1 (future)
 
-- Automatic background sync (push/pull is manual, one tap each).
+- Auto-pull on app open (restore still manual — tap **Restore keys to this device**).
 - Syncing reports, drafts, photos, or History (see Phase 2+ in the roadmap).
 - Per-device sync history / conflict resolution beyond last-write-wins.
+
+## Phase 1.5 — auto-backup (v309)
+
+- **Auto-backup keys to cloud** toggle in Settings (default on).
+- Debounced push (~8s) after API key, Plaud tokens, or synced toggle changes.
+- Manual **Back up keys to cloud** still available for immediate upload.
+- Auto-backup is silent on success (status line only); manual backup still toasts.
