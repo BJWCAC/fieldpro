@@ -8,21 +8,26 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v198**
+Current milestone build: **v307**
 
 Status and roadmap: `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md`
 
 ## Current milestone: CapStone Android field workflow
 
-Build v198 brings together the Android field workflow with reliability hardening for poor cell service:
+Build v307 builds on the Android field workflow with the Inbox voice pipeline, Accounts Map, and full asset category layouts, on top of the earlier reliability hardening for poor cell service:
 
-- technician selection on each device
+- technician selection on each device (loaded from Zoho `Internal_Assets.Users`)
 - Zoho deal selection with Deal Selection Workflow card
-- GPS capture
+- GPS capture with View on OpenStreetMap link
 - photo and video field documentation with labels, sync status, and phone Downloads backup
 - local History save **before** Zoho/network steps
 - storage warning when many photos may fill browser storage
+- **Inbox tab** — stage unassigned voice recordings, transcribe with AssemblyAI, link to a deal, and save to Zoho
+- **Plaud auto-pull** — Plaud cloud recordings pull into the Inbox automatically
+- **Accounts Map tab** — Leaflet/OpenStreetMap view of Zoho accounts with deal-stage pins, clustering, and filters
 - equipment asset save/update workflow with draft autosave
+- **Asset Category layouts** — category-driven fields for Flow Meter, Flow Open Channel, Gas Detector, General, Lift Station, and Scales &amp; Balances
+- per-field → AI extract with an offline Pending AI queue
 - search-first asset update (CAC ID, serial, model, brand, type, series, name, building, designator)
 - separate Add New Asset and Update Existing Asset paths
 - Replace Instrument workflow with in-app replacement history cards
@@ -50,7 +55,7 @@ Use CapStone from Chrome on Android.
 2. Go to:
 
    ```text
-   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
+   https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
    ```
 
 3. Tap the Chrome menu.
@@ -194,7 +199,7 @@ Important Android note: clearing Chrome site data can remove local CapStone Hist
 After a new build is merged, test with the versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
 ```
 
 Update the version number when a later build is released.
@@ -224,7 +229,7 @@ Recommended Android smoke test:
 9. Save Report to Zoho (or confirm work remains in History if offline).
 10. Confirm the Zoho deal note exists when online.
 11. Confirm the report PDF is attached directly to the Zoho deal.
-12. Save or update one test asset; search by brand or partial serial if testing v198 search.
+12. Save or update one test asset; search by brand or partial serial, and confirm category-layout fields render for the asset category.
 13. Confirm Equipment and Deal asset update notes.
 14. Reopen the report from History.
 15. Change a note or field.
@@ -246,7 +251,7 @@ Stress test (poor signal):
 Open the latest versioned URL:
 
 ```text
-https://BJWCAC.github.io/fieldpro/FieldPro.html?v=198
+https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
 ```
 
 If needed, close Chrome fully and reopen CapStone.
@@ -284,7 +289,7 @@ Future reports should use stable filenames. Older duplicate files may need to be
 
 ## Training materials
 
-Android training script (recording on hold — script updated for v198):
+Android training script (recording on hold — script updated for v307):
 
 ```text
 docs/CAPSTONE_ANDROID_TRAINING_VIDEO_SCRIPT.md

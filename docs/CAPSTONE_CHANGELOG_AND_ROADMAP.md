@@ -5,7 +5,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-06-08
+Last updated: 2026-06-25
 Current live version: v307
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
 ```
@@ -181,6 +181,7 @@ Related docs (detail, not status):
 
 | Date | What shipped |
 |------|--------------|
+| 2026-06-25 | `README.md` — sync milestone build to v307; add Inbox, Accounts Map, and asset category layouts; update versioned URLs |
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
 | 2026-06-08 | `PLAUD_STAGE2_SETUP.md` — Plaud refresh token + auto-pull field setup |
