@@ -1,0 +1,9 @@
+{
+  "name": "capstone-fieldpro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CapStone FieldPro static web app and Netlify serverless functions",
+  "dependencies": {
+    "@netlify/blobs": "^10.7.9"
+  }
+}
