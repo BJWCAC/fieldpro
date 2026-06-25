@@ -55,8 +55,10 @@ If the passphrase is wrong, Restore reports "Wrong passphrase".
 - Storage: **Netlify Blobs** (store name `capstone-key-sync`). When Blobs is
   unavailable (e.g. local dev), it falls back to a filesystem store under
   `KEY_SYNC_DIR` or the OS temp dir, so the function can be exercised locally.
-- No extra secrets are required. Netlify Blobs is available to functions on the
-  deployed site automatically.
+- No extra secrets are required. Netlify Blobs is available to deployed functions
+  automatically. Because this function uses the Lambda compatibility handler
+  (`exports.handler`), it calls `connectLambda(event)` before `getStore()` — that
+  is required in Lambda mode or Blobs throws `MissingBlobsEnvironmentError`.
 
 ### Actions
 
