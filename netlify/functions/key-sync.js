@@ -1,0 +1,222 @@
+// CapStone Cloud Key Sync (Phase 1)
+// Stores a technician's CapStone keys/settings in the cloud, keyed by their
+// Zoho technician name and protected by a passphrase the technician chooses.
+//
+// Storage: Netlify Blobs in production. Falls back to a local filesystem store
+// (KEY_SYNC_DIR or the OS temp dir) when Blobs is unavailable, so the function
+// can be exercised locally without Netlify context.
+//
+// Security model (Phase 1):
+// - The record is keyed by the normalized technician name.
+// - Settings are encrypted at rest with AES-256-GCM using a key derived from
+//   the passphrase (scrypt). Without the passphrase the stored blob cannot be
+//   decrypted, and a pull with the wrong passphrase fails the GCM auth check.
+
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+
+var STORE_NAME = "capstone-key-sync";
+var SCRYPT_KEYLEN = 32;
+var SCRYPT_COST = { N: 16384, r: 8, p: 1 };
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json"
+  };
+}
+
+function json(statusCode, obj) {
+  return { statusCode: statusCode, headers: corsHeaders(), body: JSON.stringify(obj) };
+}
+
+function normalizeTechnician(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function technicianKey(name) {
+  var norm = normalizeTechnician(name);
+  return crypto.createHash("sha256").update("capstone:" + norm).digest("hex");
+}
+
+function deriveKey(passphrase, salt) {
+  return crypto.scryptSync(String(passphrase), salt, SCRYPT_KEYLEN, SCRYPT_COST);
+}
+
+function encryptSettings(passphrase, settingsObj) {
+  var salt = crypto.randomBytes(16);
+  var iv = crypto.randomBytes(12);
+  var key = deriveKey(passphrase, salt);
+  var cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  var plaintext = Buffer.from(JSON.stringify(settingsObj), "utf8");
+  var enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  var tag = cipher.getAuthTag();
+  return {
+    salt: salt.toString("base64"),
+    iv: iv.toString("base64"),
+    tag: tag.toString("base64"),
+    data: enc.toString("base64")
+  };
+}
+
+function decryptSettings(passphrase, record) {
+  var salt = Buffer.from(record.salt, "base64");
+  var iv = Buffer.from(record.iv, "base64");
+  var tag = Buffer.from(record.tag, "base64");
+  var data = Buffer.from(record.data, "base64");
+  var key = deriveKey(passphrase, salt);
+  var decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  var dec = Buffer.concat([decipher.update(data), decipher.final()]);
+  return JSON.parse(dec.toString("utf8"));
+}
+
+// ---- Storage layer (Netlify Blobs with filesystem fallback) ----
+
+function getBlobStore() {
+  try {
+    var blobs = require("@netlify/blobs");
+    if (blobs && typeof blobs.getStore === "function") {
+      return blobs.getStore(STORE_NAME);
+    }
+  } catch (e) {
+    // package not available locally — fall back to filesystem
+  }
+  return null;
+}
+
+function fsStoreDir() {
+  var dir = process.env.KEY_SYNC_DIR || path.join(os.tmpdir(), STORE_NAME);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {}
+  return dir;
+}
+
+async function storeGet(key) {
+  var store = getBlobStore();
+  if (store) {
+    var raw = await store.get(key, { type: "text" });
+    return raw ? JSON.parse(raw) : null;
+  }
+  var file = path.join(fsStoreDir(), key + ".json");
+  try {
+    var txt = fs.readFileSync(file, "utf8");
+    return txt ? JSON.parse(txt) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function storeSet(key, value) {
+  var store = getBlobStore();
+  var serialized = JSON.stringify(value);
+  if (store) {
+    await store.set(key, serialized);
+    return;
+  }
+  var file = path.join(fsStoreDir(), key + ".json");
+  fs.writeFileSync(file, serialized, "utf8");
+}
+
+// ---- Request handling ----
+
+async function handlePush(data) {
+  var technician = String(data.technician || "").trim();
+  var passphrase = String(data.passphrase || "");
+  var settings = data.settings;
+  if (!technician) return json(400, { ok: false, error: "technician is required" });
+  if (passphrase.length < 4) return json(400, { ok: false, error: "passphrase must be at least 4 characters" });
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return json(400, { ok: false, error: "settings object is required" });
+  }
+  var enc = encryptSettings(passphrase, settings);
+  var record = {
+    v: 1,
+    technician: technician,
+    salt: enc.salt,
+    iv: enc.iv,
+    tag: enc.tag,
+    data: enc.data,
+    fields: Object.keys(settings),
+    device: String(data.device || "").slice(0, 120),
+    updatedAt: new Date().toISOString()
+  };
+  await storeSet(technicianKey(technician), record);
+  return json(200, { ok: true, updatedAt: record.updatedAt, fields: record.fields.length });
+}
+
+async function handlePull(data) {
+  var technician = String(data.technician || "").trim();
+  var passphrase = String(data.passphrase || "");
+  if (!technician) return json(400, { ok: false, error: "technician is required" });
+  if (!passphrase) return json(400, { ok: false, error: "passphrase is required" });
+  var record = await storeGet(technicianKey(technician));
+  if (!record) return json(200, { ok: true, found: false });
+  var settings;
+  try {
+    settings = decryptSettings(passphrase, record);
+  } catch (e) {
+    return json(403, { ok: false, error: "Wrong passphrase for " + technician });
+  }
+  return json(200, {
+    ok: true,
+    found: true,
+    settings: settings,
+    updatedAt: record.updatedAt || null,
+    device: record.device || ""
+  });
+}
+
+async function handleStatus(data) {
+  var technician = String(data.technician || "").trim();
+  if (!technician) return json(400, { ok: false, error: "technician is required" });
+  var record = await storeGet(technicianKey(technician));
+  if (!record) return json(200, { ok: true, found: false });
+  return json(200, {
+    ok: true,
+    found: true,
+    updatedAt: record.updatedAt || null,
+    device: record.device || "",
+    fields: Array.isArray(record.fields) ? record.fields.length : null
+  });
+}
+
+exports.handler = async function (event) {
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: corsHeaders(), body: "" };
+  }
+  if (event.httpMethod !== "POST") {
+    return json(405, { ok: false, error: "POST only" });
+  }
+  var data;
+  try {
+    data = JSON.parse(event.body || "{}");
+  } catch (e) {
+    return json(400, { ok: false, error: "Invalid JSON body" });
+  }
+  var action = String(data.action || "").toLowerCase();
+  try {
+    if (action === "push") return await handlePush(data);
+    if (action === "pull") return await handlePull(data);
+    if (action === "status") return await handleStatus(data);
+    return json(400, { ok: false, error: "Unknown action: " + action });
+  } catch (err) {
+    return json(500, { ok: false, error: err.message || String(err) });
+  }
+};
+
+// Exposed for local testing harnesses.
+exports._internal = {
+  normalizeTechnician: normalizeTechnician,
+  technicianKey: technicianKey,
+  encryptSettings: encryptSettings,
+  decryptSettings: decryptSettings
+};

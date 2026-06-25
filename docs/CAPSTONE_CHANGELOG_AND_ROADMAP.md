@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-25
-Current live version: v307
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=307
+Current live version: v308
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=308
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v308 | — | **Cloud sync Phase 1 — key sync by Zoho technician name** — Settings → Key Sync (Cloud) backs up/restores API key + app settings, keyed by technician name, passphrase-protected; new `key-sync` Netlify function (Netlify Blobs, AES-256-GCM at rest); `docs/CAPSTONE_KEY_SYNC.md` |
 | v196 | #83 | Save Capture to local History **before** Zoho/network; Save Locally button; auto-save on visibility change; quota fallback |
 | v197 | #84 | Auto-save capture photos to phone Downloads; Save to Phone / Save All; Settings toggle `fp_auto_save_phone_photos` |
 | v198 | #85 | Early storage warning; Zoho asset search/deal description enhancements |
@@ -207,7 +208,6 @@ Related docs (detail, not status):
 | Priority | Item | Notes |
 |----------|------|-------|
 | Medium | **Asset category field rollout** | All categories shipped through **Scales &amp; Balances (v307)** — Flow Meter, FOC, Gas Detector, General, Lift Station, Scales &amp; Balances |
-| Medium | **Cloud sync Phase 1 (revised)** | Key sync by Zoho technician name |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
 

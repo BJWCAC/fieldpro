@@ -751,6 +751,20 @@
     </div>
     <button type="button" class="bd bfull" onclick="clearPlaudConnection()">Disconnect Plaud</button>
   </div>
+  <div class="settings-group-title">Key Sync (Cloud)</div>
+  <div class="card">
+    <div class="stitle">Key Sync (Cloud)</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Back up your API key and app settings to the cloud, tied to your <strong>Zoho technician name</strong>, then restore them on another device. Protected by a passphrase you choose — keep it private. See <code>docs/CAPSTONE_KEY_SYNC.md</code>.</div>
+    <div id="sync-tech-line" style="font-size:12px;color:var(--amber);margin-bottom:10px;line-height:1.5">Technician: —</div>
+    <label class="lbl" for="sync-pass-input">Sync passphrase</label>
+    <input type="password" id="sync-pass-input" name="fp-sync-pass" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="Choose a passphrase (4+ characters)" style="width:100%;margin-bottom:8px;font-family:monospace"/>
+    <button type="button" class="bg bfull" onclick="saveSyncPassphrase()" style="margin-bottom:10px">Save passphrase on this device</button>
+    <div class="g2" style="margin-bottom:10px">
+      <button type="button" class="bp bfull" onclick="cloudKeyPush()">Back up keys to cloud</button>
+      <button type="button" class="bg bfull" onclick="cloudKeyPull()">Restore keys to this device</button>
+    </div>
+    <div id="sync-status" style="font-size:12px;color:var(--amber);line-height:1.5"></div>
+  </div>
   <div class="settings-group-title">API Key</div>
   <div class="card">
     <div class="stitle">API Key</div>
@@ -883,7 +897,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=307"></script>
+<script src="src/app.js?v=308"></script>
 
 </body>
 </html>

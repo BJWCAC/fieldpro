@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="307";
+var FP_VERSION="308";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -210,6 +210,8 @@ var INBOX_SUBMIT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functio
 var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/get-transcript";
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
+var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
+var KEY_SYNC_FIELDS=["fp_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme"];
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var PLAUD_AUTO_PULL_MS=3*60*1000;
 var PLAUD_FOREGROUND_PULL_MS=15000;
@@ -539,6 +541,7 @@ function saveTechnicianSetting(v){
   A.technician=v||"";
   try{localStorage.setItem("fp_technician",A.technician);}catch(e){}
   setTechnicianUI();
+  if(typeof renderKeySyncUI==="function")renderKeySyncUI();
   showToast(A.technician?("Technician: "+A.technician):"Technician cleared",2000);
 }
 function currentTechnicianName(){return(A.reportTechnician||A.technician||"").trim();}
@@ -666,6 +669,7 @@ function bootApp(){
     restoreFieldAiUiFromQueue();
     renderInboxBadge();
     if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
+    if(typeof renderKeySyncUI==="function")renderKeySyncUI();
     if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();
     startInboxPollIfNeeded();
   }catch(e){
@@ -5655,6 +5659,95 @@ function togglePlaudAutoPull(){
   if(on&&isPlaudConnected())startPlaudAutoPullIfNeeded();
   else stopPlaudAutoPull();
   showToast(on?"Plaud auto-pull enabled":"Plaud auto-pull paused",2500);
+}
+// CLOUD KEY SYNC (Phase 1) — back up/restore keys & settings by Zoho technician name
+function keySyncUrl(){try{var o=localStorage.getItem("fp_key_sync_url");if(o)return o;}catch(e){}return KEY_SYNC_URL;}
+function getSyncPassphrase(){try{return localStorage.getItem("fp_sync_pass")||"";}catch(e){return"";}}
+function syncDeviceLabel(){
+  var p="";try{p=(navigator.platform||"")+" "+(navigator.vendor||"");}catch(e){}
+  return (p||"device").trim().slice(0,80);
+}
+function gatherSyncSettings(){
+  var out={};
+  KEY_SYNC_FIELDS.forEach(function(k){try{var v=localStorage.getItem(k);if(v!=null)out[k]=v;}catch(e){}});
+  return out;
+}
+function applySyncSettings(s){
+  if(!s||typeof s!=="object")return 0;
+  var applied=0;
+  KEY_SYNC_FIELDS.forEach(function(k){
+    if(Object.prototype.hasOwnProperty.call(s,k)&&s[k]!=null){
+      try{localStorage.setItem(k,String(s[k]));applied++;}catch(e){}
+    }
+  });
+  try{var k=localStorage.getItem("fp_api_key");if(k&&k.indexOf("sk-ant")===0){API_KEY=k;setKeyUI(true);}}catch(e){}
+  A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
+  A.autoSavePhonePhotos=localStorage.getItem("fp_auto_save_phone_photos")!=="0";
+  A.recordAudio=localStorage.getItem("fp_record_audio")==="1";
+  var isLight=localStorage.getItem("fp_theme")==="light";
+  document.body.classList.toggle("light",isLight);
+  var az=el("tog-auto-zoho");if(az)az.classList.toggle("on",A.autoSaveZoho);
+  var ap=el("tog-auto-phone-photos");if(ap)ap.classList.toggle("on",A.autoSavePhonePhotos);
+  var rt=el("audio-tog");if(rt)rt.classList.toggle("on",A.recordAudio);
+  var td=el("tog-dark");if(td)td.classList.toggle("on",!isLight);
+  if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
+  if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();else stopPlaudAutoPull();
+  return applied;
+}
+function setKeySyncStatus(msg,kind){
+  var st=el("sync-status");if(!st)return;
+  st.textContent=msg||"";
+  st.style.color=kind==="ok"?"var(--green)":kind==="err"?"var(--red)":"var(--amber)";
+}
+function renderKeySyncUI(){
+  var line=el("sync-tech-line");
+  if(line)line.textContent="Technician: "+technicianDisplayName()+(getSyncPassphrase()?"  •  passphrase saved":"  •  no passphrase yet");
+  var inp=el("sync-pass-input");
+  if(inp&&!inp.dataset.bound){inp.dataset.bound="1";inp.value=getSyncPassphrase();}
+}
+function saveSyncPassphrase(){
+  var inp=el("sync-pass-input");
+  var v=(inp&&inp.value||"").trim();
+  if(v.length<4){setKeySyncStatus("Passphrase must be at least 4 characters","err");return;}
+  try{localStorage.setItem("fp_sync_pass",v);}catch(e){setKeySyncStatus("Could not save passphrase: "+e.message,"err");return;}
+  setKeySyncStatus("Passphrase saved on this device","ok");
+  showToast("Sync passphrase saved",2500);
+  renderKeySyncUI();
+}
+async function cloudKeyPush(){
+  var tech=currentTechnicianName();
+  if(!tech){setKeySyncStatus("Select your technician first (header or Settings)","err");showToast("Select your technician first",4000);return;}
+  var pass=getSyncPassphrase();
+  if(pass.length<4){setKeySyncStatus("Set a sync passphrase (4+ characters) first","err");return;}
+  var settings=gatherSyncSettings();
+  if(!Object.keys(settings).length){setKeySyncStatus("Nothing to back up yet — add your API key first","err");return;}
+  setKeySyncStatus("Backing up keys to cloud...");
+  try{
+    var r=await fetchWithTimeout(keySyncUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"push",technician:tech,passphrase:pass,settings:settings,device:syncDeviceLabel()})},30000);
+    var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok)throw new Error(d.error||("Backup failed "+r.status));
+    setKeySyncStatus("Backed up "+(d.fields||Object.keys(settings).length)+" settings for "+tech+" — "+new Date().toLocaleTimeString(),"ok");
+    showToast("Keys backed up to cloud",3000);
+  }catch(e){setKeySyncStatus("Backup failed — "+e.message,"err");showToast("Cloud backup failed: "+e.message,6000);}
+}
+async function cloudKeyPull(){
+  var tech=currentTechnicianName();
+  if(!tech){setKeySyncStatus("Select your technician first (header or Settings)","err");showToast("Select your technician first",4000);return;}
+  var pass=getSyncPassphrase();
+  if(!pass){setKeySyncStatus("Enter and save your sync passphrase first","err");return;}
+  if(!confirm("Restore keys & settings for "+tech+" onto this device? This overwrites the API key and synced settings here."))return;
+  setKeySyncStatus("Restoring keys from cloud...");
+  try{
+    var r=await fetchWithTimeout(keySyncUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pull",technician:tech,passphrase:pass})},30000);
+    var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(r.status===403)throw new Error("Wrong passphrase for "+tech);
+    if(!r.ok||!d.ok)throw new Error(d.error||("Restore failed "+r.status));
+    if(!d.found){setKeySyncStatus("No cloud backup found for "+tech,"err");showToast("No cloud backup for "+tech,4000);return;}
+    var applied=applySyncSettings(d.settings);
+    setKeySyncStatus("Restored "+applied+" settings (backed up "+(d.updatedAt?new Date(d.updatedAt).toLocaleString():"unknown")+(d.device?" from "+d.device:"")+")","ok");
+    showToast("Keys restored from cloud",3000);
+    renderKeySyncUI();
+  }catch(e){setKeySyncStatus("Restore failed — "+e.message,"err");showToast("Cloud restore failed: "+e.message,6000);}
 }
 var plaudPullTimer=null;
 var plaudPullInFlight=false;
