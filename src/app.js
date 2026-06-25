@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="309";
+var FP_VERSION="310";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -211,11 +211,15 @@ var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/fun
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
-var KEY_SYNC_FIELDS=["fp_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto"];
+var KEY_SYNC_FIELDS=["fp_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore"];
 var KEY_SYNC_AUTO_PUSH_MS=8000;
+var KEY_SYNC_AUTO_PULL_MS=1500;
 var keySyncPushTimer=null;
+var keySyncPullTimer=null;
 var keySyncPushInFlight=false;
+var keySyncPullInFlight=false;
 var keySyncApplying=false;
+var keySyncAutoPulledForTech="";
 var INBOX_AUDIO_MAX_BYTES=5*1024*1024;
 var PLAUD_AUTO_PULL_MS=3*60*1000;
 var PLAUD_FOREGROUND_PULL_MS=15000;
@@ -546,6 +550,7 @@ function saveTechnicianSetting(v){
   try{localStorage.setItem("fp_technician",A.technician);}catch(e){}
   setTechnicianUI();
   if(typeof renderKeySyncUI==="function")renderKeySyncUI();
+  scheduleKeySyncAutoPull();
   showToast(A.technician?("Technician: "+A.technician):"Technician cleared",2000);
 }
 function currentTechnicianName(){return(A.reportTechnician||A.technician||"").trim();}
@@ -689,6 +694,7 @@ async function startCapStone(){
   setupPendingUploadAutoRetry();
   setupPendingAiAutoRetry();
   setupPlaudForegroundPull();
+  setTimeout(scheduleKeySyncAutoPull,KEY_SYNC_AUTO_PULL_MS);
   try{
     document.addEventListener("visibilitychange",function(){
       if(document.visibilityState!=="hidden")return;
@@ -5702,6 +5708,7 @@ function applySyncSettings(s){
     var rt=el("audio-tog");if(rt)rt.classList.toggle("on",A.recordAudio);
     var td=el("tog-dark");if(td)td.classList.toggle("on",!isLight);
     var ka=el("tog-key-sync-auto");if(ka)ka.classList.toggle("on",isKeySyncAutoBackupEnabled());
+    var kr=el("tog-key-sync-auto-restore");if(kr)kr.classList.toggle("on",isKeySyncAutoRestoreEnabled());
     if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
     if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();else stopPlaudAutoPull();
   }finally{
@@ -5715,6 +5722,7 @@ function setKeySyncStatus(msg,kind){
   st.style.color=kind==="ok"?"var(--green)":kind==="err"?"var(--red)":"var(--amber)";
 }
 function isKeySyncAutoBackupEnabled(){try{return localStorage.getItem("fp_key_sync_auto")!=="0";}catch(e){return true;}}
+function isKeySyncAutoRestoreEnabled(){try{return localStorage.getItem("fp_key_sync_auto_restore")!=="0";}catch(e){return true;}}
 function toggleKeySyncAutoBackup(){
   var on=!isKeySyncAutoBackupEnabled();
   try{localStorage.setItem("fp_key_sync_auto",on?"1":"0");}catch(e){}
@@ -5723,12 +5731,21 @@ function toggleKeySyncAutoBackup(){
   if(on)scheduleKeySyncAutoPush();
   else if(keySyncPushTimer){clearTimeout(keySyncPushTimer);keySyncPushTimer=null;}
 }
+function toggleKeySyncAutoRestore(){
+  var on=!isKeySyncAutoRestoreEnabled();
+  try{localStorage.setItem("fp_key_sync_auto_restore",on?"1":"0");}catch(e){}
+  var t=el("tog-key-sync-auto-restore");if(t)t.classList.toggle("on",on);
+  showToast(on?"Key auto-restore ON":"Key auto-restore OFF",2500);
+  if(on){keySyncAutoPulledForTech="";scheduleKeySyncAutoPull();}
+  else if(keySyncPullTimer){clearTimeout(keySyncPullTimer);keySyncPullTimer=null;}
+}
 function renderKeySyncUI(){
   var line=el("sync-tech-line");
-  if(line)line.textContent="Technician: "+technicianDisplayName()+(getSyncPassphrase()?"  •  passphrase saved":"  •  no passphrase yet")+(isKeySyncAutoBackupEnabled()?"  •  auto-backup on":"  •  auto-backup off");
+  if(line)line.textContent="Technician: "+technicianDisplayName()+(getSyncPassphrase()?"  •  passphrase saved":"  •  no passphrase yet")+(isKeySyncAutoBackupEnabled()?"  •  auto-backup on":"  •  auto-backup off")+(isKeySyncAutoRestoreEnabled()?"  •  auto-restore on":"  •  auto-restore off");
   var inp=el("sync-pass-input");
   if(inp&&!inp.dataset.bound){inp.dataset.bound="1";inp.value=getSyncPassphrase();}
   var ka=el("tog-key-sync-auto");if(ka)ka.classList.toggle("on",isKeySyncAutoBackupEnabled());
+  var kr=el("tog-key-sync-auto-restore");if(kr)kr.classList.toggle("on",isKeySyncAutoRestoreEnabled());
 }
 function saveSyncPassphrase(){
   var inp=el("sync-pass-input");
@@ -5738,7 +5755,36 @@ function saveSyncPassphrase(){
   setKeySyncStatus("Passphrase saved on this device","ok");
   showToast("Sync passphrase saved",2500);
   renderKeySyncUI();
+  keySyncAutoPulledForTech="";
   scheduleKeySyncAutoPush();
+  scheduleKeySyncAutoPull();
+}
+function isSyncFieldMissing(k){
+  try{
+    if(k==="fp_api_key"){
+      var key=localStorage.getItem("fp_api_key")||"";
+      return !key||key.indexOf("sk-ant")!==0;
+    }
+    if(k==="fp_plaud_tokens")return !isPlaudConnected();
+    return localStorage.getItem(k)==null;
+  }catch(e){return true;}
+}
+function mergeSyncSettingsFillMissing(cloudSettings){
+  var out={};
+  if(!cloudSettings||typeof cloudSettings!=="object")return out;
+  KEY_SYNC_FIELDS.forEach(function(k){
+    if(!Object.prototype.hasOwnProperty.call(cloudSettings,k)||cloudSettings[k]==null)return;
+    if(isSyncFieldMissing(k))out[k]=cloudSettings[k];
+  });
+  return out;
+}
+function scheduleKeySyncAutoPull(){
+  if(keySyncApplying||!isKeySyncAutoRestoreEnabled())return;
+  if(keySyncPullTimer)clearTimeout(keySyncPullTimer);
+  keySyncPullTimer=setTimeout(function(){
+    keySyncPullTimer=null;
+    runKeySyncPull({silent:true,fillMissing:true});
+  },KEY_SYNC_AUTO_PULL_MS);
 }
 function scheduleKeySyncAutoPush(){
   if(keySyncApplying||!isKeySyncAutoBackupEnabled())return;
@@ -5794,24 +5840,69 @@ async function runKeySyncPush(opts){
   }
 }
 async function cloudKeyPush(){return runKeySyncPush({manual:true});}
-async function cloudKeyPull(){
+async function runKeySyncPull(opts){
+  opts=opts||{};
+  if(keySyncApplying)return false;
   var tech=currentTechnicianName();
-  if(!tech){setKeySyncStatus("Select your technician first (header or Settings)","err");showToast("Select your technician first",4000);return;}
+  if(!tech){
+    if(opts.manual){setKeySyncStatus("Select your technician first (header or Settings)","err");showToast("Select your technician first",4000);}
+    return false;
+  }
   var pass=getSyncPassphrase();
-  if(!pass){setKeySyncStatus("Enter and save your sync passphrase first","err");return;}
-  if(!confirm("Restore keys & settings for "+tech+" onto this device? This overwrites the API key and synced settings here."))return;
-  setKeySyncStatus("Restoring keys from cloud...");
+  if(pass.length<4){
+    if(opts.manual)setKeySyncStatus("Enter and save your sync passphrase first","err");
+    return false;
+  }
+  if(!opts.manual&&opts.fillMissing){
+    if(keySyncAutoPulledForTech===tech)return false;
+    keySyncAutoPulledForTech=tech;
+  }
+  if(keySyncPullInFlight){
+    if(opts.manual)setKeySyncStatus("Restore already in progress...");
+    else scheduleKeySyncAutoPull();
+    return false;
+  }
+  keySyncPullInFlight=true;
+  if(opts.manual)setKeySyncStatus("Restoring keys from cloud...");
+  else if(opts.fillMissing)setKeySyncStatus("Checking cloud for missing keys...");
   try{
     var r=await fetchWithTimeout(keySyncUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"pull",technician:tech,passphrase:pass})},30000);
     var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
     if(r.status===403)throw new Error("Wrong passphrase for "+tech);
     if(!r.ok||!d.ok)throw new Error(d.error||("Restore failed "+r.status));
-    if(!d.found){setKeySyncStatus("No cloud backup found for "+tech,"err");showToast("No cloud backup for "+tech,4000);return;}
-    var applied=applySyncSettings(d.settings);
-    setKeySyncStatus("Restored "+applied+" settings (backed up "+(d.updatedAt?new Date(d.updatedAt).toLocaleString():"unknown")+(d.device?" from "+d.device:"")+")","ok");
-    showToast("Keys restored from cloud",3000);
-    renderKeySyncUI();
-  }catch(e){setKeySyncStatus("Restore failed — "+e.message,"err");showToast("Cloud restore failed: "+e.message,6000);}
+    if(!d.found){
+      if(opts.manual){setKeySyncStatus("No cloud backup found for "+tech,"err");showToast("No cloud backup for "+tech,4000);}
+      else setKeySyncStatus("No cloud backup for "+tech+" yet","err");
+      return false;
+    }
+    var toApply=opts.fillMissing?mergeSyncSettingsFillMissing(d.settings):d.settings;
+    var applied=applySyncSettings(toApply);
+    var when=d.updatedAt?new Date(d.updatedAt).toLocaleString():"unknown";
+    var fromDev=d.device?" from "+d.device:"";
+    if(opts.manual){
+      setKeySyncStatus("Restored "+applied+" settings (backed up "+when+fromDev+")","ok");
+      showToast("Keys restored from cloud",3000);
+      renderKeySyncUI();
+    }else if(applied>0){
+      setKeySyncStatus("Auto-restored "+applied+" missing settings (cloud backup "+when+fromDev+")","ok");
+      showToast("Restored "+applied+" keys from cloud",3000);
+      renderKeySyncUI();
+    }else setKeySyncStatus("Cloud backup checked — nothing missing on this device","ok");
+    return applied>0;
+  }catch(e){
+    if(!opts.manual&&opts.fillMissing)keySyncAutoPulledForTech="";
+    if(opts.manual){
+      setKeySyncStatus("Restore failed — "+e.message,"err");
+      showToast("Cloud restore failed: "+e.message,6000);
+    }else setKeySyncStatus("Auto-restore failed — "+e.message,"err");
+    return false;
+  }finally{
+    keySyncPullInFlight=false;
+  }
+}
+async function cloudKeyPull(){
+  if(!confirm("Restore keys & settings for "+currentTechnicianName()+" onto this device? This overwrites the API key and synced settings here."))return;
+  return runKeySyncPull({manual:true,fillMissing:false});
 }
 var plaudPullTimer=null;
 var plaudPullInFlight=false;
