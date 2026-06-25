@@ -763,6 +763,13 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">After you save your passphrase, API key, Plaud connection, or app toggles, CapStone backs up to the cloud within a few seconds.</div>
       </div>
     </div>
+    <div class="tog-row" onclick="toggleKeySyncAutoRestore()" style="margin-bottom:10px">
+      <div class="tog on" id="tog-key-sync-auto-restore"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-restore on app open</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">When CapStone opens or you select your technician, missing keys and settings are pulled from the cloud. Does not overwrite values already on this device.</div>
+      </div>
+    </div>
     <label class="lbl" for="sync-pass-input">Sync passphrase</label>
     <input type="password" id="sync-pass-input" name="fp-sync-pass" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="Choose a passphrase (4+ characters)" style="width:100%;margin-bottom:8px;font-family:monospace"/>
     <button type="button" class="bg bfull" onclick="saveSyncPassphrase()" style="margin-bottom:10px">Save passphrase on this device</button>
@@ -904,7 +911,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=309"></script>
+<script src="src/app.js?v=310"></script>
 
 </body>
 </html>

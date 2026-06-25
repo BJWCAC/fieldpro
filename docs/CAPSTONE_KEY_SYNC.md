@@ -21,6 +21,7 @@ The whitelist of `localStorage` keys backed up / restored:
 | `fp_record_audio` | Record audio in video toggle |
 | `fp_theme` | Light / dark theme |
 | `fp_key_sync_auto` | Auto-backup toggle (on unless turned off) |
+| `fp_key_sync_auto_restore` | Auto-restore on app open toggle (on unless turned off) |
 
 Reports, capture drafts, photos, deal cache, and History are **not** synced — they
 stay on the device.
@@ -37,10 +38,11 @@ works.
    Keep this passphrase private — it protects your keys in the cloud.
 4. Turn on **Auto-backup keys to cloud** (default on). After you change your API key,
    Plaud connection, or app toggles, CapStone uploads to the cloud within ~8 seconds.
-   You can still tap **Back up keys to cloud** anytime for an immediate backup.
-5. On another device, select the **same technician name**, enter the **same
-   passphrase**, and tap **Restore keys to this device**. The API key and synced
-   settings are pulled down and applied immediately.
+5. Turn on **Auto-restore on app open** (default on). On a new device, CapStone pulls
+   **missing** keys and settings from the cloud when it opens or when you select your
+   technician — it does not overwrite values already saved on that device.
+6. You can still tap **Back up keys to cloud** or **Restore keys to this device**
+   anytime. Manual restore overwrites all synced settings (with confirmation).
 
 If no backup exists for the technician, Restore reports "No cloud backup found".
 If the passphrase is wrong, Restore reports "Wrong passphrase".
@@ -92,7 +94,6 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 
 ## Not in Phase 1 (future)
 
-- Auto-pull on app open (restore still manual — tap **Restore keys to this device**).
 - Syncing reports, drafts, photos, or History (see Phase 2+ in the roadmap).
 - Per-device sync history / conflict resolution beyond last-write-wins.
 
@@ -102,3 +103,12 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 - Debounced push (~8s) after API key, Plaud tokens, or synced toggle changes.
 - Manual **Back up keys to cloud** still available for immediate upload.
 - Auto-backup is silent on success (status line only); manual backup still toasts.
+
+## Phase 1.6 — auto-restore (v310)
+
+- **Auto-restore on app open** toggle in Settings (default on).
+- On app open or technician select, pulls cloud backup and fills **missing only**
+  (no API key locally, no Plaud connection, unset toggles).
+- Manual **Restore keys to this device** still overwrites all synced settings.
+- Auto-restore runs once per technician per app session unless you change technician
+  or save the passphrase again.

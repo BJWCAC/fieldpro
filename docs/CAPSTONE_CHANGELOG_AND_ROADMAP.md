@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-25
-Current live version: v309
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=309
+Current live version: v310
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=310
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v310 | — | **Key Sync auto-restore** — fill missing keys/settings from cloud on app open or technician select; toggle default on; manual restore still overwrites all |
 | v309 | — | **Key Sync auto-backup** — Settings toggle (default on); debounced cloud push after API key, Plaud, or synced toggle changes; manual backup still available |
 | v308 | — | **Cloud sync Phase 1 — key sync by Zoho technician name** — Settings → Key Sync (Cloud) backs up/restores API key + app settings, keyed by technician name, passphrase-protected; new `key-sync` Netlify function (Netlify Blobs, AES-256-GCM at rest); `docs/CAPSTONE_KEY_SYNC.md` |
 | v196 | #83 | Save Capture to local History **before** Zoho/network; Save Locally button; auto-save on visibility change; quota fallback |
