@@ -80,14 +80,32 @@ function decryptSettings(passphrase, record) {
 
 // ---- Storage layer (Netlify Blobs with filesystem fallback) ----
 
+var blobsLib = null;
+try {
+  blobsLib = require("@netlify/blobs");
+} catch (e) {
+  // package not available locally — fall back to filesystem
+  blobsLib = null;
+}
+
+// Lambda compatibility mode (exports.handler) does not auto-configure Netlify
+// Blobs. connectLambda(event) must run before getStore(), or getStore throws
+// MissingBlobsEnvironmentError. Call this at the top of the handler.
+function connectBlobs(event) {
+  if (blobsLib && typeof blobsLib.connectLambda === "function") {
+    try {
+      blobsLib.connectLambda(event);
+    } catch (e) {}
+  }
+}
+
 function getBlobStore() {
-  try {
-    var blobs = require("@netlify/blobs");
-    if (blobs && typeof blobs.getStore === "function") {
-      return blobs.getStore(STORE_NAME);
+  if (blobsLib && typeof blobsLib.getStore === "function") {
+    try {
+      return blobsLib.getStore(STORE_NAME);
+    } catch (e) {
+      // Blobs not configured in this environment — fall back to filesystem
     }
-  } catch (e) {
-    // package not available locally — fall back to filesystem
   }
   return null;
 }
@@ -196,6 +214,7 @@ exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
     return json(405, { ok: false, error: "POST only" });
   }
+  connectBlobs(event);
   var data;
   try {
     data = JSON.parse(event.body || "{}");
