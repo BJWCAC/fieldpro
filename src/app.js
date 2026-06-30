@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="311";
+var FP_VERSION="312";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -410,17 +410,16 @@ function trimHistoryPhotoData(h,keepPhotosIndex){
     return s;
   });
 }
-function prepareStorageForHistorySave(keepPhotosIndex){
+function prepareStorageForHistorySave(h,keepPhotosIndex){
   clearCaptureDraftStorage();
-  var h=getHistory();
+  h=Array.isArray(h)?h.slice():getHistory();
   if(!h.length)return h;
   var trimmed=trimHistoryPhotoData(h,keepPhotosIndex);
   if(trimmed.length>12)trimmed=trimHistoryPhotoData(trimmed.slice(0,12),keepPhotosIndex);
-  try{localStorage.setItem("fp_history",JSON.stringify(trimmed));}catch(e){}
   return trimmed;
 }
 function persistHistoryRecords(h,keepPhotosIndex){
-  if(isStoragePressure())h=prepareStorageForHistorySave(keepPhotosIndex);
+  if(isStoragePressure())h=prepareStorageForHistorySave(h,keepPhotosIndex);
   var saved=false,out=h;
   try{localStorage.setItem("fp_history",JSON.stringify(h));saved=true;}catch(e){}
   if(!saved){
@@ -1008,8 +1007,18 @@ function saveCaptureWorkLocally(opts){
     clearCaptureDraftStorage();
     var h=getHistory(),keepIdx=0;
     if(A.currentHistoryId){for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){keepIdx=i;break;}}}
-    prepareStorageForHistorySave(keepIdx);
-    result=saveOrUpdateHistory(meta);
+    if(A.currentHistoryId){
+      var found=false;
+      for(var u=0;u<h.length;u++){if(h[u].id===A.currentHistoryId){h[u]=Object.assign({},h[u],meta,{id:A.currentHistoryId});found=true;keepIdx=u;break;}}
+      if(!found){h.unshift(meta);keepIdx=0;}
+    }else{h.unshift(meta);keepIdx=0;}
+    var pr=persistHistoryRecords(prepareStorageForHistorySave(h,keepIdx),keepIdx);
+    result=pr.saved?(pr.records[keepIdx]||meta):null;
+    if(pr.saved)renderHistory();
+  }
+  if(result){
+    var savedId=(result.id||meta.id||A.currentHistoryId);
+    if(!getHistory().some(function(r){return r.id===savedId;}))result=null;
   }
   if(result){
     clearCaptureDraftStorage();

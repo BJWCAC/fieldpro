@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-25
-Current live version: v311
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=311
+Current live version: v312
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=312
 ```
 
 ---
@@ -34,6 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v312 | — | **Fix History empty after Save Locally** — storage-pressure path no longer drops the current capture before writing History |
+| v311 | — | **Save Locally under storage pressure** — auto-clear duplicate capture draft, trim older History photos, retry save; clearer storage warning |
 | v309 | — | **Key Sync auto-backup** — Settings toggle (default on); debounced cloud push after API key, Plaud, or synced toggle changes; manual backup still available |
 | v308 | — | **Cloud sync Phase 1 — key sync by Zoho technician name** — Settings → Key Sync (Cloud) backs up/restores API key + app settings, keyed by technician name, passphrase-protected; new `key-sync` Netlify function (Netlify Blobs, AES-256-GCM at rest); `docs/CAPSTONE_KEY_SYNC.md` |
 | v196 | #83 | Save Capture to local History **before** Zoho/network; Save Locally button; auto-save on visibility change; quota fallback |
