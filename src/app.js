@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="309";
+var FP_VERSION="311";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -395,25 +395,51 @@ function currentHistoryIndex(){
 function stripHistoryPhotoDisplay(photo){
   return{id:photo.id,display:"",label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||"",savedToPhone:!!photo.savedToPhone,phoneFileName:photo.phoneFileName||"",phoneSource:photo.phoneSource||""};
 }
+function isStoragePressure(){
+  var totalMB=parseFloat(getStorageSize())||0;
+  return A.photos.length>=CAPTURE_STORAGE_WARN_PHOTOS||estimateCapturePhotoStorageMB()>=2.5||totalMB>=CAPTURE_STORAGE_WARN_MB;
+}
+function clearCaptureDraftStorage(){
+  try{localStorage.removeItem("fp_capture_draft");}catch(e){}
+}
+function trimHistoryPhotoData(h,keepPhotosIndex){
+  return h.map(function(r,i){
+    if(typeof keepPhotosIndex==="number"&&i===keepPhotosIndex)return r;
+    var s=Object.assign({},r);
+    if(s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
+    return s;
+  });
+}
+function prepareStorageForHistorySave(keepPhotosIndex){
+  clearCaptureDraftStorage();
+  var h=getHistory();
+  if(!h.length)return h;
+  var trimmed=trimHistoryPhotoData(h,keepPhotosIndex);
+  if(trimmed.length>12)trimmed=trimHistoryPhotoData(trimmed.slice(0,12),keepPhotosIndex);
+  try{localStorage.setItem("fp_history",JSON.stringify(trimmed));}catch(e){}
+  return trimmed;
+}
 function persistHistoryRecords(h,keepPhotosIndex){
+  if(isStoragePressure())h=prepareStorageForHistorySave(keepPhotosIndex);
   var saved=false,out=h;
   try{localStorage.setItem("fp_history",JSON.stringify(h));saved=true;}catch(e){}
   if(!saved){
-    var trimmed=h.map(function(r,i){
-      if(typeof keepPhotosIndex==="number"&&i===keepPhotosIndex)return r;
-      var s=Object.assign({},r);
-      if(s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
-      return s;
-    });
+    clearCaptureDraftStorage();
+    var trimmed=trimHistoryPhotoData(h,keepPhotosIndex);
     try{localStorage.setItem("fp_history",JSON.stringify(trimmed));saved=true;out=trimmed;}catch(e){}
   }
   if(!saved){
     var minimal=h.slice(0,5).map(function(r,i){
       var s=Object.assign({},r);
-      if(i!==0)s.photoData=[];
+      if(i!==keepPhotosIndex&&s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
       return s;
     });
     try{localStorage.setItem("fp_history",JSON.stringify(minimal));saved=true;out=minimal;}catch(e){}
+  }
+  if(!saved){
+    clearCaptureDraftStorage();
+    var textOnly=trimHistoryPhotoData(h.slice(0,3),typeof keepPhotosIndex==="number"?Math.min(keepPhotosIndex,2):0);
+    try{localStorage.setItem("fp_history",JSON.stringify(textOnly));saved=true;out=textOnly;}catch(e){}
   }
   return{saved:saved,records:out};
 }
@@ -976,17 +1002,27 @@ function buildCaptureHistoryMeta(){
 function saveCaptureWorkLocally(opts){
   opts=opts||{};
   if(!captureDraftHasWork())return false;
-  var saved=!!saveOrUpdateHistory(buildCaptureHistoryMeta());
-  if(saved){
+  var meta=buildCaptureHistoryMeta();
+  var result=saveOrUpdateHistory(meta);
+  if(!result&&isStoragePressure()){
+    clearCaptureDraftStorage();
+    var h=getHistory(),keepIdx=0;
+    if(A.currentHistoryId){for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){keepIdx=i;break;}}}
+    prepareStorageForHistorySave(keepIdx);
+    result=saveOrUpdateHistory(meta);
+  }
+  if(result){
+    clearCaptureDraftStorage();
     var t=new Date().toLocaleTimeString();
     setCaptureDraftStatus("Saved locally to History "+t+" — Zoho can wait for better signal");
-    if(!opts.silent)showToast("Capture saved locally to History",3500);
+    if(!opts.silent)showToast(isStoragePressure()?"Capture saved locally (older History photos trimmed to free space)":"Capture saved locally to History",3500);
+    updateStorageInfo();
   }else{
-    setCaptureDraftStatus("Local History save failed — storage may be full. Export older History from Settings.",true);
+    setCaptureDraftStatus("Local History save failed — tap Save All Photos to Phone, then Settings → Free Up Space, and try again.",true);
     updateCaptureStorageWarning();
-    if(!opts.silent)showToast("Could not save locally — storage may be full",7000);
+    if(!opts.silent)showToast("Could not save locally — free space in Settings first",7000);
   }
-  return saved;
+  return !!result;
 }
 function scheduleCaptureHistorySave(){
   if(A.draftRestored===false&&document.readyState==="loading")return;
@@ -996,7 +1032,12 @@ function scheduleCaptureHistorySave(){
 function saveCaptureDraftNow(){
   if(!captureDraftHasWork())return;
   try{
-    localStorage.setItem("fp_capture_draft",JSON.stringify(buildCaptureDraft()));
+    var draft=buildCaptureDraft();
+    if(A.currentHistoryId&&isStoragePressure()){
+      draft.photos=(draft.photos||[]).map(function(p){return Object.assign({},p,{display:""});});
+      draft.reportPhotos=(draft.reportPhotos||[]).map(function(p){return Object.assign({},p,{display:""});});
+    }
+    localStorage.setItem("fp_capture_draft",JSON.stringify(draft));
     setCaptureDraftStatus("Draft saved "+new Date().toLocaleTimeString());
   }catch(e){
     console.log("capture draft save",e);
@@ -6380,7 +6421,7 @@ function updateCaptureStorageWarning(){
   if(totalMB>=CAPTURE_STORAGE_WARN_MB)reasons.push(totalMB+" MB total browser storage used");
   if(!reasons.length){box.style.display="none";box.innerHTML="";return;}
   box.style.display="block";
-  box.innerHTML="<strong>Storage getting full</strong> — "+reasons.join("; ")+". Use <strong>Save All Photos to Phone</strong>, export older History from Settings, or remove unused photos so poor signal does not block local saves.";
+  box.innerHTML="<strong>Storage getting full</strong> — "+reasons.join("; ")+". <strong>Save Locally to History</strong> still works — CapStone frees space from older History when needed. Also use <strong>Save All Photos to Phone</strong> or Settings → <strong>Free Up Space</strong>.";
 }
 function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHistory();e.textContent=h.length+" reports — approx "+getStorageSize()+" MB used of 5 MB";updateCaptureStorageWarning();}
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}
