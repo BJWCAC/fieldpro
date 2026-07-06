@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-06-25
-Current live version: v312
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=312
+Last updated: 2026-07-06
+Current live version: v314
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=314
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v314 | — | **Fix History reports losing photos** — photo image data now persists in IndexedDB (large quota) keyed by photo id, and History/Report/PDF/draft reads hydrate the image data back from IndexedDB. localStorage trimming to stay under quota no longer destroys pictures (or their descriptions) in older reports; export now includes full images, import mirrors them to IndexedDB, and Free Up Space / delete clean up IndexedDB too |
 | v312 | — | **Fix History empty after Save Locally** — storage-pressure path no longer drops the current capture before writing History |
 | v311 | — | **Save Locally under storage pressure** — auto-clear duplicate capture draft, trim older History photos, retry save; clearer storage warning |
 | v309 | — | **Key Sync auto-backup** — Settings toggle (default on); debounced cloud push after API key, Plaud, or synced toggle changes; manual backup still available |
