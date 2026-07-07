@@ -200,14 +200,30 @@
     </div>
   </div>
   <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Videos</div>
+    <details class="help-box nested" data-help-id="capture-videos">
+      <summary>Help: Videos</summary>
+      <div class="help-box-body">
+        <p>Add as many videos as you need — record them here or pick existing clips from your gallery. Each video is saved locally (survives no signal and app restarts), can be saved to your phone or removed, and its spoken voice is transcribed into the report.</p>
+        <ul>
+          <li>Turn on <strong>Record audio in video</strong> before recording so the voice can be transcribed.</li>
+          <li>Videos upload to WorkDrive automatically when you save the report and signal allows; large clips keep retrying in Pending Sync.</li>
+        </ul>
+      </div>
+    </details>
+    <label class="fbtn bb-lg" style="margin-bottom:8px">Add Video from Gallery<input type="file" accept="video/*" multiple style="display:none" onchange="addVideos(this)"/></label>
+    <button class="bg-lg" id="video-save-all-btn" onclick="saveAllVideosToPhone()" style="display:none;margin-bottom:8px">Save All Videos to Phone</button>
+    <div id="video-cards"></div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:6px;flex-wrap:wrap">
       <div class="stitle" style="margin-bottom:0">Video Voice Transcript</div>
       <button type="button" class="field-ai-btn bg bsm" data-field-ai-target="video-transcript" title="Polish transcript with AI" onclick="runFieldPolishAi('video-transcript')">&#8594; AI</button>
     </div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Auto-filled from the recorded video&#39;s audio (turn on <strong>Record audio in video</strong> before recording). Included in the AI report.</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Auto-filled from the voice in your recorded/gallery videos (turn on <strong>Record audio in video</strong> before recording). All clips are combined here and included in the AI report — edit freely.</div>
     <div class="field-ai-status" id="field-ai-status-video-transcript"></div>
     <div id="video-transcript-status" style="display:none;font-size:11px;margin-bottom:6px"></div>
-    <textarea id="video-transcript" inputmode="text" rows="3" placeholder="Voice from the video appears here after recording — or type/paste notes." oninput="checkGen()"></textarea>
+    <textarea id="video-transcript" inputmode="text" rows="3" placeholder="Voice from your videos appears here — or type/paste notes." oninput="checkGen()"></textarea>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Add Photos from Gallery</div>
@@ -915,7 +931,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=317"></script>
+<script src="src/app.js?v=318"></script>
 
 </body>
 </html>
