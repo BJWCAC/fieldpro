@@ -682,6 +682,7 @@ function go(n){
     if(t)t.classList.toggle("on",x===n);
   });
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
+  if(n==="capture"&&typeof updateCaptureStorageWarning==="function")updateCaptureStorageWarning();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
