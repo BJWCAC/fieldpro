@@ -33,8 +33,8 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="316";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
+var FP_VERSION="317";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -351,6 +351,97 @@ function hydrateCaptureVideoFromRecord(r){
     if(rec&&rec.blob){A.videoBlob=rec.blob;A.videoMime=rec.mime||A.videoMime;A.videoSize=rec.size||(A.videoBlob&&A.videoBlob.size)||0;fpIdbMarkPersisted(A.videoId);showEl("video-save-bar");return true;}
     return false;
   }).catch(function(){return false;});
+}
+// A compact audio-only track is captured alongside the video so the spoken
+// voice can be transcribed without shipping the (large) full video. It is
+// stored in IndexedDB like the video and referenced from the record.
+function persistCaptureAudio(){
+  if(!A.audioBlob)return Promise.resolve(false);
+  if(!A.audioId)A.audioId="aud:a"+Date.now()+Math.floor(Math.random()*1e6);
+  A.audioMime=A.audioBlob.type||A.audioMime||"audio/webm";
+  A.audioSize=A.audioBlob.size||0;
+  return fpIdbPutBlob(A.audioId,A.audioBlob,{mime:A.audioMime,size:A.audioSize,kind:"audio"});
+}
+function hydrateCaptureAudioFromRecord(r){
+  A.audioBlob=null;A.audioId=(r&&r.audioId)||null;A.audioMime=(r&&r.audioMime)||"";A.audioSize=(r&&r.audioSize)||0;
+  if(!A.audioId)return Promise.resolve(false);
+  return fpIdbGetBlob(A.audioId).then(function(rec){if(rec&&rec.blob){A.audioBlob=rec.blob;A.audioMime=rec.mime||A.audioMime;A.audioSize=rec.size||(A.audioBlob&&A.audioBlob.size)||0;fpIdbMarkPersisted(A.audioId);return true;}return false;}).catch(function(){return false;});
+}
+// ---- Video voice transcript field + AssemblyAI transcription wiring --------
+function getVideoTranscriptValue(){var e=el("video-transcript");return e?(e.value||""):"";}
+function setVideoTranscriptValue(v){var e=el("video-transcript");if(e)e.value=v||"";if(typeof checkGen==="function")checkGen();if(typeof scheduleCaptureDraftSave==="function")scheduleCaptureDraftSave();}
+function setTranscriptStatusUI(msg,kind){var e=el("video-transcript-status");if(!e)return;if(!msg){e.style.display="none";e.textContent="";return;}e.style.display="block";e.textContent=msg;e.style.color=kind==="err"?"#991b1b":(kind==="ok"?"#166534":"#2d6b60");}
+function mergeTranscript(existing,incoming){existing=(existing||"").trim();incoming=(incoming||"").trim();if(!existing)return incoming;if(!incoming)return existing;if(existing.indexOf(incoming)>=0)return existing;return existing+"\n\n"+incoming;}
+function blobToBase64(blob){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(e){var s=String(e.target.result||"");var c=s.indexOf(",");resolve(c>=0?s.slice(c+1):s);};r.onerror=function(){reject(new Error("Could not read audio"));};r.readAsDataURL(blob);});}
+function updateTranscribeButton(){
+  var b=el("transcribe-btn");if(!b)return;
+  var has=!!A.audioBlob;
+  b.style.display=has?"inline-flex":"none";
+  b.disabled=A.transcriptStatus==="transcribing";
+  b.textContent=A.transcriptStatus==="transcribing"?"Transcribing…":"Transcribe voice → text";
+}
+async function transcribeCaptureAudio(opts){
+  opts=opts||{};
+  if(!A.audioBlob){if(!opts.silent)showToast("No recorded audio. Turn on 'Record audio in video' before recording.",5000);return false;}
+  if(A.audioBlob.size>INBOX_AUDIO_MAX_BYTES){A.transcriptStatus="";setTranscriptStatusUI("Audio too long to auto-transcribe ("+(A.audioBlob.size/1048576).toFixed(1)+" MB). Video is still saved; you can type notes.","err");updateTranscribeButton();return false;}
+  if(typeof navigator!=="undefined"&&navigator.onLine===false){A.transcriptStatus="pending";setTranscriptStatusUI("Offline — voice will transcribe when back online. Video is saved.","");scheduleCaptureDraftSave();updateTranscribeButton();return false;}
+  try{
+    A.transcriptStatus="transcribing";setTranscriptStatusUI("Transcribing voice from video…","");updateTranscribeButton();
+    var b64=await blobToBase64(A.audioBlob);
+    var res=await fetchWithTimeout(INBOX_SUBMIT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({filename:workdriveVideoFileName().replace(/\.webm$/i,"")+"-audio",source:"capture_video",audio_b64:b64})},60000);
+    var d={};try{d=await res.json();}catch(e){}
+    if(!res.ok||(d&&d.ok===false))throw new Error((d&&d.error)||("submit "+res.status));
+    if(d&&d.transcript&&!d.assemblyTranscriptId){
+      setVideoTranscriptValue(mergeTranscript(getVideoTranscriptValue(),d.transcript));
+      A.transcriptStatus="ready";setTranscriptStatusUI("Transcript added from video.","ok");updateTranscribeButton();
+      saveCaptureWorkLocally({silent:true});return true;
+    }
+    A.transcriptJobId=(d&&(d.assemblyTranscriptId||d.id))||null;
+    if(!A.transcriptJobId){A.transcriptStatus="";setTranscriptStatusUI((d&&d.message)||"Transcription unavailable right now. Video is saved.","");updateTranscribeButton();return false;}
+    A.transcriptStatus="transcribing";scheduleCaptureDraftSave();saveCaptureWorkLocally({silent:true});
+    startCaptureTranscriptPolling();
+    if(!opts.silent)showToast("Transcribing voice — text will fill in when ready",4000);
+    return true;
+  }catch(e){
+    A.transcriptStatus="error";setTranscriptStatusUI("Could not transcribe now: "+(e.message||e)+". Video is saved — tap Transcribe to retry.","err");updateTranscribeButton();
+    return false;
+  }
+}
+function startCaptureTranscriptPolling(){
+  if(A.transcriptTimer||!A.transcriptJobId)return;
+  A.transcriptTimer=setInterval(pollCaptureTranscript,8000);
+  setTimeout(pollCaptureTranscript,1500);
+}
+function stopCaptureTranscriptPolling(){if(A.transcriptTimer){clearInterval(A.transcriptTimer);A.transcriptTimer=null;}}
+async function pollCaptureTranscript(){
+  if(!A.transcriptJobId){stopCaptureTranscriptPolling();return;}
+  var jobId=A.transcriptJobId;
+  try{
+    var res=await fetchWithTimeout(INBOX_TRANSCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({transcript_id:jobId})},30000);
+    var d={};try{d=await res.json();}catch(e){}
+    if(A.transcriptJobId!==jobId)return; // capture changed under us
+    if(d&&d.status==="completed"){
+      stopCaptureTranscriptPolling();A.transcriptStatus="ready";
+      if(d.transcript)setVideoTranscriptValue(mergeTranscript(getVideoTranscriptValue(),d.transcript));
+      setTranscriptStatusUI("Voice transcript added from video.","ok");updateTranscribeButton();
+      saveCaptureWorkLocally({silent:true});
+    }else if(d&&(d.status==="error"||d.ok===false)){
+      stopCaptureTranscriptPolling();A.transcriptStatus="error";setTranscriptStatusUI("Transcription failed: "+((d&&d.error)||"error")+" — tap Transcribe to retry.","err");updateTranscribeButton();
+    }
+  }catch(e){/* transient — keep polling */}
+}
+// Restore transcript + audio state when reopening a capture from History/draft.
+function applyTranscriptFromRecord(r){
+  stopCaptureTranscriptPolling();
+  var e=el("video-transcript");if(e)e.value=(r&&r.videoTranscript)||"";
+  A.transcriptJobId=(r&&r.transcriptJobId)||null;
+  A.transcriptStatus=(r&&r.transcriptStatus)||"";
+  return hydrateCaptureAudioFromRecord(r).then(function(){
+    updateTranscribeButton();
+    if(A.transcriptStatus==="transcribing"&&A.transcriptJobId){setTranscriptStatusUI("Transcribing voice from video…","");startCaptureTranscriptPolling();}
+    else if(getVideoTranscriptValue().trim())setTranscriptStatusUI("Voice transcript from video.","ok");
+    else setTranscriptStatusUI("",null);
+  });
 }
 // Lightweight photo metadata (everything except the heavy display data URL).
 function fpPhotoMeta(p){
@@ -1151,10 +1242,11 @@ function captureDraftHasWork(){
   var tx=(el("tx")||{value:""}).value.trim();
   var tx2=(el("tx2")||{value:""}).value.trim();
   var hasSec=SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim();});
-  return !!(A.sel||A.location||tx||tx2||hasSec||A.photos.length||A.report);
+  var vt=(el("video-transcript")||{value:""}).value.trim();
+  return !!(A.sel||A.location||tx||tx2||hasSec||A.photos.length||A.report||vt||A.videoId||A.audioId);
 }
 function buildCaptureDraft(){
-  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(fpPhotoForStorage),reportPhotos:(A.reportPhotos||[]).map(fpPhotoForStorage),videoId:A.videoId||null,videoMime:A.videoMime||"",videoSize:A.videoSize||0,videoName:A.videoName||"",report:A.report||"",voiceNotes:getVoiceNotesValue(),sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
+  return{version:1,savedAt:new Date().toISOString(),dealId:A.sel&&A.sel.id||null,deal:A.sel||null,location:A.location||null,photos:A.photos.map(fpPhotoForStorage),reportPhotos:(A.reportPhotos||[]).map(fpPhotoForStorage),videoId:A.videoId||null,videoMime:A.videoMime||"",videoSize:A.videoSize||0,videoName:A.videoName||"",audioId:A.audioId||null,audioMime:A.audioMime||"",audioSize:A.audioSize||0,videoTranscript:getVideoTranscriptValue(),transcriptJobId:A.transcriptJobId||null,transcriptStatus:A.transcriptStatus||"",report:A.report||"",voiceNotes:getVoiceNotesValue(),sections:captureDraftSections(),technician:A.reportTechnician||currentTechnicianName(),currentHistoryId:A.currentHistoryId||null,zohoNoteId:A.zohoNoteId||null,dealPdfAttached:!!A.dealPdfAttached,workdrivePdfUrl:A.workdrivePdfUrl||null};
 }
 function buildCaptureHistoryMeta(){
   var vn=(el("tx")||{value:""}).value;
@@ -1176,6 +1268,12 @@ function buildCaptureHistoryMeta(){
     videoSize:A.videoSize||0,
     videoName:A.videoName||"",
     hasVideo:!!(A.videoId||A.videoBlob),
+    audioId:A.audioId||null,
+    audioMime:A.audioMime||"",
+    audioSize:A.audioSize||0,
+    videoTranscript:getVideoTranscriptValue(),
+    transcriptJobId:A.transcriptJobId||null,
+    transcriptStatus:A.transcriptStatus||"",
     sections:sd,
     report:A.report||"",
     voiceNotes:vn,
@@ -1251,7 +1349,7 @@ function scheduleCaptureDraftSave(){
 function clearCaptureDraft(){try{localStorage.removeItem("fp_capture_draft");}catch(e){}setCaptureDraftStatus("",false);}
 async function restoreCaptureDraft(d){
   if(!d)return;
-  A.sel=d.deal||null;A.location=d.location||null;A.photos=await fpHydratePhotoData(d.photos||[]);A.reportPhotos=await fpHydratePhotoData(d.reportPhotos||[]);fpIdbPutPhotos(A.photos.concat(A.reportPhotos));await hydrateCaptureVideoFromRecord(d);A.report=d.report||"";A.reportTechnician=d.technician||"";A.currentHistoryId=d.currentHistoryId||null;A.zohoNoteId=d.zohoNoteId||null;A.dealPdfAttached=!!d.dealPdfAttached;A.workdrivePdfUrl=d.workdrivePdfUrl||null;
+  A.sel=d.deal||null;A.location=d.location||null;A.photos=await fpHydratePhotoData(d.photos||[]);A.reportPhotos=await fpHydratePhotoData(d.reportPhotos||[]);fpIdbPutPhotos(A.photos.concat(A.reportPhotos));await hydrateCaptureVideoFromRecord(d);await applyTranscriptFromRecord(d);A.report=d.report||"";A.reportTechnician=d.technician||"";A.currentHistoryId=d.currentHistoryId||null;A.zohoNoteId=d.zohoNoteId||null;A.dealPdfAttached=!!d.dealPdfAttached;A.workdrivePdfUrl=d.workdrivePdfUrl||null;
   if(el("tx"))el("tx").value=d.voiceNotes||"";if(el("tx2"))el("tx2").value=d.voiceNotes||"";
   if(d.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value=d.sections[id]||"";});
   updateDealUI();updateLocationUI();renderPhotoCards();checkGen();scheduleCaptureDraftSave();if(A.report)renderReport();badge("tb-photos",A.photos.length||"");
@@ -1286,10 +1384,11 @@ function newProject(){
 }
 function clearCapture(){
   clearCaptureDraft();
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
+  var vt=el("video-transcript");if(vt)vt.value="";setTranscriptStatusUI("",null);updateTranscribeButton();
   var lb=el("loc-body");if(lb)lb.innerHTML="Tap Get Location to capture GPS";
   var lbtn=el("loc-btn");if(lbtn)lbtn.textContent="GET LOCATION";
   hideEl("hb-gps");hideEl("vb-gps");hideEl("vb-pc");
@@ -4382,6 +4481,7 @@ function shouldQueueAiError(err){
 }
 function fieldAiLabel(target){
   if(target==="voice")return "Voice notes";
+  if(target==="video-transcript")return "Video voice transcript";
   if(target.indexOf("photo:")===0)return "Photo description";
   if(target.indexOf("asset:")===0){
     var id=target.slice(6);
@@ -4537,6 +4637,7 @@ async function retryQueuedReportGenerate(item){
       A.photos=rpd.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
       fpIdbPutPhotos(rpd);
       await hydrateCaptureVideoFromRecord(r);
+      await applyTranscriptFromRecord(r);
       A.report=r.report||"";
       setReportTechnician(r.technician||"");
       A.dealPdfAttached=!!r.dealPdfAttached;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);
@@ -4936,6 +5037,7 @@ async function startCam(){
     }
   }
   A.recording=true;A.paused=false;A.videoChunks=[];
+  A.audioChunks=[];A.audioBlob=null;A.aRec=null;
   var v=el("vid-el");v.srcObject=A.stream;v.style.display="block";v.play();
   hideEl("vid-ph");
   try{
@@ -4943,6 +5045,16 @@ async function startCam(){
     var rec=new MediaRecorder(A.stream,mime?{mimeType:mime}:{});
     rec.ondataavailable=function(e){if(e.data&&e.data.size>0)A.videoChunks.push(e.data);};
     rec.start(1000);A.mRec=rec;
+  }catch(e){}
+  // Capture a separate compact audio-only track (when mic is on) for transcription.
+  try{
+    var atracks=A.stream.getAudioTracks?A.stream.getAudioTracks():[];
+    if(atracks&&atracks.length){
+      var amime=["audio/webm;codecs=opus","audio/webm","audio/mp4"].find(function(t){return MediaRecorder.isTypeSupported(t);})||"";
+      var arec=new MediaRecorder(new MediaStream(atracks),amime?{mimeType:amime}:{});
+      arec.ondataavailable=function(e){if(e.data&&e.data.size>0)A.audioChunks.push(e.data);};
+      arec.start(1000);A.aRec=arec;
+    }
   }catch(e){}
   getLocation();
   hideEl("cam-idle");showEl("cam-live");
@@ -4952,8 +5064,8 @@ async function startCam(){
 }
 function togglePause(){
   var btn=el("pause-btn");
-  if(!A.paused){try{if(A.mRec&&A.mRec.state==="recording")A.mRec.pause();}catch(e){}A.paused=true;if(btn)btn.textContent="RESUME";var vr=el("vb-rec");if(vr)vr.style.opacity=".4";}
-  else{try{if(A.mRec&&A.mRec.state==="paused")A.mRec.resume();}catch(e){}A.paused=false;if(btn)btn.textContent="PAUSE";var vr2=el("vb-rec");if(vr2)vr2.style.opacity="1";}
+  if(!A.paused){try{if(A.mRec&&A.mRec.state==="recording")A.mRec.pause();}catch(e){}try{if(A.aRec&&A.aRec.state==="recording")A.aRec.pause();}catch(e){}A.paused=true;if(btn)btn.textContent="RESUME";var vr=el("vb-rec");if(vr)vr.style.opacity=".4";}
+  else{try{if(A.mRec&&A.mRec.state==="paused")A.mRec.resume();}catch(e){}try{if(A.aRec&&A.aRec.state==="paused")A.aRec.resume();}catch(e){}A.paused=false;if(btn)btn.textContent="PAUSE";var vr2=el("vb-rec");if(vr2)vr2.style.opacity="1";}
 }
 function stopCam(){
   // Sync tx2 back to tx before stopping
@@ -4970,6 +5082,18 @@ function stopCam(){
       }
     };
     try{A.mRec.stop();}catch(e){}
+  }
+  if(A.aRec){
+    A.aRec.onstop=function(){
+      if(A.audioChunks&&A.audioChunks.length>0){
+        A.audioBlob=new Blob(A.audioChunks,{type:A.aRec.mimeType||"audio/webm"});
+        A.audioChunks=[];
+        persistCaptureAudio();
+        updateTranscribeButton();
+        if(!getVideoTranscriptValue().trim())transcribeCaptureAudio({silent:false});
+      }
+    };
+    try{A.aRec.stop();}catch(e){}
   }
   if(A.stream)A.stream.getTracks().forEach(function(t){t.stop();});
   var v=el("vid-el");v.srcObject=null;v.style.display="none";
@@ -5198,7 +5322,8 @@ function checkGen(){
   var tx=el("tx");var t2=el("tx2");
   var hasP=A.photos.length>0,hasN=(tx&&tx.value.trim().length>0)||(t2&&t2.value.trim().length>0);
   var hasSec=SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim().length>0;});
-  var show=hasP||hasN||hasSec;
+  var vt=el("video-transcript");var hasT=vt&&vt.value.trim().length>0;
+  var show=hasP||hasN||hasSec||hasT;
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
   var lsb=el("local-save-btn");if(lsb)lsb.style.display=show?"flex":"none";
   var psb=el("phone-save-all-btn");if(psb)psb.style.display=hasP?"flex":"none";
@@ -5261,9 +5386,10 @@ async function generate(){
     var photoSrc=A.photos.length>0?A.photos:A.reportPhotos;
     for(var i=0;i<Math.min(4,photoSrc.length);i++){var b64=await compressPhoto(photoSrc[i].display,768,0.45);if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});}
     var sectionText="";SEC_IDS.forEach(function(id,idx){var e=el(id);if(e&&e.value.trim())sectionText+=SEC_LABELS[idx]+": "+e.value.trim()+"\n";});
+    var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A")+"\nAmount: "+(A.sel.Amount?"$"+Number(A.sel.Amount).toLocaleString():"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     var savedPhotos=photoSrc.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
@@ -6647,6 +6773,7 @@ async function continueHist(i){
   if(r.sections){SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});}
   if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;if(el("tx2"))el("tx2").value=r.voiceNotes;}
   await hydrateCaptureVideoFromRecord(r);
+  await applyTranscriptFromRecord(r);
   renderPhotoCards();checkGen();updateCaptureModeStatus();
   var savedLabel=captureHistorySavedLabel(r);
   if(r.captureInProgress||!r.report){
@@ -6663,7 +6790,7 @@ async function continueHist(i){
 function archiveHist(i){var h=getHistory();if(!h[i])return;h[i].archived=true;localStorage.setItem("fp_history",JSON.stringify(h));renderHistory();}
 function unarchiveHist(i){var h=getHistory();if(!h[i])return;h[i].archived=false;localStorage.setItem("fp_history",JSON.stringify(h));renderHistory();}
 function historyRecordPhotoIds(r){return(r&&Array.isArray(r.photoData)?r.photoData:[]).map(function(p){return p&&p.id;}).filter(Boolean);}
-function historyRecordBlobKeys(r){var ids=historyRecordPhotoIds(r);if(r&&r.videoId)ids.push(r.videoId);return ids;}
+function historyRecordBlobKeys(r){var ids=historyRecordPhotoIds(r);if(r&&r.videoId)ids.push(r.videoId);if(r&&r.audioId)ids.push(r.audioId);return ids;}
 function permDeleteHist(i){if(!confirm("Permanently delete?"))return;var h=getHistory();var ids=historyRecordBlobKeys(h[i]);h.splice(i,1);localStorage.setItem("fp_history",JSON.stringify(h));if(ids.length)fpIdbDeletePhotos(ids);renderHistory();}
 function shareHist(i){var h=getHistory();var r=h[i];if(!r)return;A.report=r.report;setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);openShare();}
 async function dlHistPDF(i){var h=getHistory();var r=h[i];if(!r)return;var pd=await fpHydratePhotoData(r.photoData||[]);var doc=buildPDF(r.report,dealFromRecord(r),pd,restoreLocationFromRecord(r),r.technician||"");var acct=(r.account||"report").replace(/[^a-z0-9]/gi,"-").toLowerCase();doc.save("capstone-"+acct+"-"+new Date(r.date).toISOString().slice(0,10)+".pdf");}
@@ -6694,7 +6821,7 @@ function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHist
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}
 async function exportHistory(){var h=getHistory();if(!h.length){alert("No history");return;}var hydrated=[];for(var i=0;i<h.length;i++){var r=h[i];if(Array.isArray(r.photoData)&&r.photoData.length){var pd=await fpHydratePhotoData(r.photoData);r=Object.assign({},r,{photoData:pd});}hydrated.push(r);}var data=JSON.stringify({app:"CapStone",exported:new Date().toISOString(),version:1,history:hydrated},null,2);var blob=new Blob([data],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="capstone-history-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 function importHistory(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var data=JSON.parse(e.target.result);if(!data.history||!Array.isArray(data.history)){alert("Invalid file");return;}var existing=getHistory();var existingIds=new Set(existing.map(function(r){return r.id;}));var toAdd=data.history.filter(function(r){return!existingIds.has(r.id);});var merged=toAdd.concat(existing).sort(function(a,b){return new Date(b.date)-new Date(a.date);});var toPut=[];toAdd.forEach(function(r){if(Array.isArray(r.photoData))r.photoData.forEach(function(p){if(fpHasPhotoDisplay(p.display))toPut.push(p);});});fpIdbPutPhotos(toPut).then(function(){var out=merged.map(function(r){if(Array.isArray(r.photoData))return Object.assign({},r,{photoData:r.photoData.map(fpPhotoForStorage)});return r;});try{localStorage.setItem("fp_history",JSON.stringify(out));}catch(err){try{localStorage.setItem("fp_history",JSON.stringify(merged));}catch(e2){}}renderHistory();updateStorageInfo();alert("Imported "+toAdd.length+" reports.");});}catch(err){alert("Could not read file");}};reader.readAsText(file);input.value="";}
-function clearOldPhotos(){if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId;if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(hasVid){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
+function clearOldPhotos(){if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId||!!r.audioId;if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(r.videoId){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}if(r.audioId){delIds.push(r.audioId);r.audioId=null;r.audioSize=0;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
 function clearAllHistory(){if(!confirm("Delete ALL history? Cannot be undone."))return;var delIds=[];getHistory().forEach(function(r){delIds=delIds.concat(historyRecordBlobKeys(r));});localStorage.removeItem("fp_history");if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();}
 
 // SHARE

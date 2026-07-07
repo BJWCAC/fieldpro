@@ -196,7 +196,18 @@
     </div>
     <div id="video-save-bar" style="display:none;margin-top:8px">
       <button class="bg-lg" onclick="saveVideo()">&#127909; Save Video to Downloads</button>
+      <button id="transcribe-btn" class="bg-lg" style="display:none;margin-top:8px" onclick="transcribeCaptureAudio()">&#128483; Transcribe voice &#8594; text</button>
     </div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:6px;flex-wrap:wrap">
+      <div class="stitle" style="margin-bottom:0">Video Voice Transcript</div>
+      <button type="button" class="field-ai-btn bg bsm" data-field-ai-target="video-transcript" title="Polish transcript with AI" onclick="runFieldPolishAi('video-transcript')">&#8594; AI</button>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:6px">Auto-filled from the recorded video&#39;s audio (turn on <strong>Record audio in video</strong> before recording). Included in the AI report.</div>
+    <div class="field-ai-status" id="field-ai-status-video-transcript"></div>
+    <div id="video-transcript-status" style="display:none;font-size:11px;margin-bottom:6px"></div>
+    <textarea id="video-transcript" inputmode="text" rows="3" placeholder="Voice from the video appears here after recording — or type/paste notes." oninput="checkGen()"></textarea>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Add Photos from Gallery</div>
@@ -904,7 +915,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=316"></script>
+<script src="src/app.js?v=317"></script>
 
 </body>
 </html>
