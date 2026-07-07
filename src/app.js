@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="314";
+var FP_VERSION="315";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4159,7 +4159,22 @@ async function buildReportPdfPayload(){
   var fname="capstone-report-"+acct+"-"+new Date().toISOString().slice(0,10)+".pdf";
   return b64?{b64:b64,filename:fname,dealId:A.sel&&A.sel.id,folderId:null}:null;
 }
-function enqueuePendingUpload(item){var items=getPendingUploads();item.id=item.id||("pu"+Date.now()+Math.random());item.created=item.created||new Date().toISOString();item.attempts=item.attempts||0;items.push(item);savePendingUploads(items);}
+function enqueuePendingUpload(item){
+  item.id=item.id||("pu"+Date.now()+Math.random());
+  item.created=item.created||new Date().toISOString();
+  item.attempts=item.attempts||0;
+  var f=fpPendingBinaryField(item.type);
+  // Offload large binaries to IndexedDB up front so a burst of queued photos
+  // can't blow the localStorage quota (which would silently drop queue items).
+  if(A.idbAvailable&&f&&fpHasPhotoDisplay(item[f])){
+    var key=fpPendingBinaryKey(item),bytes=item[f];
+    return fpIdbPutPhotos([{id:key,display:bytes}]).then(function(ok){
+      if(ok&&fpIdbIsPersisted(key)){item=Object.assign({},item);delete item[f];item.binIdb=1;item.binKey=key;}
+      var items=getPendingUploads();items.push(item);savePendingUploads(items);
+    });
+  }
+  var items=getPendingUploads();items.push(item);savePendingUploads(items);
+}
 function enqueueReportPdfUpload(type,payload,error){
   if(!payload||!payload.b64)return;
   var items=getPendingUploads();
@@ -4170,7 +4185,46 @@ function enqueueReportPdfUpload(type,payload,error){
 async function uploadPendingDealPdf(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:item.dealId,filename:item.filename,file_b64:item.fileB64,mime_type:item.mimeType||"application/pdf"})},90000);if(!r.ok){var txt=await r.text();throw new Error("Deal PDF "+r.status+": "+txt.substring(0,120));}}
 async function uploadPendingWorkDrivePdf(item){await refreshZohoToken();var folderId=item.folderId||WORKDRIVE_FOLDER;var link=await uploadToWorkDrive(item.fileB64,item.filename,item.mimeType||"application/pdf",folderId,90000);if(link)A.workdrivePdfUrl=link;}
 function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pending_uploads")||"[]");}catch(e){return[];}}
-function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending sync item",5000);}renderPendingUploads();if(typeof renderHistory==="function")renderHistory();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
+function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending sync item",5000);}renderPendingUploads();if(typeof renderHistory==="function")renderHistory();compactPendingUploads();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
+// Which large binary field a pending-upload item carries (offloaded to IndexedDB).
+function fpPendingBinaryField(type){
+  if(type==="capture_photo"||type==="asset_photo")return "imageData";
+  if(type==="deal_pdf"||type==="workdrive_pdf")return "fileB64";
+  return null;
+}
+function fpPendingBinaryKey(item){return "pu:"+item.id;}
+// Move inline pending-upload binaries (photos, PDFs) into IndexedDB so the
+// offline sync queue never strains the ~5 MB localStorage quota. Bytes stay
+// inline until the IndexedDB write is confirmed, so nothing is lost.
+function compactPendingUploads(){
+  if(!A.idbAvailable)return;
+  var items=getPendingUploads(),jobs=[];
+  items.forEach(function(it){
+    if(!it||!it.id||it.binIdb)return;
+    var f=fpPendingBinaryField(it.type);
+    if(!f||!fpHasPhotoDisplay(it[f]))return;
+    jobs.push({key:fpPendingBinaryKey(it),data:it[f],id:it.id,field:f});
+  });
+  if(!jobs.length)return;
+  fpIdbPutPhotos(jobs.map(function(j){return{id:j.key,display:j.data};})).then(function(ok){
+    if(!ok)return;
+    var cur=getPendingUploads(),changed=false;
+    jobs.forEach(function(j){
+      if(!fpIdbIsPersisted(j.key))return;
+      for(var k=0;k<cur.length;k++){if(cur[k].id===j.id&&cur[k][j.field]){delete cur[k][j.field];cur[k].binIdb=1;cur[k].binKey=j.key;changed=true;break;}}
+    });
+    if(changed){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(cur));}catch(e){}renderPendingUploads();if(typeof renderHistory==="function")renderHistory();}
+  });
+}
+// Restore a pending item's binary from IndexedDB right before uploading it.
+async function hydratePendingUploadBinary(item){
+  var f=fpPendingBinaryField(item&&item.type);
+  if(!f||!item||fpHasPhotoDisplay(item[f]))return item;
+  var key=item.binKey||fpPendingBinaryKey(item);
+  var m=await fpIdbGetPhotos([key]);
+  if(m[key]){var c=Object.assign({},item);c[f]=m[key];return c;}
+  return item;
+}
 function pendingUploadLabel(item){
   if(item.type==="capture_photo")return "Capture photo — "+(item.filename||"photo");
   if(item.type==="picklist_request")return "Picklist request — "+((item.payload&&item.payload.fieldLabel)||"field")+": "+((item.payload&&item.payload.proposedValue)||item.filename||"value");
@@ -4200,8 +4254,7 @@ function enqueueAssetPhotoUpload(equipmentId,photo,filename,error){
   var fingerprint=photo&&photo.fingerprint||"";
   var existing=items.some(function(i){return i.type==="asset_photo"&&i.equipmentId===equipmentId&&i.fingerprint===fingerprint;});
   if(existing)return;
-  items.push({id:"pu"+Date.now()+Math.random(),type:"asset_photo",equipmentId:equipmentId,filename:filename,imageData:photo&&photo.data||"",fingerprint:fingerprint,assetLabel:assetInput("asset-name")||equipmentId,error:error||"",created:new Date().toISOString(),attempts:0});
-  savePendingUploads(items);
+  enqueuePendingUpload({type:"asset_photo",equipmentId:equipmentId,filename:filename,imageData:photo&&photo.data||"",fingerprint:fingerprint,assetLabel:assetInput("asset-name")||equipmentId,error:error||""});
 }
 async function uploadPendingAssetPhoto(item){
   if(!item||!item.imageData||!item.equipmentId)throw new Error("Pending sync is missing data");
@@ -4218,14 +4271,16 @@ async function retryPendingUploads(opts){
   if(!items.length){if(!opts.auto)showToast("No pending sync items",2500);return;}
   A.pendingRetrying=true;
   if(!opts.auto)showToast("Retrying "+items.length+" pending sync item(s)...",3000);
-  var remaining=[];
+  var remaining=[],doneKeys=[];
   for(var i=0;i<items.length;i++){
-    var item=items[i];
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");}
-    catch(e){item.error=e.message;item.attempts=(item.attempts||0)+1;item.lastAttempt=new Date().toISOString();remaining.push(item);}
+    var orig=items[i];
+    var item=await hydratePendingUploadBinary(orig);
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");if(orig.binKey)doneKeys.push(orig.binKey);}
+    catch(e){orig.error=e.message;orig.attempts=(orig.attempts||0)+1;orig.lastAttempt=new Date().toISOString();remaining.push(orig);}
   }
   A.pendingRetrying=false;
   savePendingUploads(remaining);
+  if(doneKeys.length)fpIdbDeletePhotos(doneKeys);
   if(typeof renderAssetPicklistRequestPanel==="function")renderAssetPicklistRequestPanel();
   if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" sync item(s) still pending":"All pending sync items complete",5000);
 }
@@ -4264,7 +4319,7 @@ function renderPendingUploads(){
   if(typeof renderAssetSaveChecklist==="function")renderAssetSaveChecklist();
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
-function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;savePendingUploads([]);showToast("Pending sync cleared",2500);}
+function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;var keys=getPendingUploads().map(function(it){return it.binKey;}).filter(Boolean);savePendingUploads([]);if(keys.length)fpIdbDeletePhotos(keys);showToast("Pending sync cleared",2500);}
 function shouldQueueAiError(err){
   var msg=String(err&&err.message||err||"").toLowerCase();
   if(err&&err.name==="AbortError")return true;
