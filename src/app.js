@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="318";
+var FP_VERSION="319";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -682,6 +682,7 @@ function go(n){
     if(t)t.classList.toggle("on",x===n);
   });
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
+  if(n==="capture"&&typeof updateCaptureStorageWarning==="function")updateCaptureStorageWarning();
   if(n==="assets"&&typeof renderAssetForm==="function")renderAssetForm();
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
@@ -1278,7 +1279,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -6942,6 +6943,31 @@ async function dlHistPDF(i){var h=getHistory();var r=h[i];if(!r)return;var pd=aw
 
 // SETTINGS STORAGE
 function getStorageSize(){var total=0;try{for(var k in localStorage){if(localStorage.hasOwnProperty(k))total+=localStorage[k].length+k.length;}}catch(e){}return(total*2/1024/1024).toFixed(2);}
+// MB used by a single localStorage key (UTF-16, matches getStorageSize).
+function fpKeyStorageMB(key){try{var v=localStorage.getItem(key);return v?(v.length+key.length)*2/1024/1024:0;}catch(e){return 0;}}
+// Group localStorage usage so the storage warning can name the real culprit.
+// Photos/PDFs live in IndexedDB, so the biggest localStorage hogs are usually
+// the cached deal list and the offline sync/AI/inbox queues — none of which
+// "Clear All History" or "Free Up Space" touch.
+function fpStorageBreakdown(){
+  var deals=fpKeyStorageMB("fp_deals");
+  var history=fpKeyStorageMB("fp_history");
+  var queue=fpKeyStorageMB("fp_pending_uploads")+fpKeyStorageMB("fp_pending_ai")+fpKeyStorageMB("fp_inbox");
+  var drafts=fpKeyStorageMB("fp_capture_draft")+fpKeyStorageMB("fp_asset_draft");
+  return{deals:deals,history:history,queue:queue,drafts:drafts,total:parseFloat(getStorageSize())||0};
+}
+// Clear the cached deal list from the Capture storage warning. Safe because
+// deals re-download from Zoho on the next Refresh; unlike History/photos this
+// is often what keeps the "storage getting full" warning up after a user has
+// already cleared their History.
+function freeDealCacheFromWarning(){
+  var mb=fpKeyStorageMB("fp_deals");
+  if(mb<=0){showToast("No cached deals to clear",2500);updateStorageInfo();return;}
+  if(!confirm("Clear "+mb.toFixed(1)+" MB of cached deals? They re-download from Zoho when you tap Refresh."))return;
+  clearDealCache();
+  updateStorageInfo();
+  showToast("Cleared "+mb.toFixed(1)+" MB of cached deals",3000);
+}
 function estimateCapturePhotoStorageMB(){
   var bytes=0;
   A.photos.forEach(function(p){bytes+=String(p.display||"").length;});
@@ -6960,7 +6986,26 @@ function updateCaptureStorageWarning(){
   if(totalMB>=CAPTURE_STORAGE_WARN_MB)reasons.push(totalMB+" MB total browser storage used");
   if(!reasons.length){box.style.display="none";box.innerHTML="";return;}
   box.style.display="block";
-  box.innerHTML="<strong>Storage getting full</strong> — "+reasons.join("; ")+". <strong>Save Locally to History</strong> still works — CapStone frees space from older History when needed. Also use <strong>Save All Photos to Phone</strong> or Settings → <strong>Free Up Space</strong>.";
+  box.innerHTML="<strong>Storage getting full</strong> — "+reasons.join("; ")+". "+captureStorageAdviceHtml();
+}
+// Tailor the storage-full advice to whatever is actually using space, so a user
+// who has already cleared History isn't told (wrongly) to clear it again.
+function captureStorageAdviceHtml(){
+  var b=fpStorageBreakdown();
+  var parts=[];
+  var dealDominant=b.deals>=1&&b.deals>=b.history;
+  if(dealDominant){
+    parts.push("Most of that is <strong>"+b.deals.toFixed(1)+" MB of cached deals</strong> — clearing History won't remove it. Tap below to clear the deal cache (deals re-download from Zoho on Refresh).");
+  }
+  if(b.queue>=1){
+    parts.push(b.queue.toFixed(1)+" MB is unsynced work in <strong>Pending Sync</strong> — sync it when you have signal to free that space.");
+  }
+  if(b.history>=1||(!dealDominant&&b.queue<1)){
+    parts.push("<strong>Save Locally to History</strong> still works — CapStone frees space from older History when needed. Also use <strong>Save All Photos to Phone</strong> or Settings → <strong>Free Up Space</strong>.");
+  }
+  var html=parts.join(" ");
+  if(dealDominant)html+="<br><button class=\"bg bsm\" onclick=\"freeDealCacheFromWarning()\" style=\"margin-top:8px\">Clear Deal Cache ("+b.deals.toFixed(1)+" MB)</button>";
+  return html;
 }
 function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHistory();e.textContent=h.length+" reports — approx "+getStorageSize()+" MB used of 5 MB";updateCaptureStorageWarning();}
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}

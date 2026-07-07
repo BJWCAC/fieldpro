@@ -24,3 +24,15 @@ There is no test framework. Per `docs/CAPSTONE_DEVELOPMENT_RULES.md`, the standa
 
 ### Versioning gotcha
 Script/style URLs are cache-busted with `?v=NNN` query strings in `FieldPro.html` (e.g. `src/app.js?v=307`). When editing app behavior, bump `FP_VERSION` and the matching cache-bust query strings (see the Version and cache rules in `docs/CAPSTONE_DEVELOPMENT_RULES.md`).
+
+### Testing `localStorage`/storage-driven UI
+State that drives the UI (History, cached deals, drafts, sync queues) lives in `localStorage` under `fp_*` keys, with photo/PDF bytes offloaded to IndexedDB. To test storage-dependent behavior (e.g. the Capture "Storage getting full" banner) without the backend, seed `localStorage` from the DevTools Console and reload. Key names include `fp_history`, `fp_deals`, `fp_pending_uploads`, `fp_pending_ai`, `fp_inbox`, `fp_capture_draft`, `fp_asset_draft`. Example to reproduce a full-storage warning driven by cached deals rather than History:
+
+```js
+localStorage.removeItem('fp_history');
+var arr=[]; for(var i=0;i<6000;i++){arr.push({id:'d'+i,Deal_Name:'Deal '+i+' '+'x'.repeat(400),Account_Name:'Account '+i,Description:'y'.repeat(200)});}
+localStorage.setItem('fp_deals', JSON.stringify(arr)); // ~8 MB; must be valid JSON or boot discards it
+location.reload();
+```
+
+The storage banner's threshold is `CAPTURE_STORAGE_WARN_MB` and totals come from `getStorageSize()` (UTF-16, so reported MB ≈ 2× the raw character count).
