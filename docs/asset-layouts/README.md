@@ -14,7 +14,7 @@ Reference screenshots for CapStone `categoryLayouts` in `src/config/zohoEquipmen
 |--------------|-------------------|--------|
 | Sensor, Display, Set Up Input/Output, Duration, Subform | Shared pattern | Shipped (per category) |
 | OCM — Open Channel Flume, Weir Details | Flow Open Channel | Shipped |
-| **Rosemount Details** (DA1/DA2, DA2 License, Totalizer, LOI Display) | **Flow Meter** | Shipped (magnetic flow meter) |
+| **Rosemount Details** (DA1/DA2, DA2 License, Totalizer, LOI Display) | **Flow Meter** (Asset Brand = Rosemount only) | Shipped (v321) |
 | Flow Meter Details (Cal Factor, Pipe Size, Damping) | Flow Meter | Shipped |
 | Gas Sensor Info | Gas Detector | Shipped |
 | **LS Details** (LS Shape, LS Diameter, Number of Pumps) | **Lift Station** | Shipped (v306) |

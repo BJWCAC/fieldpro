@@ -34,7 +34,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="320";
+var FP_VERSION="321";
 var MIN_ZOHO_PROXY_BUILD=283;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1885,9 +1885,35 @@ var ASSET_OPTIONAL_TOGGLE_SECTIONS={sensor:true,setupOutput:true};
 function isAssetOptionalToggleSection(sectionId){
   return !!ASSET_OPTIONAL_TOGGLE_SECTIONS[sectionId];
 }
+function categorySectionShowWhenMet(sec){
+  if(!sec||!sec.showWhen)return true;
+  return matchesSuggestedWhen(sec.showWhen,assetRuleContext());
+}
+function isAssetSectionBrandFiltered(sec){
+  return !!(sec&&sec.showWhen&&!categorySectionShowWhenMet(sec));
+}
 function isAssetSectionHidden(sectionId){
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
+  var sec=categoryLayoutSection(cat,sectionId);
+  if(sec&&!categorySectionShowWhenMet(sec))return true;
   if(!isAssetOptionalToggleSection(sectionId))return false;
   return !!(A.asset.sectionHidden&&A.asset.sectionHidden[sectionId]);
+}
+function applyBrandConditionalSections(opts){
+  opts=opts||{};
+  var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
+  var layout=categoryLayout(cat);
+  if(!layout||!layout.sections)return;
+  var needsRender=false;
+  layout.sections.forEach(function(sec){
+    if(!sec.showWhen)return;
+    needsRender=true;
+    if(!categorySectionShowWhenMet(sec))clearAssetSectionFields(sec.id);
+  });
+  if(needsRender&&!opts.skipRender){
+    renderAssetCategoryFields({skipDomSync:true});
+    updateAssetSaveState();
+  }
 }
 function categoryLayoutSection(category,sectionId){
   var layout=categoryLayout(category);
@@ -2227,6 +2253,7 @@ function refreshCategoryFieldSuggestions(){
   updateAssetSaveState();
 }
 function onAssetBrandOrSeriesChange(){
+  applyBrandConditionalSections();
   refreshCategoryFieldDefaultsOnly();
   renderAssetPicklistRequestPanel();
 }
@@ -2321,6 +2348,7 @@ function syncAssetCategoryLayoutUi(){
       if(A.asset.dynamicSuggested)delete A.asset.dynamicSuggested[d.apiName];
     });
     applyCategoryFieldDefaults(cat);
+    applyBrandConditionalSections({skipRender:true});
     syncOptionalSectionsFromData(cat);
     renderAssetCategoryFields({skipDomSync:true});
     mirrorInputPvToOutput();
@@ -2335,6 +2363,7 @@ function syncAssetCategoryLayoutUi(){
     if(seq!==_assetCategoryLayoutSeq)return;
     if(normalizeAssetCategoryKey(assetInput("asset-category"))!==cat)return;
     applyCategoryFieldDefaults(cat);
+    applyBrandConditionalSections({skipRender:true});
     syncOptionalSectionsFromData(cat);
     renderAssetCategoryFields({skipDomSync:true});
     mirrorInputPvToOutput();
@@ -2918,16 +2947,17 @@ function renderAssetCategoryFields(opts){
   try{
   layout.sections.forEach(function(sec){
     if(sec.subform){html+=renderAssetSubformSection(sec);return;}
+    if(isAssetSectionBrandFiltered(sec))return;
     var optional=isAssetOptionalToggleSection(sec.id);
-    var hidden=optional&&isAssetSectionHidden(sec.id);
+    var manuallyHidden=optional&&!!(A.asset.sectionHidden&&A.asset.sectionHidden[sec.id]);
     html+="<div class='asset-cat-section'><div class='asset-cat-section-title'>"+esc(sec.title)+"</div>";
     if(optional){
       html+="<div class='tog-row asset-cat-section-toggle' onclick='toggleAssetSectionVisibility(\""+sec.id+"\")'>";
-      html+="<div class='tog"+(hidden?"":" on")+"' id='tog-asset-sec-"+sec.id+"'><div class='tog-thumb'></div></div>";
+      html+="<div class='tog"+(manuallyHidden?"":" on")+"' id='tog-asset-sec-"+sec.id+"'><div class='tog-thumb'></div></div>";
       html+="<div><div style='font-size:13px;font-weight:500'>Include "+esc(sec.title)+"</div>";
-      html+="<div style='font-size:11px;color:var(--dim);margin-top:2px'>"+(hidden?"Hidden — fields not required for save":"Turn off to hide and skip these fields")+"</div></div></div>";
+      html+="<div style='font-size:11px;color:var(--dim);margin-top:2px'>"+(manuallyHidden?"Hidden — fields not required for save":"Turn off to hide and skip these fields")+"</div></div></div>";
     }
-    if(hidden){
+    if(manuallyHidden){
       html+="<div style='font-size:11px;color:var(--dim);margin-bottom:4px'>Section hidden.</div></div>";
       return;
     }
