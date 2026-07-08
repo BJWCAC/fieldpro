@@ -20,7 +20,8 @@
     "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
     "Flow Meter categoryLayouts: includes Rosemount Details (DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display) for magnetic flow meters — not Lift Station or Open Channel Flow.",
     "Lift Station categoryLayouts: sensor, display, LS Details (LS Shape, LS Diameter, Number of Pumps), and Subform_1 — no flow, gas, Rosemount, or scales-specific blocks.",
-    "Scales & Balances categoryLayouts: sensor, display, Scales (Scale Class), and Subform_1 — no flow, gas, LS, or Rosemount blocks."
+    "Scales & Balances categoryLayouts: sensor, display, Scales (Scale Class), and Subform_1 — no flow, gas, LS, or Rosemount blocks.",
+    "Optional section toggles: Sensor (Other attached Parts) and Set Up Output can be hidden per asset — hidden fields are not required and are omitted from Zoho save."
   ],
   "assetCapturePhase1": {
     "moduleApiName": "Equipments",
