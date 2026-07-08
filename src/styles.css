@@ -145,6 +145,7 @@ body.light .hist-card{background:#fff}
 .asset-category-fields{margin:4px 0 10px}
 .asset-cat-section{border-top:1px solid #b2ddd6;padding-top:10px;margin-top:4px}
 .asset-cat-section-title{font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:14px;color:#2d6b60;margin-bottom:8px}
+.asset-cat-section-toggle{margin-bottom:8px;padding-top:0;padding-bottom:0}
 .asset-cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .asset-cat-field{display:flex;flex-direction:column;min-width:0}
 .asset-cat-field .lbl{min-height:2.75em;display:flex;align-items:flex-end;margin-bottom:4px;line-height:1.25}
