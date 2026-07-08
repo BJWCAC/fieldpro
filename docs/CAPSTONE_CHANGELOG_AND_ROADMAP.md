@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-06-25
-Current live version: v320
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=320
+Current live version: v321
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=321
 ```
 
 ---
@@ -34,6 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v321 | — | **Rosemount Details brand filter** — Flow Meter Rosemount section only when Asset Brand is Rosemount; hidden for Siemens and other brands |
+| v320 | — | **Asset optional section toggles** — hide Sensor (Other attached Parts) and Set Up Output per layout; hidden fields not required and omitted from Zoho save |
 | v312 | — | **Fix History empty after Save Locally** — storage-pressure path no longer drops the current capture before writing History |
 | v311 | — | **Save Locally under storage pressure** — auto-clear duplicate capture draft, trim older History photos, retry save; clearer storage warning |
 | v309 | — | **Key Sync auto-backup** — Settings toggle (default on); debounced cloud push after API key, Plaud, or synced toggle changes; manual backup still available |
