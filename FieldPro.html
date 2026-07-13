@@ -528,11 +528,12 @@
   <details class="help-box" data-help-id="history-tab">
     <summary>Help: History</summary>
     <div class="help-box-body">
-      <p>History stores reports on this device so you can continue work later without starting over.</p>
+      <p>History stores reports and saved assets on this device so you can continue work later without starting over.</p>
       <ul>
-        <li><strong>Open + Continue</strong> restores Capture fields, photos, notes, and sections.</li>
-        <li><strong>View</strong> opens the generated report only.</li>
-        <li>Status chips show Zoho save, PDF attachment, technician, and pending sync.</li>
+        <li><strong>Report History — Open + Continue</strong> restores Capture fields, photos, notes, and sections.</li>
+        <li><strong>Report History — View</strong> opens the generated report only.</li>
+        <li><strong>Asset History — Reopen</strong> loads that Equipments record fresh from Zoho into the Assets tab (update mode).</li>
+        <li>Status chips show Zoho save, PDF attachment, technician, and pending sync for reports.</li>
         <li>Continuing a saved report updates the same Zoho note when you save again.</li>
       </ul>
     </div>
@@ -542,6 +543,7 @@
     <ol>
       <li>Open + Continue restores Capture fields, photos, and notes for the same report.</li>
       <li>View opens the generated report without changing Capture.</li>
+      <li>Asset History → Reopen fetches the latest asset from Zoho so you can continue updating it.</li>
       <li>Continuing a saved report updates the same Zoho note instead of creating a duplicate.</li>
       <li>Check status chips for Zoho, PDF, technician, and pending sync before leaving the site.</li>
     </ol>
@@ -551,6 +553,11 @@
     <span id="hist-count" style="font-size:11px;color:var(--dim)"></span>
   </div>
   <div id="hist-list"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--bdr)">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800">Asset History</div>
+    <span id="asset-hist-count" style="font-size:11px;color:var(--dim)"></span>
+  </div>
+  <div id="asset-hist-list"></div>
 </div>
 
 <!-- MAP -->
@@ -931,7 +938,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=323"></script>
+<script src="src/app.js?v=324"></script>
 
 </body>
 </html>

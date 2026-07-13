@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "284";
+var PROXY_BUILD = "285";
 
 exports.handler = async function(event) {
   const h = {
@@ -697,9 +697,11 @@ exports.handler = async function(event) {
     }
 
     if (data.action === "get_equipment") {
+      // Same field set as search_equipment_assets so reopen-from-history can populate the full Assets form.
+      var equipmentGetFields = "Name,Account,CAC_Asset_ID,Customer_Asset_Number,Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Location_Coordinates,Frequency,Date,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Duration,Damping_Seconds,Flume_Weir_Type,Distance_Measurement_Units,Gas_Sensor_Type,LS_Shape,LS_Diameter,Number_of_Pumps,Scale_Class,Subform_1";
       var equipmentGetResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/Equipments/" + data.equipment_id + "?fields=CAC_Asset_ID,Name,Asset_Model_Number,Serial_Number,Cal_Factor_K_factor_Etc,Model_Number,Serial_Number1,Pipe_Size",
+        path: "/crm/v3/Equipments/" + encodeURIComponent(String(data.equipment_id || "")) + "?fields=" + encodeURIComponent(equipmentGetFields),
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
