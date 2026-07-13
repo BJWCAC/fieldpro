@@ -1,9 +1,5 @@
 var PROXY="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/zoho-proxy";
 var API_KEY="";
-var ZOHO_ACCESS="1000.39fd57b7add67f6ba0e4d91e6ca20e3a.70c26aa136b9f09533b93cdd5c5a092b";
-var ZOHO_REFRESH="1000.af6da2ff9d130330225e2ab88148fb79.980d490ffc49507250b6ed925f534a45";
-var ZOHO_CLIENT="1000.YXEEB4LIVO90TM5SOFP1IXNF3Z8NMT";
-var ZOHO_SECRET="4a11be5bd1410d4678d7d45b2444bf1ca5f8db5dc6";
 var WORKDRIVE_FOLDER="t16759780cbaabd3647cf897be2931dfa11ae";
 var WORKDRIVE_FOLDER_URL="https://workdrive.zoho.com/folder/"+WORKDRIVE_FOLDER;
 var UPLOAD_FETCH_MS=50000;
@@ -33,9 +29,37 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:ZOHO_ACCESS,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null}};
-var FP_VERSION="321";
-var MIN_ZOHO_PROXY_BUILD=283;
+var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Output PLAIN TEXT ONLY — no markdown, no headers, no bullet asterisks, under 1800 characters. This text is read by a calibration technician deciding how to calibrate the instrument.\n\nRequired content, in this order:\n1. Accuracy basis — state exactly one of: % of Reading/Rate, % of Span, % of Full Scale, % of Range/Distance, absolute units (state the unit), or \"No single % accuracy applies (see note)\".\n2. Published accuracy figure for this exact model/family if you are confident of it from manufacturer documentation. If you are not confident of the exact number, write \"NOT VERIFIED — confirm from manufacturer datasheet\" instead of guessing. NEVER invent a numeric spec.\n3. One to three short lines of calibration-relevant notes specific to this instrument family/brand if genuinely known (e.g. required test standards, traceability notes, family-specific quirks). Omit generic filler if nothing specific is known.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
+function isUsableModelForAiSpecs(model,brand){
+  var m=String(model||"").trim();
+  if(!m)return false;
+  if(/^(n\/?a|tbd|unknown|none|-|\?)$/i.test(m))return false;
+  if(/^\d{1,3}$/.test(m))return false;
+  if(/^1\s*other$/i.test(String(brand||"").trim())&&m.length<4)return false;
+  return true;
+}
+async function generateModelAiSpecsIfNeeded(){
+  var brand=assetInput("asset-brand");
+  var type=assetInput("asset-type");
+  var model=assetInput("asset-model");
+  var series=assetInput("asset-series");
+  var category=assetInput("asset-category");
+  var key=[category,brand,type,series,model].join("|");
+  if(A.asset.aiSpecsKey===key)return;
+  A.asset.aiSpecsKey=key;
+  A.asset.aiSpecsText="";
+  if(!API_KEY||!isUsableModelForAiSpecs(model,brand))return;
+  try{
+    assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+" (AI)...",false);
+    var content="Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
+    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:700,ms:30000});
+    var txt=getText(d).trim();
+    if(txt&&txt!=="SKIP"){if(txt.length>1900)txt=txt.slice(0,1900);A.asset.aiSpecsText=txt;}
+  }catch(e){console.log("Model_AI_Specs generation failed:",e);}
+}
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
+var FP_VERSION="322";
+var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -908,7 +932,7 @@ async function findExistingZohoNote(){
   if(A.zohoNoteId||!A.sel)return A.zohoNoteId||null;
   var marker=zohoReportMarker();
   if(!marker)return null;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_note",token:A.zohoToken||ZOHO_ACCESS,deal_id:A.sel.id,note_title:zohoNoteTitle(),marker:marker})},ZOHO_FETCH_MS);
+  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_note",token:A.zohoToken,deal_id:A.sel.id,note_title:zohoNoteTitle(),marker:marker})},ZOHO_FETCH_MS);
   if(!r.ok)return null;
   var d={};try{d=await r.json();}catch(e){}
   if(d&&d.note_id){A.zohoNoteId=d.note_id;return A.zohoNoteId;}
@@ -1566,7 +1590,7 @@ async function refreshZohoToken(force){
   if(!force&&A.zohoToken&&A.zohoTokenExpiresAt&&Date.now()<A.zohoTokenExpiresAt-120000)return true;
   for(var attempt=0;attempt<2;attempt++){
     try{
-      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token",refresh_token:ZOHO_REFRESH,client_id:ZOHO_CLIENT,client_secret:ZOHO_SECRET})},45000);
+      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token"})},45000);
       var txt=await r.text();
       var d={};
       try{d=JSON.parse(txt);}catch(pe){}
@@ -4225,7 +4249,7 @@ function clearAssetEntryState(msg,keepSavedItems,preserveDraft){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
   A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
   A.asset.dynamicValues={};A.asset.dynamicSuggested={};A.asset.dynamicTouched={};A.asset.sectionHidden={};A.asset.subformRows=[];A.asset.subformTouched={};
-  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;if(!keepSavedItems)A.asset.savedItems=[];
+  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;A.asset.aiSpecsText="";A.asset.aiSpecsKey="";if(!keepSavedItems)A.asset.savedItems=[];
   renderAssetPhotos();renderSavedAssets();renderAssetCategoryFields();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
@@ -4413,6 +4437,10 @@ async function saveEquipmentRecord(){
     A.asset.currentAssetId=existing.equipment_id;
     includeBlank=true;
     fullPayload=assetPayload({includeBlank:true});
+  }
+  if(!A.asset.currentAssetId){
+    await generateModelAiSpecsIfNeeded();
+    if(A.asset.aiSpecsText)fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
@@ -5863,7 +5891,7 @@ async function zohoSave(){
     if(!A.zohoNoteId){try{await findExistingZohoNote();}catch(fe){console.log("findExistingZohoNote:",fe);}}
     var payload={
       action:A.zohoNoteId?"update_note":"save_note",
-      token:A.zohoToken||ZOHO_ACCESS,
+      token:A.zohoToken,
       deal_id:A.sel.id,
       note_id:A.zohoNoteId||null,
       note_title:zohoNoteTitle(),
