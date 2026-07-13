@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-07-11
-Current live version: v322
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=322
+Last updated: 2026-07-13
+Current live version: v323
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=323
 ```
 
 ---
@@ -35,6 +35,7 @@ Related docs (detail, not status):
 | Version | PR | What shipped |
 |---------|-----|--------------|
 | v322 | — | **Auto-generate Model_AI_Specs on new asset save** — when Add New Asset creates a Zoho Equipment record, CapStone calls Anthropic (existing report-generation key) to write the Model_AI_Specs field (accuracy basis + published spec or NOT VERIFIED + brief cal notes) into the same create payload, so it is populated before the technician performs the calibration; skipped for placeholder/junk model numbers, missing API key, or when updating an existing asset (never overwrites a value already in Zoho) |
+| v323 | — | **Fix Assets tab draft restore wiping the form** — `ensureAssetContext()` ran on every Assets tab render, including immediately after a draft restore, and its deal/account mismatch check could fire during that restore and call `clearAssetEntryState()`, blanking every asset field, resetting photos, and deleting the just-restored draft from `localStorage` — while leaving the Deal/Account (never touched by that path) looking fine. Fixed by skipping the mismatch check while `A.asset._draftRestoreFields` is still pending application. Model/serial/name/building/description/notes/photos/dynamic category fields/subform rows now survive a full page close and reopen. |
 | v322 | — | **Remove hardcoded Zoho OAuth credentials from client JS** — `refresh_token` now sourced server-side in `zoho-proxy.js` from `ZOHO_REFRESH_TOKEN` / `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` Netlify env vars; `app.js` no longer ships the refresh token or client secret; proxy build 284 |
 | v321 | — | **Rosemount Details brand filter** — Flow Meter Rosemount section only when Asset Brand is Rosemount; hidden for Siemens and other brands |
 | v320 | — | **Asset optional section toggles** — hide Sensor (Other attached Parts) and Set Up Output per layout; hidden fields not required and omitted from Zoho save |
