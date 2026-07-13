@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-06-25
-Current live version: v321
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=321
+Last updated: 2026-07-11
+Current live version: v322
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=322
 ```
 
 ---
@@ -34,6 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v322 | — | **Auto-generate Model_AI_Specs on new asset save** — when Add New Asset creates a Zoho Equipment record, CapStone calls Anthropic (existing report-generation key) to write the Model_AI_Specs field (accuracy basis + published spec or NOT VERIFIED + brief cal notes) into the same create payload, so it is populated before the technician performs the calibration; skipped for placeholder/junk model numbers, missing API key, or when updating an existing asset (never overwrites a value already in Zoho) |
+| v322 | — | **Remove hardcoded Zoho OAuth credentials from client JS** — `refresh_token` now sourced server-side in `zoho-proxy.js` from `ZOHO_REFRESH_TOKEN` / `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` Netlify env vars; `app.js` no longer ships the refresh token or client secret; proxy build 284 |
 | v321 | — | **Rosemount Details brand filter** — Flow Meter Rosemount section only when Asset Brand is Rosemount; hidden for Siemens and other brands |
 | v320 | — | **Asset optional section toggles** — hide Sensor (Other attached Parts) and Set Up Output per layout; hidden fields not required and omitted from Zoho save |
 | v312 | — | **Fix History empty after Save Locally** — storage-pressure path no longer drops the current capture before writing History |
