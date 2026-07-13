@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "283";
+var PROXY_BUILD = "284";
 
 exports.handler = async function(event) {
   const h = {
@@ -537,9 +537,9 @@ exports.handler = async function(event) {
     }
 
     if (data.action === "refresh_token") {
-      var tokenBody = "refresh_token=" + encodeURIComponent(String(data.refresh_token || "")) +
-        "&client_id=" + encodeURIComponent(String(data.client_id || "")) +
-        "&client_secret=" + encodeURIComponent(String(data.client_secret || "")) +
+      var tokenBody = "refresh_token=" + encodeURIComponent(String(process.env.ZOHO_REFRESH_TOKEN || "")) +
+        "&client_id=" + encodeURIComponent(String(process.env.ZOHO_CLIENT_ID || "")) +
+        "&client_secret=" + encodeURIComponent(String(process.env.ZOHO_CLIENT_SECRET || "")) +
         "&grant_type=refresh_token";
       var result3 = await req({
         hostname: "accounts.zoho.com",
