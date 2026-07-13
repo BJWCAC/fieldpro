@@ -8,9 +8,21 @@ Live app:
 https://BJWCAC.github.io/fieldpro/FieldPro.html
 ```
 
-Current milestone build: **v308**
+Current milestone build: **v322**
 
 Status and roadmap: `docs/CAPSTONE_CHANGELOG_AND_ROADMAP.md`
+
+## Deployment: Zoho credentials (Netlify environment variables)
+
+As of v322, the Zoho OAuth refresh token, client ID, and client secret are **no longer stored in `src/app.js`**. They live server-side only, read by `netlify/functions/zoho-proxy.js` from Netlify environment variables:
+
+```text
+ZOHO_REFRESH_TOKEN
+ZOHO_CLIENT_ID
+ZOHO_CLIENT_SECRET
+```
+
+Set these in the Netlify site dashboard under Site configuration → Environment variables, then trigger a deploy. Because the previous hardcoded values were committed to this public repo, treat them as already exposed — regenerate the Zoho client secret and refresh token in the Zoho API console and use the new values here, rather than reusing the old ones.
 
 ## Current milestone: CapStone Android field workflow
 
@@ -27,6 +39,7 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - **Accounts Map tab** — Leaflet/OpenStreetMap view of Zoho accounts with deal-stage pins, clustering, and filters
 - **Key Sync (Cloud)** — back up and restore your API key and app settings across devices, keyed by Zoho technician name and protected by a passphrase (see `docs/CAPSTONE_KEY_SYNC.md`)
 - equipment asset save/update workflow with draft autosave
+- **Auto-generated Model_AI_Specs** — new assets get calibration-relevant AI specs written into Zoho on save, before the technician performs the calibration (skipped for junk/placeholder model numbers and never overwrites an existing asset's specs on update)
 - **Asset Category layouts** — category-driven fields for Flow Meter, Flow Open Channel, Gas Detector, General, Lift Station, and Scales &amp; Balances
 - per-field → AI extract with an offline Pending AI queue
 - search-first asset update (CAC ID, serial, model, brand, type, series, name, building, designator)
