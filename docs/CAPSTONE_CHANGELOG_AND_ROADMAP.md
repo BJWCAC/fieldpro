@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v327
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=327
+Current live version: v328
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=328
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v328 | — | **Saved This Visit shows assigned asset number** — after new asset save, the bottom overview lists Zoho `CAC_Asset_ID` first in bold ALL CAPS, then name/model/serial |
 | v327 | — | **Model_AI_Specs format: accuracy first, bold caps headers** — ACCURACY is now the first line; section and field labels use `<b>ALL CAPS</b>` HTML (ZERO/LRL, SPAN/URL, GENERAL, CAL NOTES); `CALIBRATION_SPEC_RULES.md` and both AI prompts updated |
 | v326 | — | **Accept new Gemini auth keys (AQ. prefix)** — Google AI Studio now issues authorization keys starting with `AQ.` instead of legacy `AIza` standard keys; CapStone Settings accepts both formats |
 | v325 | — | **Multi-AI Model_AI_Specs generation** — on new asset save, CapStone queries Anthropic Claude and Google Gemini in parallel (when each API key is configured), then merges the drafts into one field following `CALIBRATION_SPEC_RULES.md`; Settings adds a Gemini API key (cloud-synced via Key Sync); single-provider fallback when only one key is set |
