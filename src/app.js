@@ -55,8 +55,16 @@ function modelAiSpecsAssetContent(category,brand,type,series,model){
   return "Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
 }
 var MODEL_AI_SPECS_CACHE={};
+function isGeminiZeroQuotaError(msg){
+  var m=String(msg||"");
+  if(!/429|resource_exhausted/i.test(m))return false;
+  return /free_tier_requests|limit['"\s:]*0\b|"limit"\s*:\s*"?0"?|prepayment credits are depleted|quota.*(exceeded|exhausted)/i.test(m);
+}
 function formatAiProviderError(msg){
   var m=String(msg||"");
+  if(isGeminiZeroQuotaError(m)){
+    return "Gemini key has no free-tier quota (429 RESOURCE_EXHAUSTED, limit 0). This is common with new AQ.-prefixed keys — create a standard key at aistudio.google.com/app/apikey or enable billing on the project. Claude specs still work.";
+  }
   if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
   return m;
 }
@@ -215,7 +223,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="337";
+var FP_VERSION="338";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6208,19 +6216,19 @@ async function callGeminiAPI(opts){
         clearTimeout(timer);
         if(r.ok)return r.json();
         var e=await r.text();
-        if((r.status===429||r.status===503)&&attempt<maxAttempts-1){
+        if((r.status===429||r.status===503)&&attempt<maxAttempts-1&&!isGeminiZeroQuotaError(e)){
           var wait=2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000);
           var ra=r.headers.get("retry-after");
           if(ra){var sec=parseInt(ra,10);if(!isNaN(sec)&&sec>0)wait=Math.max(wait,sec*1000);}
           await new Promise(function(res){setTimeout(res,wait);});
           continue;
         }
-        throw new Error("Gemini "+r.status+": "+e.substring(0,150));
+        throw new Error("Gemini "+r.status+": "+e.substring(0,300));
       }catch(err){
         clearTimeout(timer);
         lastErr=err;
         var msg=String(err&&err.message||err||"");
-        if(attempt<maxAttempts-1&&(msg.indexOf("429")>=0||msg.indexOf("503")>=0)){
+        if(attempt<maxAttempts-1&&(msg.indexOf("429")>=0||msg.indexOf("503")>=0)&&!isGeminiZeroQuotaError(msg)){
           await new Promise(function(res){setTimeout(res,2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000));});
           continue;
         }

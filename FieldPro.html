@@ -918,7 +918,7 @@
 <div id="gemini-keymodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeGeminiKeyModal()">
   <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Google Gemini API Key</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For Model_AI_Specs research on new assets. Saved on this device. Keys from aistudio.google.com/apikey — new keys start with AQ.; older keys start with AIza.</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For Model_AI_Specs research on new assets. Saved on this device. Keys from aistudio.google.com/apikey — new keys start with AQ.; older keys start with AIza. <strong style="color:var(--amber)">Note:</strong> some new AQ. keys ship with zero free-tier quota and return 429 on every call — if that happens, enable billing on the Google Cloud project or generate a standard AIza key. Claude specs still work without Gemini.</div>
     <label class="lbl" for="gemini-key-in">API Key</label>
     <input type="password" id="gemini-key-in" placeholder="AQ. or AIza..." autocomplete="off" style="margin-bottom:8px"/>
     <div id="gemini-key-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
@@ -954,7 +954,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=337"></script>
+<script src="src/app.js?v=338"></script>
 
 </body>
 </html>
