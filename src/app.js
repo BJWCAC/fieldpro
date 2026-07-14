@@ -1,7 +1,7 @@
 var PROXY="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/zoho-proxy";
 var API_KEY="";
 var GEMINI_API_KEY="";
-var GEMINI_MODEL="gemini-2.0-flash";
+var GEMINI_MODEL="gemini-2.5-flash";
 var WORKDRIVE_FOLDER="t16759780cbaabd3647cf897be2931dfa11ae";
 var WORKDRIVE_FOLDER_URL="https://workdrive.zoho.com/folder/"+WORKDRIVE_FOLDER;
 var UPLOAD_FETCH_MS=50000;
@@ -55,8 +55,19 @@ function modelAiSpecsAssetContent(category,brand,type,series,model){
   return "Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
 }
 var MODEL_AI_SPECS_CACHE={};
+function isGeminiZeroQuotaError(msg){
+  var m=String(msg||"");
+  if(!/429|resource_exhausted/i.test(m))return false;
+  return /free_tier_requests|limit['"\s:]*0\b|"limit"\s*:\s*"?0"?|prepayment credits are depleted|quota.*(exceeded|exhausted)/i.test(m);
+}
 function formatAiProviderError(msg){
   var m=String(msg||"");
+  if(isGeminiZeroQuotaError(m)){
+    return "Gemini key has no free-tier quota (429 RESOURCE_EXHAUSTED, limit 0). This is common with new AQ.-prefixed keys — create a standard key at aistudio.google.com/app/apikey or enable billing on the project. Claude specs still work.";
+  }
+  if(/Gemini 404|not found|is not found|is not supported/i.test(m)&&/gemini|model/i.test(m)){
+    return "Gemini model \""+geminiModelName()+"\" is unavailable (404). Update CapStone (may need a newer model) or set localStorage fp_gemini_model to a current model. Claude specs still work.";
+  }
   if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
   return m;
 }
@@ -215,7 +226,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="337";
+var FP_VERSION="339";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6191,12 +6202,13 @@ async function callAPI(opts){
     decGlobalBusy();
   }
 }
+function geminiModelName(){try{var o=localStorage.getItem("fp_gemini_model");if(o&&o.trim())return o.trim();}catch(e){}return GEMINI_MODEL;}
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
   opts=opts||{};
   var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
-  var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent";
+  var url="https://generativelanguage.googleapis.com/v1beta/models/"+geminiModelName()+":generateContent";
   var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
   incGlobalBusy();
   try{
@@ -6208,19 +6220,19 @@ async function callGeminiAPI(opts){
         clearTimeout(timer);
         if(r.ok)return r.json();
         var e=await r.text();
-        if((r.status===429||r.status===503)&&attempt<maxAttempts-1){
+        if((r.status===429||r.status===503)&&attempt<maxAttempts-1&&!isGeminiZeroQuotaError(e)){
           var wait=2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000);
           var ra=r.headers.get("retry-after");
           if(ra){var sec=parseInt(ra,10);if(!isNaN(sec)&&sec>0)wait=Math.max(wait,sec*1000);}
           await new Promise(function(res){setTimeout(res,wait);});
           continue;
         }
-        throw new Error("Gemini "+r.status+": "+e.substring(0,150));
+        throw new Error("Gemini "+r.status+": "+e.substring(0,300));
       }catch(err){
         clearTimeout(timer);
         lastErr=err;
         var msg=String(err&&err.message||err||"");
-        if(attempt<maxAttempts-1&&(msg.indexOf("429")>=0||msg.indexOf("503")>=0)){
+        if(attempt<maxAttempts-1&&(msg.indexOf("429")>=0||msg.indexOf("503")>=0)&&!isGeminiZeroQuotaError(msg)){
           await new Promise(function(res){setTimeout(res,2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000));});
           continue;
         }
