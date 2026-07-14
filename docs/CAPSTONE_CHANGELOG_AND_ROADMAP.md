@@ -5,7 +5,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-07-13
+Last updated: 2026-07-14
 Current live version: v324
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=324
 ```
@@ -34,8 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
-| v324 | — | **Asset save history** — Saved This Visit shows Equipments Name (AMD/CAC asset number) after create/update; persistent Asset History section on the History tab (`fp_asset_history`, storage trimming); Reopen fetches the record fresh from Zoho into Assets update mode; richer `get_equipment` proxy fields (build 285) |
 | v322 | — | **Auto-generate Model_AI_Specs on new asset save** — when Add New Asset creates a Zoho Equipment record, CapStone calls Anthropic (existing report-generation key) to write the Model_AI_Specs field (accuracy basis + published spec or NOT VERIFIED + brief cal notes) into the same create payload, so it is populated before the technician performs the calibration; skipped for placeholder/junk model numbers, missing API key, or when updating an existing asset (never overwrites a value already in Zoho) |
+| v324 | — | **New shared calibration rules reference** — `docs/CALIBRATION_SPEC_RULES.md` consolidates the reusable Model_AI_Specs rules (six accuracy bases, family traps, metal-detector paradigm, sensor-model gap, output format) pulled out of the one-time backfill working file; `MODEL_AI_SPECS_SYSTEM_PROMPT` in `src/app.js` rewritten to match it in full instead of the earlier condensed/generic version; `AGENTS.md` points future Claude/Cursor sessions at the doc so both stay in sync |
 | v323 | — | **Fix Assets tab draft restore wiping the form** — `ensureAssetContext()` ran on every Assets tab render, including immediately after a draft restore, and its deal/account mismatch check could fire during that restore and call `clearAssetEntryState()`, blanking every asset field, resetting photos, and deleting the just-restored draft from `localStorage` — while leaving the Deal/Account (never touched by that path) looking fine. Fixed by skipping the mismatch check while `A.asset._draftRestoreFields` is still pending application. Model/serial/name/building/description/notes/photos/dynamic category fields/subform rows now survive a full page close and reopen. |
 | v322 | — | **Remove hardcoded Zoho OAuth credentials from client JS** — `refresh_token` now sourced server-side in `zoho-proxy.js` from `ZOHO_REFRESH_TOKEN` / `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` Netlify env vars; `app.js` no longer ships the refresh token or client secret; proxy build 284 |
 | v321 | — | **Rosemount Details brand filter** — Flow Meter Rosemount section only when Asset Brand is Rosemount; hidden for Siemens and other brands |
