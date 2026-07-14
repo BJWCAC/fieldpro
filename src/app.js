@@ -90,11 +90,14 @@ async function fetchModelAiSpecsDraftsSequential(providers,content){
 }
 async function fetchModelAiSpecsDraft(provider,content){
   if(provider==="claude"){
-    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:60000,search:true});
+    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:1500,ms:75000,search:true});
     return getText(d).trim();
   }
   if(provider==="gemini"){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:60000,search:true});
+    // maxTok is generous because Gemini 2.5 "thinking" tokens count against maxOutputTokens;
+    // a tight budget gets consumed by reasoning and yields a truncated/empty spec. preferQuality
+    // asks for a Pro-tier model (what users get searching gemini directly), falling back to Flash.
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:2048,ms:75000,search:true,preferQuality:true});
     return getGeminiText(g).trim();
   }
   return "";
@@ -104,11 +107,11 @@ async function mergeModelAiSpecsDrafts(content,drafts,labels){
   drafts.forEach(function(txt,i){mergeContent+="--- "+(labels[i]||("Source "+(i+1)))+" ---\n"+txt+"\n\n";});
   mergeContent+="Write one merged Model_AI_Specs field following the required format.";
   if(GEMINI_API_KEY){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:2048,ms:75000,preferQuality:true});
     return getGeminiText(g).trim();
   }
   if(API_KEY){
-    var d=await callAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
+    var d=await callAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1500,ms:75000});
     return getText(d).trim();
   }
   return drafts[0]||"";
@@ -239,7 +242,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="344";
+var FP_VERSION="345";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6225,7 +6228,12 @@ async function callAPI(opts){
   }
 }
 var GEMINI_MODEL_PREFERENCE=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.0-flash","gemini-pro-latest"];
+// Higher-reasoning models for calibration-spec lookup, so CapStone matches the quality a user
+// gets searching a brand+model directly in Gemini (which uses a Pro-tier model). Callers that
+// set preferQuality:true resolve from this list and fall back to the Flash list if none work.
+var GEMINI_QUALITY_MODEL_PREFERENCE=["gemini-2.5-pro","gemini-pro-latest","gemini-2.0-pro","gemini-1.5-pro"];
 var _geminiResolvedModel=null;
+var _geminiResolvedQualityModel=null;
 function geminiModelOverride(){try{var o=localStorage.getItem("fp_gemini_model");if(o&&o.trim())return o.trim();}catch(e){}return "";}
 function geminiModelName(){return geminiModelOverride()||_geminiResolvedModel||GEMINI_MODEL;}
 async function listGeminiModels(){
@@ -6243,9 +6251,27 @@ function pickBestGeminiModel(available){
   var text=available.filter(function(n){return !bad.test(n)&&/gemini/i.test(n);});
   return text[0]||available[0]||"";
 }
-async function resolveGeminiModel(force){
+function pickBestGeminiQualityModel(available){
+  var bad=/embedding|aqa|imagen|image|tts|audio|native-audio|live|vision|veo|learnlm|thinking-exp/i;
+  for(var i=0;i<GEMINI_QUALITY_MODEL_PREFERENCE.length;i++){if(available.indexOf(GEMINI_QUALITY_MODEL_PREFERENCE[i])>=0)return GEMINI_QUALITY_MODEL_PREFERENCE[i];}
+  var pro=available.filter(function(n){return !bad.test(n)&&/pro/i.test(n)&&/gemini/i.test(n);});
+  if(pro.length)return pro[0];
+  return "";
+}
+async function resolveGeminiModel(force,quality){
   var ov=geminiModelOverride();
   if(ov)return ov;
+  if(quality){
+    if(!force){
+      if(_geminiResolvedQualityModel)return _geminiResolvedQualityModel;
+      try{var cq=localStorage.getItem("fp_gemini_model_quality_resolved");if(cq&&cq.trim()){_geminiResolvedQualityModel=cq.trim();return _geminiResolvedQualityModel;}}catch(e){}
+    }
+    var avail=await listGeminiModels();
+    var bestq=pickBestGeminiQualityModel(avail);
+    if(bestq){_geminiResolvedQualityModel=bestq;try{localStorage.setItem("fp_gemini_model_quality_resolved",bestq);}catch(e){}return bestq;}
+    // No Pro model for this key — fall back to the standard (Flash) resolution.
+    return pickBestGeminiModel(avail)||GEMINI_MODEL;
+  }
   if(!force){
     if(_geminiResolvedModel)return _geminiResolvedModel;
     try{var c=localStorage.getItem("fp_gemini_model_resolved");if(c&&c.trim()){_geminiResolvedModel=c.trim();return _geminiResolvedModel;}}catch(e){}
@@ -6264,12 +6290,14 @@ async function callGeminiAPI(opts){
   opts=opts||{};
   var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
+  var wantQuality=!!opts.preferQuality;
   var model;
-  try{model=await resolveGeminiModel(false);}catch(e){model=geminiModelName();}
+  try{model=await resolveGeminiModel(false,wantQuality);}catch(e){model=geminiModelName();}
   if(opts.search)body.tools=[geminiSearchTool(model)];
   var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
   var reResolved=false;
   var searchStripped=false;
+  var qualityFellBack=false;
   incGlobalBusy();
   try{
     var lastErr;
@@ -6281,6 +6309,13 @@ async function callGeminiAPI(opts){
         clearTimeout(timer);
         if(r.ok)return r.json();
         var e=await r.text();
+        if(wantQuality&&!qualityFellBack&&!geminiModelOverride()&&attempt<maxAttempts-1&&(r.status===404||isGeminiZeroQuotaError(e))){
+          // Pro-tier model unavailable or out of quota for this key — degrade to the standard Flash model rather than fail.
+          qualityFellBack=true;
+          var fbModel;
+          try{fbModel=await resolveGeminiModel(false,false);}catch(fbErr){fbModel=geminiModelName();}
+          if(fbModel&&fbModel!==model){model=fbModel;searchStripped=false;if(body.tools)body.tools=[geminiSearchTool(model)];continue;}
+        }
         if(r.status===404&&!geminiModelOverride()&&!reResolved&&attempt<maxAttempts-1){
           reResolved=true;
           if(body.tools&&!searchStripped)body.tools=[geminiSearchTool(model)];

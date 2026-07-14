@@ -86,7 +86,9 @@ When CapStone has both an Anthropic (Claude) and a Gemini key, it asks both mode
 - Attribution lists Gemini first, e.g. `[AI-gen: Gemini+Claude, <Month Year>]`.
 - The `NEVER invent a numeric spec` rule still overrides everything: if neither model gives a confident figure, write `NOT VERIFIED`.
 
-Keep this in sync with `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT` and `modelAiSpecsProviders()`/`mergeModelAiSpecsDrafts()` in `src/app.js`.
+**Model tier & token budget (why the field can look thinner than a direct Gemini search):** the Gemini web app answers a brand+model question with a Pro-tier model, deep "thinking", and multi-step browsing, and returns a full multi-paragraph write-up. CapStone must fit a 2000-char calibration summary, so the output is intentionally terser — but the *research* should be just as good. To keep it so, the Gemini draft/merge calls in `src/app.js` set `preferQuality:true` (resolves a Pro model such as `gemini-2.5-pro` via `GEMINI_QUALITY_MODEL_PREFERENCE`, falling back to the Flash list only when the key lacks Pro access or quota) and use a generous `maxTok` (~2048). The generous token budget matters because Gemini 2.5 "thinking" tokens count against `maxOutputTokens`; a tight budget gets eaten by reasoning and yields a truncated/empty spec. Keep `search:true` on the draft calls so the model reads live datasheets rather than working from memory.
+
+Keep this in sync with `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`, `modelAiSpecsProviders()`/`mergeModelAiSpecsDrafts()`, and `GEMINI_QUALITY_MODEL_PREFERENCE`/`callGeminiAPI(...preferQuality)` in `src/app.js`.
 
 ---
 
