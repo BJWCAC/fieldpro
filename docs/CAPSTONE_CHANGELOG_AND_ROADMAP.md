@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v342
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=342
+Current live version: v343
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=343
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v343 | — | **Web-search grounding for Model_AI_Specs** — specs were "failing quite a bit" (too many `NOT VERIFIED`/`SKIP`) because the models answered from memory; both draft calls now search the web using the `Asset_Brand` + `Asset_Model_Number` before answering (Gemini `google_search` grounding, Claude `web_search` tool) so accuracy/zero/span come from the actual manufacturer datasheet, with the source cited in `[AI-gen]`. Search is gated behind a `search` option on `callAPI`/`callGeminiAPI`, is version-aware for Gemini (`google_search` vs `google_search_retrieval`), and falls back gracefully to a no-tool call if a model rejects the tool; `CALIBRATION_SPEC_RULES.md` and `MODEL_AI_SPECS_SYSTEM_PROMPT` updated to require search-first |
 | v342 | — | **Gemini is the priority source for Model_AI_Specs** — Gemini is now fetched first, is the single-draft fallback when a merge fails, and does the merge itself (falling back to Claude only if no Gemini key). The merge prompt treats Gemini's confident figures as authoritative on conflicts (Claude fills gaps only), and attribution lists Gemini first (e.g. `[AI-gen: Gemini+Claude, …]`). Kept in sync in `docs/CALIBRATION_SPEC_RULES.md` |
 | v341 | — | **Accurate Model_AI_Specs provider diagnostics** — when only one AI returns a spec, CapStone now distinguishes *the other AI couldn't identify this model* (it returned `SKIP`) from *the other AI actually errored*. A `SKIP` no longer shows the misleading "other AI provider failed; check API keys." message — it now reads "…couldn't identify this specific model (not an API-key problem)." A genuinely empty (non-`SKIP`) response is surfaced as a real warning instead of being dropped silently. Skip state is remembered in the in-memory spec cache so repeat lookups report the same accurate note |
 | v340 | — | **Auto-detect available Gemini model** — hardcoded model ids kept 404ing on some accounts; CapStone now queries the ListModels API, picks the best `generateContent` flash model (preferring `gemini-flash-latest`), caches it, and re-resolves automatically on a 404; still overridable via `localStorage.fp_gemini_model` |
