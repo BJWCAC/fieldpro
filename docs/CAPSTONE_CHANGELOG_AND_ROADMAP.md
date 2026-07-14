@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v333
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=333
+Current live version: v334
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=334
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v334 | — | **AMD number in description + persistent asset save history** — after save, CapStone fetches assigned `CAC_Asset_ID` (retries if needed), prepends `CAC Asset ID: AMD####` to Description/Instructions (UI + Zoho), and lists all assets saved this visit in **Assets Saved This Visit** at the bottom (bold AMD, timestamp, reopen); history persists in `localStorage` across reload |
 | v333 | — | **Start New Asset button** — clears a loaded or saved asset and switches back to Add New mode (keeps deal/account, GPS, Saved This Visit); shown after save, reopen, or restore when form is update-ready; blocks post-save draft from re-locking the form into update mode |
 | v332 | — | **Fix asset update save INVALID_DATA invalid id** — do not send Account name as lookup id on update; omit Account when only a name is known; validate equipment and subform row ids before Zoho writes; clearer Zoho field name in save errors |
 | v331 | — | **Fix asset restore — full fields and photos** — asset draft photos offload to IndexedDB (like Capture); draft restore hydrates photos from IDB; Saved This Visit snapshot stores category dynamic fields, subform rows, and photos; Reopen fetches full Zoho record via `get_equipment` and restores local photos; Load Existing Asset uses full record fetch (includes Description_Instructions) |
