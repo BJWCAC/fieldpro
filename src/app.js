@@ -79,18 +79,21 @@ async function mergeModelAiSpecsDrafts(content,drafts,labels){
   }
   return drafts[0]||"";
 }
-async function generateModelAiSpecsIfNeeded(){
+async function generateModelAiSpecsIfNeeded(opts){
+  opts=opts||{};
   var brand=assetInput("asset-brand");
   var type=assetInput("asset-type");
   var model=assetInput("asset-model");
   var series=assetInput("asset-series");
   var category=assetInput("asset-category");
   var key=[category,brand,type,series,model].join("|");
-  if(A.asset.aiSpecsKey===key)return;
-  A.asset.aiSpecsKey=key;
+  if(!opts.force&&A.asset.aiSpecsKey===key&&A.asset.aiSpecsText)return{ok:true,cached:true};
+  if(!opts.force&&A.asset.aiSpecsKey===key&&!A.asset.aiSpecsText)return{ok:false,reason:"cached_empty"};
+  A.asset.aiSpecsKey="";
   A.asset.aiSpecsText="";
   var providers=modelAiSpecsProviders();
-  if(!providers.length||!isUsableModelForAiSpecs(model,brand))return;
+  if(!providers.length)return{ok:false,reason:"no_api_keys"};
+  if(!isUsableModelForAiSpecs(model,brand))return{ok:false,reason:"model_not_usable"};
   try{
     var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
     assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+label+"...",false);
@@ -98,25 +101,48 @@ async function generateModelAiSpecsIfNeeded(){
     var draftResults=await Promise.all(providers.map(function(p){
       return fetchModelAiSpecsDraft(p,content).then(function(txt){return{provider:p,txt:txt};}).catch(function(e){
         console.log("Model_AI_Specs "+p+" draft failed:",e);
-        return{provider:p,txt:""};
+        return{provider:p,txt:"",error:e&&e.message?e.message:String(e)};
       });
     }));
     var drafts=[];
     var labels=[];
+    var errors=[];
     draftResults.forEach(function(r){
+      if(r.error)errors.push(r.provider+": "+r.error);
       var txt=(r.txt||"").trim();
       if(!txt||txt==="SKIP")return;
       drafts.push(txt);
       labels.push(r.provider==="gemini"?"Gemini":"Claude");
     });
-    if(!drafts.length)return;
+    if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors};
     var txt=drafts.length===1?drafts[0]:await mergeModelAiSpecsDrafts(content,drafts,labels);
     txt=(txt||"").trim();
-    if(txt&&txt!=="SKIP"){if(txt.length>1900)txt=txt.slice(0,1900);A.asset.aiSpecsText=txt;}
-  }catch(e){console.log("Model_AI_Specs generation failed:",e);}
+    if(txt&&txt!=="SKIP"){
+      if(txt.length>1900)txt=txt.slice(0,1900);
+      A.asset.aiSpecsText=txt;
+      A.asset.aiSpecsKey=key;
+      return{ok:true};
+    }
+    return{ok:false,reason:"ai_skip"};
+  }catch(e){
+    console.log("Model_AI_Specs generation failed:",e);
+    return{ok:false,reason:"error",error:e&&e.message?e.message:String(e)};
+  }
+}
+function modelAiSpecsStatusNote(result){
+  if(!result||result.ok)return"";
+  if(result.reason==="no_api_keys")return" Model_AI_Specs skipped — add Anthropic and/or Gemini API keys in Settings.";
+  if(result.reason==="model_not_usable")return" Model_AI_Specs skipped — model number not usable for AI lookup.";
+  if(result.reason==="ai_skip")return" Model_AI_Specs skipped — AI could not identify this instrument.";
+  if(result.reason==="ai_skip_or_failed"){
+    var detail=result.errors&&result.errors.length?result.errors[0]:"";
+    return" Model_AI_Specs failed"+(detail?": "+detail:" — check API keys and connection.")+".";
+  }
+  if(result.reason==="error")return" Model_AI_Specs failed: "+(result.error||"unknown error")+".";
+  return"";
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="328";
+var FP_VERSION="329";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4351,7 +4377,7 @@ function clearAssetEntryState(msg,keepSavedItems,preserveDraft){
   assetFieldIdsToClear().forEach(function(id){setAssetInput(id,"");});
   A.asset.photos=[];A.asset.lastUploadedPhotoFingerprints={};
   A.asset.dynamicValues={};A.asset.dynamicSuggested={};A.asset.dynamicTouched={};A.asset.sectionHidden={};A.asset.subformRows=[];A.asset.subformTouched={};
-  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;A.asset.aiSpecsText="";A.asset.aiSpecsKey="";if(!keepSavedItems)A.asset.savedItems=[];
+  A.asset.saved=false;A.asset.currentAssetId=null;A.asset.loadedOriginal=null;A.asset.replacementMode=false;A.asset.aiSpecsText="";A.asset.aiSpecsKey="";A.asset._lastAiSpecsGen=null;A.asset._aiSpecsPostCreateFailed="";if(!keepSavedItems)A.asset.savedItems=[];
   renderAssetPhotos();renderSavedAssets();renderAssetCategoryFields();
   var next=el("asset-next-btn");if(next)next.style.display="none";
   if(msg)assetStatus(msg,false);else assetStatus("",false);
@@ -4541,7 +4567,8 @@ async function saveEquipmentRecord(){
     fullPayload=assetPayload({includeBlank:true});
   }
   if(!A.asset.currentAssetId){
-    await generateModelAiSpecsIfNeeded();
+    var specGen=await generateModelAiSpecsIfNeeded({force:true});
+    A.asset._lastAiSpecsGen=specGen;
     if(A.asset.aiSpecsText)fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
@@ -4587,6 +4614,15 @@ async function saveEquipmentRecord(){
     subRowsFinal=assetSubformPayload();
     assetStatus("Saving Input/Output subform rows in Zoho...",false);
     await postEquipmentToZoho("update_equipment",equipmentId,{Subform_1:subRowsFinal},{applyLayoutRules:true});
+  }
+  if(isCreate&&A.asset.aiSpecsText){
+    try{
+      assetStatus("Writing Model_AI_Specs to Zoho...",false);
+      await postEquipmentToZoho("update_equipment",equipmentId,{Model_AI_Specs:A.asset.aiSpecsText});
+    }catch(specErr){
+      console.log("Model_AI_Specs post-create update failed:",specErr);
+      A.asset._aiSpecsPostCreateFailed=specErr&&specErr.message?specErr.message:String(specErr);
+    }
   }
   return equipmentId;
 }
@@ -5372,6 +5408,9 @@ async function saveAssetToZoho(){
     renderSavedAssets();
     var next=el("asset-next-btn");if(next)next.style.display="flex";
     var warn=photoWarning||noteWarning||dealNoteWarning||dealLinkWarning;
+    var specNote=modelAiSpecsStatusNote(A.asset._lastAiSpecsGen);
+    if(A.asset._aiSpecsPostCreateFailed)specNote=(specNote?specNote+" ":"")+"Model_AI_Specs Zoho write failed: "+A.asset._aiSpecsPostCreateFailed+".";
+    if(specNote)warn=(warn?warn+" ":"")+specNote.trim();
     if(A.asset.loadedOriginal){A.asset.loadedOriginal=Object.assign({},A.asset.loadedOriginal,{model:assetInput("asset-model"),serial:assetInput("asset-serial"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),building:assetInput("asset-building"),designator:assetInput("asset-designator"),nameplateAdditional:assetPayload({includeBlank:true}).Nameplate_Additional_Info||"",description:assetPayload({includeBlank:true}).Description_Instructions||""});renderAssetHistoryPanel();}
     var acctLabel=assetSaveAccountName()||"account";
     var okMsg=(A.asset.linkMode==="account"||!A.sel)
@@ -5792,8 +5831,8 @@ async function callGeminiAPI(opts){
   incGlobalBusy();
   var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
   try{
-    var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent?key="+encodeURIComponent(GEMINI_API_KEY);
-    var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctrl.signal});
+    var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent";
+    var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},body:JSON.stringify(body),signal:ctrl.signal});
     clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("Gemini "+r.status+": "+e.substring(0,150));}
     return r.json();
   }catch(err){
