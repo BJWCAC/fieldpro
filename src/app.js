@@ -54,6 +54,26 @@ function modelAiSpecsProviders(){
 function modelAiSpecsAssetContent(category,brand,type,series,model){
   return "Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
 }
+function formatAiProviderError(msg){
+  var m=String(msg||"");
+  if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
+  return m;
+}
+async function fetchModelAiSpecsDraftsSequential(providers,content){
+  var results=[];
+  for(var i=0;i<providers.length;i++){
+    var p=providers[i];
+    if(i>0)await new Promise(function(r){setTimeout(r,1500);});
+    try{
+      var txt=await fetchModelAiSpecsDraft(p,content);
+      results.push({provider:p,txt:txt});
+    }catch(e){
+      console.log("Model_AI_Specs "+p+" draft failed:",e);
+      results.push({provider:p,txt:"",error:e&&e.message?e.message:String(e)});
+    }
+  }
+  return results;
+}
 async function fetchModelAiSpecsDraft(provider,content){
   if(provider==="claude"){
     var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
@@ -98,24 +118,28 @@ async function generateModelAiSpecsIfNeeded(opts){
     var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
     assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+label+"...",false);
     var content=modelAiSpecsAssetContent(category,brand,type,series,model);
-    var draftResults=await Promise.all(providers.map(function(p){
-      return fetchModelAiSpecsDraft(p,content).then(function(txt){return{provider:p,txt:txt};}).catch(function(e){
-        console.log("Model_AI_Specs "+p+" draft failed:",e);
-        return{provider:p,txt:"",error:e&&e.message?e.message:String(e)};
-      });
-    }));
+    var draftResults=await fetchModelAiSpecsDraftsSequential(providers,content);
     var drafts=[];
     var labels=[];
     var errors=[];
     draftResults.forEach(function(r){
-      if(r.error)errors.push(r.provider+": "+r.error);
+      if(r.error)errors.push(r.provider+": "+formatAiProviderError(r.error));
       var txt=(r.txt||"").trim();
       if(!txt||txt==="SKIP")return;
       drafts.push(txt);
       labels.push(r.provider==="gemini"?"Gemini":"Claude");
     });
     if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors};
-    var txt=drafts.length===1?drafts[0]:await mergeModelAiSpecsDrafts(content,drafts,labels);
+    var txt;
+    if(drafts.length===1)txt=drafts[0];
+    else{
+      try{txt=await mergeModelAiSpecsDrafts(content,drafts,labels);}
+      catch(mergeErr){
+        console.log("Model_AI_Specs merge failed:",mergeErr);
+        errors.push("merge: "+formatAiProviderError(mergeErr&&mergeErr.message?mergeErr.message:String(mergeErr)));
+        txt=drafts[0];
+      }
+    }
     txt=(txt||"").trim();
     if(txt&&txt!=="SKIP"){
       if(txt.length>MODEL_AI_SPECS_MAX)txt=txt.slice(0,MODEL_AI_SPECS_MAX);
@@ -134,7 +158,7 @@ async function generateModelAiSpecsIfNeeded(opts){
 function modelAiSpecsStatusNote(result){
   if(!result)return"";
   if(result.ok){
-    if(result.warnings&&result.warnings.length)return" Model_AI_Specs merged from "+(result.providers||["AI"]).join("+")+" (partial: "+result.warnings[0]+").";
+    if(result.warnings&&result.warnings.length)return" Model_AI_Specs merged from "+(result.providers||["AI"]).join("+")+" (partial: "+formatAiProviderError(result.warnings[0])+").";
     if(result.providers&&result.providers.length===1){
       if(modelAiSpecsProviders().length>1)return" Model_AI_Specs from "+result.providers[0]+" only — other AI provider failed; check API keys.";
       var other=!GEMINI_API_KEY?"Gemini API key":(!API_KEY?"Anthropic API key":"");
@@ -146,10 +170,10 @@ function modelAiSpecsStatusNote(result){
   if(result.reason==="model_not_usable")return" Model_AI_Specs skipped — model number not usable for AI lookup.";
   if(result.reason==="ai_skip")return" Model_AI_Specs skipped — AI could not identify this instrument.";
   if(result.reason==="ai_skip_or_failed"){
-    var detail=result.errors&&result.errors.length?result.errors[0]:"";
+    var detail=result.errors&&result.errors.length?formatAiProviderError(result.errors[0]):"";
     return" Model_AI_Specs failed"+(detail?": "+detail:" — check API keys and connection.")+".";
   }
-  if(result.reason==="error")return" Model_AI_Specs failed: "+(result.error||"unknown error")+".";
+  if(result.reason==="error")return" Model_AI_Specs failed: "+formatAiProviderError(result.error||"unknown error")+".";
   return"";
 }
 var MODEL_AI_SPECS_MAX=1900;
@@ -182,7 +206,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="335";
+var FP_VERSION="336";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6160,18 +6184,41 @@ async function callAPI(opts){
 }
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
+  opts=opts||{};
   var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
+  var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent";
+  var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
   incGlobalBusy();
-  var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
   try{
-    var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent";
-    var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},body:JSON.stringify(body),signal:ctrl.signal});
-    clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("Gemini "+r.status+": "+e.substring(0,150));}
-    return r.json();
-  }catch(err){
-    clearTimeout(timer);
-    throw err;
+    var lastErr;
+    for(var attempt=0;attempt<maxAttempts;attempt++){
+      var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
+      try{
+        var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},body:JSON.stringify(body),signal:ctrl.signal});
+        clearTimeout(timer);
+        if(r.ok)return r.json();
+        var e=await r.text();
+        if((r.status===429||r.status===503)&&attempt<maxAttempts-1){
+          var wait=2000*Math.pow(2,attempt);
+          var ra=r.headers.get("retry-after");
+          if(ra){var sec=parseInt(ra,10);if(!isNaN(sec)&&sec>0)wait=Math.max(wait,sec*1000);}
+          await new Promise(function(res){setTimeout(res,wait);});
+          continue;
+        }
+        throw new Error("Gemini "+r.status+": "+e.substring(0,150));
+      }catch(err){
+        clearTimeout(timer);
+        lastErr=err;
+        var msg=String(err&&err.message||err||"");
+        if(attempt<maxAttempts-1&&(msg.indexOf("429")>=0||msg.indexOf("503")>=0)){
+          await new Promise(function(res){setTimeout(res,2000*Math.pow(2,attempt));});
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr||new Error("Gemini request failed");
   }finally{
     decGlobalBusy();
   }
