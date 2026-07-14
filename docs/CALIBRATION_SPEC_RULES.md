@@ -81,6 +81,7 @@ Rules:
 When CapStone has both an Anthropic (Claude) and a Gemini key, it asks both models for a draft and merges them (`MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`). **Gemini is the priority source:**
 
 - Gemini is queried first; its draft is also the fallback used verbatim if the merge step itself fails.
+- The merge must never throw away good drafts. If the merge step returns nothing usable — an empty string (Gemini "thinking" tokens can eat the whole token budget) or a spurious `SKIP` — CapStone keeps the priority draft (`drafts[0]`, Gemini first) instead of reporting "AI could not identify this instrument." The merge prompt is also told that the drafts it receives already passed a usability check, so it should never answer `SKIP` (write `NOT VERIFIED` for thin figures instead).
 - The merge is performed by Gemini (Claude only if there is no Gemini key).
 - On conflicting numbers, the merge keeps Gemini's confident figure — it is not averaged with Claude and is not downgraded to `NOT VERIFIED` just because Claude differs. Claude's draft fills gaps only where Gemini is silent/unsure.
 - Attribution lists Gemini first, e.g. `[AI-gen: Gemini+Claude, <Month Year>]`.
