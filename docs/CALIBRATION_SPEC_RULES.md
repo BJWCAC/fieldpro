@@ -33,25 +33,25 @@ This file does **not** contain project-specific history (which records were alre
 ## 2. Output format (non-negotiable)
 
 ```
-CALIBRATION INFORMATION
-• Zero/LRL: <value or how established>
-• Span/URL: <value, or "NOT SET BY THIS MODEL CODE" + where to find it>
-• Minimum span: <value or n/a>
-• Resolution: <value>
-• Accuracy: ±<value> — OF READING (rate) | OF SPAN | OF FULL SCALE | OF RANGE | absolute units
-GENERAL
+<b>ACCURACY:</b> ±<value> — OF READING (rate) | OF SPAN | OF FULL SCALE | OF RANGE | absolute units
+<b>ZERO/LRL:</b> <value or how established>
+<b>SPAN/URL:</b> <value, or "NOT SET BY THIS MODEL CODE" + where to find it>
+<b>MINIMUM SPAN:</b> <value or n/a>
+<b>RESOLUTION:</b> <value>
+<b>GENERAL</b>
 <3–6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status>
-Cal notes: <1–3 lines of practical field guidance — the part techs actually read>
+<b>CAL NOTES:</b> <1–3 lines of practical field guidance — the part techs actually read>
 [AI-gen: <source>, <Month Year>]
 ```
 
 Rules:
-- CALIBRATION INFORMATION block first, always.
-- The accuracy line **must** state its basis explicitly — this is the single most important line (see §3).
+- **ACCURACY line first, always** — this is the single most important line (see §3).
+- Section titles and field labels use **bold ALL CAPS** via minimal HTML: `<b>ACCURACY:</b>`, `<b>ZERO/LRL:</b>`, `<b>GENERAL</b>`, `<b>CAL NOTES:</b>`, etc. No other HTML, no markdown bullets.
+- The accuracy line **must** state its basis explicitly.
 - If a spec cannot be verified: write `NOT VERIFIED` / `CONFIRM from <source>` — **never invent a number.**
 - Under 2000 characters.
 - Same model string on multiple records → same body text (service-specific detail may differ).
-- The `Cal notes:` line must tell a tech something a datasheet wouldn't: what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (see §7 for tone examples).
+- The `<b>CAL NOTES:</b>` line must tell a tech something a datasheet wouldn't: what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (see §7 for tone examples).
 - If the brand/model given isn't a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model/serial), don't write a spec at all — this is a junk/placeholder record, not a calibration question (see §5).
 
 ---
@@ -78,17 +78,16 @@ The single most useful thing this field can tell a tech: zero, span, resolution,
 Metal detectors are verified with **certified test pieces**, not calibrated with zero/span:
 
 ```
-CALIBRATION INFORMATION
-• Zero/Span: n/a — a metal detector is verified with CERTIFIED TEST SPHERES, not a zero/span cal.
-• Sensitivity: stated as the smallest detectable sphere diameter for each metal type —
+<b>ACCURACY:</b> pass/fail against the test-piece standard, not a % figure.
+<b>ZERO/SPAN:</b> n/a — a metal detector is verified with CERTIFIED TEST SPHERES, not a zero/span cal.
+<b>SENSITIVITY:</b> stated as the smallest detectable sphere diameter for each metal type —
   FERROUS (e.g. 1.5 mm), NON-FERROUS (e.g. 2.0 mm), STAINLESS STEEL (e.g. 2.5 mm).
   Stainless is always the hardest to detect (least magnetic/conductive contrast).
-• Accuracy: pass/fail against the test-piece standard, not a % figure.
-• Standard: certified test spheres traceable to the wands/cards supplied with the head.
-GENERAL
+<b>STANDARD:</b> certified test spheres traceable to the wands/cards supplied with the head.
+<b>GENERAL</b>
 <brand/model> metal detector, <aperture WxH>, <product>. Balanced-coil through-aperture head with
 auto-reject. Food-safety critical control point (HACCP/BRC) — verification is a documented QA record.
-Cal notes: run all THREE test pieces (ferrous, non-ferrous, stainless) through the aperture at
+<b>CAL NOTES:</b> run all THREE test pieces (ferrous, non-ferrous, stainless) through the aperture at
 production belt speed, at the WORST-CASE position (usually the geometric centre of the aperture, the
 least-sensitive point), embedded in product to include the product effect. Verify the REJECT mechanism
 actually removes the pack and that the fail-safe (air-fail, belt-stop, bin-full) trips. Product-effect
@@ -139,7 +138,7 @@ Many records hold a TRANSMITTER/CONTROLLER in `Asset_Model_Number` while `Model_
 
 ## 8. Cal notes: tone (examples)
 
-Write the `Cal notes:` line last, for someone standing at the instrument with a calibrator in their hand:
+Write the `<b>CAL NOTES:</b>` line last, for someone standing at the instrument with a calibrator in their hand:
 
 - "A poisoned catalytic bead reads LOW while still passing a zero check. Span is the only test that finds it."
 - "Wear always reads LOW, and a single-point test hides it. Test at three AWWA points."
