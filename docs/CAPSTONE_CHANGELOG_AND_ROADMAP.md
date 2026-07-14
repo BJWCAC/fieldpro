@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v340
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=340
+Current live version: v341
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=341
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v341 | — | **Accurate Model_AI_Specs provider diagnostics** — when only one AI returns a spec, CapStone now distinguishes *the other AI couldn't identify this model* (it returned `SKIP`) from *the other AI actually errored*. A `SKIP` no longer shows the misleading "other AI provider failed; check API keys." message — it now reads "…couldn't identify this specific model (not an API-key problem)." A genuinely empty (non-`SKIP`) response is surfaced as a real warning instead of being dropped silently. Skip state is remembered in the in-memory spec cache so repeat lookups report the same accurate note |
 | v340 | — | **Auto-detect available Gemini model** — hardcoded model ids kept 404ing on some accounts; CapStone now queries the ListModels API, picks the best `generateContent` flash model (preferring `gemini-flash-latest`), caches it, and re-resolves automatically on a 404; still overridable via `localStorage.fp_gemini_model` |
 | v339 | — | **Gemini model update to gemini-2.5-flash** — `gemini-2.0-flash` returns 404 (retired); default model is now `gemini-2.5-flash`; model is overridable via `localStorage.fp_gemini_model`; clearer 404 "model unavailable" message |
 | v338 | — | **Detect Gemini AQ.-key zero-quota 429** — recognizes `free_tier_requests limit: 0` / RESOURCE_EXHAUSTED responses (common with Google's new AQ.-prefixed keys), fails fast without pointless retries, and shows actionable guidance (create a standard AIza key or enable billing); Gemini key modal warns about the AQ. zero-quota issue; Claude specs continue to work |

@@ -131,7 +131,9 @@ async function generateModelAiSpecsIfNeeded(opts){
   if(cached&&cached.text){
     A.asset.aiSpecsText=cached.text;
     A.asset.aiSpecsKey=key;
-    return{ok:true,providers:cached.providers||["AI"],fromCache:true};
+    var cout={ok:true,providers:cached.providers||["AI"],fromCache:true};
+    if(cached.skipped&&cached.skipped.length)cout.skipped=cached.skipped.slice();
+    return cout;
   }
   try{
     var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
@@ -141,14 +143,17 @@ async function generateModelAiSpecsIfNeeded(opts){
     var drafts=[];
     var labels=[];
     var errors=[];
+    var skipped=[];
     draftResults.forEach(function(r){
-      if(r.error)errors.push(r.provider+": "+formatAiProviderError(r.error));
+      var pname=r.provider==="gemini"?"Gemini":"Claude";
+      if(r.error){errors.push(pname+": "+formatAiProviderError(r.error));return;}
       var txt=(r.txt||"").trim();
-      if(!txt||txt==="SKIP")return;
+      if(txt==="SKIP"){skipped.push(pname);return;}
+      if(!txt){errors.push(pname+": returned an empty response (possible token limit or model issue) — not necessarily an API-key problem");return;}
       drafts.push(txt);
-      labels.push(r.provider==="gemini"?"Gemini":"Claude");
+      labels.push(pname);
     });
-    if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors};
+    if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors,skipped:skipped};
     var txt;
     if(drafts.length===1)txt=drafts[0];
     else{
@@ -166,7 +171,8 @@ async function generateModelAiSpecsIfNeeded(opts){
       A.asset.aiSpecsKey=key;
       var out={ok:true,providers:labels};
       if(errors.length)out.warnings=errors;
-      if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:txt,providers:labels};
+      if(skipped.length)out.skipped=skipped;
+      if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:txt,providers:labels,skipped:skipped.slice()};
       return out;
     }
     return{ok:false,reason:"ai_skip"};
@@ -180,7 +186,10 @@ function modelAiSpecsStatusNote(result){
   if(result.ok){
     if(result.warnings&&result.warnings.length)return" Model_AI_Specs merged from "+(result.providers||["AI"]).join("+")+" (partial: "+formatAiProviderError(result.warnings[0])+").";
     if(result.providers&&result.providers.length===1){
-      if(modelAiSpecsProviders().length>1)return" Model_AI_Specs from "+result.providers[0]+" only — other AI provider failed; check API keys.";
+      if(modelAiSpecsProviders().length>1){
+        if(result.skipped&&result.skipped.length)return" Model_AI_Specs from "+result.providers[0]+" only — "+result.skipped.join(" & ")+" couldn't identify this specific model (not an API-key problem).";
+        return" Model_AI_Specs from "+result.providers[0]+" only — other AI provider failed; check API keys.";
+      }
       var other=!GEMINI_API_KEY?"Gemini API key":(!API_KEY?"Anthropic API key":"");
       if(other)return" Model_AI_Specs from "+result.providers[0]+" only — add "+other+" in Settings for merged Claude+Gemini lookup (Key Sync restores from your other device).";
     }
@@ -190,6 +199,7 @@ function modelAiSpecsStatusNote(result){
   if(result.reason==="model_not_usable")return" Model_AI_Specs skipped — model number not usable for AI lookup.";
   if(result.reason==="ai_skip")return" Model_AI_Specs skipped — AI could not identify this instrument.";
   if(result.reason==="ai_skip_or_failed"){
+    if((!result.errors||!result.errors.length)&&result.skipped&&result.skipped.length)return" Model_AI_Specs skipped — "+result.skipped.join(" & ")+" couldn't identify this instrument (not an API-key problem).";
     var detail=result.errors&&result.errors.length?formatAiProviderError(result.errors[0]):"";
     return" Model_AI_Specs failed"+(detail?": "+detail:" — check API keys and connection.")+".";
   }
@@ -226,7 +236,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="340";
+var FP_VERSION="341";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
