@@ -74,6 +74,18 @@ Rules:
 - Keep any prior `<b>OLD SPEC</b>` archive chain below that.
 - Total field still under 2000 characters (truncate from the bottom if needed).
 
+### Multi-AI merge (CapStone auto-generation)
+
+When CapStone has both an Anthropic (Claude) and a Gemini key, it asks both models for a draft and merges them (`MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`). **Gemini is the priority source:**
+
+- Gemini is queried first; its draft is also the fallback used verbatim if the merge step itself fails.
+- The merge is performed by Gemini (Claude only if there is no Gemini key).
+- On conflicting numbers, the merge keeps Gemini's confident figure — it is not averaged with Claude and is not downgraded to `NOT VERIFIED` just because Claude differs. Claude's draft fills gaps only where Gemini is silent/unsure.
+- Attribution lists Gemini first, e.g. `[AI-gen: Gemini+Claude, <Month Year>]`.
+- The `NEVER invent a numeric spec` rule still overrides everything: if neither model gives a confident figure, write `NOT VERIFIED`.
+
+Keep this in sync with `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT` and `modelAiSpecsProviders()`/`mergeModelAiSpecsDrafts()` in `src/app.js`.
+
 ---
 
 ## 3. The six accuracy bases (map to instrument type)
