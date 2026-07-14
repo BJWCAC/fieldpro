@@ -653,7 +653,7 @@
   <details class="help-box" data-help-id="settings-tab">
     <summary>Help: Settings</summary>
     <div class="help-box-body">
-      <p>Settings controls technician identity, sync recovery, save behavior, storage, troubleshooting, and your Anthropic API key.</p>
+      <p>Settings controls technician identity, sync recovery, save behavior, storage, troubleshooting, and your Anthropic + Gemini API keys.</p>
       <ul>
         <li>Select the technician using CapStone on this device.</li>
         <li>Check <strong>Pending Sync</strong> when uploads or Zoho steps failed in the field.</li>
@@ -799,11 +799,12 @@
     </div>
     <div id="sync-status" style="font-size:12px;color:var(--amber);line-height:1.5"></div>
   </div>
-  <div class="settings-group-title">API Key</div>
+  <div class="settings-group-title">API Keys</div>
   <div class="card">
-    <div class="stitle">API Key</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Your Anthropic API key — saved on this device. Get keys at console.anthropic.com.</div>
-    <button class="bp bfull" onclick="enterKey()">Update API Key</button>
+    <div class="stitle">AI API Keys</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.5">Anthropic (reports, nameplate extract) and Google Gemini (calibration spec research). Both keys recommended for best Model_AI_Specs on new assets — CapStone queries each configured AI and merges the drafts.</div>
+    <button class="bp bfull" onclick="enterKey()" style="margin-bottom:8px">Update Anthropic Key</button>
+    <button class="bp bfull" onclick="enterGeminiKey()">Update Gemini Key</button>
   </div>
   <div class="settings-group-title">App Info</div>
   <div class="card">
@@ -906,6 +907,20 @@
   </div>
 </div>
 
+<div id="gemini-keymodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeGeminiKeyModal()">
+  <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
+    <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Google Gemini API Key</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For Model_AI_Specs research on new assets. Saved on this device. Keys from aistudio.google.com/apikey</div>
+    <label class="lbl" for="gemini-key-in">API Key</label>
+    <input type="password" id="gemini-key-in" placeholder="AIza..." autocomplete="off" style="margin-bottom:8px"/>
+    <div id="gemini-key-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
+    <div class="g2">
+      <button type="button" class="bg bfull" onclick="closeGeminiKeyModal()">Cancel</button>
+      <button type="button" class="bp bfull" onclick="saveGeminiApiKey()">Save Key</button>
+    </div>
+  </div>
+</div>
+
 <div id="keymodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeKeyModal()">
   <div class="sbox" style="border-radius:12px;max-width:420px" onclick="event.stopPropagation()">
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Anthropic API Key</div>
@@ -931,7 +946,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=324"></script>
+<script src="src/app.js?v=325"></script>
 
 </body>
 </html>

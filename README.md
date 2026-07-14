@@ -39,7 +39,7 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - **Accounts Map tab** — Leaflet/OpenStreetMap view of Zoho accounts with deal-stage pins, clustering, and filters
 - **Key Sync (Cloud)** — back up and restore your API key and app settings across devices, keyed by Zoho technician name and protected by a passphrase (see `docs/CAPSTONE_KEY_SYNC.md`)
 - equipment asset save/update workflow with draft autosave
-- **Auto-generated Model_AI_Specs** — new assets get calibration-relevant AI specs written into Zoho on save, before the technician performs the calibration (skipped for junk/placeholder model numbers and never overwrites an existing asset's specs on update)
+- **Auto-generated Model_AI_Specs** — new assets get calibration-relevant AI specs written into Zoho on save (Anthropic + Google Gemini when both keys are configured, merged into one field); skipped for junk/placeholder model numbers and never overwrites an existing asset's specs on update
 - **Asset Category layouts** — category-driven fields for Flow Meter, Flow Open Channel, Gas Detector, General, Lift Station, and Scales &amp; Balances
 - per-field → AI extract with an offline Pending AI queue
 - search-first asset update (CAC ID, serial, model, brand, type, series, name, building, designator)
@@ -49,7 +49,7 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - collapsible help boxes on all tabs
 - in-app Quick Start help from the header
 - report and asset save checklists
-- organized Settings tab (technician, sync, storage, troubleshooting, appearance, API key, app info)
+- organized Settings tab (technician, sync, storage, troubleshooting, appearance, Anthropic + Gemini API keys, app info)
 - Pending Sync badge and retry for failed Zoho/WorkDrive/asset operations
 - AI report generation with optional nine structured fields
 - Zoho deal note update/recovery behavior
