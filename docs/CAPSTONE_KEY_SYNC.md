@@ -14,6 +14,7 @@ The whitelist of `localStorage` keys backed up / restored:
 | Key | What it is |
 |-----|------------|
 | `fp_api_key` | Anthropic API key |
+| `fp_gemini_api_key` | Google Gemini API key (Model_AI_Specs multi-AI research) |
 | `fp_plaud_tokens` | Plaud connection tokens |
 | `fp_plaud_auto_pull` | Plaud auto-pull on/off |
 | `fp_auto_save_zoho` | Auto-save to Zoho toggle |
@@ -21,6 +22,7 @@ The whitelist of `localStorage` keys backed up / restored:
 | `fp_record_audio` | Record audio in video toggle |
 | `fp_theme` | Light / dark theme |
 | `fp_key_sync_auto` | Auto-backup toggle (on unless turned off) |
+| `fp_key_sync_auto_restore` | Auto-restore missing keys on startup (on unless turned off) |
 
 Reports, capture drafts, photos, deal cache, and History are **not** synced — they
 stay on the device.
@@ -35,12 +37,15 @@ works.
 2. Go to **Settings → Key Sync (Cloud)**.
 3. Type a **sync passphrase** (4+ characters) and tap **Save passphrase on this device**.
    Keep this passphrase private — it protects your keys in the cloud.
-4. Turn on **Auto-backup keys to cloud** (default on). After you change your API key,
+4. Turn on **Auto-backup keys to cloud** (default on). After you change your API keys,
    Plaud connection, or app toggles, CapStone uploads to the cloud within ~8 seconds.
    You can still tap **Back up keys to cloud** anytime for an immediate backup.
-5. On another device, select the **same technician name**, enter the **same
-   passphrase**, and tap **Restore keys to this device**. The API key and synced
-   settings are pulled down and applied immediately.
+5. Turn on **Auto-restore missing keys on startup** (default on). On another device,
+   select the **same technician name**, enter the **same passphrase**, and save it.
+   CapStone pulls any **missing** API keys (Anthropic, Gemini) and synced settings from
+   the cloud shortly after startup — without overwriting keys already set on that device.
+6. You can still tap **Restore keys to this device** anytime for a full manual restore
+   (overwrites synced settings on this device).
 
 If no backup exists for the technician, Restore reports "No cloud backup found".
 If the passphrase is wrong, Restore reports "Wrong passphrase".
@@ -92,7 +97,6 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 
 ## Not in Phase 1 (future)
 
-- Auto-pull on app open (restore still manual — tap **Restore keys to this device**).
 - Syncing reports, drafts, photos, or History (see Phase 2+ in the roadmap).
 - Per-device sync history / conflict resolution beyond last-write-wins.
 
@@ -102,3 +106,12 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 - Debounced push (~8s) after API key, Plaud tokens, or synced toggle changes.
 - Manual **Back up keys to cloud** still available for immediate upload.
 - Auto-backup is silent on success (status line only); manual backup still toasts.
+
+## Phase 1.6 — auto-restore + Gemini key sync (v335)
+
+- **`fp_gemini_api_key`** included in cloud backup/restore (was missing from early docs).
+- **Auto-restore missing keys on startup** toggle (default on).
+- On app open, when technician + passphrase are set, CapStone pulls from the cloud
+  and applies only **missing** synced fields (e.g. Gemini key on phone when laptop
+  already backed up). Does not overwrite keys already present on the device.
+- Manual **Restore keys to this device** still performs a full overwrite restore.
