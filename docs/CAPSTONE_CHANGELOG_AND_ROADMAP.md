@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v330
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=330
+Current live version: v331
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=331
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v331 | — | **Fix asset restore — full fields and photos** — asset draft photos offload to IndexedDB (like Capture); draft restore hydrates photos from IDB; Saved This Visit snapshot stores category dynamic fields, subform rows, and photos; Reopen fetches full Zoho record via `get_equipment` and restores local photos; Load Existing Asset uses full record fetch (includes Description_Instructions) |
 | v330 | — | **Model_AI_Specs on asset update** — updates now generate fresh AI specs and archive the previous active spec under `<b>OLD SPEC</b>` (two blank lines below the new spec); prior archive chain preserved; `get_equipment` fetches `Model_AI_Specs` |
 | v329 | — | **Fix Model_AI_Specs missing on new asset save** — force fresh AI lookup on save; write specs via post-create Zoho update (after category layout); Gemini uses `x-goog-api-key` header for AQ. keys; show clear status when specs are skipped or API fails |
 | v328 | — | **Saved This Visit shows assigned asset number** — after new asset save, the bottom overview lists Zoho `CAC_Asset_ID` first in bold ALL CAPS, then name/model/serial |
