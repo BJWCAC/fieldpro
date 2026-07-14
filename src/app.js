@@ -41,6 +41,10 @@ function isUsableModelForAiSpecs(model,brand){
   if(/^1\s*other$/i.test(String(brand||"").trim())&&m.length<4)return false;
   return true;
 }
+function isValidGeminiApiKey(k){
+  k=String(k||"").trim();
+  return k.startsWith("AIza")||k.startsWith("AQ.");
+}
 function modelAiSpecsProviders(){
   var out=[];
   if(API_KEY)out.push("claude");
@@ -112,7 +116,7 @@ async function generateModelAiSpecsIfNeeded(){
   }catch(e){console.log("Model_AI_Specs generation failed:",e);}
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="325";
+var FP_VERSION="326";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1111,7 +1115,7 @@ function enterGeminiKey(){
   if(!m){
     var k=prompt("Paste your Google Gemini API key:");
     if(!k)return;k=k.trim();
-    if(!k.startsWith("AIza")){alert("Key should start with AIza");return;}
+    if(!isValidGeminiApiKey(k)){alert("Key should start with AIza or AQ.");return;}
     GEMINI_API_KEY=k;try{localStorage.setItem("fp_gemini_api_key",k);}catch(e){alert("Could not save key");return;}
     setGeminiKeyUI(true);showToast("Gemini API key saved",2000);scheduleKeySyncAutoPush();return;
   }
@@ -1126,7 +1130,7 @@ function saveGeminiApiKey(){
   var inp=el("gemini-key-in"),err=el("gemini-key-err");
   var k=(inp&&inp.value||"").trim();
   if(!k){if(err)err.textContent="Paste your Gemini API key first";return;}
-  if(!k.startsWith("AIza")){if(err)err.textContent="Key must start with AIza";return;}
+  if(!isValidGeminiApiKey(k)){if(err)err.textContent="Key must start with AIza or AQ.";return;}
   GEMINI_API_KEY=k;
   try{localStorage.setItem("fp_gemini_api_key",k);}catch(e){if(err)err.textContent="Could not save: "+e.message;return;}
   setGeminiKeyUI(true);closeGeminiKeyModal();showToast("Gemini API key saved",3000);scheduleKeySyncAutoPush();
@@ -1193,7 +1197,7 @@ function bootApp(){
     var k=localStorage.getItem("fp_api_key");
     if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}else setKeyUI(false);
     var gk=localStorage.getItem("fp_gemini_api_key");
-    if(gk&&gk.startsWith("AIza")){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}else setGeminiKeyUI(false);
+    if(gk&&isValidGeminiApiKey(gk)){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}else setGeminiKeyUI(false);
     if(localStorage.getItem("fp_theme")==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
     if(localStorage.getItem("fp_record_audio")==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
     A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
@@ -6547,7 +6551,7 @@ function applySyncSettings(s){
       }
     });
     try{var k=localStorage.getItem("fp_api_key");if(k&&k.indexOf("sk-ant")===0){API_KEY=k;setKeyUI(true);}}catch(e){}
-    try{var gk=localStorage.getItem("fp_gemini_api_key");if(gk&&gk.indexOf("AIza")===0){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}}catch(e){}
+    try{var gk=localStorage.getItem("fp_gemini_api_key");if(gk&&isValidGeminiApiKey(gk)){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}}catch(e){}
     A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
     A.autoSavePhonePhotos=localStorage.getItem("fp_auto_save_phone_photos")!=="0";
     A.recordAudio=localStorage.getItem("fp_record_audio")==="1";
