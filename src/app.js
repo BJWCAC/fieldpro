@@ -118,7 +118,7 @@ async function generateModelAiSpecsIfNeeded(opts){
     var txt=drafts.length===1?drafts[0]:await mergeModelAiSpecsDrafts(content,drafts,labels);
     txt=(txt||"").trim();
     if(txt&&txt!=="SKIP"){
-      if(txt.length>1900)txt=txt.slice(0,1900);
+      if(txt.length>MODEL_AI_SPECS_MAX)txt=txt.slice(0,MODEL_AI_SPECS_MAX);
       A.asset.aiSpecsText=txt;
       A.asset.aiSpecsKey=key;
       return{ok:true};
@@ -141,8 +141,37 @@ function modelAiSpecsStatusNote(result){
   if(result.reason==="error")return" Model_AI_Specs failed: "+(result.error||"unknown error")+".";
   return"";
 }
+var MODEL_AI_SPECS_MAX=1900;
+var MODEL_AI_SPECS_OLD_HDR="<b>OLD SPEC</b>";
+function modelAiSpecsActivePortion(text){
+  var t=String(text||"").trim();
+  if(!t)return"";
+  var idx=t.search(/<b>OLD SPEC<\/b>/i);
+  if(idx>=0)return t.slice(0,idx).trim();
+  return t;
+}
+function modelAiSpecsPriorArchive(text){
+  var t=String(text||"").trim();
+  if(!t)return"";
+  var idx=t.search(/<b>OLD SPEC<\/b>/i);
+  if(idx<0)return"";
+  return t.slice(idx).trim();
+}
+function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
+  newSpec=String(newSpec||"").trim();
+  if(!newSpec)return"";
+  var prev=String(existingZohoSpec||"").trim();
+  if(!prev)return newSpec;
+  var previousActive=modelAiSpecsActivePortion(prev);
+  if(!previousActive||previousActive===newSpec)return newSpec;
+  var priorArchive=modelAiSpecsPriorArchive(prev);
+  var combined=newSpec+"\n\n\n"+MODEL_AI_SPECS_OLD_HDR+"\n"+previousActive;
+  if(priorArchive)combined+="\n\n\n"+priorArchive;
+  if(combined.length>MODEL_AI_SPECS_MAX)combined=combined.slice(0,MODEL_AI_SPECS_MAX);
+  return combined;
+}
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="329";
+var FP_VERSION="330";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4566,10 +4595,19 @@ async function saveEquipmentRecord(){
     includeBlank=true;
     fullPayload=assetPayload({includeBlank:true});
   }
-  if(!A.asset.currentAssetId){
-    var specGen=await generateModelAiSpecsIfNeeded({force:true});
-    A.asset._lastAiSpecsGen=specGen;
-    if(A.asset.aiSpecsText)fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
+  var equipmentIdForSpecs=A.asset.currentAssetId||null;
+  var existingSpecsText="";
+  if(equipmentIdForSpecs){
+    try{
+      var specRec=await getEquipmentRecord(equipmentIdForSpecs);
+      existingSpecsText=(specRec&&specRec.Model_AI_Specs)||"";
+    }catch(specLoadErr){console.log("Could not load existing Model_AI_Specs:",specLoadErr);}
+  }
+  var specGen=await generateModelAiSpecsIfNeeded({force:true});
+  A.asset._lastAiSpecsGen=specGen;
+  if(A.asset.aiSpecsText){
+    if(equipmentIdForSpecs)A.asset.aiSpecsText=combineModelAiSpecsForUpdate(A.asset.aiSpecsText,existingSpecsText);
+    fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
@@ -4615,12 +4653,12 @@ async function saveEquipmentRecord(){
     assetStatus("Saving Input/Output subform rows in Zoho...",false);
     await postEquipmentToZoho("update_equipment",equipmentId,{Subform_1:subRowsFinal},{applyLayoutRules:true});
   }
-  if(isCreate&&A.asset.aiSpecsText){
+  if(A.asset.aiSpecsText){
     try{
       assetStatus("Writing Model_AI_Specs to Zoho...",false);
       await postEquipmentToZoho("update_equipment",equipmentId,{Model_AI_Specs:A.asset.aiSpecsText});
     }catch(specErr){
-      console.log("Model_AI_Specs post-create update failed:",specErr);
+      console.log("Model_AI_Specs post-save update failed:",specErr);
       A.asset._aiSpecsPostCreateFailed=specErr&&specErr.message?specErr.message:String(specErr);
     }
   }
