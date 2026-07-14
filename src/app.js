@@ -31,7 +31,7 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\n<b>ACCURACY:</b> plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\n<b>ZERO/LRL:</b> value or how established\n<b>SPAN/URL:</b> value, or NOT SET BY THIS MODEL CODE + where to find it\n<b>MINIMUM SPAN:</b> value or n/a\n<b>RESOLUTION:</b> value\n<b>GENERAL</b>\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\n<b>CAL NOTES:</b> 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: if you are not confident of the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
+var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file.\n\nFIRST, before writing anything, SEARCH THE WEB using the Asset_Brand and Asset_Model_Number given (e.g. query \"<Asset_Brand> <Asset_Model_Number> datasheet accuracy specification\"). Find the manufacturer datasheet or a trustworthy source and read the published accuracy, zero/span, and ranges from it. Base every number on what you actually found — prefer a figure confirmed by search over a remembered one. In the [AI-gen] line cite the source you used (manufacturer or domain). Only write NOT VERIFIED when a web search does not surface a trustworthy figure. Never invent a number and never guess at unreadable model codes.\n\nOutput minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\n<b>ACCURACY:</b> plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\n<b>ZERO/LRL:</b> value or how established\n<b>SPAN/URL:</b> value, or NOT SET BY THIS MODEL CODE + where to find it\n<b>MINIMUM SPAN:</b> value or n/a\n<b>RESOLUTION:</b> value\n<b>GENERAL</b>\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\n<b>CAL NOTES:</b> 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: search first, then report what you found. If a web search does not surface the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
 var MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT="You merge multiple AI drafts into one Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nUse the same output format:\n<b>ACCURACY:</b> first line; then <b>ZERO/LRL:</b>, <b>SPAN/URL:</b>, <b>MINIMUM SPAN:</b>, <b>RESOLUTION:</b>; then <b>GENERAL</b> block; then <b>CAL NOTES:</b>; then [AI-gen: sources, Month Year].\n\nMerge rules:\n- The GEMINI draft is the PRIORITY source. When drafts disagree on a number, use the Gemini draft's confident figure as the primary value — do not average and do not downgrade a confident Gemini figure to NOT VERIFIED just because another draft differs. Use another draft's figure only where Gemini is silent or explicitly unsure.\n- Prefer specific published figures only when a draft states them confidently; if neither Gemini nor another draft gives a confident figure, use NOT VERIFIED — confirm from manufacturer datasheet.\n- NEVER invent a numeric spec.\n- Combine the best practical Cal notes from all drafts without repeating yourself.\n- End attribution with every source label provided (e.g. Claude, Gemini) joined with +, list Gemini first, e.g. [AI-gen: Gemini+Claude, Jul 2026].\n- If every draft is SKIP or unusable, respond with exactly: SKIP.";
 function isUsableModelForAiSpecs(model,brand){
   var m=String(model||"").trim();
@@ -88,11 +88,11 @@ async function fetchModelAiSpecsDraftsSequential(providers,content){
 }
 async function fetchModelAiSpecsDraft(provider,content){
   if(provider==="claude"){
-    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:60000,search:true});
     return getText(d).trim();
   }
   if(provider==="gemini"){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:60000,search:true});
     return getGeminiText(g).trim();
   }
   return "";
@@ -236,7 +236,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="342";
+var FP_VERSION="343";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6197,17 +6197,26 @@ function checkGen(){
 
 // API
 async function callAPI(opts){
+  opts=opts||{};
   var body={model:"claude-sonnet-4-6",max_tokens:opts.maxTok||4000,messages:[{role:"user",content:opts.content}]};
   if(opts.sys)body.system=opts.sys;
+  if(opts.search)body.tools=[{type:"web_search_20250305",name:"web_search",max_uses:opts.searchMaxUses||5}];
   incGlobalBusy();
-  var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
   try{
-    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
-    clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("API "+r.status+": "+e.substring(0,150));}
-    return r.json();
-  }catch(err){
-    clearTimeout(timer);
-    throw err;
+    for(var attempt=0;attempt<2;attempt++){
+      var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
+      try{
+        var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
+        clearTimeout(timer);
+        if(r.ok)return r.json();
+        var e=await r.text();
+        if(body.tools&&attempt===0&&/tool|web_search|not supported|unsupported|invalid_request/i.test(e)){delete body.tools;continue;}
+        throw new Error("API "+r.status+": "+e.substring(0,150));
+      }catch(err){
+        clearTimeout(timer);
+        throw err;
+      }
+    }
   }finally{
     decGlobalBusy();
   }
@@ -6242,6 +6251,11 @@ async function resolveGeminiModel(force){
   if(best){_geminiResolvedModel=best;try{localStorage.setItem("fp_gemini_model_resolved",best);}catch(e){}}
   return best||GEMINI_MODEL;
 }
+function geminiSearchTool(model){
+  var m=String(model||"");
+  if(/1\.5|1\.0/.test(m))return{google_search_retrieval:{}};
+  return{google_search:{}};
+}
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
   opts=opts||{};
@@ -6249,8 +6263,10 @@ async function callGeminiAPI(opts){
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
   var model;
   try{model=await resolveGeminiModel(false);}catch(e){model=geminiModelName();}
+  if(opts.search)body.tools=[geminiSearchTool(model)];
   var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
   var reResolved=false;
+  var searchStripped=false;
   incGlobalBusy();
   try{
     var lastErr;
@@ -6264,7 +6280,11 @@ async function callGeminiAPI(opts){
         var e=await r.text();
         if(r.status===404&&!geminiModelOverride()&&!reResolved&&attempt<maxAttempts-1){
           reResolved=true;
-          try{var next=await resolveGeminiModel(true);if(next&&next!==model){model=next;continue;}}catch(reErr){}
+          if(body.tools&&!searchStripped)body.tools=[geminiSearchTool(model)];
+          try{var next=await resolveGeminiModel(true);if(next&&next!==model){model=next;if(body.tools&&!searchStripped)body.tools=[geminiSearchTool(model)];continue;}}catch(reErr){}
+        }
+        if(r.status===400&&body.tools&&!searchStripped&&/tool|search|not supported|unsupported|invalid/i.test(e)){
+          searchStripped=true;delete body.tools;continue;
         }
         if((r.status===429||r.status===503)&&attempt<maxAttempts-1&&!isGeminiZeroQuotaError(e)){
           var wait=2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000);

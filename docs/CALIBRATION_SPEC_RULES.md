@@ -45,6 +45,7 @@ This file does **not** contain project-specific history (which records were alre
 ```
 
 Rules:
+- **Search the web first.** Before writing, look up the exact `Asset_Brand` + `Asset_Model_Number` (e.g. query `"<brand> <model> datasheet accuracy specification"`), read the published figures from the manufacturer datasheet or a trustworthy source, and base every number on what you actually found rather than on memory. Cite the source in the `[AI-gen]` line (manufacturer or domain). Only fall back to `NOT VERIFIED` when a search does not surface a trustworthy figure. CapStone's auto-generation enables web-search grounding on both the Gemini (`google_search`) and Claude (`web_search`) draft calls — keep `search:true` on those calls in `fetchModelAiSpecsDraft()`.
 - **ACCURACY line first, always** — this is the single most important line (see §3).
 - Section titles and field labels use **bold ALL CAPS** via minimal HTML: `<b>ACCURACY:</b>`, `<b>ZERO/LRL:</b>`, `<b>GENERAL</b>`, `<b>CAL NOTES:</b>`, etc. No other HTML, no markdown bullets.
 - The accuracy line **must** state its basis explicitly.
