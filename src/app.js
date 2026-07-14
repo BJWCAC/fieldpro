@@ -66,7 +66,7 @@ function formatAiProviderError(msg){
     return "Gemini key has no free-tier quota (429 RESOURCE_EXHAUSTED, limit 0). This is common with new AQ.-prefixed keys — create a standard key at aistudio.google.com/app/apikey or enable billing on the project. Claude specs still work.";
   }
   if(/Gemini 404|not found|is not found|is not supported/i.test(m)&&/gemini|model/i.test(m)){
-    return "Gemini model \""+geminiModelName()+"\" is unavailable (404). Update CapStone (may need a newer model) or set localStorage fp_gemini_model to a current model. Claude specs still work.";
+    return "No Gemini model available for this API key (404). CapStone auto-detected models but none worked — the key may lack access. Enable billing or create a standard AIza key. Claude specs still work.";
   }
   if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
   return m;
@@ -226,7 +226,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="339";
+var FP_VERSION="340";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6202,24 +6202,60 @@ async function callAPI(opts){
     decGlobalBusy();
   }
 }
-function geminiModelName(){try{var o=localStorage.getItem("fp_gemini_model");if(o&&o.trim())return o.trim();}catch(e){}return GEMINI_MODEL;}
+var GEMINI_MODEL_PREFERENCE=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.0-flash","gemini-pro-latest"];
+var _geminiResolvedModel=null;
+function geminiModelOverride(){try{var o=localStorage.getItem("fp_gemini_model");if(o&&o.trim())return o.trim();}catch(e){}return "";}
+function geminiModelName(){return geminiModelOverride()||_geminiResolvedModel||GEMINI_MODEL;}
+async function listGeminiModels(){
+  var url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000";
+  var r=await fetch(url,{headers:{"x-goog-api-key":GEMINI_API_KEY}});
+  if(!r.ok){var t=await r.text();throw new Error("Gemini models "+r.status+": "+t.substring(0,200));}
+  var d=await r.json();
+  return (d.models||[]).filter(function(m){return (m.supportedGenerationMethods||[]).indexOf("generateContent")>=0;}).map(function(m){return String(m.name||"").replace(/^models\//,"");});
+}
+function pickBestGeminiModel(available){
+  var bad=/embedding|aqa|imagen|image|tts|audio|native-audio|live|vision|veo|learnlm|thinking-exp/i;
+  var flash=available.filter(function(n){return !bad.test(n)&&/flash/i.test(n);});
+  for(var i=0;i<GEMINI_MODEL_PREFERENCE.length;i++){if(available.indexOf(GEMINI_MODEL_PREFERENCE[i])>=0)return GEMINI_MODEL_PREFERENCE[i];}
+  if(flash.length)return flash[0];
+  var text=available.filter(function(n){return !bad.test(n)&&/gemini/i.test(n);});
+  return text[0]||available[0]||"";
+}
+async function resolveGeminiModel(force){
+  var ov=geminiModelOverride();
+  if(ov)return ov;
+  if(!force){
+    if(_geminiResolvedModel)return _geminiResolvedModel;
+    try{var c=localStorage.getItem("fp_gemini_model_resolved");if(c&&c.trim()){_geminiResolvedModel=c.trim();return _geminiResolvedModel;}}catch(e){}
+  }
+  var best=pickBestGeminiModel(await listGeminiModels());
+  if(best){_geminiResolvedModel=best;try{localStorage.setItem("fp_gemini_model_resolved",best);}catch(e){}}
+  return best||GEMINI_MODEL;
+}
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
   opts=opts||{};
   var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
-  var url="https://generativelanguage.googleapis.com/v1beta/models/"+geminiModelName()+":generateContent";
+  var model;
+  try{model=await resolveGeminiModel(false);}catch(e){model=geminiModelName();}
   var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
+  var reResolved=false;
   incGlobalBusy();
   try{
     var lastErr;
     for(var attempt=0;attempt<maxAttempts;attempt++){
+      var url="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
       var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
       try{
         var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},body:JSON.stringify(body),signal:ctrl.signal});
         clearTimeout(timer);
         if(r.ok)return r.json();
         var e=await r.text();
+        if(r.status===404&&!geminiModelOverride()&&!reResolved&&attempt<maxAttempts-1){
+          reResolved=true;
+          try{var next=await resolveGeminiModel(true);if(next&&next!==model){model=next;continue;}}catch(reErr){}
+        }
         if((r.status===429||r.status===503)&&attempt<maxAttempts-1&&!isGeminiZeroQuotaError(e)){
           var wait=2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000);
           var ra=r.headers.get("retry-after");
