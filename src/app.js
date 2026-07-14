@@ -32,7 +32,6 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file.\n\nFIRST, before writing anything, SEARCH THE WEB using the Asset_Brand and Asset_Model_Number given (e.g. query \"<Asset_Brand> <Asset_Model_Number> datasheet accuracy specification\"). If Asset_Brand is a generic \"Other\" value (e.g. \"1 Other\") and an If_Asset_Brand_Other_explain value is provided, treat that explain text as the real brand/manufacturer and use it in place of Asset_Brand for the search and the spec. Find the manufacturer datasheet or a trustworthy source and read the published accuracy, zero/span, and ranges from it. Base every number on what you actually found — prefer a figure confirmed by search over a remembered one. In the [AI-gen] line cite the source you used (manufacturer or domain). Only write NOT VERIFIED when a web search does not surface a trustworthy figure. Never invent a number and never guess at unreadable model codes.\n\nOutput minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\n<b>ACCURACY:</b> plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\n<b>ZERO/LRL:</b> value or how established\n<b>SPAN/URL:</b> value, or NOT SET BY THIS MODEL CODE + where to find it\n<b>MINIMUM SPAN:</b> value or n/a\n<b>RESOLUTION:</b> value\n<b>GENERAL</b>\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\n<b>CAL NOTES:</b> 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: search first, then report what you found. If a web search does not surface the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
-var MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT="You merge multiple AI drafts into one Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nUse the same output format:\n<b>ACCURACY:</b> first line; then <b>ZERO/LRL:</b>, <b>SPAN/URL:</b>, <b>MINIMUM SPAN:</b>, <b>RESOLUTION:</b>; then <b>GENERAL</b> block; then <b>CAL NOTES:</b>; then [AI-gen: sources, Month Year].\n\nMerge rules:\n- The GEMINI draft is the PRIORITY source. When drafts disagree on a number, use the Gemini draft's confident figure as the primary value — do not average and do not downgrade a confident Gemini figure to NOT VERIFIED just because another draft differs. Use another draft's figure only where Gemini is silent or explicitly unsure.\n- Prefer specific published figures only when a draft states them confidently; if neither Gemini nor another draft gives a confident figure, use NOT VERIFIED — confirm from manufacturer datasheet.\n- NEVER invent a numeric spec.\n- Combine the best practical Cal notes from all drafts without repeating yourself.\n- End attribution with every source label provided (e.g. Claude, Gemini) joined with +, list Gemini first, e.g. [AI-gen: Gemini+Claude, Jul 2026].\n- The drafts below already passed a usability check, so at least one is a real spec — always produce a merged spec. Do NOT respond SKIP: if the drafts are thin, keep the priority (Gemini) draft's content and use NOT VERIFIED for any figure no draft states confidently.";
 function isUsableModelForAiSpecs(model,brand,brandOther){
   var m=String(model||"").trim();
   if(!m)return false;
@@ -80,21 +79,6 @@ function formatAiProviderError(msg){
   if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
   return m;
 }
-async function fetchModelAiSpecsDraftsSequential(providers,content){
-  var results=[];
-  for(var i=0;i<providers.length;i++){
-    var p=providers[i];
-    if(i>0)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
-    try{
-      var txt=await fetchModelAiSpecsDraft(p,content);
-      results.push({provider:p,txt:txt});
-    }catch(e){
-      console.log("Model_AI_Specs "+p+" draft failed:",e);
-      results.push({provider:p,txt:"",error:e&&e.message?e.message:String(e)});
-    }
-  }
-  return results;
-}
 async function fetchModelAiSpecsDraft(provider,content){
   if(provider==="claude"){
     var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:1500,ms:75000,search:true});
@@ -108,20 +92,6 @@ async function fetchModelAiSpecsDraft(provider,content){
     return getGeminiText(g).trim();
   }
   return "";
-}
-async function mergeModelAiSpecsDrafts(content,drafts,labels){
-  var mergeContent="Instrument identity:\n"+content+"\n\nDrafts to merge (Gemini is the priority source):\n";
-  drafts.forEach(function(txt,i){mergeContent+="--- "+(labels[i]||("Source "+(i+1)))+" ---\n"+txt+"\n\n";});
-  mergeContent+="Write one merged Model_AI_Specs field following the required format.";
-  if(GEMINI_API_KEY){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:2048,ms:75000,preferQuality:true});
-    return getGeminiText(g).trim();
-  }
-  if(API_KEY){
-    var d=await callAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1500,ms:75000});
-    return getText(d).trim();
-  }
-  return drafts[0]||"";
 }
 async function generateModelAiSpecsIfNeeded(opts){
   opts=opts||{};
@@ -149,58 +119,41 @@ async function generateModelAiSpecsIfNeeded(opts){
     return cout;
   }
   try{
-    var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
-    assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+label+"...",false);
     var content=modelAiSpecsAssetContent(category,brand,type,series,model,brandOther);
-    var draftResults=await fetchModelAiSpecsDraftsSequential(providers,content);
-    var drafts=[];
-    var labels=[];
     var errors=[];
     var skipped=[];
-    draftResults.forEach(function(r){
-      var pname=r.provider==="gemini"?"Gemini":"Claude";
-      if(r.error){errors.push(pname+": "+formatAiProviderError(r.error));return;}
-      var txt=(r.txt||"").trim();
-      if(isModelAiSpecsSkip(txt)){skipped.push(pname);return;}
-      if(!txt){errors.push(pname+": returned an empty response (possible token limit or model issue) — not necessarily an API-key problem");return;}
-      drafts.push(txt);
-      labels.push(pname);
-    });
-    if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors,skipped:skipped};
-    var txt;
-    if(drafts.length===1)txt=drafts[0];
-    else{
-      try{txt=await mergeModelAiSpecsDrafts(content,drafts,labels);}
-      catch(mergeErr){
-        console.log("Model_AI_Specs merge failed:",mergeErr);
-        errors.push("merge: "+formatAiProviderError(mergeErr&&mergeErr.message?mergeErr.message:String(mergeErr)));
-        txt=drafts[0];
+    var chosen="";
+    var chosenProvider="";
+    // Gemini is the single source of truth; providers are ordered Gemini-first by
+    // modelAiSpecsProviders(). Claude is queried only as a fallback when Gemini is
+    // absent, skips, or errors — no merge step (it was fragile and could discard good
+    // specs). Take the first usable draft and stop.
+    for(var i=0;i<providers.length;i++){
+      var p=providers[i];
+      var pname=p==="gemini"?"Gemini":"Claude";
+      var primary=i===0;
+      assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+" ("+pname+(primary?"":" fallback")+")...",false);
+      if(!primary)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
+      var txt="";
+      try{txt=(await fetchModelAiSpecsDraft(p,content)||"").trim();}
+      catch(e){
+        console.log("Model_AI_Specs "+p+" draft failed:",e);
+        errors.push(pname+": "+formatAiProviderError(e&&e.message?e.message:String(e)));
+        continue;
       }
+      if(isModelAiSpecsSkip(txt)){skipped.push(pname);continue;}
+      if(!txt){errors.push(pname+": returned an empty response (possible token limit or model issue) — not necessarily an API-key problem");continue;}
+      chosen=txt;chosenProvider=pname;break;
     }
-    txt=(txt||"").trim();
-    // The merge step can return nothing usable — an empty string (Gemini "thinking"
-    // tokens eating the whole budget) or a spurious SKIP — even when both providers
-    // produced a real spec. In that case keep the priority draft (drafts[0], Gemini
-    // first) instead of discarding good specs and telling the tech the AI could not
-    // identify the instrument.
-    if((!txt||isModelAiSpecsSkip(txt))&&drafts.length){
-      var fallback=(drafts[0]||"").trim();
-      if(fallback&&!isModelAiSpecsSkip(fallback)){
-        txt=fallback;
-        errors.push("merge: inconclusive result — kept "+(labels[0]||"first draft")+" draft");
-      }
-    }
-    if(txt&&!isModelAiSpecsSkip(txt)){
-      if(txt.length>MODEL_AI_SPECS_MAX)txt=txt.slice(0,MODEL_AI_SPECS_MAX);
-      A.asset.aiSpecsText=txt;
-      A.asset.aiSpecsKey=key;
-      var out={ok:true,providers:labels};
-      if(errors.length)out.warnings=errors;
-      if(skipped.length)out.skipped=skipped;
-      if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:txt,providers:labels,skipped:skipped.slice()};
-      return out;
-    }
-    return{ok:false,reason:"ai_skip"};
+    if(!chosen)return{ok:false,reason:"ai_skip_or_failed",errors:errors,skipped:skipped};
+    if(chosen.length>MODEL_AI_SPECS_MAX)chosen=chosen.slice(0,MODEL_AI_SPECS_MAX);
+    A.asset.aiSpecsText=chosen;
+    A.asset.aiSpecsKey=key;
+    var out={ok:true,providers:[chosenProvider]};
+    if(errors.length)out.warnings=errors;
+    if(skipped.length)out.skipped=skipped;
+    if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:chosen,providers:[chosenProvider],skipped:skipped.slice()};
+    return out;
   }catch(e){
     console.log("Model_AI_Specs generation failed:",e);
     return{ok:false,reason:"error",error:e&&e.message?e.message:String(e)};
@@ -209,14 +162,14 @@ async function generateModelAiSpecsIfNeeded(opts){
 function modelAiSpecsStatusNote(result){
   if(!result)return"";
   if(result.ok){
-    if(result.warnings&&result.warnings.length)return" Model_AI_Specs merged from "+(result.providers||["AI"]).join("+")+" (partial: "+formatAiProviderError(result.warnings[0])+").";
-    if(result.providers&&result.providers.length===1){
-      if(modelAiSpecsProviders().length>1){
-        if(result.skipped&&result.skipped.length)return" Model_AI_Specs from "+result.providers[0]+" only — "+result.skipped.join(" & ")+" couldn't identify this specific model (not an API-key problem).";
-        return" Model_AI_Specs from "+result.providers[0]+" only — other AI provider failed; check API keys.";
-      }
-      var other=!GEMINI_API_KEY?"Gemini API key":(!API_KEY?"Anthropic API key":"");
-      if(other)return" Model_AI_Specs from "+result.providers[0]+" only — add "+other+" in Settings for merged Claude+Gemini lookup (Key Sync restores from your other device).";
+    var prov=(result.providers&&result.providers[0])||"AI";
+    // Gemini is the primary source; Claude is only queried as a fallback when Gemini is
+    // absent, skips, or errors. Explain when the fallback was used, and nudge Claude-only
+    // users to add a Gemini key for the primary lookup.
+    if(prov!=="Gemini"){
+      if(result.warnings&&result.warnings.length)return" Model_AI_Specs from "+prov+" (Gemini fallback) — "+formatAiProviderError(result.warnings[0])+".";
+      if(result.skipped&&result.skipped.length)return" Model_AI_Specs from "+prov+" (Gemini fallback) — "+result.skipped.join(" & ")+" couldn't identify this model (not an API-key problem).";
+      if(!GEMINI_API_KEY)return" Model_AI_Specs from "+prov+" — add a Gemini API key in Settings for the primary spec lookup (Key Sync restores keys from your other device).";
     }
     return"";
   }
@@ -261,7 +214,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="346";
+var FP_VERSION="347";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
