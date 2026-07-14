@@ -171,7 +171,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="331";
+var FP_VERSION="332";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2646,6 +2646,10 @@ function normalizeCalFactorForZoho(val){
 function isZohoLookupRecordId(id){
   return/^\d{10,}$/.test(String(id||"").trim());
 }
+function sanitizeZohoRecordId(id){
+  var s=String(id||"").trim();
+  return isZohoLookupRecordId(s)?s:null;
+}
 function formatDynamicValueForZoho(api,val){
   var def=assetFieldRegistry()[api];
   if(def&&def.widget==="multiselect"){
@@ -3057,7 +3061,7 @@ function assetSubformPayload(){
         else if(String(v||"").trim())out[c.apiName]=String(v).trim();
       }else if(c.widget==="number"){var n=parseFloat(v);if(!isNaN(n))out[c.apiName]=n;}else out[c.apiName]=String(v);
     });
-    if(row.id)out.id=row.id;
+    if(row.id&&isZohoLookupRecordId(row.id))out.id=String(row.id).trim();
     return out;
   });
 }
@@ -3299,8 +3303,12 @@ function assetDraftSummary(d,label){
 function maybeRestoreAssetDraft(){var raw="";try{raw=localStorage.getItem("fp_asset_draft")||"";}catch(e){}if(!raw)return;var d=null;try{d=JSON.parse(raw);}catch(e){clearAssetDraft();return;}var label=d&&d.savedAt?new Date(d.savedAt).toLocaleString():"recently";if(confirm(assetDraftSummary(d,label))){loadEquipmentConfig().then(function(){return restoreAssetDraft(d);}).then(function(){A.assetDraftRestored=true;setAssetDraftStatus("Asset draft restored");showToast("Asset draft restored",3000);go("assets");}).catch(function(e){console.log("asset draft restore",e);showToast("Asset draft restore failed",5000);});}else clearAssetDraft();}
 function selectedAssetDealKey(){return A.sel?((A.sel.id||"")+":"+(A.sel.Account_Id||"")+":"+(A.sel.Account_Name||"")):"";}
 function assetSaveAccountId(){
-  if(A.asset.linkMode==="account"&&A.asset.standaloneAccount&&A.asset.standaloneAccount.id)return A.asset.standaloneAccount.id;
-  if(A.sel&&A.sel.Account_Id)return A.sel.Account_Id;
+  var id="";
+  if(A.asset.linkMode==="account"&&A.asset.standaloneAccount&&A.asset.standaloneAccount.id)id=A.asset.standaloneAccount.id;
+  else if(A.sel&&A.sel.Account_Id)id=A.sel.Account_Id;
+  id=String(id||"").trim();
+  if(isZohoLookupRecordId(id))return id;
+  if(A.sel&&A.sel.Account_Id&&isZohoLookupRecordId(A.sel.Account_Id))return String(A.sel.Account_Id).trim();
   return"";
 }
 function assetSaveAccountName(){
@@ -3583,12 +3591,23 @@ function setAssetMode(mode){setAssetSetupMode(mode==="update"?"update":(A.sel?"d
 function renderAssetModeBanner(){renderAssetSetupUi();}
 function equipmentRecordAccount(r){
   if(!r||!r.Account)return{id:"",name:""};
-  if(typeof r.Account==="string")return{id:r.Account,name:""};
-  return{id:r.Account.id||"",name:r.Account.name||""};
+  if(typeof r.Account==="string"){
+    var s=String(r.Account).trim();
+    if(isZohoLookupRecordId(s))return{id:s,name:""};
+    return{id:"",name:s};
+  }
+  var id=String(r.Account.id||"").trim();
+  var name=r.Account.name||assetLookupName(r.Account)||"";
+  if(!isZohoLookupRecordId(id))id="";
+  return{id:id,name:name};
 }
 function applyLoadedAssetAccount(r){
   var acct=equipmentRecordAccount(r);
   if(!acct.id&&!acct.name)return;
+  if(!acct.id&&acct.name&&A.sel&&A.sel.Account_Id&&String(A.sel.Account_Name||"").trim().toLowerCase()===acct.name.trim().toLowerCase()){
+    acct.id=String(A.sel.Account_Id).trim();
+  }
+  if(!isZohoLookupRecordId(acct.id))acct.id="";
   A.asset.standaloneAccount={id:acct.id,name:acct.name||assetLookupName(r.Account)||""};
   A.asset.linkMode="account";
   setAssetInput("asset-account",A.asset.standaloneAccount.name);
@@ -3741,9 +3760,11 @@ async function loadEquipmentIntoAssetForm(equipmentId,opts){
     }catch(e){console.log("loadEquipmentIntoAssetForm fetch",e);}
   }
   if(!r)return false;
+  var recId=sanitizeZohoRecordId(r.id)||sanitizeZohoRecordId(equipmentId);
+  if(!recId)throw new Error("Zoho returned an invalid equipment record ID. Try searching again.");
   A.asset.intent="update";
   A.asset.mode="update";
-  A.asset.currentAssetId=r.id||equipmentId;
+  A.asset.currentAssetId=recId;
   A.asset.loadedOriginal=originalAssetSnapshot(r);
   A.asset.replacementMode=false;
   applyEquipmentRecordToAssetForm(r);
@@ -4565,7 +4586,11 @@ function validateAssetForm(){
 function equipmentIdFromResponse(d){var rec=d&&d.data&&d.data[0];return rec&&(rec.details&&rec.details.id||rec.id)||null;}
 function equipmentSaveError(parsed,httpStatus,txt){
   var row=parsed&&parsed.data&&parsed.data[0];
-  if(row&&row.status==="error")throw new Error(row.message||row.code||"Zoho rejected equipment save");
+  if(row&&row.status==="error"){
+    var msg=row.message||row.code||"Zoho rejected equipment save";
+    if(row.details&&row.details.api_name)msg+=" ("+row.details.api_name+")";
+    throw new Error(msg);
+  }
   if(!httpStatus||httpStatus<200||httpStatus>=300)throw new Error("Zoho equipment "+(httpStatus||"?")+": "+String(txt||"").substring(0,160));
 }
 async function postEquipmentToZoho(action,equipmentId,payload,opts){
@@ -4660,9 +4685,9 @@ function assetPayloadWithoutCategoryExtensions(payload,category){
 function assetPayload(opts){
   opts=opts||{};
   var includeBlank=!!opts.includeBlank;
+  var isUpdate=!!opts.isUpdate;
   var payload={
     Asset_Category:normalizeAssetCategoryKey(assetInput("asset-category")),
-    Account:{id:assetSaveAccountId()},
     Name:assetInput("asset-name"),
     Asset_Function:assetInput("asset-function"),
     Building:assetInput("asset-building"),
@@ -4674,6 +4699,9 @@ function assetPayload(opts){
     Asset_Environment:assetInput("asset-environment"),
     Confined_Space:assetInput("asset-confined")
   };
+  var acctId=assetSaveAccountId();
+  if(!isUpdate)payload.Account={id:acctId};
+  else if(isZohoLookupRecordId(acctId))payload.Account={id:acctId};
   function setOptional(apiName,value){
     if(value==null||value===""){if(includeBlank)payload[apiName]="";return;}
     payload[apiName]=value;
@@ -4710,16 +4738,18 @@ async function saveEquipmentRecord(){
   await prepareAssetDynamicFieldsForSave();
   assertResolvedDynamicLookupsBeforeSave();
   syncSubformRowsFromDom();
-  var includeBlank=!!A.asset.currentAssetId;
-  var fullPayload=assetPayload({includeBlank:includeBlank});
-  if(!fullPayload.Account||!fullPayload.Account.id)throw new Error("Account is required — pick a deal or tap Account only — pick account");
+  var isUpdate=!!A.asset.currentAssetId;
+  var includeBlank=isUpdate;
+  var fullPayload=assetPayload({includeBlank:includeBlank,isUpdate:isUpdate});
+  if(!isUpdate&&(!fullPayload.Account||!fullPayload.Account.id||!isZohoLookupRecordId(fullPayload.Account.id)))throw new Error("Account is required — pick a deal or tap Account only — pick account");
   var existing=A.asset.currentAssetId?{equipment_id:A.asset.currentAssetId}:await findExistingEquipmentBySerial();
   if(existing&&existing.equipment_id&&!A.asset.currentAssetId){
     var label=(existing.equipment&&existing.equipment.Name)||assetInput("asset-name")||"this asset";
     if(!confirm("An asset with this serial number already exists for this account ("+label+"). Update the existing asset instead of creating a duplicate?"))throw new Error("Asset save cancelled to avoid duplicate serial number");
     A.asset.currentAssetId=existing.equipment_id;
+    isUpdate=true;
     includeBlank=true;
-    fullPayload=assetPayload({includeBlank:true});
+    fullPayload=assetPayload({includeBlank:true,isUpdate:true});
   }
   var equipmentIdForSpecs=A.asset.currentAssetId||null;
   var existingSpecsText="";
@@ -4738,7 +4768,8 @@ async function saveEquipmentRecord(){
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
   var coreSavePayload=assetPayloadWithoutSubform(split.category?assetPayloadWithoutCategoryExtensions(split.core,split.category):assetPayloadWithoutCategory(split.core));
-  var equipmentId=A.asset.currentAssetId;
+  var equipmentId=sanitizeZohoRecordId(A.asset.currentAssetId)||sanitizeZohoRecordId(A.asset.loadedOriginal&&A.asset.loadedOriginal.id);
+  if(!equipmentId&&A.asset.currentAssetId)throw new Error("Invalid equipment record ID (\""+A.asset.currentAssetId+"\"). Search and load the existing asset again before saving.");
   var isCreate=!equipmentId;
   if(isCreate){
     assetStatus("Creating equipment asset in Zoho...",false);
