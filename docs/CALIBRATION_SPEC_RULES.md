@@ -14,6 +14,7 @@ This file does **not** contain project-specific history (which records were alre
 |---|---|---|
 | `Asset_Model_Number` | text | primary input |
 | `Asset_Brand` | picklist | input (there is NO `Manufacturer` field) |
+| `If_Asset_Brand_Other_explain` | text | the real brand/manufacturer when `Asset_Brand` is a generic "Other" (e.g. "1 Other") — read it as the brand for the web search and spec |
 | `Asset_Type` | picklist | input/correctable |
 | `Name` | text | AUTO-GENERATED from 5 fields (asset#, function, building/room, brand, type) — changing `Asset_Type`/`Asset_Brand` cascades into it automatically |
 | `Model_Number` ("Sensor Model Number") | text | usually blank; see §6, the sensor-model gap |
@@ -45,7 +46,7 @@ This file does **not** contain project-specific history (which records were alre
 ```
 
 Rules:
-- **Search the web first.** Before writing, look up the exact `Asset_Brand` + `Asset_Model_Number` (e.g. query `"<brand> <model> datasheet accuracy specification"`), read the published figures from the manufacturer datasheet or a trustworthy source, and base every number on what you actually found rather than on memory. Cite the source in the `[AI-gen]` line (manufacturer or domain). Only fall back to `NOT VERIFIED` when a search does not surface a trustworthy figure. CapStone's auto-generation enables web-search grounding on both the Gemini (`google_search`) and Claude (`web_search`) draft calls — keep `search:true` on those calls in `fetchModelAiSpecsDraft()`.
+- **Search the web first.** Before writing, look up the exact `Asset_Brand` + `Asset_Model_Number` (e.g. query `"<brand> <model> datasheet accuracy specification"`), read the published figures from the manufacturer datasheet or a trustworthy source, and base every number on what you actually found rather than on memory. When `Asset_Brand` is a generic "Other" value but `If_Asset_Brand_Other_explain` names the actual brand/manufacturer, use that explain text as the brand for the search and the spec. Cite the source in the `[AI-gen]` line (manufacturer or domain). Only fall back to `NOT VERIFIED` when a search does not surface a trustworthy figure. CapStone's auto-generation enables web-search grounding on both the Gemini (`google_search`) and Claude (`web_search`) draft calls — keep `search:true` on those calls in `fetchModelAiSpecsDraft()`.
 - **ACCURACY line first, always** — this is the single most important line (see §3).
 - Section titles and field labels use **bold ALL CAPS** via minimal HTML: `<b>ACCURACY:</b>`, `<b>ZERO/LRL:</b>`, `<b>GENERAL</b>`, `<b>CAL NOTES:</b>`, etc. No other HTML, no markdown bullets.
 - The accuracy line **must** state its basis explicitly.
@@ -132,7 +133,7 @@ actually removes the pack and that the fail-safe (air-fail, belt-stop, bin-full)
 
 ## 5. Junk / placeholder model numbers
 
-Don't attempt a spec when the model string carries no manufacturer identity — placeholders like `-`, `_`, `.`, `?`, `N/A`, `NA`, `TBD`, `Illegible`, bare short digit strings (`8`, `1`, `01`, `123`), or brand = a generic "Other" value with no usable model. CapStone's `isUsableModelForAiSpecs()` in `src/app.js` implements this filter automatically for the live app; anyone doing this by hand (Claude/Cursor) should apply the same judgment.
+Don't attempt a spec when the model string carries no manufacturer identity — placeholders like `-`, `_`, `.`, `?`, `N/A`, `NA`, `TBD`, `Illegible`, bare short digit strings (`8`, `1`, `01`, `123`), or brand = a generic "Other" value with no usable model. CapStone's `isUsableModelForAiSpecs()` in `src/app.js` implements this filter automatically for the live app; anyone doing this by hand (Claude/Cursor) should apply the same judgment. A short model is still blocked when `Asset_Brand` is a generic "Other" *only if* `If_Asset_Brand_Other_explain` is also empty — a named manufacturer in the explain field is enough identity to attempt a spec.
 
 **Exception:** when brand + type ARE present, technology-level guidance is still useful even with a junk model — e.g. brand "Milltronics" + type "Flume/Weir" = ultrasonic open-channel guidance with "MODEL NOT RECORDED" noted. Only truly identity-less records (no brand, no model, no serial) should be skipped entirely.
 
