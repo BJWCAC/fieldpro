@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v325
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=325
+Current live version: v326
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=326
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v326 | — | **Accept new Gemini auth keys (AQ. prefix)** — Google AI Studio now issues authorization keys starting with `AQ.` instead of legacy `AIza` standard keys; CapStone Settings accepts both formats |
 | v325 | — | **Multi-AI Model_AI_Specs generation** — on new asset save, CapStone queries Anthropic Claude and Google Gemini in parallel (when each API key is configured), then merges the drafts into one field following `CALIBRATION_SPEC_RULES.md`; Settings adds a Gemini API key (cloud-synced via Key Sync); single-provider fallback when only one key is set |
 | v322 | — | **Auto-generate Model_AI_Specs on new asset save** — when Add New Asset creates a Zoho Equipment record, CapStone calls Anthropic (existing report-generation key) to write the Model_AI_Specs field (accuracy basis + published spec or NOT VERIFIED + brief cal notes) into the same create payload, so it is populated before the technician performs the calibration; skipped for placeholder/junk model numbers, missing API key, or when updating an existing asset (never overwrites a value already in Zoho) |
 | v324 | — | **New shared calibration rules reference** — `docs/CALIBRATION_SPEC_RULES.md` consolidates the reusable Model_AI_Specs rules (six accuracy bases, family traps, metal-detector paradigm, sensor-model gap, output format) pulled out of the one-time backfill working file; `MODEL_AI_SPECS_SYSTEM_PROMPT` in `src/app.js` rewritten to match it in full instead of the earlier condensed/generic version; `AGENTS.md` points future Claude/Cursor sessions at the doc so both stay in sync |
