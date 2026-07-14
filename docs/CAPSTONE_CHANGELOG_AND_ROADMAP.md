@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v338
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=338
+Current live version: v339
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=339
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v339 | — | **Gemini model update to gemini-2.5-flash** — `gemini-2.0-flash` returns 404 (retired); default model is now `gemini-2.5-flash`; model is overridable via `localStorage.fp_gemini_model`; clearer 404 "model unavailable" message |
 | v338 | — | **Detect Gemini AQ.-key zero-quota 429** — recognizes `free_tier_requests limit: 0` / RESOURCE_EXHAUSTED responses (common with Google's new AQ.-prefixed keys), fails fast without pointless retries, and shows actionable guidance (create a standard AIza key or enable billing); Gemini key modal warns about the AQ. zero-quota issue; Claude specs continue to work |
 | v337 | — | **Gemini 429 backoff jitter + spec cache** — retry/inter-provider delays add random jitter to avoid synchronized retries; identical brand/model/type spec lookups reuse an in-memory cache within a session, cutting duplicate Gemini calls that trigger per-minute 429s |
 | v336 | — | **Gemini 429 rate-limit resilience** — Model_AI_Specs queries Anthropic then Gemini sequentially (not parallel burst); Gemini API retries 429/503 with exponential backoff; merge step falls back to single draft on failure; clearer message that 429 is requests/minute cap, not monthly quota |
