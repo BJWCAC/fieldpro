@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v335
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=335
+Current live version: v336
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=336
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v336 | — | **Gemini 429 rate-limit resilience** — Model_AI_Specs queries Anthropic then Gemini sequentially (not parallel burst); Gemini API retries 429/503 with exponential backoff; merge step falls back to single draft on failure; clearer message that 429 is requests/minute cap, not monthly quota |
 | v335 | — | **Key Sync auto-restore + Gemini cross-device** — `fp_gemini_api_key` documented in Key Sync; new **Auto-restore missing keys on startup** toggle (default on) pulls missing Anthropic/Gemini keys from cloud when technician + passphrase match; fill-missing restore does not overwrite keys already on device; API key save toasts explain cross-device sync; clearer Model_AI_Specs status when only one AI provider is available |
 | v334 | — | **AMD number in description + persistent asset save history** — after save, CapStone fetches assigned `CAC_Asset_ID` (retries if needed), prepends `CAC Asset ID: AMD####` to Description/Instructions (UI + Zoho), and lists all assets saved this visit in **Assets Saved This Visit** at the bottom (bold AMD, timestamp, reopen); history persists in `localStorage` across reload |
 | v333 | — | **Start New Asset button** — clears a loaded or saved asset and switches back to Add New mode (keeps deal/account, GPS, Saved This Visit); shown after save, reopen, or restore when form is update-ready; blocks post-save draft from re-locking the form into update mode |
