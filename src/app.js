@@ -1,5 +1,7 @@
 var PROXY="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/zoho-proxy";
 var API_KEY="";
+var GEMINI_API_KEY="";
+var GEMINI_MODEL="gemini-2.0-flash";
 var WORKDRIVE_FOLDER="t16759780cbaabd3647cf897be2931dfa11ae";
 var WORKDRIVE_FOLDER_URL="https://workdrive.zoho.com/folder/"+WORKDRIVE_FOLDER;
 var UPLOAD_FETCH_MS=50000;
@@ -30,6 +32,7 @@ var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
 var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output PLAIN TEXT ONLY — no markdown, no headers, no bullet asterisks, under 1900 characters.\n\nFormat, in this exact order:\nCALIBRATION INFORMATION\n- Zero/LRL: value or how established\n- Span/URL: value, or NOT SET BY THIS MODEL CODE + where to find it\n- Minimum span: value or n/a\n- Resolution: value\n- Accuracy: plus/minus value — state the basis explicitly (see table below)\nGENERAL\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\nCal notes: 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: if you are not confident of the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
+var MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT="You merge multiple AI drafts into one Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output PLAIN TEXT ONLY — no markdown, no headers, no bullet asterisks, under 1900 characters.\n\nUse the same output format as the drafts:\nCALIBRATION INFORMATION block, GENERAL block, Cal notes line, then [AI-gen: sources, Month Year].\n\nMerge rules:\n- Prefer specific published figures only when a draft states them confidently; if drafts disagree on a number, use NOT VERIFIED — confirm from manufacturer datasheet.\n- NEVER invent a numeric spec.\n- Combine the best practical Cal notes from all drafts without repeating yourself.\n- End attribution with every source label provided (e.g. Claude, Gemini) joined with +, e.g. [AI-gen: Claude+Gemini, Jul 2026].\n- If every draft is SKIP or unusable, respond with exactly: SKIP.";
 function isUsableModelForAiSpecs(model,brand){
   var m=String(model||"").trim();
   if(!m)return false;
@@ -37,6 +40,40 @@ function isUsableModelForAiSpecs(model,brand){
   if(/^\d{1,3}$/.test(m))return false;
   if(/^1\s*other$/i.test(String(brand||"").trim())&&m.length<4)return false;
   return true;
+}
+function modelAiSpecsProviders(){
+  var out=[];
+  if(API_KEY)out.push("claude");
+  if(GEMINI_API_KEY)out.push("gemini");
+  return out;
+}
+function modelAiSpecsAssetContent(category,brand,type,series,model){
+  return "Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
+}
+async function fetchModelAiSpecsDraft(provider,content){
+  if(provider==="claude"){
+    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    return getText(d).trim();
+  }
+  if(provider==="gemini"){
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    return getGeminiText(g).trim();
+  }
+  return "";
+}
+async function mergeModelAiSpecsDrafts(content,drafts,labels){
+  var mergeContent="Instrument identity:\n"+content+"\n\nDrafts to merge:\n";
+  drafts.forEach(function(txt,i){mergeContent+="--- "+(labels[i]||("Source "+(i+1)))+" ---\n"+txt+"\n\n";});
+  mergeContent+="Write one merged Model_AI_Specs field following the required format.";
+  if(API_KEY){
+    var d=await callAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
+    return getText(d).trim();
+  }
+  if(GEMINI_API_KEY){
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
+    return getGeminiText(g).trim();
+  }
+  return drafts[0]||"";
 }
 async function generateModelAiSpecsIfNeeded(){
   var brand=assetInput("asset-brand");
@@ -48,17 +85,34 @@ async function generateModelAiSpecsIfNeeded(){
   if(A.asset.aiSpecsKey===key)return;
   A.asset.aiSpecsKey=key;
   A.asset.aiSpecsText="";
-  if(!API_KEY||!isUsableModelForAiSpecs(model,brand))return;
+  var providers=modelAiSpecsProviders();
+  if(!providers.length||!isUsableModelForAiSpecs(model,brand))return;
   try{
-    assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+" (AI)...",false);
-    var content="Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
-    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:30000});
-    var txt=getText(d).trim();
+    var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
+    assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+label+"...",false);
+    var content=modelAiSpecsAssetContent(category,brand,type,series,model);
+    var draftResults=await Promise.all(providers.map(function(p){
+      return fetchModelAiSpecsDraft(p,content).then(function(txt){return{provider:p,txt:txt};}).catch(function(e){
+        console.log("Model_AI_Specs "+p+" draft failed:",e);
+        return{provider:p,txt:""};
+      });
+    }));
+    var drafts=[];
+    var labels=[];
+    draftResults.forEach(function(r){
+      var txt=(r.txt||"").trim();
+      if(!txt||txt==="SKIP")return;
+      drafts.push(txt);
+      labels.push(r.provider==="gemini"?"Gemini":"Claude");
+    });
+    if(!drafts.length)return;
+    var txt=drafts.length===1?drafts[0]:await mergeModelAiSpecsDrafts(content,drafts,labels);
+    txt=(txt||"").trim();
     if(txt&&txt!=="SKIP"){if(txt.length>1900)txt=txt.slice(0,1900);A.asset.aiSpecsText=txt;}
   }catch(e){console.log("Model_AI_Specs generation failed:",e);}
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:""}};
-var FP_VERSION="324";
+var FP_VERSION="325";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -235,7 +289,7 @@ var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/fun
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
-var KEY_SYNC_FIELDS=["fp_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto"];
+var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto"];
 var KEY_SYNC_AUTO_PUSH_MS=8000;
 var keySyncPushTimer=null;
 var keySyncPushInFlight=false;
@@ -1050,6 +1104,33 @@ function maybePromptForTechnician(){
   setTimeout(openTechnicianPrompt,250);
 }
 function setKeyUI(on){var b=el("key-btn");if(!b)return;b.textContent=on?"KEY SET":"KEY";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";b.style.background=on?"#051a18":"transparent";}
+function setGeminiKeyUI(on){var b=el("gemini-key-btn");if(!b)return;b.textContent=on?"GEMINI SET":"GEMINI";b.style.color=on?"var(--green)":"var(--dim)";b.style.borderColor=on?"var(--green)":"var(--bdr)";b.style.background=on?"#051a18":"transparent";}
+function closeGeminiKeyModal(){var m=el("gemini-keymodal");if(m)m.style.display="none";}
+function enterGeminiKey(){
+  var m=el("gemini-keymodal"),inp=el("gemini-key-in"),err=el("gemini-key-err");
+  if(!m){
+    var k=prompt("Paste your Google Gemini API key:");
+    if(!k)return;k=k.trim();
+    if(!k.startsWith("AIza")){alert("Key should start with AIza");return;}
+    GEMINI_API_KEY=k;try{localStorage.setItem("fp_gemini_api_key",k);}catch(e){alert("Could not save key");return;}
+    setGeminiKeyUI(true);showToast("Gemini API key saved",2000);scheduleKeySyncAutoPush();return;
+  }
+  if(err)err.textContent="";
+  var saved="";try{saved=localStorage.getItem("fp_gemini_api_key")||"";}catch(e){}
+  if(inp)inp.value=saved||GEMINI_API_KEY||"";
+  m.style.display="flex";
+  initNoAutofill(m);
+  if(inp){try{inp.focus();}catch(e){}}
+}
+function saveGeminiApiKey(){
+  var inp=el("gemini-key-in"),err=el("gemini-key-err");
+  var k=(inp&&inp.value||"").trim();
+  if(!k){if(err)err.textContent="Paste your Gemini API key first";return;}
+  if(!k.startsWith("AIza")){if(err)err.textContent="Key must start with AIza";return;}
+  GEMINI_API_KEY=k;
+  try{localStorage.setItem("fp_gemini_api_key",k);}catch(e){if(err)err.textContent="Could not save: "+e.message;return;}
+  setGeminiKeyUI(true);closeGeminiKeyModal();showToast("Gemini API key saved",3000);scheduleKeySyncAutoPush();
+}
 function openQuickStart(){var m=el("quickstartmodal");if(m)m.style.display="flex";}
 function closeQuickStart(){var m=el("quickstartmodal");if(m)m.style.display="none";}
 function closeKeyModal(){var m=el("keymodal");if(m)m.style.display="none";}
@@ -1111,6 +1192,8 @@ function bootApp(){
     A.technician=localStorage.getItem("fp_technician")||"";
     var k=localStorage.getItem("fp_api_key");
     if(k&&k.startsWith("sk-ant")){API_KEY=k;setKeyUI(true);}else setKeyUI(false);
+    var gk=localStorage.getItem("fp_gemini_api_key");
+    if(gk&&gk.startsWith("AIza")){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}else setGeminiKeyUI(false);
     if(localStorage.getItem("fp_theme")==="light"){document.body.classList.add("light");var td=el("tog-dark");if(td)td.classList.remove("on");}
     if(localStorage.getItem("fp_record_audio")==="1"){A.recordAudio=true;var rt=el("audio-tog");if(rt)rt.classList.add("on");}
     A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
@@ -1179,6 +1262,9 @@ async function startCapStone(){
 window.onload=startCapStone;
 window.enterKey=enterKey;
 window.saveApiKey=saveApiKey;
+window.enterGeminiKey=enterGeminiKey;
+window.saveGeminiApiKey=saveGeminiApiKey;
+window.closeGeminiKeyModal=closeGeminiKeyModal;
 window.openQuickStart=openQuickStart;
 window.closeQuickStart=closeQuickStart;
 window.closeKeyModal=closeKeyModal;
@@ -5682,7 +5768,32 @@ async function callAPI(opts){
     decGlobalBusy();
   }
 }
+async function callGeminiAPI(opts){
+  if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
+  var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
+  if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
+  incGlobalBusy();
+  var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
+  try{
+    var url="https://generativelanguage.googleapis.com/v1beta/models/"+GEMINI_MODEL+":generateContent?key="+encodeURIComponent(GEMINI_API_KEY);
+    var r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("Gemini "+r.status+": "+e.substring(0,150));}
+    return r.json();
+  }catch(err){
+    clearTimeout(timer);
+    throw err;
+  }finally{
+    decGlobalBusy();
+  }
+}
 function getText(d){return(d.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("\n");}
+function getGeminiText(d){
+  try{
+    var c=d.candidates&&d.candidates[0];
+    if(!c||!c.content||!c.content.parts)return"";
+    return c.content.parts.map(function(p){return p.text||"";}).join("\n");
+  }catch(e){return"";}
+}
 function compressPhoto(dataUrl,maxW,quality){
   return new Promise(function(resolve){
     var img=new Image();
@@ -6436,6 +6547,7 @@ function applySyncSettings(s){
       }
     });
     try{var k=localStorage.getItem("fp_api_key");if(k&&k.indexOf("sk-ant")===0){API_KEY=k;setKeyUI(true);}}catch(e){}
+    try{var gk=localStorage.getItem("fp_gemini_api_key");if(gk&&gk.indexOf("AIza")===0){GEMINI_API_KEY=gk;setGeminiKeyUI(true);}}catch(e){}
     A.autoSaveZoho=localStorage.getItem("fp_auto_save_zoho")!=="0";
     A.autoSavePhonePhotos=localStorage.getItem("fp_auto_save_phone_photos")!=="0";
     A.recordAudio=localStorage.getItem("fp_record_audio")==="1";
