@@ -54,6 +54,26 @@ Rules:
 - The `<b>CAL NOTES:</b>` line must tell a tech something a datasheet wouldn't: what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (see §7 for tone examples).
 - If the brand/model given isn't a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model/serial), don't write a spec at all — this is a junk/placeholder record, not a calibration question (see §5).
 
+### Updates (existing asset save)
+
+When CapStone updates an existing Equipment record and regenerates specs:
+
+```
+<new spec — same format as above, current/active at top>
+
+<b>OLD SPEC</b>
+<previous active spec from Zoho before this save>
+
+<b>OLD SPEC</b>
+<older archived spec, if any — preserve prior archive chain>
+```
+
+Rules:
+- Generate a **new** spec on update the same way as create.
+- The **previous active** portion (everything above the first `<b>OLD SPEC</b>` in Zoho) moves under a new `<b>OLD SPEC</b>` header after two blank lines.
+- Keep any prior `<b>OLD SPEC</b>` archive chain below that.
+- Total field still under 2000 characters (truncate from the bottom if needed).
+
 ---
 
 ## 3. The six accuracy bases (map to instrument type)
