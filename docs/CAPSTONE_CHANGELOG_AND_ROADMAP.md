@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v346
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=346
+Current live version: v347
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=347
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v347 | — | **Gemini-primary, Claude-fallback for Model_AI_Specs (merge removed)** — replaced the two-draft-plus-merge design with a simpler, more reliable strategy: CapStone asks Gemini (the authoritative source) for the spec and uses it directly; Claude is queried only when Gemini is absent/skips/errors, and its draft is used verbatim. This removes the fragile merge step (its empty/`SKIP` output was discarding good specs and reporting "AI could not identify this instrument"), cuts a two-key save from three model calls to one, and keeps Claude as a safety net for Gemini's off-days (429s, AQ zero-quota keys, retired-model 404s) and for Claude-only users. Deleted `mergeModelAiSpecsDrafts()`/`MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`; status note now reads "from Claude (Gemini fallback) — …" and nudges Claude-only users to add a Gemini key. Supersedes v346. `CALIBRATION_SPEC_RULES.md` + `AGENTS.md` updated |
 | v346 | — | **Don't drop a good Model_AI_Specs when the merge is inconclusive** — the field was skipping ("AI could not identify this instrument") even for real instruments. Root cause: when both Claude and Gemini returned a valid draft but the Gemini merge step returned nothing usable (empty output from "thinking"-token exhaustion, or a stray `SKIP`), CapStone discarded both drafts and reported a skip. It now falls back to the priority (Gemini) draft in that case, surfaced as a `partial` merge warning. Also hardened `SKIP` detection to ignore stray quotes/punctuation (`"SKIP"`, `SKIP.`) and told the merge prompt never to answer `SKIP` since its drafts already passed a usability check |
 | v343 | — | **Web-search grounding for Model_AI_Specs** — specs were "failing quite a bit" (too many `NOT VERIFIED`/`SKIP`) because the models answered from memory; both draft calls now search the web using the `Asset_Brand` + `Asset_Model_Number` before answering (Gemini `google_search` grounding, Claude `web_search` tool) so accuracy/zero/span come from the actual manufacturer datasheet, with the source cited in `[AI-gen]`. Search is gated behind a `search` option on `callAPI`/`callGeminiAPI`, is version-aware for Gemini (`google_search` vs `google_search_retrieval`), and falls back gracefully to a no-tool call if a model rejects the tool; `CALIBRATION_SPEC_RULES.md` and `MODEL_AI_SPECS_SYSTEM_PROMPT` updated to require search-first |
 | v342 | — | **Gemini is the priority source for Model_AI_Specs** — Gemini is now fetched first, is the single-draft fallback when a merge fails, and does the merge itself (falling back to Claude only if no Gemini key). The merge prompt treats Gemini's confident figures as authoritative on conflicts (Claude fills gaps only), and attribution lists Gemini first (e.g. `[AI-gen: Gemini+Claude, …]`). Kept in sync in `docs/CALIBRATION_SPEC_RULES.md` |

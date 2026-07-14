@@ -76,20 +76,21 @@ Rules:
 - Keep any prior `<b>OLD SPEC</b>` archive chain below that.
 - Total field still under 2000 characters (truncate from the bottom if needed).
 
-### Multi-AI merge (CapStone auto-generation)
+### Provider strategy (CapStone auto-generation)
 
-When CapStone has both an Anthropic (Claude) and a Gemini key, it asks both models for a draft and merges them (`MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`). **Gemini is the priority source:**
+**Gemini is the single source of truth. Claude is a fallback only — there is no merge step.** The old two-draft-plus-merge design was dropped: the merge added little (Gemini was already authoritative) but was fragile — a merge that returned empty ("thinking"-token exhaustion) or a stray `SKIP` could discard two perfectly good drafts and wrongly report "AI could not identify this instrument."
 
-- Gemini is queried first; its draft is also the fallback used verbatim if the merge step itself fails.
-- The merge must never throw away good drafts. If the merge step returns nothing usable — an empty string (Gemini "thinking" tokens can eat the whole token budget) or a spurious `SKIP` — CapStone keeps the priority draft (`drafts[0]`, Gemini first) instead of reporting "AI could not identify this instrument." The merge prompt is also told that the drafts it receives already passed a usability check, so it should never answer `SKIP` (write `NOT VERIFIED` for thin figures instead).
-- The merge is performed by Gemini (Claude only if there is no Gemini key).
-- On conflicting numbers, the merge keeps Gemini's confident figure — it is not averaged with Claude and is not downgraded to `NOT VERIFIED` just because Claude differs. Claude's draft fills gaps only where Gemini is silent/unsure.
-- Attribution lists Gemini first, e.g. `[AI-gen: Gemini+Claude, <Month Year>]`.
-- The `NEVER invent a numeric spec` rule still overrides everything: if neither model gives a confident figure, write `NOT VERIFIED`.
+How `generateModelAiSpecsIfNeeded()` picks a spec:
 
-**Model tier & token budget (why the field can look thinner than a direct Gemini search):** the Gemini web app answers a brand+model question with a Pro-tier model, deep "thinking", and multi-step browsing, and returns a full multi-paragraph write-up. CapStone must fit a 2000-char calibration summary, so the output is intentionally terser — but the *research* should be just as good. To keep it so, the Gemini draft/merge calls in `src/app.js` set `preferQuality:true` (resolves a Pro model such as `gemini-2.5-pro` via `GEMINI_QUALITY_MODEL_PREFERENCE`, falling back to the Flash list only when the key lacks Pro access or quota) and use a generous `maxTok` (~2048). The generous token budget matters because Gemini 2.5 "thinking" tokens count against `maxOutputTokens`; a tight budget gets eaten by reasoning and yields a truncated/empty spec. Keep `search:true` on the draft calls so the model reads live datasheets rather than working from memory.
+- `modelAiSpecsProviders()` orders providers **Gemini first**, then Claude (only the ones whose key exists).
+- CapStone asks Gemini for the spec. If Gemini returns a usable spec, that is the field — Claude is never called (one API call, faster and cheaper).
+- Claude is queried **only** when Gemini is absent (no Gemini key), returns `SKIP`, errors, or returns empty. Its draft is then used verbatim.
+- The status note reflects this: a fallback result reads `Model_AI_Specs from Claude (Gemini fallback) — <why Gemini didn't answer>`. A Claude-only user is nudged to add a Gemini key for the primary lookup.
+- The `NEVER invent a numeric spec` rule still overrides everything: if the chosen model has no confident figure, it writes `NOT VERIFIED`.
 
-Keep this in sync with `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`, `modelAiSpecsProviders()`/`mergeModelAiSpecsDrafts()`, and `GEMINI_QUALITY_MODEL_PREFERENCE`/`callGeminiAPI(...preferQuality)` in `src/app.js`.
+**Model tier & token budget (why the field can look thinner than a direct Gemini search):** the Gemini web app answers a brand+model question with a Pro-tier model, deep "thinking", and multi-step browsing, and returns a full multi-paragraph write-up. CapStone must fit a 2000-char calibration summary, so the output is intentionally terser — but the *research* should be just as good. To keep it so, the Gemini draft call in `src/app.js` sets `preferQuality:true` (resolves a Pro model such as `gemini-2.5-pro` via `GEMINI_QUALITY_MODEL_PREFERENCE`, falling back to the Flash list only when the key lacks Pro access or quota) and uses a generous `maxTok` (~2048). The generous token budget matters because Gemini 2.5 "thinking" tokens count against `maxOutputTokens`; a tight budget gets eaten by reasoning and yields a truncated/empty spec. Keep `search:true` on the draft calls so the model reads live datasheets rather than working from memory.
+
+Keep this in sync with `generateModelAiSpecsIfNeeded()`/`fetchModelAiSpecsDraft()`, `modelAiSpecsProviders()`, and `GEMINI_QUALITY_MODEL_PREFERENCE`/`callGeminiAPI(...preferQuality)` in `src/app.js`.
 
 ---
 
