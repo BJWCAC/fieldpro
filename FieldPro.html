@@ -782,13 +782,20 @@
   <div class="settings-group-title">Key Sync (Cloud)</div>
   <div class="card">
     <div class="stitle">Key Sync (Cloud)</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Back up your API key and app settings to the cloud, tied to your <strong>Zoho technician name</strong>, then restore them on another device. Protected by a passphrase you choose — keep it private. With <strong>auto-backup</strong> on, CapStone uploads changes automatically after you save settings. See <code>docs/CAPSTONE_KEY_SYNC.md</code>.</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Back up your API keys and app settings to the cloud, tied to your <strong>Zoho technician name</strong>, then restore them on another device. Includes Anthropic and Gemini keys. Protected by a passphrase you choose — keep it private. With <strong>auto-backup</strong> on, CapStone uploads changes automatically after you save settings. With <strong>auto-restore</strong> on (default), a new device pulls any missing keys on startup when technician and passphrase match. See <code>docs/CAPSTONE_KEY_SYNC.md</code>.</div>
     <div id="sync-tech-line" style="font-size:12px;color:var(--amber);margin-bottom:10px;line-height:1.5">Technician: —</div>
     <div class="tog-row" onclick="toggleKeySyncAutoBackup()" style="margin-bottom:10px">
       <div class="tog on" id="tog-key-sync-auto"><div class="tog-thumb"></div></div>
       <div>
         <div style="font-size:14px;font-weight:500">Auto-backup keys to cloud</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">After you save your passphrase, API key, Plaud connection, or app toggles, CapStone backs up to the cloud within a few seconds.</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">After you save your passphrase, API keys, Plaud connection, or app toggles, CapStone backs up to the cloud within a few seconds.</div>
+      </div>
+    </div>
+    <div class="tog-row" onclick="toggleKeySyncAutoRestore()" style="margin-bottom:10px">
+      <div class="tog on" id="tog-key-sync-auto-restore"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto-restore missing keys on startup</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">When you open CapStone with the same technician and passphrase, any API keys missing on this device are pulled from your cloud backup (does not overwrite keys already set here).</div>
       </div>
     </div>
     <label class="lbl" for="sync-pass-input">Sync passphrase</label>
@@ -947,7 +954,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=334"></script>
+<script src="src/app.js?v=335"></script>
 
 </body>
 </html>
