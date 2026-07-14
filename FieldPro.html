@@ -290,7 +290,7 @@
         <li>Pick <strong>Asset Category</strong> to show category-specific fields (Flow Meter / Flow Open Channel: sensor, display, setup I/O, duration &amp; damping, subform; Gas Detector: sensor, display, duration &amp; damping, Gas Sensor Info, subform; General: sensor, display, setup I/O, duration &amp; damping, subform).</li>
         <li>Use <strong>Request addition</strong> when AI finds a Brand or Type not in Zoho — Brad gets an email to add it to the picklist.</li>
         <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
-        <li>Use <strong>Save Another Asset</strong> to document multiple instruments in one visit.</li>
+        <li>Use <strong>Start New Asset</strong> to document multiple instruments in one visit.</li>
       </ul>
     </div>
   </details>
@@ -348,6 +348,7 @@
       </div>
       <div id="asset-intent-change-row" style="display:none;margin-top:10px">
         <button type="button" class="bg bsm" onclick="resetAssetIntent()">← Change add / update choice</button>
+        <button type="button" id="asset-start-new-setup-btn" class="bg bsm" onclick="startNewAsset()" style="display:none;margin-left:8px">Start New Asset</button>
       </div>
     </div>
     <div id="asset-entry-panel" style="display:none">
@@ -406,7 +407,7 @@
     <div style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
-    <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="resetAssetFormForNext()" style="display:none">Save Another Asset</button></div>
+    <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none">Start New Asset</button></div>
     <div id="asset-saved-list" style="display:none;margin-top:12px"></div>
     </div>
   </div>
@@ -946,7 +947,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=332"></script>
+<script src="src/app.js?v=333"></script>
 
 </body>
 </html>

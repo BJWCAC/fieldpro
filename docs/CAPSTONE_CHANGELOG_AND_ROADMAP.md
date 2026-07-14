@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-14
-Current live version: v332
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=332
+Current live version: v333
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=333
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v333 | — | **Start New Asset button** — clears a loaded or saved asset and switches back to Add New mode (keeps deal/account, GPS, Saved This Visit); shown after save, reopen, or restore when form is update-ready; blocks post-save draft from re-locking the form into update mode |
 | v332 | — | **Fix asset update save INVALID_DATA invalid id** — do not send Account name as lookup id on update; omit Account when only a name is known; validate equipment and subform row ids before Zoho writes; clearer Zoho field name in save errors |
 | v331 | — | **Fix asset restore — full fields and photos** — asset draft photos offload to IndexedDB (like Capture); draft restore hydrates photos from IDB; Saved This Visit snapshot stores category dynamic fields, subform rows, and photos; Reopen fetches full Zoho record via `get_equipment` and restores local photos; Load Existing Asset uses full record fetch (includes Description_Instructions) |
 | v330 | — | **Model_AI_Specs on asset update** — updates now generate fresh AI specs and archive the previous active spec under `<b>OLD SPEC</b>` (two blank lines below the new spec); prior archive chain preserved; `get_equipment` fetches `Model_AI_Specs` |
