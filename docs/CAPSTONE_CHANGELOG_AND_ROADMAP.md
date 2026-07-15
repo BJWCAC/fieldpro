@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-07-14
-Current live version: v340
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=340
+Last updated: 2026-07-15
+Current live version: v341
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=341
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v341 | — | **AI prefill with confirmation gate** — nameplate extraction now also reads output signal (4-20 mA/HART), power supply, engineering units, and enclosure rating and maps them to fields; a new **Research & prefill** step (automatic after extract, with a Settings toggle `fp_asset_auto_research`, plus a manual button) researches the identified model via Claude and fills only still-empty spec fields as suggestions. Nameplate values win over research; research never overwrites. Every AI-prefilled field (OCR or research) is flagged **pending confirmation** — Save is blocked until the technician reviews/confirms them (amber highlight + "Confirm N prefilled fields" banner). Update/restore/manual entry are unaffected. |
 | v340 | — | **Auto-detect available Gemini model** — hardcoded model ids kept 404ing on some accounts; CapStone now queries the ListModels API, picks the best `generateContent` flash model (preferring `gemini-flash-latest`), caches it, and re-resolves automatically on a 404; still overridable via `localStorage.fp_gemini_model` |
 | v339 | — | **Gemini model update to gemini-2.5-flash** — `gemini-2.0-flash` returns 404 (retired); default model is now `gemini-2.5-flash`; model is overridable via `localStorage.fp_gemini_model`; clearer 404 "model unavailable" message |
 | v338 | — | **Detect Gemini AQ.-key zero-quota 429** — recognizes `free_tier_requests limit: 0` / RESOURCE_EXHAUSTED responses (common with Google's new AQ.-prefixed keys), fails fast without pointless retries, and shows actionable guidance (create a standard AIza key or enable billing); Gemini key modal warns about the AQ. zero-quota issue; Claude specs continue to work |

@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=307"/>
+<link rel="stylesheet" href="src/styles.css?v=341"/>
 
 </head>
 <body autocomplete="off">
@@ -368,7 +368,8 @@
       <label class="fbtn bb-lg">Take Nameplate Photo<input id="asset-photo-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="assetPhotoSelected(this)"/></label>
       <label class="fbtn bb-lg">Upload Nameplate Photos<input id="asset-photo-upload-input" type="file" accept="image/*" multiple style="display:none" onchange="assetPhotoSelected(this)"/></label>
     </div>
-    <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 3 per type).</div></div>
+    <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><button class="bb-lg" id="asset-research-btn" onclick="researchAndPrefillAsset()" style="display:none;margin-bottom:6px;width:100%">Research &amp; prefill</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 3 per type). Nameplate values win; research only fills empty fields — confirm everything before saving.</div></div>
+    <div id="asset-prefill-banner" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px;margin-bottom:10px"></div>
     <div class="g2" style="margin-bottom:8px">
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
@@ -712,6 +713,13 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">Video snapshots and added photos also save to the phone so you can re-add them later if needed.</div>
       </div>
     </div>
+    <div class="tog-row" onclick="toggleAssetAutoResearch()" style="margin-top:10px">
+      <div class="tog on" id="tog-asset-auto-research"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Auto research asset specs after extract</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">After nameplate extraction, AI researches the model and fills empty spec fields as verify-me suggestions. Turn off to only research on demand via the Research &amp; prefill button (e.g. if Gemini is rate-limited).</div>
+      </div>
+    </div>
   </div>
   <div class="settings-group-title">Workflow Help</div>
   <div class="card">
@@ -954,7 +962,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=340"></script>
+<script src="src/app.js?v=341"></script>
 
 </body>
 </html>
