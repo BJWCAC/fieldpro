@@ -34,26 +34,26 @@ This file does **not** contain project-specific history (which records were alre
 ## 2. Output format (non-negotiable)
 
 ```
-<b>ACCURACY:</b> ±<value> — OF READING (rate) | OF SPAN | OF FULL SCALE | OF RANGE | absolute units
-<b>ZERO/LRL:</b> <value or how established>
-<b>SPAN/URL:</b> <value, or "NOT SET BY THIS MODEL CODE" + where to find it>
-<b>MINIMUM SPAN:</b> <value or n/a>
-<b>RESOLUTION:</b> <value>
-<b>GENERAL</b>
+ACCURACY: ±<value> — OF READING (rate) | OF SPAN | OF FULL SCALE | OF RANGE | absolute units
+ZERO/LRL: <value or how established>
+SPAN/URL: <value, or "NOT SET BY THIS MODEL CODE" + where to find it>
+MINIMUM SPAN: <value or n/a>
+RESOLUTION: <value>
+GENERAL
 <3–6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status>
-<b>CAL NOTES:</b> <1–3 lines of practical field guidance — the part techs actually read>
+CAL NOTES: <1–3 lines of practical field guidance — the part techs actually read>
 [AI-gen: <source>, <Month Year>]
 ```
 
 Rules:
 - **Search the web first.** Before writing, look up the exact `Asset_Brand` + `Asset_Model_Number` (e.g. query `"<brand> <model> datasheet accuracy specification"`), read the published figures from the manufacturer datasheet or a trustworthy source, and base every number on what you actually found rather than on memory. When `Asset_Brand` is a generic "Other" value but `If_Asset_Brand_Other_explain` names the actual brand/manufacturer, use that explain text as the brand for the search and the spec. Cite the source in the `[AI-gen]` line (manufacturer or domain). Only fall back to `NOT VERIFIED` when a search does not surface a trustworthy figure. CapStone's auto-generation enables web-search grounding on both the Gemini (`google_search`) and Claude (`web_search`) draft calls — keep `search:true` on those calls in `fetchModelAiSpecsDraft()`.
 - **ACCURACY line first, always** — this is the single most important line (see §3).
-- Section titles and field labels use **bold ALL CAPS** via minimal HTML: `<b>ACCURACY:</b>`, `<b>ZERO/LRL:</b>`, `<b>GENERAL</b>`, `<b>CAL NOTES:</b>`, etc. No other HTML, no markdown bullets.
+- Section titles and field labels use **plain-text ALL CAPS** (`ACCURACY:`, `ZERO/LRL:`, `GENERAL`, `CAL NOTES:`, etc.). The `Model_AI_Specs` Zoho field is plain text and cannot render HTML, so do **not** wrap labels in `<b>` tags or any other markup — the tags would show up as literal characters. No HTML, no markdown bullets. CapStone's `stripAiSpecsBold()` in `src/app.js` also strips any stray `<b>`/`</b>` tags from generated and existing/archived specs as a safety net.
 - The accuracy line **must** state its basis explicitly.
 - If a spec cannot be verified: write `NOT VERIFIED` / `CONFIRM from <source>` — **never invent a number.**
 - Under 2000 characters.
 - Same model string on multiple records → same body text (service-specific detail may differ).
-- The `<b>CAL NOTES:</b>` line must tell a tech something a datasheet wouldn't: what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (see §7 for tone examples).
+- The `CAL NOTES:` line must tell a tech something a datasheet wouldn't: what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (see §7 for tone examples).
 - If the brand/model given isn't a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model/serial), don't write a spec at all — this is a junk/placeholder record, not a calibration question (see §5).
 
 ### Updates (existing asset save)
@@ -63,17 +63,17 @@ When CapStone updates an existing Equipment record and regenerates specs:
 ```
 <new spec — same format as above, current/active at top>
 
-<b>OLD SPEC</b>
+OLD SPEC
 <previous active spec from Zoho before this save>
 
-<b>OLD SPEC</b>
+OLD SPEC
 <older archived spec, if any — preserve prior archive chain>
 ```
 
 Rules:
 - Generate a **new** spec on update the same way as create.
-- The **previous active** portion (everything above the first `<b>OLD SPEC</b>` in Zoho) moves under a new `<b>OLD SPEC</b>` header after two blank lines.
-- Keep any prior `<b>OLD SPEC</b>` archive chain below that.
+- The **previous active** portion (everything above the first `OLD SPEC` header in Zoho) moves under a new `OLD SPEC` header after two blank lines.
+- Keep any prior `OLD SPEC` archive chain below that.
 - Total field still under 2000 characters (truncate from the bottom if needed).
 
 ### Provider strategy (CapStone auto-generation)
@@ -116,16 +116,16 @@ The single most useful thing this field can tell a tech: zero, span, resolution,
 Metal detectors are verified with **certified test pieces**, not calibrated with zero/span:
 
 ```
-<b>ACCURACY:</b> pass/fail against the test-piece standard, not a % figure.
-<b>ZERO/SPAN:</b> n/a — a metal detector is verified with CERTIFIED TEST SPHERES, not a zero/span cal.
-<b>SENSITIVITY:</b> stated as the smallest detectable sphere diameter for each metal type —
+ACCURACY: pass/fail against the test-piece standard, not a % figure.
+ZERO/SPAN: n/a — a metal detector is verified with CERTIFIED TEST SPHERES, not a zero/span cal.
+SENSITIVITY: stated as the smallest detectable sphere diameter for each metal type —
   FERROUS (e.g. 1.5 mm), NON-FERROUS (e.g. 2.0 mm), STAINLESS STEEL (e.g. 2.5 mm).
   Stainless is always the hardest to detect (least magnetic/conductive contrast).
-<b>STANDARD:</b> certified test spheres traceable to the wands/cards supplied with the head.
-<b>GENERAL</b>
+STANDARD: certified test spheres traceable to the wands/cards supplied with the head.
+GENERAL
 <brand/model> metal detector, <aperture WxH>, <product>. Balanced-coil through-aperture head with
 auto-reject. Food-safety critical control point (HACCP/BRC) — verification is a documented QA record.
-<b>CAL NOTES:</b> run all THREE test pieces (ferrous, non-ferrous, stainless) through the aperture at
+CAL NOTES: run all THREE test pieces (ferrous, non-ferrous, stainless) through the aperture at
 production belt speed, at the WORST-CASE position (usually the geometric centre of the aperture, the
 least-sensitive point), embedded in product to include the product effect. Verify the REJECT mechanism
 actually removes the pack and that the fail-safe (air-fail, belt-stop, bin-full) trips. Product-effect
@@ -176,7 +176,7 @@ Many records hold a TRANSMITTER/CONTROLLER in `Asset_Model_Number` while `Model_
 
 ## 8. Cal notes: tone (examples)
 
-Write the `<b>CAL NOTES:</b>` line last, for someone standing at the instrument with a calibrator in their hand:
+Write the `CAL NOTES:` line last, for someone standing at the instrument with a calibrator in their hand:
 
 - "A poisoned catalytic bead reads LOW while still passing a zero check. Span is the only test that finds it."
 - "Wear always reads LOW, and a single-point test hides it. Test at three AWWA points."
