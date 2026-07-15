@@ -31,15 +31,21 @@ var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nam
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
 var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
-var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\n<b>ACCURACY:</b> plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\n<b>ZERO/LRL:</b> value or how established\n<b>SPAN/URL:</b> value, or NOT SET BY THIS MODEL CODE + where to find it\n<b>MINIMUM SPAN:</b> value or n/a\n<b>RESOLUTION:</b> value\n<b>GENERAL</b>\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\n<b>CAL NOTES:</b> 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: if you are not confident of the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
-var MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT="You merge multiple AI drafts into one Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file. Output minimal HTML only: wrap every section title and field label in <b>ALL CAPS</b>. No markdown, no bullet asterisks, under 1900 characters.\n\nUse the same output format:\n<b>ACCURACY:</b> first line; then <b>ZERO/LRL:</b>, <b>SPAN/URL:</b>, <b>MINIMUM SPAN:</b>, <b>RESOLUTION:</b>; then <b>GENERAL</b> block; then <b>CAL NOTES:</b>; then [AI-gen: sources, Month Year].\n\nMerge rules:\n- Prefer specific published figures only when a draft states them confidently; if drafts disagree on a number, use NOT VERIFIED — confirm from manufacturer datasheet.\n- NEVER invent a numeric spec.\n- Combine the best practical Cal notes from all drafts without repeating yourself.\n- End attribution with every source label provided (e.g. Claude, Gemini) joined with +, e.g. [AI-gen: Claude+Gemini, Jul 2026].\n- If every draft is SKIP or unusable, respond with exactly: SKIP.";
-function isUsableModelForAiSpecs(model,brand){
+var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file.\n\nFIRST, before writing anything, SEARCH THE WEB using the Asset_Brand and Asset_Model_Number given (e.g. query \"<Asset_Brand> <Asset_Model_Number> datasheet accuracy specification\"). If Asset_Brand is a generic \"Other\" value (e.g. \"1 Other\") and an If_Asset_Brand_Other_explain value is provided, treat that explain text as the real brand/manufacturer and use it in place of Asset_Brand for the search and the spec. Find the manufacturer datasheet or a trustworthy source and read the published accuracy, zero/span, and ranges from it. Base every number on what you actually found — prefer a figure confirmed by search over a remembered one. In the [AI-gen] line cite the source you used (manufacturer or domain). Only write NOT VERIFIED when a web search does not surface a trustworthy figure. Never invent a number and never guess at unreadable model codes.\n\nOutput plain text only — NO HTML tags, no markdown, no bullet asterisks, under 1900 characters. Write every section title and field label in ALL CAPS. Do NOT wrap anything in <b> tags or any other markup; the field cannot render HTML and would show the tags as literal text.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\nACCURACY: plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\nZERO/LRL: value or how established\nSPAN/URL: value, or NOT SET BY THIS MODEL CODE + where to find it\nMINIMUM SPAN: value or n/a\nRESOLUTION: value\nGENERAL\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\nCAL NOTES: 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: search first, then report what you found. If a web search does not surface the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
+function isUsableModelForAiSpecs(model,brand,brandOther){
   var m=String(model||"").trim();
   if(!m)return false;
   if(/^(n\/?a|tbd|unknown|none|-|\?)$/i.test(m))return false;
   if(/^\d{1,3}$/.test(m))return false;
-  if(/^1\s*other$/i.test(String(brand||"").trim())&&m.length<4)return false;
+  if(/^1\s*other$/i.test(String(brand||"").trim())&&!String(brandOther||"").trim()&&m.length<4)return false;
   return true;
+}
+function isModelAiSpecsSkip(txt){
+  // A model signals "not a real, identifiable instrument" with exactly SKIP, but in
+  // practice they add stray punctuation/quotes/whitespace ("SKIP.", "\"SKIP\"").
+  // Treat any such short SKIP-only reply as a skip so it is never written as a spec.
+  var t=String(txt||"").trim().replace(/^["'`\s]+|["'`.\s]+$/g,"");
+  return /^skip$/i.test(t);
 }
 function isValidGeminiApiKey(k){
   k=String(k||"").trim();
@@ -47,12 +53,14 @@ function isValidGeminiApiKey(k){
 }
 function modelAiSpecsProviders(){
   var out=[];
-  if(API_KEY)out.push("claude");
   if(GEMINI_API_KEY)out.push("gemini");
+  if(API_KEY)out.push("claude");
   return out;
 }
-function modelAiSpecsAssetContent(category,brand,type,series,model){
-  return "Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
+function modelAiSpecsAssetContent(category,brand,type,series,model,brandOther){
+  var s="Asset_Category: "+category+"\nAsset_Brand: "+brand+"\nAsset_Type: "+type+"\nAsset_Series: "+series+"\nAsset_Model_Number: "+model;
+  if(String(brandOther||"").trim())s+="\nIf_Asset_Brand_Other_explain (actual brand/manufacturer when Asset_Brand is a generic \"Other\"): "+String(brandOther).trim();
+  return s;
 }
 var MODEL_AI_SPECS_CACHE={};
 function isGeminiZeroQuotaError(msg){
@@ -71,45 +79,19 @@ function formatAiProviderError(msg){
   if(/429|resource_exhausted|rate.?limit/i.test(m))return m.replace(/Gemini 429[^"]*/i,"Gemini rate-limited (requests/minute cap — wait ~1 minute and retry; not monthly quota)");
   return m;
 }
-async function fetchModelAiSpecsDraftsSequential(providers,content){
-  var results=[];
-  for(var i=0;i<providers.length;i++){
-    var p=providers[i];
-    if(i>0)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
-    try{
-      var txt=await fetchModelAiSpecsDraft(p,content);
-      results.push({provider:p,txt:txt});
-    }catch(e){
-      console.log("Model_AI_Specs "+p+" draft failed:",e);
-      results.push({provider:p,txt:"",error:e&&e.message?e.message:String(e)});
-    }
-  }
-  return results;
-}
 async function fetchModelAiSpecsDraft(provider,content){
   if(provider==="claude"){
-    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    var d=await callAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:1500,ms:75000,search:true});
     return getText(d).trim();
   }
   if(provider==="gemini"){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:900,ms:45000});
+    // maxTok is generous because Gemini 2.5 "thinking" tokens count against maxOutputTokens;
+    // a tight budget gets consumed by reasoning and yields a truncated/empty spec. preferQuality
+    // asks for a Pro-tier model (what users get searching gemini directly), falling back to Flash.
+    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_SYSTEM_PROMPT,content:content,maxTok:2048,ms:75000,search:true,preferQuality:true});
     return getGeminiText(g).trim();
   }
   return "";
-}
-async function mergeModelAiSpecsDrafts(content,drafts,labels){
-  var mergeContent="Instrument identity:\n"+content+"\n\nDrafts to merge:\n";
-  drafts.forEach(function(txt,i){mergeContent+="--- "+(labels[i]||("Source "+(i+1)))+" ---\n"+txt+"\n\n";});
-  mergeContent+="Write one merged Model_AI_Specs field following the required format.";
-  if(API_KEY){
-    var d=await callAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
-    return getText(d).trim();
-  }
-  if(GEMINI_API_KEY){
-    var g=await callGeminiAPI({sys:MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT,content:mergeContent,maxTok:1000,ms:60000});
-    return getGeminiText(g).trim();
-  }
-  return drafts[0]||"";
 }
 async function generateModelAiSpecsIfNeeded(opts){
   opts=opts||{};
@@ -118,58 +100,61 @@ async function generateModelAiSpecsIfNeeded(opts){
   var model=assetInput("asset-model");
   var series=assetInput("asset-series");
   var category=assetInput("asset-category");
-  var key=[category,brand,type,series,model].join("|");
+  var brandOther=assetInput("asset-brand-other");
+  var key=[category,brand,type,series,model,brandOther].join("|");
   if(!opts.force&&A.asset.aiSpecsKey===key&&A.asset.aiSpecsText)return{ok:true,cached:true};
   if(!opts.force&&A.asset.aiSpecsKey===key&&!A.asset.aiSpecsText)return{ok:false,reason:"cached_empty"};
   A.asset.aiSpecsKey="";
   A.asset.aiSpecsText="";
   var providers=modelAiSpecsProviders();
   if(!providers.length)return{ok:false,reason:"no_api_keys"};
-  if(!isUsableModelForAiSpecs(model,brand))return{ok:false,reason:"model_not_usable"};
+  if(!isUsableModelForAiSpecs(model,brand,brandOther))return{ok:false,reason:"model_not_usable"};
   var cacheKey=providers.join(",")+"||"+key;
   var cached=MODEL_AI_SPECS_CACHE[cacheKey];
   if(cached&&cached.text){
     A.asset.aiSpecsText=cached.text;
     A.asset.aiSpecsKey=key;
-    return{ok:true,providers:cached.providers||["AI"],fromCache:true};
+    var cout={ok:true,providers:cached.providers||["AI"],fromCache:true};
+    if(cached.skipped&&cached.skipped.length)cout.skipped=cached.skipped.slice();
+    return cout;
   }
   try{
-    var label=providers.length>1?" (AI x"+providers.length+")":" (AI)";
-    assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+label+"...",false);
-    var content=modelAiSpecsAssetContent(category,brand,type,series,model);
-    var draftResults=await fetchModelAiSpecsDraftsSequential(providers,content);
-    var drafts=[];
-    var labels=[];
+    var content=modelAiSpecsAssetContent(category,brand,type,series,model,brandOther);
     var errors=[];
-    draftResults.forEach(function(r){
-      if(r.error)errors.push(r.provider+": "+formatAiProviderError(r.error));
-      var txt=(r.txt||"").trim();
-      if(!txt||txt==="SKIP")return;
-      drafts.push(txt);
-      labels.push(r.provider==="gemini"?"Gemini":"Claude");
-    });
-    if(!drafts.length)return{ok:false,reason:"ai_skip_or_failed",errors:errors};
-    var txt;
-    if(drafts.length===1)txt=drafts[0];
-    else{
-      try{txt=await mergeModelAiSpecsDrafts(content,drafts,labels);}
-      catch(mergeErr){
-        console.log("Model_AI_Specs merge failed:",mergeErr);
-        errors.push("merge: "+formatAiProviderError(mergeErr&&mergeErr.message?mergeErr.message:String(mergeErr)));
-        txt=drafts[0];
+    var skipped=[];
+    var chosen="";
+    var chosenProvider="";
+    // Gemini is the single source of truth; providers are ordered Gemini-first by
+    // modelAiSpecsProviders(). Claude is queried only as a fallback when Gemini is
+    // absent, skips, or errors — no merge step (it was fragile and could discard good
+    // specs). Take the first usable draft and stop.
+    for(var i=0;i<providers.length;i++){
+      var p=providers[i];
+      var pname=p==="gemini"?"Gemini":"Claude";
+      var primary=i===0;
+      assetStatus("Researching calibration specs for "+(brand?brand+" ":"")+model+" ("+pname+(primary?"":" fallback")+")...",false);
+      if(!primary)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
+      var txt="";
+      try{txt=(await fetchModelAiSpecsDraft(p,content)||"").trim();}
+      catch(e){
+        console.log("Model_AI_Specs "+p+" draft failed:",e);
+        errors.push(pname+": "+formatAiProviderError(e&&e.message?e.message:String(e)));
+        continue;
       }
+      if(isModelAiSpecsSkip(txt)){skipped.push(pname);continue;}
+      if(!txt){errors.push(pname+": returned an empty response (possible token limit or model issue) — not necessarily an API-key problem");continue;}
+      chosen=txt;chosenProvider=pname;break;
     }
-    txt=(txt||"").trim();
-    if(txt&&txt!=="SKIP"){
-      if(txt.length>MODEL_AI_SPECS_MAX)txt=txt.slice(0,MODEL_AI_SPECS_MAX);
-      A.asset.aiSpecsText=txt;
-      A.asset.aiSpecsKey=key;
-      var out={ok:true,providers:labels};
-      if(errors.length)out.warnings=errors;
-      if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:txt,providers:labels};
-      return out;
-    }
-    return{ok:false,reason:"ai_skip"};
+    if(!chosen)return{ok:false,reason:"ai_skip_or_failed",errors:errors,skipped:skipped};
+    chosen=stripAiSpecsBold(chosen).trim();
+    if(chosen.length>MODEL_AI_SPECS_MAX)chosen=chosen.slice(0,MODEL_AI_SPECS_MAX);
+    A.asset.aiSpecsText=chosen;
+    A.asset.aiSpecsKey=key;
+    var out={ok:true,providers:[chosenProvider]};
+    if(errors.length)out.warnings=errors;
+    if(skipped.length)out.skipped=skipped;
+    if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:chosen,providers:[chosenProvider],skipped:skipped.slice()};
+    return out;
   }catch(e){
     console.log("Model_AI_Specs generation failed:",e);
     return{ok:false,reason:"error",error:e&&e.message?e.message:String(e)};
@@ -178,11 +163,14 @@ async function generateModelAiSpecsIfNeeded(opts){
 function modelAiSpecsStatusNote(result){
   if(!result)return"";
   if(result.ok){
-    if(result.warnings&&result.warnings.length)return" Model_AI_Specs merged from "+(result.providers||["AI"]).join("+")+" (partial: "+formatAiProviderError(result.warnings[0])+").";
-    if(result.providers&&result.providers.length===1){
-      if(modelAiSpecsProviders().length>1)return" Model_AI_Specs from "+result.providers[0]+" only — other AI provider failed; check API keys.";
-      var other=!GEMINI_API_KEY?"Gemini API key":(!API_KEY?"Anthropic API key":"");
-      if(other)return" Model_AI_Specs from "+result.providers[0]+" only — add "+other+" in Settings for merged Claude+Gemini lookup (Key Sync restores from your other device).";
+    var prov=(result.providers&&result.providers[0])||"AI";
+    // Gemini is the primary source; Claude is only queried as a fallback when Gemini is
+    // absent, skips, or errors. Explain when the fallback was used, and nudge Claude-only
+    // users to add a Gemini key for the primary lookup.
+    if(prov!=="Gemini"){
+      if(result.warnings&&result.warnings.length)return" Model_AI_Specs from "+prov+" (Gemini fallback) — "+formatAiProviderError(result.warnings[0])+".";
+      if(result.skipped&&result.skipped.length)return" Model_AI_Specs from "+prov+" (Gemini fallback) — "+result.skipped.join(" & ")+" couldn't identify this model (not an API-key problem).";
+      if(!GEMINI_API_KEY)return" Model_AI_Specs from "+prov+" — add a Gemini API key in Settings for the primary spec lookup (Key Sync restores keys from your other device).";
     }
     return"";
   }
@@ -190,6 +178,7 @@ function modelAiSpecsStatusNote(result){
   if(result.reason==="model_not_usable")return" Model_AI_Specs skipped — model number not usable for AI lookup.";
   if(result.reason==="ai_skip")return" Model_AI_Specs skipped — AI could not identify this instrument.";
   if(result.reason==="ai_skip_or_failed"){
+    if((!result.errors||!result.errors.length)&&result.skipped&&result.skipped.length)return" Model_AI_Specs skipped — "+result.skipped.join(" & ")+" couldn't identify this instrument (not an API-key problem).";
     var detail=result.errors&&result.errors.length?formatAiProviderError(result.errors[0]):"";
     return" Model_AI_Specs failed"+(detail?": "+detail:" — check API keys and connection.")+".";
   }
@@ -197,25 +186,31 @@ function modelAiSpecsStatusNote(result){
   return"";
 }
 var MODEL_AI_SPECS_MAX=1900;
-var MODEL_AI_SPECS_OLD_HDR="<b>OLD SPEC</b>";
+var MODEL_AI_SPECS_OLD_HDR="OLD SPEC";
+function stripAiSpecsBold(text){
+  // Model_AI_Specs is a plain-text Zoho field that cannot render HTML, so any <b>/</b> tags
+  // (left over from specs generated before the bold-headers instruction was removed) show up
+  // as literal characters. Strip them from both freshly generated and existing/archived specs.
+  return String(text||"").replace(/<\/?b\b[^>]*>/gi,"");
+}
 function modelAiSpecsActivePortion(text){
-  var t=String(text||"").trim();
+  var t=stripAiSpecsBold(text).trim();
   if(!t)return"";
-  var idx=t.search(/<b>OLD SPEC<\/b>/i);
+  var idx=t.search(/OLD SPEC/i);
   if(idx>=0)return t.slice(0,idx).trim();
   return t;
 }
 function modelAiSpecsPriorArchive(text){
-  var t=String(text||"").trim();
+  var t=stripAiSpecsBold(text).trim();
   if(!t)return"";
-  var idx=t.search(/<b>OLD SPEC<\/b>/i);
+  var idx=t.search(/OLD SPEC/i);
   if(idx<0)return"";
   return t.slice(idx).trim();
 }
 function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
-  newSpec=String(newSpec||"").trim();
+  newSpec=stripAiSpecsBold(newSpec).trim();
   if(!newSpec)return"";
-  var prev=String(existingZohoSpec||"").trim();
+  var prev=stripAiSpecsBold(existingZohoSpec).trim();
   if(!prev)return newSpec;
   var previousActive=modelAiSpecsActivePortion(prev);
   if(!previousActive||previousActive===newSpec)return newSpec;
@@ -226,7 +221,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="341";
+var FP_VERSION="349";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6376,23 +6371,37 @@ function checkGen(){
 
 // API
 async function callAPI(opts){
+  opts=opts||{};
   var body={model:"claude-sonnet-4-6",max_tokens:opts.maxTok||4000,messages:[{role:"user",content:opts.content}]};
   if(opts.sys)body.system=opts.sys;
+  if(opts.search)body.tools=[{type:"web_search_20250305",name:"web_search",max_uses:opts.searchMaxUses||5}];
   incGlobalBusy();
-  var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
   try{
-    var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
-    clearTimeout(timer);if(!r.ok){var e=await r.text();throw new Error("API "+r.status+": "+e.substring(0,150));}
-    return r.json();
-  }catch(err){
-    clearTimeout(timer);
-    throw err;
+    for(var attempt=0;attempt<2;attempt++){
+      var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},opts.ms||60000);
+      try{
+        var r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body),signal:ctrl.signal});
+        clearTimeout(timer);
+        if(r.ok)return r.json();
+        var e=await r.text();
+        if(body.tools&&attempt===0&&/tool|web_search|not supported|unsupported|invalid_request/i.test(e)){delete body.tools;continue;}
+        throw new Error("API "+r.status+": "+e.substring(0,150));
+      }catch(err){
+        clearTimeout(timer);
+        throw err;
+      }
+    }
   }finally{
     decGlobalBusy();
   }
 }
 var GEMINI_MODEL_PREFERENCE=["gemini-flash-latest","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-lite-latest","gemini-2.0-flash","gemini-pro-latest"];
+// Higher-reasoning models for calibration-spec lookup, so CapStone matches the quality a user
+// gets searching a brand+model directly in Gemini (which uses a Pro-tier model). Callers that
+// set preferQuality:true resolve from this list and fall back to the Flash list if none work.
+var GEMINI_QUALITY_MODEL_PREFERENCE=["gemini-2.5-pro","gemini-pro-latest","gemini-2.0-pro","gemini-1.5-pro"];
 var _geminiResolvedModel=null;
+var _geminiResolvedQualityModel=null;
 function geminiModelOverride(){try{var o=localStorage.getItem("fp_gemini_model");if(o&&o.trim())return o.trim();}catch(e){}return "";}
 function geminiModelName(){return geminiModelOverride()||_geminiResolvedModel||GEMINI_MODEL;}
 async function listGeminiModels(){
@@ -6410,9 +6419,27 @@ function pickBestGeminiModel(available){
   var text=available.filter(function(n){return !bad.test(n)&&/gemini/i.test(n);});
   return text[0]||available[0]||"";
 }
-async function resolveGeminiModel(force){
+function pickBestGeminiQualityModel(available){
+  var bad=/embedding|aqa|imagen|image|tts|audio|native-audio|live|vision|veo|learnlm|thinking-exp/i;
+  for(var i=0;i<GEMINI_QUALITY_MODEL_PREFERENCE.length;i++){if(available.indexOf(GEMINI_QUALITY_MODEL_PREFERENCE[i])>=0)return GEMINI_QUALITY_MODEL_PREFERENCE[i];}
+  var pro=available.filter(function(n){return !bad.test(n)&&/pro/i.test(n)&&/gemini/i.test(n);});
+  if(pro.length)return pro[0];
+  return "";
+}
+async function resolveGeminiModel(force,quality){
   var ov=geminiModelOverride();
   if(ov)return ov;
+  if(quality){
+    if(!force){
+      if(_geminiResolvedQualityModel)return _geminiResolvedQualityModel;
+      try{var cq=localStorage.getItem("fp_gemini_model_quality_resolved");if(cq&&cq.trim()){_geminiResolvedQualityModel=cq.trim();return _geminiResolvedQualityModel;}}catch(e){}
+    }
+    var avail=await listGeminiModels();
+    var bestq=pickBestGeminiQualityModel(avail);
+    if(bestq){_geminiResolvedQualityModel=bestq;try{localStorage.setItem("fp_gemini_model_quality_resolved",bestq);}catch(e){}return bestq;}
+    // No Pro model for this key — fall back to the standard (Flash) resolution.
+    return pickBestGeminiModel(avail)||GEMINI_MODEL;
+  }
   if(!force){
     if(_geminiResolvedModel)return _geminiResolvedModel;
     try{var c=localStorage.getItem("fp_gemini_model_resolved");if(c&&c.trim()){_geminiResolvedModel=c.trim();return _geminiResolvedModel;}}catch(e){}
@@ -6421,15 +6448,24 @@ async function resolveGeminiModel(force){
   if(best){_geminiResolvedModel=best;try{localStorage.setItem("fp_gemini_model_resolved",best);}catch(e){}}
   return best||GEMINI_MODEL;
 }
+function geminiSearchTool(model){
+  var m=String(model||"");
+  if(/1\.5|1\.0/.test(m))return{google_search_retrieval:{}};
+  return{google_search:{}};
+}
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
   opts=opts||{};
   var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
+  var wantQuality=!!opts.preferQuality;
   var model;
-  try{model=await resolveGeminiModel(false);}catch(e){model=geminiModelName();}
+  try{model=await resolveGeminiModel(false,wantQuality);}catch(e){model=geminiModelName();}
+  if(opts.search)body.tools=[geminiSearchTool(model)];
   var maxAttempts=(opts.retries!=null?opts.retries:3)+1;
   var reResolved=false;
+  var searchStripped=false;
+  var qualityFellBack=false;
   incGlobalBusy();
   try{
     var lastErr;
@@ -6441,9 +6477,20 @@ async function callGeminiAPI(opts){
         clearTimeout(timer);
         if(r.ok)return r.json();
         var e=await r.text();
+        if(wantQuality&&!qualityFellBack&&!geminiModelOverride()&&attempt<maxAttempts-1&&(r.status===404||isGeminiZeroQuotaError(e))){
+          // Pro-tier model unavailable or out of quota for this key — degrade to the standard Flash model rather than fail.
+          qualityFellBack=true;
+          var fbModel;
+          try{fbModel=await resolveGeminiModel(false,false);}catch(fbErr){fbModel=geminiModelName();}
+          if(fbModel&&fbModel!==model){model=fbModel;searchStripped=false;if(body.tools)body.tools=[geminiSearchTool(model)];continue;}
+        }
         if(r.status===404&&!geminiModelOverride()&&!reResolved&&attempt<maxAttempts-1){
           reResolved=true;
-          try{var next=await resolveGeminiModel(true);if(next&&next!==model){model=next;continue;}}catch(reErr){}
+          if(body.tools&&!searchStripped)body.tools=[geminiSearchTool(model)];
+          try{var next=await resolveGeminiModel(true);if(next&&next!==model){model=next;if(body.tools&&!searchStripped)body.tools=[geminiSearchTool(model)];continue;}}catch(reErr){}
+        }
+        if(r.status===400&&body.tools&&!searchStripped&&/tool|search|not supported|unsupported|invalid/i.test(e)){
+          searchStripped=true;delete body.tools;continue;
         }
         if((r.status===429||r.status===503)&&attempt<maxAttempts-1&&!isGeminiZeroQuotaError(e)){
           var wait=2000*Math.pow(2,attempt)+Math.floor(Math.random()*1000);
