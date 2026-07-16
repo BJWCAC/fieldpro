@@ -969,7 +969,8 @@ function saveAdminPin(){
   if(v.length<4){setRoleStatus("PIN must be at least 4 characters","err");return;}
   try{localStorage.setItem("fp_admin_pin",fpSimpleHash(v));}catch(e){setRoleStatus("Could not save PIN: "+e.message,"err");return;}
   if(inp)inp.value="";
-  setRoleStatus("Admin PIN saved on this device","ok");showToast("Admin PIN saved",2500);renderRoleUI();
+  setRole("admin");
+  setRoleStatus("Admin PIN saved on this device","ok");showToast("Admin PIN saved",2500);applyRbac();
 }
 function removeAdminPin(){
   if(!adminPinIsSet()){setRoleStatus("No admin PIN set","err");return;}
