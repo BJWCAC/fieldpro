@@ -1,8 +1,8 @@
 # Calibration Spec Rules — Model_AI_Specs
 
-Living reference for how the `Model_AI_Specs` field on Zoho CRM `Equipments` records gets written, by anyone or anything doing the writing: Claude in chat, Cursor, or CapStone's own automatic generation on asset save (`MODEL_AI_SPECS_SYSTEM_PROMPT` and `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT` in `src/app.js`).
+Living reference for how the `Model_AI_Specs` field on Zoho CRM `Equipments` records gets written, by anyone or anything doing the writing: Claude in chat, Cursor, or CapStone's own automatic generation on asset save (`MODEL_AI_SPECS_SYSTEM_PROMPT` in `src/app.js`).
 
-**Keep these in sync.** If you improve the rules here, update `MODEL_AI_SPECS_SYSTEM_PROMPT` and `MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT` in `src/app.js` to match, and vice versa. This file is the source of truth; the in-app prompts are condensed versions tuned to fit API calls.
+**Keep these in sync.** If you improve the rules here, update `MODEL_AI_SPECS_SYSTEM_PROMPT` in `src/app.js` to match, and vice versa. This file is the source of truth; the in-app prompt is a condensed version tuned to fit API calls.
 
 This file does **not** contain project-specific history (which records were already fixed, open nameplate-dependent items, correction tallies). That kind of one-time punch-list content belongs in a dated working file, not here — this file only holds rules that apply to *any* asset, past or future.
 
