@@ -756,6 +756,13 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">After nameplate extraction, AI researches the model and fills empty spec fields as verify-me suggestions. Turn off to only research on demand via the Research &amp; prefill button (e.g. if Gemini is rate-limited).</div>
       </div>
     </div>
+    <div class="tog-row" onclick="toggleAssetBgSpecs()" style="margin-top:10px">
+      <div class="tog on" id="tog-asset-bg-specs"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Research specs in the background after save</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">Saving an asset no longer waits for the AI spec lookup — the asset saves immediately and <strong>Model_AI_Specs</strong> is researched and written to Zoho a few seconds later, so you can start the next asset right away. Progress shows on each item under Assets Saved This Visit. Turn off to write specs during save (slower, but confirmed before you move on).</div>
+      </div>
+    </div>
   </div>
   <div class="settings-group-title" data-perm-group="help">Workflow Help</div>
   <div class="card">
@@ -998,7 +1005,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=354"></script>
+<script src="src/app.js?v=355"></script>
 
 </body>
 </html>
