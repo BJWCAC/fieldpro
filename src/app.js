@@ -221,7 +221,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="351";
+var FP_VERSION="352";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -951,12 +951,13 @@ function applyRbacCapabilities(){
 function applyRbac(){applyRbacTabs();applyRbacSettingsGroups();applyRbacCapabilities();if(typeof renderRoleUI==="function")renderRoleUI();}
 function renderRbacCheckboxes(){
   var perms=getUserPerms();
+  var cbStyle="width:auto;flex:0 0 auto;margin:2px 0 0;padding:0";
   var t=el("admin-tabs");
-  if(t)t.innerHTML=RBAC_TAB_TOGGLES.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.tabs[x[0]]?"checked":"")+" onchange=\"toggleUserTab('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Settings tab always stays available (control individual sections below).</div>";
+  if(t)t.innerHTML=RBAC_TAB_TOGGLES.map(function(x){return "<label style='display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' style='"+cbStyle+"' "+(perms.tabs[x[0]]?"checked":"")+" onchange=\"toggleUserTab('"+x[0]+"',this.checked)\"/> <span style='flex:1'>"+esc(x[1])+"</span></label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Settings tab always stays available (control individual sections below).</div>";
   var s=el("admin-settings");
-  if(s)s.innerHTML=RBAC_SETTINGS_GROUPS.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.settings[x[0]]?"checked":"")+" onchange=\"toggleUserSetting('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("");
+  if(s)s.innerHTML=RBAC_SETTINGS_GROUPS.map(function(x){return "<label style='display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' style='"+cbStyle+"' "+(perms.settings[x[0]]?"checked":"")+" onchange=\"toggleUserSetting('"+x[0]+"',this.checked)\"/> <span style='flex:1'>"+esc(x[1])+"</span></label>";}).join("");
   var c=el("admin-caps");
-  if(c)c.innerHTML=RBAC_CAP_TOGGLES.map(function(x){return "<label style='display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+((perms.caps&&perms.caps[x[0]])?"checked":"")+" onchange=\"toggleUserCap('"+x[0]+"',this.checked)\"/> <span>"+esc(x[1])+"</span></label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Off by default — these actions permanently remove local data.</div>";
+  if(c)c.innerHTML=RBAC_CAP_TOGGLES.map(function(x){return "<label style='display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' style='"+cbStyle+"' "+((perms.caps&&perms.caps[x[0]])?"checked":"")+" onchange=\"toggleUserCap('"+x[0]+"',this.checked)\"/> <span style='flex:1'>"+esc(x[1])+"</span></label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Off by default — these actions permanently remove local data.</div>";
 }
 function renderRoleUI(){
   var admin=isAdmin();
