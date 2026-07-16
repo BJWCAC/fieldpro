@@ -666,7 +666,31 @@
     </div>
   </details>
   <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:16px">Settings</div>
-  <div class="settings-group-title">User / Technician</div>
+  <div class="settings-group-title">Access &amp; Roles</div>
+  <div class="card">
+    <div class="stitle">Access &amp; Roles</div>
+    <div id="role-status" style="font-size:12px;color:var(--amber);margin-bottom:10px;line-height:1.5"></div>
+    <div id="role-user-view" style="display:none">
+      <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">This device is in <strong>User</strong> mode. An administrator can unlock the full tab and settings controls.</div>
+      <button type="button" class="bp bfull" onclick="promptAdminUnlock()">Unlock admin</button>
+    </div>
+    <div id="role-admin-view" style="display:none">
+      <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Admin mode. Choose which tabs and settings a <strong>User</strong>-mode device can access, set an admin PIN, then switch a device to User mode. The Settings tab and this Access card always stay reachable so admin can be unlocked again.</div>
+      <label class="lbl" for="admin-pin-input">Admin PIN (4+ characters)</label>
+      <input type="password" id="admin-pin-input" placeholder="Set or change PIN" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/>
+      <div class="g2" style="margin-bottom:12px">
+        <button type="button" class="bp bfull" onclick="saveAdminPin()">Save PIN</button>
+        <button type="button" class="bg bfull" onclick="removeAdminPin()">Remove PIN</button>
+      </div>
+      <div class="stitle" style="margin-top:6px">User can access tabs</div>
+      <div id="admin-tabs" style="margin-bottom:12px"></div>
+      <div class="stitle">User can access settings</div>
+      <div id="admin-settings" style="margin-bottom:12px"></div>
+      <button type="button" class="bd bfull" onclick="switchToUserMode()">Switch this device to User mode</button>
+    </div>
+    <div id="role-admin-status" style="font-size:12px;color:var(--amber);margin-top:8px;line-height:1.5"></div>
+  </div>
+  <div class="settings-group-title" data-perm-group="technician">User / Technician</div>
   <div class="card">
     <div class="stitle">Technician</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">Loaded from Zoho CRM <strong>Internal_Assets.Users</strong> (Current User picklist). Same list your CRM uses for technicians — not a separate CapStone account.</div>
@@ -676,7 +700,7 @@
     </select>
     <button type="button" class="bg bfull" onclick="loadTechniciansFromZoho()" style="margin-top:8px">Refresh Technicians from Zoho</button>
   </div>
-  <div class="settings-group-title">Sync / Pending</div>
+  <div class="settings-group-title" data-perm-group="pending">Sync / Pending</div>
   <div class="card">
     <div class="stitle">Pending Sync</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Pending sync items retry automatically when CapStone opens, comes online, or returns to the foreground. You can also retry manually.</div>
@@ -697,7 +721,7 @@
       <button class="bg bfull" onclick="clearPendingAi()">Clear AI</button>
     </div>
   </div>
-  <div class="settings-group-title">Zoho + Save Behavior</div>
+  <div class="settings-group-title" data-perm-group="zoho">Zoho + Save Behavior</div>
   <div class="card">
     <div class="stitle">Zoho + Save Behavior</div>
     <div class="tog-row" onclick="toggleAutoSaveZoho()">
@@ -722,7 +746,7 @@
       </div>
     </div>
   </div>
-  <div class="settings-group-title">Workflow Help</div>
+  <div class="settings-group-title" data-perm-group="help">Workflow Help</div>
   <div class="card">
     <div class="stitle">Quick Start / Workflow</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.7">
@@ -739,7 +763,7 @@
       <div id="fp-latest-url" style="color:var(--amber);font-size:11px;margin-top:4px"></div>
     </div>
   </div>
-  <div class="settings-group-title">Storage / History</div>
+  <div class="settings-group-title" data-perm-group="storage">Storage / History</div>
   <div class="card">
     <div class="stitle">Storage / History</div>
     <div id="storage-info" style="font-size:11px;color:var(--amber);margin-bottom:10px;font-family:monospace"></div>
@@ -748,7 +772,7 @@
     <button class="bg bfull" onclick="clearOldPhotos()" style="margin-bottom:8px">Free Up Space (Remove Old Photos)</button>
     <button class="bd bfull" onclick="clearAllHistory()">Clear All History</button>
   </div>
-  <div class="settings-group-title">Troubleshooting</div>
+  <div class="settings-group-title" data-perm-group="troubleshooting">Troubleshooting</div>
   <div class="card">
     <div class="stitle">Troubleshooting</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
@@ -760,7 +784,7 @@
     <button class="bg bfull" onclick="clearWorkDriveFolderCache()" style="margin-bottom:8px">Clear WorkDrive Folder Cache</button>
     <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
   </div>
-  <div class="settings-group-title">Appearance</div>
+  <div class="settings-group-title" data-perm-group="appearance">Appearance</div>
   <div class="card">
     <div class="stitle">Appearance</div>
     <div class="tog-row" onclick="toggleDark()">
@@ -768,7 +792,7 @@
       <div><div style="font-size:14px;font-weight:500">Dark Mode</div></div>
     </div>
   </div>
-  <div class="settings-group-title">Plaud / Inbox</div>
+  <div class="settings-group-title" data-perm-group="plaud">Plaud / Inbox</div>
   <div class="card">
     <div class="stitle">Plaud Cloud Sync</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Stage 2 auto-pull — new Plaud cloud recordings land in Inbox without exporting MP3. Run <code>plaud login</code> once on a computer, then paste the <strong>refresh_token</strong> from <code>~/.plaud/tokens.json</code>. See <code>docs/PLAUD_STAGE2_SETUP.md</code>.</div>
@@ -788,7 +812,7 @@
     </div>
     <button type="button" class="bd bfull" onclick="clearPlaudConnection()">Disconnect Plaud</button>
   </div>
-  <div class="settings-group-title">Key Sync (Cloud)</div>
+  <div class="settings-group-title" data-perm-group="keysync">Key Sync (Cloud)</div>
   <div class="card">
     <div class="stitle">Key Sync (Cloud)</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Back up your API keys and app settings to the cloud, tied to your <strong>Zoho technician name</strong>, then restore them on another device. Includes Anthropic and Gemini keys. Protected by a passphrase you choose — keep it private. With <strong>auto-backup</strong> on, CapStone uploads changes automatically after you save settings. With <strong>auto-restore</strong> on (default), a new device pulls any missing keys on startup when technician and passphrase match. See <code>docs/CAPSTONE_KEY_SYNC.md</code>.</div>
@@ -816,14 +840,14 @@
     </div>
     <div id="sync-status" style="font-size:12px;color:var(--amber);line-height:1.5"></div>
   </div>
-  <div class="settings-group-title">API Keys</div>
+  <div class="settings-group-title" data-perm-group="apikeys">API Keys</div>
   <div class="card">
     <div class="stitle">AI API Keys</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.5">Anthropic (reports, nameplate extract) and Google Gemini (calibration spec research). Both keys recommended for best Model_AI_Specs on new assets — CapStone queries each configured AI and merges the drafts.</div>
     <button class="bp bfull" onclick="enterKey()" style="margin-bottom:8px">Update Anthropic Key</button>
     <button class="bp bfull" onclick="enterGeminiKey()">Update Gemini Key</button>
   </div>
-  <div class="settings-group-title">App Info</div>
+  <div class="settings-group-title" data-perm-group="appinfo">App Info</div>
   <div class="card">
     <div class="stitle">App Info</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.8">

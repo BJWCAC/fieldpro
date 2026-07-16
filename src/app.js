@@ -903,7 +903,91 @@ async function checkForAppUpdate(){
   }catch(e){console.log("update check:",e);return false;}
 }
 function el(id){return document.getElementById(id);}
+// ---- Role-based access (Phase 1: client-side guardrails) ----
+// admin sees everything; user sees only allowed tabs + settings groups. This hides UI to
+// prevent mistakes/clutter; it is not a hard security boundary (a determined user can bypass
+// via devtools). The Settings tab and Access card always stay reachable to avoid lockout.
+var RBAC_TAB_TOGGLES=[["deals","Deals"],["map","Map"],["capture","Capture"],["assets","Assets"],["inbox","Inbox"],["report","Report"],["history","History"]];
+var RBAC_ALL_TABS=["deals","map","capture","assets","inbox","report","history","settings"];
+var RBAC_SETTINGS_GROUPS=[["technician","User / Technician"],["pending","Sync / Pending"],["zoho","Zoho + Save Behavior"],["help","Workflow Help"],["storage","Storage / History"],["troubleshooting","Troubleshooting"],["appearance","Appearance"],["plaud","Plaud / Inbox"],["keysync","Key Sync (Cloud)"],["apikeys","API Keys"],["appinfo","App Info"]];
+var RBAC_DEFAULT_USER_TABS={deals:1,map:1,capture:1,assets:1,inbox:1,report:1,history:1};
+var RBAC_DEFAULT_USER_SETTINGS={technician:1,pending:1,help:1,appearance:1,appinfo:1};
+function fpSimpleHash(s){var h=5381,i=String(s).length;while(i)h=(h*33)^String(s).charCodeAt(--i);return (h>>>0).toString(16);}
+function adminPinIsSet(){try{return !!localStorage.getItem("fp_admin_pin");}catch(e){return false;}}
+function getRole(){try{var r=localStorage.getItem("fp_role");if(r==="admin"||r==="user")return r;}catch(e){}return adminPinIsSet()?"user":"admin";}
+function isAdmin(){return getRole()==="admin";}
+function setRole(r){try{localStorage.setItem("fp_role",r==="admin"?"admin":"user");}catch(e){}}
+function getUserPerms(){
+  try{var p=JSON.parse(localStorage.getItem("fp_perms")||"null");if(p&&p.tabs&&p.settings)return p;}catch(e){}
+  return {tabs:Object.assign({},RBAC_DEFAULT_USER_TABS),settings:Object.assign({},RBAC_DEFAULT_USER_SETTINGS)};
+}
+function saveUserPerms(p){try{localStorage.setItem("fp_perms",JSON.stringify(p));}catch(e){}}
+function isTabAllowed(tab){if(tab==="settings")return true;if(isAdmin())return true;return !!getUserPerms().tabs[tab];}
+function isSettingsGroupAllowed(key){if(isAdmin())return true;return !!getUserPerms().settings[key];}
+function firstAllowedTab(){for(var i=0;i<RBAC_ALL_TABS.length;i++){if(isTabAllowed(RBAC_ALL_TABS[i]))return RBAC_ALL_TABS[i];}return "settings";}
+function applyRbacTabs(){
+  RBAC_ALL_TABS.forEach(function(t){var b=el("t-"+t);if(b)b.style.display=isTabAllowed(t)?"":"none";});
+  var kb=el("key-btn");if(kb)kb.style.display=isSettingsGroupAllowed("apikeys")?"":"none";
+}
+function applyRbacSettingsGroups(){
+  var titles=document.querySelectorAll('#p-settings .settings-group-title[data-perm-group]');
+  Array.prototype.forEach.call(titles,function(title){
+    var show=isSettingsGroupAllowed(title.getAttribute("data-perm-group"));
+    var node=title;
+    while(node){
+      node.style.display=show?"":"none";
+      var next=node.nextElementSibling;
+      if(next&&next.classList&&next.classList.contains("settings-group-title"))break;
+      node=next;
+    }
+  });
+}
+function applyRbac(){applyRbacTabs();applyRbacSettingsGroups();if(typeof renderRoleUI==="function")renderRoleUI();}
+function renderRbacCheckboxes(){
+  var perms=getUserPerms();
+  var t=el("admin-tabs");
+  if(t)t.innerHTML=RBAC_TAB_TOGGLES.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.tabs[x[0]]?"checked":"")+" onchange=\"toggleUserTab('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Settings tab always stays available (control individual sections below).</div>";
+  var s=el("admin-settings");
+  if(s)s.innerHTML=RBAC_SETTINGS_GROUPS.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.settings[x[0]]?"checked":"")+" onchange=\"toggleUserSetting('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("");
+}
+function renderRoleUI(){
+  var admin=isAdmin();
+  var uv=el("role-user-view"),av=el("role-admin-view"),st=el("role-status");
+  if(st)st.textContent="Mode: "+(admin?"Admin (full access)":"User (limited access)")+(adminPinIsSet()?"  •  admin PIN set":"  •  no admin PIN set yet");
+  if(uv)uv.style.display=admin?"none":"block";
+  if(av)av.style.display=admin?"block":"none";
+  if(admin)renderRbacCheckboxes();
+}
+function setRoleStatus(msg,kind){var e=el("role-admin-status");if(!e)return;e.textContent=msg||"";e.style.color=kind==="ok"?"var(--green)":kind==="err"?"var(--red)":"var(--amber)";}
+function promptAdminUnlock(){
+  if(!adminPinIsSet()){setRole("admin");applyRbac();showToast("Admin unlocked — set a PIN below to protect it",4000);go("settings");return;}
+  var pin=prompt("Enter admin PIN:");
+  if(pin==null)return;
+  if(fpSimpleHash(pin.trim())===localStorage.getItem("fp_admin_pin")){setRole("admin");applyRbac();showToast("Admin unlocked",2500);go("settings");}
+  else showToast("Wrong admin PIN",4000);
+}
+function saveAdminPin(){
+  var inp=el("admin-pin-input");var v=(inp&&inp.value||"").trim();
+  if(v.length<4){setRoleStatus("PIN must be at least 4 characters","err");return;}
+  try{localStorage.setItem("fp_admin_pin",fpSimpleHash(v));}catch(e){setRoleStatus("Could not save PIN: "+e.message,"err");return;}
+  if(inp)inp.value="";
+  setRole("admin");
+  setRoleStatus("Admin PIN saved on this device","ok");showToast("Admin PIN saved",2500);applyRbac();
+}
+function removeAdminPin(){
+  if(!adminPinIsSet()){setRoleStatus("No admin PIN set","err");return;}
+  if(!confirm("Remove the admin PIN? Anyone can then unlock admin on this device."))return;
+  try{localStorage.removeItem("fp_admin_pin");}catch(e){}
+  setRoleStatus("Admin PIN removed","ok");showToast("Admin PIN removed",2500);renderRoleUI();
+}
+function switchToUserMode(){
+  if(!adminPinIsSet()&&!confirm("Switch to User mode without an admin PIN set? You can re-enter admin freely until you set a PIN."))return;
+  setRole("user");applyRbac();showToast("Switched to User mode",2500);go(firstAllowedTab());
+}
+function toggleUserTab(k,on){var p=getUserPerms();p.tabs[k]=on?1:0;saveUserPerms(p);applyRbac();}
+function toggleUserSetting(k,on){var p=getUserPerms();p.settings[k]=on?1:0;saveUserPerms(p);applyRbac();}
 function go(n){
+  if(!isTabAllowed(n))n=firstAllowedTab();
   if(typeof saveAssetDraftNow==="function"&&typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
   if(typeof saveCaptureDraftNow==="function"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
   ["deals","capture","assets","inbox","report","history","map","settings"].forEach(function(x){
@@ -1372,6 +1456,7 @@ function bootApp(){
       if(sm){sm.textContent="Deal cache reset — tap Refresh from Zoho";sm.style.color="var(--red)";}
       showDealsErr("Deal cache was reset: "+e.message);
     }
+    applyRbac();
     go("deals");
     var fv=el("fp-ver");if(fv)fv.textContent=FP_VERSION;
     var hv=el("hdr-ver");if(hv)hv.textContent="v"+FP_VERSION;
@@ -1434,6 +1519,12 @@ window.closeKeyModal=closeKeyModal;
 window.dismissTechnicianPrompt=dismissTechnicianPrompt;
 window.saveTechnicianPrompt=saveTechnicianPrompt;
 window.go=go;
+window.promptAdminUnlock=promptAdminUnlock;
+window.saveAdminPin=saveAdminPin;
+window.removeAdminPin=removeAdminPin;
+window.switchToUserMode=switchToUserMode;
+window.toggleUserTab=toggleUserTab;
+window.toggleUserSetting=toggleUserSetting;
 window.retryCapturePhotoUpload=retryCapturePhotoUpload;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.loadTechniciansFromZoho=loadTechniciansFromZoho;
