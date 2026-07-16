@@ -1,5 +1,5 @@
 const https = require("https");
-var PROXY_BUILD = "285";
+var PROXY_BUILD = "286";
 
 exports.handler = async function(event) {
   const h = {
@@ -1155,6 +1155,18 @@ exports.handler = async function(event) {
         headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(updateEquipmentPayload) }
       }, updateEquipmentPayload);
       return { statusCode: updateEquipmentResult.status, headers: h, body: updateEquipmentResult.body };
+    }
+
+    if (data.action === "delete_equipment") {
+      var deleteEquipmentId = String(data.equipment_id || "").trim();
+      if (!deleteEquipmentId) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "equipment_id required" }) };
+      var deleteEquipmentResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Equipments/" + encodeURIComponent(deleteEquipmentId),
+        method: "DELETE",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: deleteEquipmentResult.status, headers: h, body: deleteEquipmentResult.body };
     }
 
     if (data.action === "create_equipment") {
