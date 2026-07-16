@@ -689,6 +689,14 @@
       <div id="admin-settings" style="margin-bottom:12px"></div>
       <div class="stitle">User can delete / clear data</div>
       <div id="admin-caps" style="margin-bottom:12px"></div>
+      <div class="stitle" style="margin-top:6px">Cloud policy (all devices)</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Publish the settings above to the cloud so every device applies them automatically on startup (no per-device setup). Protected by a publish passphrase — set it once; the same passphrase is required for future changes. Devices pull the policy on open; the shared admin PIN travels with it.</div>
+      <label class="lbl" for="policy-pass-input">Publish passphrase (6+ characters)</label>
+      <input type="password" id="policy-pass-input" placeholder="Required to publish/change the cloud policy" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/>
+      <div class="g2" style="margin-bottom:12px">
+        <button type="button" class="bp bfull" onclick="publishOrgPolicy()">Publish policy to cloud</button>
+        <button type="button" class="bg bfull" onclick="pullOrgPolicyManual()">Pull policy now</button>
+      </div>
       <button type="button" class="bd bfull" onclick="switchToUserMode()">Switch this device to User mode</button>
     </div>
     <div id="role-admin-status" style="font-size:12px;color:var(--amber);margin-top:8px;line-height:1.5"></div>
@@ -990,7 +998,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=353"></script>
+<script src="src/app.js?v=354"></script>
 
 </body>
 </html>

@@ -223,7 +223,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="353";
+var FP_VERSION="354";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -916,7 +916,8 @@ var RBAC_DEFAULT_USER_CAPS={destructive:0};
 var RBAC_CAP_TOGGLES=[["destructive","Delete / clear data (Clear All History, Remove Old Photos, Reset App Cache, Clear WorkDrive cache)"]];
 function fpSimpleHash(s){var h=5381,i=String(s).length;while(i)h=(h*33)^String(s).charCodeAt(--i);return (h>>>0).toString(16);}
 function adminPinIsSet(){try{return !!localStorage.getItem("fp_admin_pin");}catch(e){return false;}}
-function getRole(){try{var r=localStorage.getItem("fp_role");if(r==="admin"||r==="user")return r;}catch(e){}return adminPinIsSet()?"user":"admin";}
+function policyDefaultRole(){try{var r=localStorage.getItem("fp_policy_default_role");if(r==="admin"||r==="user")return r;}catch(e){}return "";}
+function getRole(){try{var r=localStorage.getItem("fp_role");if(r==="admin"||r==="user")return r;}catch(e){}var dr=policyDefaultRole();if(dr)return dr;return adminPinIsSet()?"user":"admin";}
 function isAdmin(){return getRole()==="admin";}
 function setRole(r){try{localStorage.setItem("fp_role",r==="admin"?"admin":"user");}catch(e){}}
 function getUserPerms(){
@@ -998,6 +999,56 @@ function switchToUserMode(){
 function toggleUserTab(k,on){var p=getUserPerms();p.tabs[k]=on?1:0;saveUserPerms(p);applyRbac();}
 function toggleUserSetting(k,on){var p=getUserPerms();p.settings[k]=on?1:0;saveUserPerms(p);applyRbac();}
 function toggleUserCap(k,on){var p=getUserPerms();if(!p.caps)p.caps={};p.caps[k]=on?1:0;saveUserPerms(p);applyRbac();}
+// ---- Phase 2: centralized org policy (admin publishes once, all devices pull) ----
+function applyOrgPolicy(policy){
+  if(!policy||typeof policy!=="object")return false;
+  try{
+    if(policy.perms&&policy.perms.tabs&&policy.perms.settings)saveUserPerms({tabs:policy.perms.tabs,settings:policy.perms.settings,caps:Object.assign({},RBAC_DEFAULT_USER_CAPS,policy.perms.caps||{})});
+    if(policy.defaultRole==="user"||policy.defaultRole==="admin"){try{localStorage.setItem("fp_policy_default_role",policy.defaultRole);}catch(e){}}
+    if(typeof policy.adminPinHash==="string"&&policy.adminPinHash){try{localStorage.setItem("fp_admin_pin",policy.adminPinHash);}catch(e){}}
+    try{localStorage.setItem("fp_org_policy",JSON.stringify(policy));}catch(e){}
+  }catch(e){return false;}
+  return true;
+}
+function applyCachedOrgPolicy(){
+  try{var c=JSON.parse(localStorage.getItem("fp_org_policy")||"null");if(c)applyOrgPolicy(c);}catch(e){}
+}
+async function pullOrgPolicy(opts){
+  opts=opts||{};
+  try{
+    var r=await fetchWithTimeout(keySyncUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"policy_pull"})},20000);
+    var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(!r.ok||!d.ok)throw new Error(d.error||("Policy pull failed "+r.status));
+    if(!d.found){if(opts.manual)setRoleStatus("No cloud policy published yet","err");return false;}
+    applyOrgPolicy(d.policy);
+    applyRbac();
+    if(opts.manual){setRoleStatus("Applied cloud policy (published "+(d.updatedAt?new Date(d.updatedAt).toLocaleString():"unknown")+")","ok");showToast("Cloud role policy applied",3000);}
+    return true;
+  }catch(e){
+    if(opts.manual)setRoleStatus("Policy pull failed — "+e.message,"err");
+    return false;
+  }
+}
+async function publishOrgPolicy(){
+  if(!isAdmin()){setRoleStatus("Unlock admin before publishing","err");return;}
+  var inp=el("policy-pass-input");
+  var pass=(inp&&inp.value||"").trim();
+  if(pass.length<6){setRoleStatus("Publish passphrase must be at least 6 characters","err");return;}
+  var perms=getUserPerms();
+  var policy={version:1,defaultRole:"user",perms:{tabs:perms.tabs,settings:perms.settings,caps:perms.caps},adminPinHash:(function(){try{return localStorage.getItem("fp_admin_pin")||"";}catch(e){return"";}})()};
+  if(!policy.adminPinHash&&!confirm("No admin PIN is set on this device. Publish without a shared admin PIN? Other devices won't be able to unlock admin from this policy."))return;
+  setRoleStatus("Publishing policy to cloud...");
+  try{
+    var r=await fetchWithTimeout(keySyncUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"policy_push",passphrase:pass,policy:policy,device:syncDeviceLabel()})},30000);
+    var txt=await r.text();var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(r.status===403)throw new Error("Wrong publish passphrase (already set by another admin)");
+    if(!r.ok||!d.ok)throw new Error(d.error||("Publish failed "+r.status));
+    try{localStorage.setItem("fp_org_policy",JSON.stringify(policy));}catch(e){}
+    setRoleStatus("Policy published to cloud — devices apply it on next open or Pull","ok");
+    showToast("Role policy published to all devices",3500);
+  }catch(e){setRoleStatus("Publish failed — "+e.message,"err");showToast("Policy publish failed: "+e.message,6000);}
+}
+async function pullOrgPolicyManual(){return pullOrgPolicy({manual:true});}
 function go(n){
   if(!isTabAllowed(n))n=firstAllowedTab();
   if(typeof saveAssetDraftNow==="function"&&typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
@@ -1468,6 +1519,7 @@ function bootApp(){
       if(sm){sm.textContent="Deal cache reset — tap Refresh from Zoho";sm.style.color="var(--red)";}
       showDealsErr("Deal cache was reset: "+e.message);
     }
+    applyCachedOrgPolicy();
     applyRbac();
     go("deals");
     var fv=el("fp-ver");if(fv)fv.textContent=FP_VERSION;
@@ -1507,6 +1559,7 @@ async function startCapStone(){
   setupPendingAiAutoRetry();
   setupPlaudForegroundPull();
   setTimeout(scheduleKeySyncAutoPull,KEY_SYNC_AUTO_PULL_MS);
+  setTimeout(function(){pullOrgPolicy({});},1200);
   try{
     document.addEventListener("visibilitychange",function(){
       if(document.visibilityState!=="hidden")return;
@@ -1538,6 +1591,8 @@ window.switchToUserMode=switchToUserMode;
 window.toggleUserTab=toggleUserTab;
 window.toggleUserSetting=toggleUserSetting;
 window.toggleUserCap=toggleUserCap;
+window.publishOrgPolicy=publishOrgPolicy;
+window.pullOrgPolicyManual=pullOrgPolicyManual;
 window.retryCapturePhotoUpload=retryCapturePhotoUpload;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.loadTechniciansFromZoho=loadTechniciansFromZoho;

@@ -78,6 +78,8 @@ If the passphrase is wrong, Restore reports "Wrong passphrase".
 | `action` | Body | Returns |
 |----------|------|---------|
 | `push` | `technician`, `passphrase`, `settings` (object), `device` | `{ ok, updatedAt, fields }` |
+| `policy_push` | `passphrase` (6+), `policy` (object), `device` | `{ ok, updatedAt }` or `403` on wrong publish passphrase |
+| `policy_pull` | *(none)* | `{ ok, found, policy, updatedAt, device }` (open read) |
 | `pull` | `technician`, `passphrase` | `{ ok, found, settings, updatedAt, device }` or `403` on wrong passphrase |
 | `status` | `technician` | `{ ok, found, updatedAt, device, fields }` (no secrets) |
 
@@ -106,6 +108,23 @@ To test the client end-to-end, serve the repo root (`python3 -m http.server`) an
 - Debounced push (~8s) after API key, Plaud tokens, or synced toggle changes.
 - Manual **Back up keys to cloud** still available for immediate upload.
 - Auto-backup is silent on success (status line only); manual backup still toasts.
+
+## Phase 2 — centralized role policy (v354)
+
+- One org-wide **role policy** document (separate from per-technician key blobs),
+  stored under a fixed key (`sha256("capstone:policy:v1")`) via `policy_push` /
+  `policy_pull`.
+- The policy describes UI access only — which tabs, settings groups, and
+  destructive capability a **user** role gets, the shared admin PIN hash, and the
+  default role — so it is **not treated as secret**: reads are open.
+- **Writes are protected** by a publish passphrase (scrypt hash stored
+  server-side; first publish sets it, later publishes must match, wrong → 403).
+- Client: admins **Publish policy to cloud** from Settings → Access & Roles.
+  Every device applies the cached policy at startup and pulls the latest shortly
+  after open (and via **Pull policy now**). This makes role setup **once**
+  instead of per device. `fp_org_policy` caches it locally for offline boot.
+- Still client-side guardrails (bypassable via devtools); server-enforced role
+  checks on write endpoints are a future phase.
 
 ## Phase 1.6 — auto-restore + Gemini key sync (v335)
 

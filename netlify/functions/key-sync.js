@@ -193,6 +193,58 @@ async function handlePull(data) {
   });
 }
 
+// ---- Org role policy (Phase 2) ----
+// One org-wide policy document (which tabs/settings/capabilities a user role gets,
+// the shared admin PIN hash, and the default role). Writes require a publish
+// passphrase (hash stored server-side); reads are open so every device can pull
+// and apply the policy at startup. The policy is not secret (it only describes UI
+// access); the passphrase protects it from tampering.
+function orgPolicyKey() {
+  return crypto.createHash("sha256").update("capstone:policy:v1").digest("hex");
+}
+function hashPassphrase(passphrase, salt) {
+  return crypto.scryptSync(String(passphrase), salt, SCRYPT_KEYLEN, SCRYPT_COST).toString("base64");
+}
+async function handlePolicyPush(data) {
+  var passphrase = String(data.passphrase || "");
+  var policy = data.policy;
+  if (passphrase.length < 6) return json(400, { ok: false, error: "publish passphrase must be at least 6 characters" });
+  if (!policy || typeof policy !== "object" || Array.isArray(policy)) {
+    return json(400, { ok: false, error: "policy object is required" });
+  }
+  var key = orgPolicyKey();
+  var existing = await storeGet(key);
+  var saltB64, passHash;
+  if (existing && existing.pass_salt && existing.pass_hash) {
+    var salt = Buffer.from(existing.pass_salt, "base64");
+    var attempt = hashPassphrase(passphrase, salt);
+    var match = false;
+    try { match = crypto.timingSafeEqual(Buffer.from(attempt, "base64"), Buffer.from(existing.pass_hash, "base64")); } catch (e) { match = false; }
+    if (!match) return json(403, { ok: false, error: "Wrong publish passphrase" });
+    saltB64 = existing.pass_salt;
+    passHash = existing.pass_hash;
+  } else {
+    var newSalt = crypto.randomBytes(16);
+    saltB64 = newSalt.toString("base64");
+    passHash = hashPassphrase(passphrase, newSalt);
+  }
+  var record = {
+    v: 1,
+    policy: policy,
+    pass_salt: saltB64,
+    pass_hash: passHash,
+    device: String(data.device || "").slice(0, 120),
+    updatedAt: new Date().toISOString()
+  };
+  await storeSet(key, record);
+  return json(200, { ok: true, updatedAt: record.updatedAt });
+}
+async function handlePolicyPull() {
+  var rec = await storeGet(orgPolicyKey());
+  if (!rec) return json(200, { ok: true, found: false });
+  return json(200, { ok: true, found: true, policy: rec.policy || null, updatedAt: rec.updatedAt || null, device: rec.device || "" });
+}
+
 async function handleStatus(data) {
   var technician = String(data.technician || "").trim();
   if (!technician) return json(400, { ok: false, error: "technician is required" });
@@ -226,6 +278,8 @@ exports.handler = async function (event) {
     if (action === "push") return await handlePush(data);
     if (action === "pull") return await handlePull(data);
     if (action === "status") return await handleStatus(data);
+    if (action === "policy_push") return await handlePolicyPush(data);
+    if (action === "policy_pull") return await handlePolicyPull(data);
     return json(400, { ok: false, error: "Unknown action: " + action });
   } catch (err) {
     return json(500, { ok: false, error: err.message || String(err) });

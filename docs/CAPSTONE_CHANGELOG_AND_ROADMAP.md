@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-16
-Current live version: v353
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=353
+Current live version: v354
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=354
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v354 | — | **Role-based access — Phase 2 (centralized cloud policy)** — an admin can **Publish policy to cloud** from the Access & Roles panel: the user-role tab/settings/capability permissions, the shared admin PIN hash, and a default role are stored in one org-wide record via new `policy_push`/`policy_pull` actions on the `key-sync` function. Writes are protected by a publish passphrase (scrypt hash stored server-side, wrong passphrase → 403); reads are open. Every device applies the cached policy at startup and pulls the latest ~1.2s after open (and via **Pull policy now**), so roles are configured **once** instead of per device. `getRole()` honors the policy's default role for unconfigured devices. Client-side guardrails still (Phase 3 = server-enforced checks). |
 | v353 | — | **Admin-gated asset delete + gate pending-queue clears** — the destructive capability now also covers **Clear Sync** and **Clear AI** (pending-queue clears) — hidden for users without the capability and blocked at the function. Added a **Delete Asset from Zoho** button in the Assets form, shown only when an existing asset is loaded and only to admins / users with the destructive capability; it calls the new `delete_equipment` Zoho proxy action (`DELETE /crm/v3/Equipments/{id}`, proxy build 286), removes the asset from Saved This Visit, and resets the form. Requires the Netlify zoho-proxy redeployed to build 286+. |
 | v352 | — | **Fix Access & Roles checkbox layout** — the admin permission checkboxes inherited the global `input{width:100%}` rule, stretching each checkbox full-width and pushing its label to the far right. Constrained the RBAC checkboxes (`width:auto;flex:0 0 auto`) with a flex label so checkbox + label sit together. |
 | v351 | — | **Role-based access — destructive-action capability** — added a per-`user` capability gate for data-destroying actions (Clear All History, Free Up Space / remove old photos, Reset App Cache, Clear WorkDrive cache). Off for users by default; admins toggle it in the Access & Roles panel ("User can delete / clear data"). Buttons are hidden for users without the capability (`data-cap="destructive"`) and the functions also refuse to run as a second layer. Asset-delete, when added, will use the same gate. |
