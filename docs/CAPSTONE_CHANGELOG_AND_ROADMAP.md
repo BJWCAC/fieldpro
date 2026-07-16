@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-16
-Current live version: v352
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=352
+Current live version: v353
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=353
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v353 | — | **Admin-gated asset delete + gate pending-queue clears** — the destructive capability now also covers **Clear Sync** and **Clear AI** (pending-queue clears) — hidden for users without the capability and blocked at the function. Added a **Delete Asset from Zoho** button in the Assets form, shown only when an existing asset is loaded and only to admins / users with the destructive capability; it calls the new `delete_equipment` Zoho proxy action (`DELETE /crm/v3/Equipments/{id}`, proxy build 286), removes the asset from Saved This Visit, and resets the form. Requires the Netlify zoho-proxy redeployed to build 286+. |
 | v352 | — | **Fix Access & Roles checkbox layout** — the admin permission checkboxes inherited the global `input{width:100%}` rule, stretching each checkbox full-width and pushing its label to the far right. Constrained the RBAC checkboxes (`width:auto;flex:0 0 auto`) with a flex label so checkbox + label sit together. |
 | v351 | — | **Role-based access — destructive-action capability** — added a per-`user` capability gate for data-destroying actions (Clear All History, Free Up Space / remove old photos, Reset App Cache, Clear WorkDrive cache). Off for users by default; admins toggle it in the Access & Roles panel ("User can delete / clear data"). Buttons are hidden for users without the capability (`data-cap="destructive"`) and the functions also refuse to run as a second layer. Asset-delete, when added, will use the same gate. |
 | v350 | — | **Role-based access — Phase 1 (admin/user guardrails)** — new **Access & Roles** card in Settings. A device is `admin` or `user`; admin sees everything, user sees only the tabs and settings groups an admin allows. Admin unlocks via a PIN (`fp_admin_pin`, hashed), configures per-`user` tab and settings-group access (checkboxes), and switches a device to User mode. Nav is gated in `bootApp`/`go()` (hidden tab buttons + landing-tab redirect); Settings tab and the Access card always stay reachable to avoid lockout; the header **KEY** button hides when API Keys are restricted. Client-side guardrails only (not a hard security boundary); policy persists in `localStorage` (`fp_role`, `fp_perms`). Centralized/enforced roles are Phase 2+. |

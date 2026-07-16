@@ -223,7 +223,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="352";
+var FP_VERSION="353";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1579,6 +1579,7 @@ window.searchExistingAssets=searchExistingAssets;
 window.searchAssetByCurrentField=searchAssetByCurrentField;
 window.loadExistingAssetFromSearch=loadExistingAssetFromSearch;
 window.reopenSavedAsset=reopenSavedAsset;
+window.deleteLoadedAsset=deleteLoadedAsset;
 window.setAssetMode=setAssetMode;
 window.setAssetSetupMode=setAssetSetupMode;
 window.setAssetIntent=setAssetIntent;
@@ -1661,7 +1662,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -4821,6 +4822,38 @@ function updateStartNewAssetButton(){
   btn.style.display=show?"flex":"none";
   var setupBtn=el("asset-start-new-setup-btn");
   if(setupBtn)setupBtn.style.display=(A.asset.intent==="update"&&(A.asset.currentAssetId||assetEntryReady()))?"inline-block":"none";
+  var delBtn=el("asset-delete-btn");
+  if(delBtn){
+    var loadedId=sanitizeZohoRecordId(A.asset.currentAssetId);
+    delBtn.style.display=(loadedId&&isCapAllowed("destructive")&&!A.asset.saving)?"block":"none";
+  }
+}
+async function deleteLoadedAsset(){
+  if(!requireCap("destructive"))return;
+  var equipmentId=sanitizeZohoRecordId(A.asset.currentAssetId);
+  if(!equipmentId){showToast("Load an existing asset before deleting",4000);return;}
+  var label=assetInput("asset-name")||assetInput("asset-model")||(A.asset.loadedOriginal&&A.asset.loadedOriginal.cacId)||"this asset";
+  if(!confirm("Permanently delete "+label+" from Zoho? This removes the Equipment record and cannot be undone."))return;
+  A.asset.saving=true;updateAssetSaveState();
+  try{
+    await refreshZohoToken();
+    assetStatus("Deleting asset from Zoho...",false);
+    await postEquipmentToZoho("delete_equipment",equipmentId);
+    if(A.asset.savedItems&&A.asset.savedItems.length){
+      A.asset.savedItems=A.asset.savedItems.filter(function(a){return a.id!==equipmentId;});
+      persistAssetSavedVisit(A.asset.savedItems);
+      renderSavedAssets();
+    }
+    A.asset.saving=false;
+    showToast("Asset deleted from Zoho",3500);
+    startNewAsset();
+    assetStatus("Asset deleted from Zoho. Start a new asset when ready.",false);
+  }catch(e){
+    A.asset.saving=false;
+    updateAssetSaveState();
+    assetStatus("Delete failed: "+(e&&e.message?e.message:String(e)),true);
+    showToast("Asset delete failed",5000);
+  }
 }
 function updateAssetSaveState(){
   var missing=markAssetRequiredFields().concat(markDynamicRequiredFields()).concat(markSubformRequiredFields());
@@ -5567,7 +5600,7 @@ function renderPendingUploads(){
   if(typeof renderAssetSaveChecklist==="function")renderAssetSaveChecklist();
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
-function clearPendingUploads(){if(!confirm("Clear all pending sync items?"))return;var keys=getPendingUploads().map(function(it){return it.binKey;}).filter(Boolean);savePendingUploads([]);if(keys.length)fpIdbDeletePhotos(keys);showToast("Pending sync cleared",2500);}
+function clearPendingUploads(){if(!requireCap("destructive"))return;if(!confirm("Clear all pending sync items?"))return;var keys=getPendingUploads().map(function(it){return it.binKey;}).filter(Boolean);savePendingUploads([]);if(keys.length)fpIdbDeletePhotos(keys);showToast("Pending sync cleared",2500);}
 function shouldQueueAiError(err){
   var msg=String(err&&err.message||err||"").toLowerCase();
   if(err&&err.name==="AbortError")return true;
@@ -5830,7 +5863,7 @@ function renderPendingAi(){
   if(count)count.textContent=items.length+" pending";
   if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingAiLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending AI items.</div>";
 }
-function clearPendingAi(){if(!confirm("Clear all pending AI items?"))return;savePendingAi([]);SEC_IDS.forEach(function(id){setFieldAiUi(id,"idle");});setFieldAiUi("voice","idle");showToast("Pending AI cleared",2500);}
+function clearPendingAi(){if(!requireCap("destructive"))return;if(!confirm("Clear all pending AI items?"))return;savePendingAi([]);SEC_IDS.forEach(function(id){setFieldAiUi(id,"idle");});setFieldAiUi("voice","idle");showToast("Pending AI cleared",2500);}
 function setupAssetFieldAiButtons(){
   ASSET_AI_FIELD_IDS.forEach(function(id){
     var input=el(id);if(!input||input.getAttribute("data-ai-ready"))return;

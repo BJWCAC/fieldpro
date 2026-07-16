@@ -410,6 +410,7 @@
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
     <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none">Start New Asset</button></div>
+    <button class="bd-lg" id="asset-delete-btn" onclick="deleteLoadedAsset()" style="display:none;margin-top:10px">Delete Asset from Zoho</button>
     <div id="asset-saved-list" style="display:none;margin-top:12px"></div>
     </div>
   </div>
@@ -710,7 +711,7 @@
     <div id="pending-uploads-list" style="margin-bottom:10px"></div>
     <div class="g2">
       <button class="bp bfull" onclick="retryPendingUploads()">Retry Sync</button>
-      <button class="bg bfull" onclick="clearPendingUploads()">Clear Sync</button>
+      <button class="bg bfull" data-cap="destructive" onclick="clearPendingUploads()">Clear Sync</button>
     </div>
   </div>
   <div class="card">
@@ -720,7 +721,7 @@
     <div id="pending-ai-list" style="margin-bottom:10px"></div>
     <div class="g2">
       <button class="bp bfull" onclick="retryPendingAi()">Retry AI</button>
-      <button class="bg bfull" onclick="clearPendingAi()">Clear AI</button>
+      <button class="bg bfull" data-cap="destructive" onclick="clearPendingAi()">Clear AI</button>
     </div>
   </div>
   <div class="settings-group-title" data-perm-group="zoho">Zoho + Save Behavior</div>
@@ -989,7 +990,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=352"></script>
+<script src="src/app.js?v=353"></script>
 
 </body>
 </html>
