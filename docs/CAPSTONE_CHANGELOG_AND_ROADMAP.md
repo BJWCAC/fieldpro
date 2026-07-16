@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-16
-Current live version: v350
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=350
+Current live version: v351
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=351
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v351 | — | **Role-based access — destructive-action capability** — added a per-`user` capability gate for data-destroying actions (Clear All History, Free Up Space / remove old photos, Reset App Cache, Clear WorkDrive cache). Off for users by default; admins toggle it in the Access & Roles panel ("User can delete / clear data"). Buttons are hidden for users without the capability (`data-cap="destructive"`) and the functions also refuse to run as a second layer. Asset-delete, when added, will use the same gate. |
 | v350 | — | **Role-based access — Phase 1 (admin/user guardrails)** — new **Access & Roles** card in Settings. A device is `admin` or `user`; admin sees everything, user sees only the tabs and settings groups an admin allows. Admin unlocks via a PIN (`fp_admin_pin`, hashed), configures per-`user` tab and settings-group access (checkboxes), and switches a device to User mode. Nav is gated in `bootApp`/`go()` (hidden tab buttons + landing-tab redirect); Settings tab and the Access card always stay reachable to avoid lockout; the header **KEY** button hides when API Keys are restricted. Client-side guardrails only (not a hard security boundary); policy persists in `localStorage` (`fp_role`, `fp_perms`). Centralized/enforced roles are Phase 2+. |
 | v349 | — | **AI prefill with confirmation gate** — nameplate extraction now also reads output signal (4-20 mA/HART), power supply, engineering units, and enclosure rating and maps them to fields; a new **Research & prefill** step (automatic after extract, with a Settings toggle `fp_asset_auto_research`, plus a manual button) researches the identified model and fills only still-empty spec fields as suggestions. Nameplate values win over research; research never overwrites. Every AI-prefilled field (OCR or research) is flagged **pending confirmation** — Save is blocked until the technician reviews/confirms them (amber highlight + "Confirm N prefilled fields" banner). Update/restore/manual entry are unaffected. |
 | v347 | — | **Gemini-primary, Claude-fallback for Model_AI_Specs (merge removed)** — replaced the two-draft-plus-merge design with a simpler, more reliable strategy: CapStone asks Gemini (the authoritative source) for the spec and uses it directly; Claude is queried only when Gemini is absent/skips/errors, and its draft is used verbatim. This removes the fragile merge step (its empty/`SKIP` output was discarding good specs and reporting "AI could not identify this instrument"), cuts a two-key save from three model calls to one, and keeps Claude as a safety net for Gemini's off-days (429s, AQ zero-quota keys, retired-model 404s) and for Claude-only users. Deleted `mergeModelAiSpecsDrafts()`/`MODEL_AI_SPECS_MERGE_SYSTEM_PROMPT`; status note now reads "from Claude (Gemini fallback) — …" and nudges Claude-only users to add a Gemini key. Supersedes v346. `CALIBRATION_SPEC_RULES.md` + `AGENTS.md` updated |

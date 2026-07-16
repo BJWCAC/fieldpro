@@ -221,7 +221,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="350";
+var FP_VERSION="351";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -910,18 +910,22 @@ var RBAC_ALL_TABS=["deals","map","capture","assets","inbox","report","history","
 var RBAC_SETTINGS_GROUPS=[["technician","User / Technician"],["pending","Sync / Pending"],["zoho","Zoho + Save Behavior"],["help","Workflow Help"],["storage","Storage / History"],["troubleshooting","Troubleshooting"],["appearance","Appearance"],["plaud","Plaud / Inbox"],["keysync","Key Sync (Cloud)"],["apikeys","API Keys"],["appinfo","App Info"]];
 var RBAC_DEFAULT_USER_TABS={deals:1,map:1,capture:1,assets:1,inbox:1,report:1,history:1};
 var RBAC_DEFAULT_USER_SETTINGS={technician:1,pending:1,help:1,appearance:1,appinfo:1};
+var RBAC_DEFAULT_USER_CAPS={destructive:0};
+var RBAC_CAP_TOGGLES=[["destructive","Delete / clear data (Clear All History, Remove Old Photos, Reset App Cache, Clear WorkDrive cache)"]];
 function fpSimpleHash(s){var h=5381,i=String(s).length;while(i)h=(h*33)^String(s).charCodeAt(--i);return (h>>>0).toString(16);}
 function adminPinIsSet(){try{return !!localStorage.getItem("fp_admin_pin");}catch(e){return false;}}
 function getRole(){try{var r=localStorage.getItem("fp_role");if(r==="admin"||r==="user")return r;}catch(e){}return adminPinIsSet()?"user":"admin";}
 function isAdmin(){return getRole()==="admin";}
 function setRole(r){try{localStorage.setItem("fp_role",r==="admin"?"admin":"user");}catch(e){}}
 function getUserPerms(){
-  try{var p=JSON.parse(localStorage.getItem("fp_perms")||"null");if(p&&p.tabs&&p.settings)return p;}catch(e){}
-  return {tabs:Object.assign({},RBAC_DEFAULT_USER_TABS),settings:Object.assign({},RBAC_DEFAULT_USER_SETTINGS)};
+  try{var p=JSON.parse(localStorage.getItem("fp_perms")||"null");if(p&&p.tabs&&p.settings)return {tabs:p.tabs,settings:p.settings,caps:Object.assign({},RBAC_DEFAULT_USER_CAPS,p.caps||{})};}catch(e){}
+  return {tabs:Object.assign({},RBAC_DEFAULT_USER_TABS),settings:Object.assign({},RBAC_DEFAULT_USER_SETTINGS),caps:Object.assign({},RBAC_DEFAULT_USER_CAPS)};
 }
 function saveUserPerms(p){try{localStorage.setItem("fp_perms",JSON.stringify(p));}catch(e){}}
 function isTabAllowed(tab){if(tab==="settings")return true;if(isAdmin())return true;return !!getUserPerms().tabs[tab];}
 function isSettingsGroupAllowed(key){if(isAdmin())return true;return !!getUserPerms().settings[key];}
+function isCapAllowed(cap){if(isAdmin())return true;return !!getUserPerms().caps[cap];}
+function requireCap(cap){if(isCapAllowed(cap))return true;showToast("This action is available to admins only",3500);return false;}
 function firstAllowedTab(){for(var i=0;i<RBAC_ALL_TABS.length;i++){if(isTabAllowed(RBAC_ALL_TABS[i]))return RBAC_ALL_TABS[i];}return "settings";}
 function applyRbacTabs(){
   RBAC_ALL_TABS.forEach(function(t){var b=el("t-"+t);if(b)b.style.display=isTabAllowed(t)?"":"none";});
@@ -940,13 +944,19 @@ function applyRbacSettingsGroups(){
     }
   });
 }
-function applyRbac(){applyRbacTabs();applyRbacSettingsGroups();if(typeof renderRoleUI==="function")renderRoleUI();}
+function applyRbacCapabilities(){
+  var els=document.querySelectorAll("[data-cap]");
+  Array.prototype.forEach.call(els,function(e){e.style.display=isCapAllowed(e.getAttribute("data-cap"))?"":"none";});
+}
+function applyRbac(){applyRbacTabs();applyRbacSettingsGroups();applyRbacCapabilities();if(typeof renderRoleUI==="function")renderRoleUI();}
 function renderRbacCheckboxes(){
   var perms=getUserPerms();
   var t=el("admin-tabs");
   if(t)t.innerHTML=RBAC_TAB_TOGGLES.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.tabs[x[0]]?"checked":"")+" onchange=\"toggleUserTab('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Settings tab always stays available (control individual sections below).</div>";
   var s=el("admin-settings");
   if(s)s.innerHTML=RBAC_SETTINGS_GROUPS.map(function(x){return "<label style='display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+(perms.settings[x[0]]?"checked":"")+" onchange=\"toggleUserSetting('"+x[0]+"',this.checked)\"/> "+esc(x[1])+"</label>";}).join("");
+  var c=el("admin-caps");
+  if(c)c.innerHTML=RBAC_CAP_TOGGLES.map(function(x){return "<label style='display:flex;align-items:flex-start;gap:8px;font-size:13px;margin-bottom:6px'><input type='checkbox' "+((perms.caps&&perms.caps[x[0]])?"checked":"")+" onchange=\"toggleUserCap('"+x[0]+"',this.checked)\"/> <span>"+esc(x[1])+"</span></label>";}).join("")+"<div style='font-size:11px;color:var(--dim);margin-top:2px'>Off by default — these actions permanently remove local data.</div>";
 }
 function renderRoleUI(){
   var admin=isAdmin();
@@ -984,6 +994,7 @@ function switchToUserMode(){
 }
 function toggleUserTab(k,on){var p=getUserPerms();p.tabs[k]=on?1:0;saveUserPerms(p);applyRbac();}
 function toggleUserSetting(k,on){var p=getUserPerms();p.settings[k]=on?1:0;saveUserPerms(p);applyRbac();}
+function toggleUserCap(k,on){var p=getUserPerms();if(!p.caps)p.caps={};p.caps[k]=on?1:0;saveUserPerms(p);applyRbac();}
 function go(n){
   if(!isTabAllowed(n))n=firstAllowedTab();
   if(typeof saveAssetDraftNow==="function"&&typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
@@ -1523,6 +1534,7 @@ window.removeAdminPin=removeAdminPin;
 window.switchToUserMode=switchToUserMode;
 window.toggleUserTab=toggleUserTab;
 window.toggleUserSetting=toggleUserSetting;
+window.toggleUserCap=toggleUserCap;
 window.retryCapturePhotoUpload=retryCapturePhotoUpload;
 window.saveTechnicianSetting=saveTechnicianSetting;
 window.loadTechniciansFromZoho=loadTechniciansFromZoho;
@@ -1736,6 +1748,7 @@ function toggleAutoSavePhonePhotos(){
 }
 function syncTx(){var t2=el("tx2"),t=el("tx");if(t2&&t)t.value=t2.value;checkGen();}
 function clearWorkDriveFolderCache(){
+  if(!requireCap("destructive"))return;
   try{
     var keys=[];
     for(var i=0;i<localStorage.length;i++){
@@ -1747,6 +1760,7 @@ function clearWorkDriveFolderCache(){
   }catch(e){showToast("Could not clear folder cache",3000);}
 }
 function resetAppCache(){
+  if(!requireCap("destructive"))return;
   if(!confirm("Reset CapStone on this device? Clears cached deals and WorkDrive folder IDs, then reloads."))return;
   try{localStorage.removeItem("fp_deals");}catch(e){}
   clearWorkDriveFolderCache();
@@ -8204,8 +8218,8 @@ function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHist
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}
 async function exportHistory(){var h=getHistory();if(!h.length){alert("No history");return;}var hydrated=[];for(var i=0;i<h.length;i++){var r=h[i];if(Array.isArray(r.photoData)&&r.photoData.length){var pd=await fpHydratePhotoData(r.photoData);r=Object.assign({},r,{photoData:pd});}hydrated.push(r);}var data=JSON.stringify({app:"CapStone",exported:new Date().toISOString(),version:1,history:hydrated},null,2);var blob=new Blob([data],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="capstone-history-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 function importHistory(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var data=JSON.parse(e.target.result);if(!data.history||!Array.isArray(data.history)){alert("Invalid file");return;}var existing=getHistory();var existingIds=new Set(existing.map(function(r){return r.id;}));var toAdd=data.history.filter(function(r){return!existingIds.has(r.id);});var merged=toAdd.concat(existing).sort(function(a,b){return new Date(b.date)-new Date(a.date);});var toPut=[];toAdd.forEach(function(r){if(Array.isArray(r.photoData))r.photoData.forEach(function(p){if(fpHasPhotoDisplay(p.display))toPut.push(p);});});fpIdbPutPhotos(toPut).then(function(){var out=merged.map(function(r){if(Array.isArray(r.photoData))return Object.assign({},r,{photoData:r.photoData.map(fpPhotoForStorage)});return r;});try{localStorage.setItem("fp_history",JSON.stringify(out));}catch(err){try{localStorage.setItem("fp_history",JSON.stringify(merged));}catch(e2){}}renderHistory();updateStorageInfo();alert("Imported "+toAdd.length+" reports.");});}catch(err){alert("Could not read file");}};reader.readAsText(file);input.value="";}
-function clearOldPhotos(){if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId||!!r.audioId||(Array.isArray(r.videos)&&r.videos.length>0);if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(r.videoId){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}if(r.audioId){delIds.push(r.audioId);r.audioId=null;r.audioSize=0;}if(Array.isArray(r.videos)&&r.videos.length){r.videos.forEach(function(v){if(v){if(v.vidKey)delIds.push(v.vidKey);if(v.audioKey)delIds.push(v.audioKey);}});r.videos=[];r.hasVideo=false;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
-function clearAllHistory(){if(!confirm("Delete ALL history? Cannot be undone."))return;var delIds=[];getHistory().forEach(function(r){delIds=delIds.concat(historyRecordBlobKeys(r));});localStorage.removeItem("fp_history");if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();}
+function clearOldPhotos(){if(!requireCap("destructive"))return;if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId||!!r.audioId||(Array.isArray(r.videos)&&r.videos.length>0);if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(r.videoId){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}if(r.audioId){delIds.push(r.audioId);r.audioId=null;r.audioSize=0;}if(Array.isArray(r.videos)&&r.videos.length){r.videos.forEach(function(v){if(v){if(v.vidKey)delIds.push(v.vidKey);if(v.audioKey)delIds.push(v.audioKey);}});r.videos=[];r.hasVideo=false;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
+function clearAllHistory(){if(!requireCap("destructive"))return;if(!confirm("Delete ALL history? Cannot be undone."))return;var delIds=[];getHistory().forEach(function(r){delIds=delIds.concat(historyRecordBlobKeys(r));});localStorage.removeItem("fp_history");if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();}
 
 // SHARE
 function openShare(){if(!A.report){alert("Generate a report first");return;}el("smodal").style.display="flex";}
