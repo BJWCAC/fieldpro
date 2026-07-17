@@ -318,7 +318,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="355";
+var FP_VERSION="356";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1697,6 +1697,7 @@ window.cancelAssetPhotoDescription=cancelAssetPhotoDescription;
 window.pickAssetPhotoRole=pickAssetPhotoRole;
 window.editAssetPhotoLabel=editAssetPhotoLabel;
 window.retryPendingUploads=retryPendingUploads;
+window.discardPendingUpload=discardPendingUpload;
 window.clearPendingUploads=clearPendingUploads;
 window.runFieldPolishAi=runFieldPolishAi;
 window.retryPendingAi=retryPendingAi;
@@ -5719,10 +5720,19 @@ async function retryPendingUploads(opts){
   if(!items.length){if(!opts.auto)showToast("No pending sync items",2500);return;}
   A.pendingRetrying=true;
   if(!opts.auto)showToast("Retrying "+items.length+" pending sync item(s)...",3000);
-  var remaining=[],doneKeys=[];
+  var remaining=[],doneKeys=[],discarded=0;
   for(var i=0;i<items.length;i++){
     var orig=items[i];
     var item=await hydratePendingUploadBinary(orig);
+    // Unrecoverable: this item carries a photo/PDF that was offloaded to IndexedDB and is
+    // no longer retrievable (evicted / cleared), so it can NEVER upload. Drop it instead of
+    // retrying forever — this is the usual cause of pending items that "won't go away".
+    var binField=fpPendingBinaryField(orig.type);
+    if(binField&&!fpHasPhotoDisplay(item[binField])&&(orig.binIdb||A.idbAvailable)){
+      if(orig.binKey)doneKeys.push(orig.binKey);
+      discarded++;
+      continue;
+    }
     try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="capture_video")await uploadPendingCaptureVideo(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");if(orig.binKey)doneKeys.push(orig.binKey);}
     catch(e){orig.error=e.message;orig.attempts=(orig.attempts||0)+1;orig.lastAttempt=new Date().toISOString();remaining.push(orig);}
   }
@@ -5730,7 +5740,22 @@ async function retryPendingUploads(opts){
   savePendingUploads(remaining);
   if(doneKeys.length)fpIdbDeletePhotos(doneKeys);
   if(typeof renderAssetPicklistRequestPanel==="function")renderAssetPicklistRequestPanel();
-  if(!opts.auto||items.length!==remaining.length)showToast(remaining.length?remaining.length+" sync item(s) still pending":"All pending sync items complete",5000);
+  if(discarded)showToast("Discarded "+discarded+" sync item(s) whose photo/file is no longer on this device",6000);
+  if(!opts.auto||items.length!==remaining.length){
+    if(!discarded||remaining.length)showToast(remaining.length?remaining.length+" sync item(s) still pending":"All pending sync items complete",5000);
+  }
+}
+function removePendingUploadById(id){
+  var items=getPendingUploads();
+  var it=null;for(var i=0;i<items.length;i++){if(items[i].id===id){it=items[i];break;}}
+  savePendingUploads(items.filter(function(x){return x.id!==id;}));
+  if(it&&it.binKey)fpIdbDeletePhotos([it.binKey]);
+  if(typeof renderAssetPicklistRequestPanel==="function")renderAssetPicklistRequestPanel();
+}
+function discardPendingUpload(id){
+  if(!confirm("Discard this pending sync item? It will not be uploaded to Zoho."))return;
+  removePendingUploadById(id);
+  showToast("Sync item discarded",2500);
 }
 function schedulePendingUploadRetry(reason,delayMs){
   if(!getPendingUploads().length||A.pendingRetrying)return;
@@ -5765,7 +5790,12 @@ function renderPendingUploads(){
   renderPendingBadge(items);
   if(count)count.textContent=items.length+" pending";
   if(typeof renderAssetSaveChecklist==="function")renderAssetSaveChecklist();
-  if(box)box.innerHTML=items.length?items.map(function(item){return"<div style='font-size:12px;color:#2d6b60;margin-bottom:5px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span></div>";}).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
+  if(box)box.innerHTML=items.length?items.map(function(item){
+    var stuck=(item.attempts||0)>=5;
+    var hint=stuck?"<br><span style='color:#92400e'>Not syncing after "+(item.attempts||0)+" tries — tap Discard if it won't complete.</span>":"";
+    var btn="<button type='button' class='bg bsm' onclick=\"discardPendingUpload('"+esc(String(item.id||""))+"')\" style='margin-top:4px'>Discard</button>";
+    return"<div style='font-size:12px;color:#2d6b60;margin-bottom:8px;border-top:1px solid #eef;padding-top:6px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span>"+hint+"<br>"+btn+"</div>";
+  }).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
 }
 function clearPendingUploads(){if(!requireCap("destructive"))return;if(!confirm("Clear all pending sync items?"))return;var keys=getPendingUploads().map(function(it){return it.binKey;}).filter(Boolean);savePendingUploads([]);if(keys.length)fpIdbDeletePhotos(keys);showToast("Pending sync cleared",2500);}
 function shouldQueueAiError(err){

@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-07-16
-Current live version: v355
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=355
+Last updated: 2026-07-17
+Current live version: v356
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=356
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v356 | — | **Fix pending sync items that never clear** — pending uploads whose photo/PDF bytes were offloaded to IndexedDB and later evicted could never re-upload ("missing data"), so they retried forever and stayed in the queue. Retry now detects these unrecoverable items and drops them (with a one-time toast), and every pending item gets a per-item **Discard** button (ungated, so a restricted user can clear a stuck item) plus a "not syncing after N tries" hint. Tapping **Retry Sync** now clears such items automatically. |
 | v355 | — | **Background Model_AI_Specs research** — asset saves no longer wait for the AI spec lookup. When **Research specs in the background after save** is on (default, Settings toggle `fp_asset_bg_specs`), the asset is written to Zoho immediately and a background worker researches the spec from a captured identity snapshot (so it keeps working after the tech moves on) and writes `Model_AI_Specs` via a follow-up `update_equipment` — with the OLD SPEC archive on updates. The job runs through the existing Pending AI queue, so it persists and auto-retries on reconnect/rate-limit; each row under **Assets Saved This Visit** shows a live chip (researching… / added / will retry / not identified). Pending-AI retry now also runs with a Gemini-only key. Turn the toggle off to keep the previous save-time (blocking) behavior. |
 | v354 | — | **Role-based access — Phase 2 (centralized cloud policy)** — an admin can **Publish policy to cloud** from the Access & Roles panel: the user-role tab/settings/capability permissions, the shared admin PIN hash, and a default role are stored in one org-wide record via new `policy_push`/`policy_pull` actions on the `key-sync` function. Writes are protected by a publish passphrase (scrypt hash stored server-side, wrong passphrase → 403); reads are open. Every device applies the cached policy at startup and pulls the latest ~1.2s after open (and via **Pull policy now**), so roles are configured **once** instead of per device. `getRole()` honors the policy's default role for unconfigured devices. Client-side guardrails still (Phase 3 = server-enforced checks). |
 | v353 | — | **Admin-gated asset delete + gate pending-queue clears** — the destructive capability now also covers **Clear Sync** and **Clear AI** (pending-queue clears) — hidden for users without the capability and blocked at the function. Added a **Delete Asset from Zoho** button in the Assets form, shown only when an existing asset is loaded and only to admins / users with the destructive capability; it calls the new `delete_equipment` Zoho proxy action (`DELETE /crm/v3/Equipments/{id}`, proxy build 286), removes the asset from Saved This Visit, and resets the form. Requires the Netlify zoho-proxy redeployed to build 286+. |
