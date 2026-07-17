@@ -162,8 +162,103 @@ async function generateModelAiSpecsIfNeeded(opts){
     return{ok:false,reason:"error",error:e&&e.message?e.message:String(e)};
   }
 }
+// Identity-based spec research (no dependence on the live form) — used by the background
+// spec worker so it keeps researching the asset that was saved even after the technician
+// has moved on to the next one. Returns {ok,text,providers,warnings,skipped} or {ok:false,reason}.
+async function computeModelAiSpecs(id){
+  id=id||{};
+  var category=id.category||"",brand=id.brand||"",type=id.type||"",series=id.series||"",model=id.model||"",brandOther=id.brandOther||"";
+  var providers=modelAiSpecsProviders();
+  if(!providers.length)return{ok:false,reason:"no_api_keys"};
+  if(!isUsableModelForAiSpecs(model,brand,brandOther))return{ok:false,reason:"model_not_usable"};
+  var key=[category,brand,type,series,model,brandOther].join("|");
+  var cacheKey=providers.join(",")+"||"+key;
+  var cached=MODEL_AI_SPECS_CACHE[cacheKey];
+  if(cached&&cached.text){var cout={ok:true,text:cached.text,providers:cached.providers||["AI"],fromCache:true};if(cached.skipped&&cached.skipped.length)cout.skipped=cached.skipped.slice();return cout;}
+  try{
+    var content=modelAiSpecsAssetContent(category,brand,type,series,model,brandOther);
+    var errors=[],skipped=[],chosen="",chosenProvider="";
+    for(var i=0;i<providers.length;i++){
+      var p=providers[i];var pname=p==="gemini"?"Gemini":"Claude";var primary=i===0;
+      if(!primary)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
+      var txt="";
+      try{txt=(await fetchModelAiSpecsDraft(p,content)||"").trim();}
+      catch(e){errors.push(pname+": "+formatAiProviderError(e&&e.message?e.message:String(e)));continue;}
+      if(isModelAiSpecsSkip(txt)){skipped.push(pname);continue;}
+      if(!txt){errors.push(pname+": returned an empty response");continue;}
+      chosen=txt;chosenProvider=pname;break;
+    }
+    if(!chosen)return{ok:false,reason:"ai_skip_or_failed",errors:errors,skipped:skipped};
+    chosen=stripAiSpecsBold(chosen).trim();
+    if(chosen.length>MODEL_AI_SPECS_MAX)chosen=chosen.slice(0,MODEL_AI_SPECS_MAX);
+    if(!errors.length)MODEL_AI_SPECS_CACHE[cacheKey]={text:chosen,providers:[chosenProvider],skipped:skipped.slice()};
+    var out={ok:true,text:chosen,providers:[chosenProvider]};
+    if(errors.length)out.warnings=errors;
+    if(skipped.length)out.skipped=skipped;
+    return out;
+  }catch(e){return{ok:false,reason:"error",error:e&&e.message?e.message:String(e)};}
+}
+function isAssetBgSpecsEnabled(){try{return localStorage.getItem("fp_asset_bg_specs")!=="0";}catch(e){return true;}}
+function toggleAssetBgSpecs(){
+  var on=!isAssetBgSpecsEnabled();
+  try{localStorage.setItem("fp_asset_bg_specs",on?"1":"0");}catch(e){}
+  var t=el("tog-asset-bg-specs");if(t)t.classList.toggle("on",on);
+  showToast(on?"Background spec research ON":"Background spec research OFF",2500);
+  scheduleKeySyncAutoPush();
+}
+function setSavedAssetSpecStatus(equipmentId,status){
+  if(!equipmentId||!A.asset.savedItems)return;
+  var it=A.asset.savedItems.find(function(a){return a.id===equipmentId;});
+  if(it){it.aiSpecs=status;persistAssetSavedVisit(A.asset.savedItems);renderSavedAssets();}
+}
+function assetSpecsChip(status){
+  if(status==="pending")return "<span style='display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid #f0a020;background:#fff7e6;color:#92400e'>AI specs: researching…</span>";
+  if(status==="done")return "<span style='display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid #86efac;background:#f0fdf4;color:#14532d'>AI specs added</span>";
+  if(status==="failed")return "<span style='display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid #f59e0b;background:#fffbeb;color:#92400e'>AI specs: will retry</span>";
+  if(status==="skip")return "<span style='display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid #b2ddd6;background:#fff;color:#64748b'>AI specs: not identified</span>";
+  return "";
+}
+function enqueueAssetSpecsJob(equipmentId,identity,isUpdate){
+  if(!equipmentId||!identity)return false;
+  if(!isUsableModelForAiSpecs(identity.model,identity.brand,identity.brandOther))return false;
+  if(!modelAiSpecsProviders().length)return false;
+  enqueuePendingAi({type:"asset_specs",target:"asset_specs:"+equipmentId,equipmentId:equipmentId,identity:identity,isUpdate:!!isUpdate,label:"Model_AI_Specs — "+(identity.brand?identity.brand+" ":"")+(identity.model||"asset")});
+  schedulePendingAiRetry("asset_specs_enqueued",600);
+  return true;
+}
+function hasQueuedAssetSpecs(equipmentId){
+  if(!equipmentId)return false;
+  return getPendingAi().some(function(i){return i.type==="asset_specs"&&i.equipmentId===equipmentId;});
+}
+function savedAssetSpecStatus(a){
+  if(!a)return"";
+  if(a.aiSpecs==="done"||a.aiSpecs==="skip")return a.aiSpecs;
+  if(hasQueuedAssetSpecs(a.id))return "pending";
+  if(a.aiSpecs)return a.aiSpecs;
+  return "";
+}
+async function runAssetSpecsJob(item){
+  var equipmentId=item.equipmentId;var id=item.identity||{};
+  if(!equipmentId)throw new Error("Missing equipment id for spec job");
+  var res=await computeModelAiSpecs(id);
+  if(!res.ok){
+    if(res.reason==="model_not_usable"){setSavedAssetSpecStatus(equipmentId,"skip");removePendingAiById(item.id);return;}
+    if(res.reason==="ai_skip_or_failed"&&(!res.errors||!res.errors.length)){setSavedAssetSpecStatus(equipmentId,"skip");removePendingAiById(item.id);return;}
+    setSavedAssetSpecStatus(equipmentId,"failed");
+    throw new Error((res.errors&&res.errors[0])||res.error||res.reason||"spec research failed");
+  }
+  var text=res.text;
+  await refreshZohoToken();
+  if(item.isUpdate){
+    try{var rec=await getEquipmentRecord(equipmentId);var existing=(rec&&rec.Model_AI_Specs)||"";text=combineModelAiSpecsForUpdate(text,existing);}catch(e){}
+  }
+  await postEquipmentToZoho("update_equipment",equipmentId,{Model_AI_Specs:text});
+  setSavedAssetSpecStatus(equipmentId,"done");
+  removePendingAiById(item.id);
+}
 function modelAiSpecsStatusNote(result){
   if(!result)return"";
+  if(result.background)return"";
   if(result.ok){
     var prov=(result.providers&&result.providers[0])||"AI";
     // Gemini is the primary source; Claude is only queried as a fallback when Gemini is
@@ -223,7 +318,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="354";
+var FP_VERSION="355";
 var MIN_ZOHO_PROXY_BUILD=284;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -400,7 +495,7 @@ var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/fun
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
-var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research"];
+var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research","fp_asset_bg_specs"];
 var KEY_SYNC_AUTO_PUSH_MS=8000;
 var KEY_SYNC_AUTO_PULL_MS=1500;
 var keySyncPushTimer=null;
@@ -1508,6 +1603,7 @@ function bootApp(){
     var az=el("tog-auto-zoho");if(az)az.classList.toggle("on",A.autoSaveZoho);
     var ap=el("tog-auto-phone-photos");if(ap)ap.classList.toggle("on",A.autoSavePhonePhotos);
     var ar=el("tog-asset-auto-research");if(ar)ar.classList.toggle("on",isAssetAutoResearchEnabled());
+    var bg=el("tog-asset-bg-specs");if(bg)bg.classList.toggle("on",isAssetBgSpecsEnabled());
     setTechnicianUI();
     A.asset.savedItems=loadAssetSavedVisitFromStorage();
     if(typeof renderHistory==="function")renderHistory();
@@ -1626,6 +1722,7 @@ window.extractAssetFromPhoto=extractAssetFromPhoto;
 window.researchAndPrefillAsset=researchAndPrefillAsset;
 window.confirmAllAssetPrefill=confirmAllAssetPrefill;
 window.toggleAssetAutoResearch=toggleAssetAutoResearch;
+window.toggleAssetBgSpecs=toggleAssetBgSpecs;
 window.saveAssetToZoho=saveAssetToZoho;
 window.checkZohoProxyDeploy=checkZohoProxyDeploy;
 window.resetAssetFormForNext=resetAssetFormForNext;
@@ -4984,6 +5081,7 @@ function compactSavedVisitRecord(snap){
     dealNotes:snap.dealNotes||"",
     dealLinked:!!snap.dealLinked,
     accountOnly:!!snap.accountOnly,
+    aiSpecs:snap.aiSpecs||"",
     savedAt:snap.savedAt||new Date().toISOString()
   };
 }
@@ -5042,6 +5140,9 @@ function savedAssetOverviewLine(a,i){
   if(a.dealLinked)parts.push("linked to deal");
   else if(a.accountOnly)parts.push("account only");
   line+=parts.map(esc).join(" — ");
+  var specStatus=savedAssetSpecStatus(a);
+  var chip=specStatus?assetSpecsChip(specStatus):"";
+  if(chip)line+="<div style='margin-top:4px'>"+chip+"</div>";
   if(a.savedAt)line+="<div style='font-size:11px;color:var(--dim);margin-top:3px'>Saved "+esc(new Date(a.savedAt).toLocaleString())+"</div>";
   return line;
 }
@@ -5290,18 +5391,27 @@ async function saveEquipmentRecord(){
     fullPayload=assetPayload({includeBlank:true,isUpdate:true});
   }
   var equipmentIdForSpecs=A.asset.currentAssetId||null;
+  var bgSpecs=isAssetBgSpecsEnabled();
+  var specIdentity={category:assetInput("asset-category"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),series:assetInput("asset-series"),model:assetInput("asset-model"),brandOther:assetInput("asset-brand-other")};
   var existingSpecsText="";
-  if(equipmentIdForSpecs){
-    try{
-      var specRec=await getEquipmentRecord(equipmentIdForSpecs);
-      existingSpecsText=(specRec&&specRec.Model_AI_Specs)||"";
-    }catch(specLoadErr){console.log("Could not load existing Model_AI_Specs:",specLoadErr);}
-  }
-  var specGen=await generateModelAiSpecsIfNeeded({force:true});
-  A.asset._lastAiSpecsGen=specGen;
-  if(A.asset.aiSpecsText){
-    if(equipmentIdForSpecs)A.asset.aiSpecsText=combineModelAiSpecsForUpdate(A.asset.aiSpecsText,existingSpecsText);
-    fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
+  if(bgSpecs){
+    // Background mode: don't block the save on AI research. The asset is written now; a
+    // background worker researches specs and writes Model_AI_Specs to Zoho just after, so
+    // the technician can move on to the next asset immediately.
+    A.asset.aiSpecsText="";A.asset.aiSpecsKey="";A.asset._lastAiSpecsGen={ok:true,background:true};
+  }else{
+    if(equipmentIdForSpecs){
+      try{
+        var specRec=await getEquipmentRecord(equipmentIdForSpecs);
+        existingSpecsText=(specRec&&specRec.Model_AI_Specs)||"";
+      }catch(specLoadErr){console.log("Could not load existing Model_AI_Specs:",specLoadErr);}
+    }
+    var specGen=await generateModelAiSpecsIfNeeded({force:true});
+    A.asset._lastAiSpecsGen=specGen;
+    if(A.asset.aiSpecsText){
+      if(equipmentIdForSpecs)A.asset.aiSpecsText=combineModelAiSpecsForUpdate(A.asset.aiSpecsText,existingSpecsText);
+      fullPayload.Model_AI_Specs=A.asset.aiSpecsText;
+    }
   }
   var split=splitAssetPayloadForCategoryLayout(fullPayload);
   var hasExtension=Object.keys(split.extension).length>0;
@@ -5348,7 +5458,9 @@ async function saveEquipmentRecord(){
     assetStatus("Saving Input/Output subform rows in Zoho...",false);
     await postEquipmentToZoho("update_equipment",equipmentId,{Subform_1:subRowsFinal},{applyLayoutRules:true});
   }
-  if(A.asset.aiSpecsText){
+  if(bgSpecs){
+    enqueueAssetSpecsJob(equipmentId,specIdentity,!!equipmentIdForSpecs);
+  }else if(A.asset.aiSpecsText){
     try{
       assetStatus("Writing Model_AI_Specs to Zoho...",false);
       await postEquipmentToZoho("update_equipment",equipmentId,{Model_AI_Specs:A.asset.aiSpecsText});
@@ -5749,6 +5861,7 @@ function pendingAiLabel(item){
   if(item.type==="report_generate")return "Generate AI Report";
   if(item.type==="asset_extract")return "Asset photo extraction";
   if(item.type==="asset_extract_sensor")return "Sensor photo extraction";
+  if(item.type==="asset_specs")return item.label||"Model_AI_Specs research";
   return item.label||"Pending AI";
 }
 function removePendingAiByTarget(target){
@@ -5865,6 +5978,7 @@ async function processPendingAiItem(item){
   }
   if(item.type==="report_generate"){await retryQueuedReportGenerate(item);return;}
   if(item.type==="asset_extract"||item.type==="asset_extract_sensor"){await retryQueuedAssetExtract(item);return;}
+  if(item.type==="asset_specs"){await runAssetSpecsJob(item);return;}
   throw new Error("Unknown pending AI type");
 }
 async function retryPendingAi(opts){
@@ -5872,7 +5986,7 @@ async function retryPendingAi(opts){
   if(A.pendingAiRetrying)return;
   var items=getPendingAi();
   if(!items.length){if(!opts.auto)showToast("No pending AI items",2500);return;}
-  if(!API_KEY){if(!opts.auto)showToast("Add API key before retrying AI",4000);return;}
+  if(!API_KEY&&!GEMINI_API_KEY){if(!opts.auto)showToast("Add an API key before retrying AI",4000);return;}
   A.pendingAiRetrying=true;
   if(!opts.auto)showToast("Retrying "+items.length+" pending AI item(s)...",3000);
   var remaining=[];
@@ -5900,7 +6014,7 @@ function schedulePendingAiRetry(reason,delayMs){
 }
 function autoRetryPendingAi(reason){
   var now=Date.now();
-  if(A.pendingAiRetrying||!getPendingAi().length||!API_KEY)return;
+  if(A.pendingAiRetrying||!getPendingAi().length||(!API_KEY&&!GEMINI_API_KEY))return;
   if(now-A.lastPendingAiAutoRetry<30000){schedulePendingAiRetry(reason,30000);return;}
   A.lastPendingAiAutoRetry=now;
   retryPendingAi({auto:true,reason:reason});
@@ -7486,6 +7600,7 @@ function applySyncSettings(s){
     var ka=el("tog-key-sync-auto");if(ka)ka.classList.toggle("on",isKeySyncAutoBackupEnabled());
     var kr=el("tog-key-sync-auto-restore");if(kr)kr.classList.toggle("on",isKeySyncAutoRestoreEnabled());
     var arr=el("tog-asset-auto-research");if(arr)arr.classList.toggle("on",isAssetAutoResearchEnabled());
+    var bgr=el("tog-asset-bg-specs");if(bgr)bgr.classList.toggle("on",isAssetBgSpecsEnabled());
     if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
     if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();else stopPlaudAutoPull();
   }finally{
