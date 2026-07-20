@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-20
-Current live version: v357
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=357
+Current live version: v358
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=358
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v358 | — | **Fix asset save/update "Zoho Account … required" regression (v357)** — the v357 lock-down accidentally changed the Zoho record-ID checks in `isZohoLookupRecordId()` and `resolveEngineeringUnitLookupId()` from "10 or more digits" to "exactly 10 digits". Real Zoho CRM record IDs are 18–19 digits, so every account/equipment ID failed validation: updating a loaded asset (e.g. AMD1073) toasted "Zoho Account (tap Account only — pick account) required", new-asset saves failed the Account check, and loading a record could throw "invalid equipment record ID". Restored the `10,` quantifier in both regexes. |
 | v357 | #246 | **Zoho proxy lock-down** — require `CAPSTONE_APP_SECRET` on every `zoho-proxy` call; restrict CORS to CapStone origins; keep Zoho OAuth access tokens server-side only (browser never receives/stores them). Client uses `ensure_auth` + `zohoProxyFetch`; Settings can override secret via `fp_proxy_secret`. Proxy build **287**. |
 | v356 | — | **Fix pending sync items that never clear** — pending uploads whose photo/PDF bytes were offloaded to IndexedDB and later evicted could never re-upload ("missing data"), so they retried forever and stayed in the queue. Retry now detects these unrecoverable items and drops them (with a one-time toast), and every pending item gets a per-item **Discard** button (ungated, so a restricted user can clear a stuck item) plus a "not syncing after N tries" hint. Tapping **Retry Sync** now clears such items automatically. |
 | v355 | — | **Background Model_AI_Specs research** — asset saves no longer wait for the AI spec lookup. When **Research specs in the background after save** is on (default, Settings toggle `fp_asset_bg_specs`), the asset is written to Zoho immediately and a background worker researches the spec from a captured identity snapshot (so it keeps working after the tech moves on) and writes `Model_AI_Specs` via a follow-up `update_equipment` — with the OLD SPEC archive on updates. The job runs through the existing Pending AI queue, so it persists and auto-retries on reconnect/rate-limit; each row under **Assets Saved This Visit** shows a live chip (researching… / added / will retry / not identified). Pending-AI retry now also runs with a Gemini-only key. Turn the toggle off to keep the previous save-time (blocking) behavior. |
