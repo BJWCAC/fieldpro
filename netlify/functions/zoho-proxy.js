@@ -1,12 +1,81 @@
 const https = require("https");
-var PROXY_BUILD = "286";
+const crypto = require("crypto");
+var PROXY_BUILD = "287";
+
+// Warm-instance cache — Zoho access tokens never leave this function.
+var cachedZohoToken = null;
+var cachedZohoExpiresAt = 0;
+
+var DEFAULT_ALLOWED_ORIGINS = [
+  "https://bjwcac.github.io",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
+];
+
+function allowedOriginsList() {
+  var raw = String(process.env.CAPSTONE_ALLOWED_ORIGINS || "").trim();
+  if (raw) {
+    return raw.split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+  }
+  return DEFAULT_ALLOWED_ORIGINS.slice();
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  var list = allowedOriginsList();
+  if (list.indexOf(origin) >= 0) return true;
+  // Local dev: any localhost / 127.0.0.1 port
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+  return false;
+}
+
+function corsHeaders(event) {
+  var headers = (event && event.headers) || {};
+  var origin = headers.origin || headers.Origin || "";
+  var h = {
+    "Access-Control-Allow-Headers": "Content-Type, X-CapStone-Key",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin"
+  };
+  if (isAllowedOrigin(origin)) {
+    h["Access-Control-Allow-Origin"] = origin;
+  }
+  return h;
+}
+
+function timingSafeEqualStr(a, b) {
+  var ba = Buffer.from(String(a || ""), "utf8");
+  var bb = Buffer.from(String(b || ""), "utf8");
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function extractAppSecret(event, data) {
+  var headers = (event && event.headers) || {};
+  var fromHeader = headers["x-capstone-key"] || headers["X-CapStone-Key"] || "";
+  var fromBody = (data && data.app_secret) || "";
+  return String(fromHeader || fromBody || "").trim();
+}
+
+function assertAppSecret(event, data) {
+  var expected = String(process.env.CAPSTONE_APP_SECRET || "").trim();
+  if (!expected) {
+    var err = new Error("Proxy not configured (CAPSTONE_APP_SECRET)");
+    err.statusCode = 503;
+    throw err;
+  }
+  var provided = extractAppSecret(event, data);
+  if (!provided || !timingSafeEqualStr(provided, expected)) {
+    var denied = new Error("Unauthorized");
+    denied.statusCode = 401;
+    throw denied;
+  }
+}
 
 exports.handler = async function(event) {
-  const h = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS"
-  };
+  const h = corsHeaders(event);
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: h, body: "" };
 
   function req(opts, body) {
@@ -22,9 +91,99 @@ exports.handler = async function(event) {
     });
   }
 
+  async function fetchZohoAccessToken() {
+    var refresh = String(process.env.ZOHO_REFRESH_TOKEN || "").trim();
+    var clientId = String(process.env.ZOHO_CLIENT_ID || "").trim();
+    var clientSecret = String(process.env.ZOHO_CLIENT_SECRET || "").trim();
+    if (!refresh || !clientId || !clientSecret) {
+      throw new Error("Zoho OAuth not configured (ZOHO_REFRESH_TOKEN / ZOHO_CLIENT_ID / ZOHO_CLIENT_SECRET)");
+    }
+    var tokenBody = "refresh_token=" + encodeURIComponent(refresh) +
+      "&client_id=" + encodeURIComponent(clientId) +
+      "&client_secret=" + encodeURIComponent(clientSecret) +
+      "&grant_type=refresh_token";
+    var result = await req({
+      hostname: "accounts.zoho.com",
+      path: "/oauth/v2/token",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": Buffer.byteLength(tokenBody)
+      }
+    }, tokenBody);
+    var parsed = {};
+    try { parsed = JSON.parse(result.body || "{}"); } catch (e) {}
+    if (!parsed.access_token) {
+      var msg = parsed.error_description || parsed.error || ("HTTP " + result.status);
+      throw new Error(String(msg));
+    }
+    cachedZohoToken = parsed.access_token;
+    var expiresIn = parseInt(parsed.expires_in, 10) || 3600;
+    cachedZohoExpiresAt = Date.now() + expiresIn * 1000;
+    return cachedZohoToken;
+  }
+
+  async function getZohoAccessToken(force) {
+    if (!force && cachedZohoToken && Date.now() < cachedZohoExpiresAt - 120000) {
+      return cachedZohoToken;
+    }
+    return fetchZohoAccessToken();
+  }
+
   try {
-    var data = JSON.parse(event.body);
-    var token = data.token;
+    var data = {};
+    try {
+      data = JSON.parse(event.body || "{}");
+    } catch (pe) {
+      return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "Invalid JSON body" }) };
+    }
+
+    try {
+      assertAppSecret(event, data);
+    } catch (authErr) {
+      return {
+        statusCode: authErr.statusCode || 401,
+        headers: h,
+        body: JSON.stringify({ ok: false, error: authErr.message || "Unauthorized" })
+      };
+    }
+
+    // Client-supplied Zoho tokens are ignored — OAuth stays server-side only.
+    var token = null;
+    var actionName = String(data.action || "");
+    var needsZohoToken = actionName !== "ping_proxy" && actionName !== "geocode";
+    if (actionName === "ensure_auth" || actionName === "refresh_token") {
+      try {
+        await getZohoAccessToken(!!data.force);
+        return {
+          statusCode: 200,
+          headers: h,
+          body: JSON.stringify({
+            ok: true,
+            auth: "server",
+            expires_in: Math.max(60, Math.floor((cachedZohoExpiresAt - Date.now()) / 1000)),
+            proxy_build: PROXY_BUILD
+          })
+        };
+      } catch (tokErr) {
+        return {
+          statusCode: 502,
+          headers: h,
+          body: JSON.stringify({ ok: false, error: tokErr.message || "Zoho token refresh failed", proxy_build: PROXY_BUILD })
+        };
+      }
+    }
+    if (needsZohoToken) {
+      try {
+        token = await getZohoAccessToken(false);
+      } catch (tokErr) {
+        return {
+          statusCode: 502,
+          headers: h,
+          body: JSON.stringify({ ok: false, error: tokErr.message || "Zoho auth failed", proxy_build: PROXY_BUILD })
+        };
+      }
+    }
 
     if (data.action === "ping_proxy") {
       return {
@@ -37,7 +196,9 @@ exports.handler = async function(event) {
           reopen_confirm: true,
           picklist_resolve: true,
           asset_category_picklist: true,
-          subform_function_picklist: true
+          subform_function_picklist: true,
+          server_side_zoho_auth: true,
+          app_secret_required: true
         })
       };
     }
@@ -534,23 +695,6 @@ exports.handler = async function(event) {
         headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(equipmentNotePayload) }
       }, equipmentNotePayload);
       return { statusCode: equipmentNoteResult.status, headers: h, body: equipmentNoteResult.body };
-    }
-
-    if (data.action === "refresh_token") {
-      var tokenBody = "refresh_token=" + encodeURIComponent(String(process.env.ZOHO_REFRESH_TOKEN || "")) +
-        "&client_id=" + encodeURIComponent(String(process.env.ZOHO_CLIENT_ID || "")) +
-        "&client_secret=" + encodeURIComponent(String(process.env.ZOHO_CLIENT_SECRET || "")) +
-        "&grant_type=refresh_token";
-      var result3 = await req({
-        hostname: "accounts.zoho.com",
-        path: "/oauth/v2/token",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Content-Length": Buffer.byteLength(tokenBody)
-        }
-      }, tokenBody);
-      return { statusCode: result3.status, headers: h, body: result3.body };
     }
 
     if (data.action === "upload_photo") {

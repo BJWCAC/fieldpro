@@ -22,7 +22,23 @@ ZOHO_CLIENT_ID
 ZOHO_CLIENT_SECRET
 ```
 
-Set these in the Netlify site dashboard under Site configuration → Environment variables, then trigger a deploy. Because the previous hardcoded values were committed to this public repo, treat them as already exposed — regenerate the Zoho client secret and refresh token in the Zoho API console and use the new values here, rather than reusing the old ones.
+As of **v357**, Zoho access tokens also stay on the server. CapStone never receives or stores a Zoho access token. Every proxy call requires a CapStone app secret, and CORS is limited to CapStone origins:
+
+```text
+CAPSTONE_APP_SECRET
+```
+
+Set `CAPSTONE_APP_SECRET` to the same value as `PROXY_APP_SECRET` in `src/app.js` (or override per device with Settings → Save Proxy Secret / `localStorage.fp_proxy_secret`). Optional:
+
+```text
+CAPSTONE_ALLOWED_ORIGINS=https://bjwcac.github.io,http://localhost:8000
+```
+
+Then trigger a Netlify deploy (**Clear cache and deploy site**). CapStone v357+ requires zoho-proxy build **287+**.
+
+Because earlier builds exposed Zoho OAuth material in this public repo, treat those values as already compromised — regenerate the Zoho client secret and refresh token in the Zoho API console and use the new values in Netlify, rather than reusing the old ones.
+
+**Security note:** The CapStone app secret in client JS is a gate against casual open-proxy abuse and stops Zoho tokens from leaving Netlify. It is still readable from the public app source. Dedicated attackers who scrape it can still call your proxy until you add device enrollment / short-lived session tokens (future hardening).
 
 ## Current milestone: CapStone Android field workflow
 

@@ -347,11 +347,7 @@
   async function geocodeAddress(address, cache) {
     if (!address) return null;
     if (cache[address]) return cache[address];
-    var r = await fetchWithTimeout(PROXY, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "geocode", address: address })
-    }, 30000);
+    var r = await zohoProxyFetch({ action: "geocode", address: address }, 30000);
     if (!r.ok) return null;
     var d = await r.json();
     if (d.ok && d.lat != null && d.lng != null) {
@@ -595,22 +591,13 @@
     var all = [], page = 1, hasMore = true, truncated = false, crmModule = null;
     maxPages = maxPages || 10;
     while (hasMore && page <= maxPages) {
-      var body = { action: "get_map_events", token: A.zohoToken, page: page };
+      var body = { action: "get_map_events", page: page };
       if (crmModule) body.crm_module = crmModule;
-      var r = await fetchWithTimeout(PROXY, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+      var r = await zohoProxyFetch(body, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
       if (!r.ok) {
         if (r.status === 401 && typeof refreshZohoToken === "function") {
           await refreshZohoToken(true);
-          body.token = A.zohoToken;
-          r = await fetchWithTimeout(PROXY, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+          r = await zohoProxyFetch(body, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
         }
         if (!r.ok) break;
       }
@@ -651,19 +638,11 @@
     var all = [], page = 1, hasMore = true, truncated = false;
     maxPages = maxPages || 50;
     while (hasMore && page <= maxPages) {
-      var r = await fetchWithTimeout(PROXY, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: action, token: A.zohoToken, page: page })
-      }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+      var r = await zohoProxyFetch({ action: action, page: page }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
       if (!r.ok) {
         if (r.status === 401 && typeof refreshZohoToken === "function") {
           await refreshZohoToken(true);
-          r = await fetchWithTimeout(PROXY, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: action, token: A.zohoToken, page: page })
-          }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
+          r = await zohoProxyFetch({ action: action, page: page }, typeof ZOHO_FETCH_MS !== "undefined" ? ZOHO_FETCH_MS : 30000);
         }
         if (!r.ok) throw new Error("Proxy error " + r.status);
       }
