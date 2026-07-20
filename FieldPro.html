@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=359"/>
+<link rel="stylesheet" href="src/styles.css?v=360"/>
 
 </head>
 <body autocomplete="off">
@@ -297,7 +297,6 @@
   <div class="card">
     <div class="stitle">Add Asset to Zoho</div>
     <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Start by choosing whether you are adding a new asset or updating an existing one. CapStone shows only the steps that apply.</div>
-    <div id="asset-status" class="err-box" style="display:none"></div>
     <div id="asset-draft-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#2d6b60"></div>
     <div id="asset-save-checklist" class="report-save-checklist"></div>
     <div id="asset-setup-card" class="asset-setup-card">
@@ -410,6 +409,7 @@
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
     <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none">Start New Asset</button></div>
+    <div id="asset-status" class="err-box" style="display:none;margin-top:10px"></div>
     <button class="bd-lg" id="asset-delete-btn" onclick="deleteLoadedAsset()" style="display:none;margin-top:10px">Delete Asset from Zoho</button>
     <div id="asset-saved-list" style="display:none;margin-top:12px"></div>
     </div>
@@ -1007,8 +1007,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=359"></script>
-<script src="src/app.js?v=359"></script>
+<script src="src/accounts-map.js?v=360"></script>
+<script src="src/app.js?v=360"></script>
 
 </body>
 </html>
