@@ -189,6 +189,7 @@ Related docs (detail, not status):
 
 | Date | What shipped |
 |------|--------------|
+| 2026-07-20 | `docs/CAPSTONE_PROGRAM_REVIEW_2026-07.md` — full independent program review (security, reliability in/out of service, efficiency, architecture) + prioritized roadmap; structured to merge with the separate Grok review |
 | 2026-06-25 | `README.md` — sync milestone build to v307; add Inbox, Accounts Map, and asset category layouts; update versioned URLs |
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
@@ -214,6 +215,9 @@ Related docs (detail, not status):
 
 | Priority | Item | Notes |
 |----------|------|-------|
+| **Critical** | **Security hardening (Phase 0)** | Rotate Zoho OAuth secret/refresh token + `CAPSTONE_APP_SECRET`, purge `self_client (3).json` from repo history, authenticate the open Netlify functions, hard-gate `delete_equipment`. See `docs/CAPSTONE_PROGRAM_REVIEW_2026-07.md` §7 Phase 0. |
+| High | **Offline app shell** | Add service worker + web manifest; self-host jsPDF/fonts so PDF export works with no signal. Review §7 Phase 2 (R1). |
+| High | **Field data-loss edges** | Quarantine corrupt `fp_history`, non-destructive quota triage, idempotent Zoho sync. Review §7 Phase 2. |
 | Medium | **Asset category field rollout** | All categories shipped through **Scales &amp; Balances (v307)** — Flow Meter, FOC, Gas Detector, General, Lift Station, Scales &amp; Balances |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
