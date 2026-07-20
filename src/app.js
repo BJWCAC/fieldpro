@@ -343,7 +343,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="357";
+var FP_VERSION="358";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -5286,10 +5286,20 @@ async function checkZohoProxyDeploy(silent){
   var statusEl=el("zoho-proxy-status");
   if(statusEl&&!silent)statusEl.textContent="Checking Zoho proxy...";
   try{
-    await refreshZohoToken();
+    // Ping first — needs CapStone app secret only (no Zoho OAuth).
     var r=await zohoProxyFetch({action:"ping_proxy"},15000);
     var txt=await r.text();
     var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(r.status===401||r.status===403||(/Unauthorized|app secret/i.test(String(d.error||"")))){
+      var secretMsg="CapStone app secret rejected ("+(r.status||"401")+"). Netlify → Site configuration → Environment variables: set CAPSTONE_APP_SECRET to the exact same value as PROXY_APP_SECRET in this CapStone build (or paste your Netlify value into Settings → Proxy app secret override → Save). Then Deploys → Clear cache and deploy site, and Check Zoho Proxy again.";
+      if(statusEl)statusEl.textContent=secretMsg;
+      return{ok:false,message:secretMsg,status:r.status};
+    }
+    if(r.status===503||/CAPSTONE_APP_SECRET|not configured/i.test(String(d.error||""))){
+      var missingMsg="Netlify CAPSTONE_APP_SECRET is not set. Add it (same value as PROXY_APP_SECRET in this build), then Clear cache and deploy site.";
+      if(statusEl)statusEl.textContent=missingMsg;
+      return{ok:false,message:missingMsg,status:r.status};
+    }
     if(!r.ok||!d.ok){
       var failMsg="Zoho proxy check failed ("+(r.status||"?")+"). In Netlify: Deploys → Trigger deploy → Clear cache and deploy site. Then Settings → Check Zoho Proxy.";
       if(statusEl)statusEl.textContent=failMsg;
@@ -5305,6 +5315,12 @@ async function checkZohoProxyDeploy(silent){
       var authMsg="Zoho proxy build "+d.proxy_build+" is missing server-side auth — redeploy zoho-proxy build "+MIN_ZOHO_PROXY_BUILD+"+ and set CAPSTONE_APP_SECRET.";
       if(statusEl)statusEl.textContent=authMsg;
       return{ok:false,message:authMsg,proxy_build:build};
+    }
+    var authOk=await refreshZohoToken(true);
+    if(!authOk){
+      var zohoMsg="Proxy secret OK (build "+d.proxy_build+"), but Zoho OAuth failed — "+zohoRefreshFailMsg();
+      if(statusEl)statusEl.textContent=zohoMsg;
+      return{ok:false,message:zohoMsg,proxy_build:build};
     }
     var okMsg="Zoho proxy OK (build "+d.proxy_build+") — server-side Zoho auth + app secret ready.";
     if(statusEl)statusEl.textContent=okMsg;
