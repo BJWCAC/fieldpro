@@ -23,6 +23,9 @@ The whitelist of `localStorage` keys backed up / restored:
 | `fp_theme` | Light / dark theme |
 | `fp_key_sync_auto` | Auto-backup toggle (on unless turned off) |
 | `fp_key_sync_auto_restore` | Auto-restore missing keys on startup (on unless turned off) |
+| `fp_asset_auto_research` | Auto research & prefill after nameplate extract |
+| `fp_asset_bg_specs` | Research Model_AI_Specs in background after asset save |
+| `fp_proxy_secret` | Optional per-device CapStone↔zoho-proxy app secret override |
 
 Reports, capture drafts, photos, deal cache, and History are **not** synced — they
 stay on the device.

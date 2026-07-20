@@ -16,6 +16,8 @@ CapStone is a **static, dependency-free web app** plus optional Netlify serverle
 ### What works without secrets
 All local-first features work offline: technician prompt (dismiss with **Later**, dropdown is empty without Zoho), Capture notes, "Save Locally to History", and the History tab (data persists in `localStorage`). Deals refresh, AI report generation, and Zoho/WorkDrive saves all require the backend + secrets and will fail/queue in Pending Sync without them.
 
+As of v357, Netlify `zoho-proxy` also requires `CAPSTONE_APP_SECRET` (must match `PROXY_APP_SECRET` in `src/app.js` or device `fp_proxy_secret`). Zoho access tokens never leave the proxy.
+
 ### Calibration domain rules
 `docs/CALIBRATION_SPEC_RULES.md` is the shared source of truth for how the `Model_AI_Specs` field (on the `Equipments` module) should be written — accuracy-basis table, family-specific traps, metal-detector paradigm, sensor-model gap, output format. It applies equally to Claude/Cursor doing this by hand and to CapStone's own automatic generation (`MODEL_AI_SPECS_SYSTEM_PROMPT` used by `generateModelAiSpecsIfNeeded()` on new asset save — Gemini is the primary source, Claude a fallback, no merge). If you change the rules, update both places.
 

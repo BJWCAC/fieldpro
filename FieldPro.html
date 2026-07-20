@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=349"/>
+<link rel="stylesheet" href="src/styles.css?v=357"/>
 
 </head>
 <body autocomplete="off">
@@ -795,9 +795,12 @@
     <div class="stitle">Troubleshooting</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:10px">If tabs or buttons stop working, reset cached deals and reload.</div>
     <div class="stitle" style="margin-top:12px">Zoho proxy (Netlify)</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Asset category layout (Flow Open Channel, Flow Meter, etc.) requires the Netlify <strong>zoho-proxy</strong> function. After code changes: Netlify → Deploys → <strong>Trigger deploy</strong> → <strong>Clear cache and deploy site</strong> (not just Deploy project). CapStone must be v275+ (<code>FieldPro.html?v=275</code>).</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">Zoho OAuth stays on Netlify only. CapStone authenticates to the proxy with an app secret (<code>CAPSTONE_APP_SECRET</code>). After proxy changes: Netlify → Deploys → <strong>Clear cache and deploy site</strong>. CapStone v357+ needs proxy build 287+.</div>
     <div id="zoho-proxy-status" style="font-size:12px;color:var(--amber);margin-bottom:8px;line-height:1.5">Not checked yet — tap Check Zoho Proxy</div>
     <button type="button" class="bp bfull" onclick="checkZohoProxyDeploy()" style="margin-bottom:12px">Check Zoho Proxy</button>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">Proxy app secret override (optional — leave blank to use the build default)</div>
+    <input id="proxy-secret-input" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="fp_proxy_secret" style="margin-bottom:8px">
+    <button type="button" class="bg bfull" onclick="saveProxyAppSecret()" style="margin-bottom:12px">Save Proxy Secret on This Device</button>
     <button class="bg bfull" data-cap="destructive" onclick="resetAppCache()" style="margin-bottom:8px">Reset App Cache &amp; Reload</button>
     <button class="bg bfull" data-cap="destructive" onclick="clearWorkDriveFolderCache()" style="margin-bottom:8px">Clear WorkDrive Folder Cache</button>
     <button class="bg bfull" onclick="clearDealCache()">Clear Cached Deals Only</button>
@@ -1004,8 +1007,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=244"></script>
-<script src="src/app.js?v=356"></script>
+<script src="src/accounts-map.js?v=357"></script>
+<script src="src/app.js?v=357"></script>
 
 </body>
 </html>

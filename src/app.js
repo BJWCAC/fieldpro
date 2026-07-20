@@ -1,4 +1,7 @@
 var PROXY="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/zoho-proxy";
+// Must match Netlify env CAPSTONE_APP_SECRET. Override per device with localStorage fp_proxy_secret.
+// This is a CapStone↔proxy gate key — not a Zoho credential. Zoho OAuth stays server-side only.
+var PROXY_APP_SECRET="61849deda9adf77577f134c4ca35b080667a96d7cae0281a";
 var API_KEY="";
 var GEMINI_API_KEY="";
 var GEMINI_MODEL="gemini-2.5-flash";
@@ -8,6 +11,28 @@ var UPLOAD_FETCH_MS=50000;
 var UPLOAD_WAIT_MS=70000;
 var VIDEO_MAX_BYTES=2*1024*1024;
 var ZOHO_FETCH_MS=20000;
+function getProxyAppSecret(){
+  try{var s=localStorage.getItem("fp_proxy_secret");if(s&&String(s).trim())return String(s).trim();}catch(e){}
+  return PROXY_APP_SECRET;
+}
+function zohoProxyHeaders(){
+  return {"Content-Type":"application/json","X-CapStone-Key":getProxyAppSecret()};
+}
+function zohoProxyBody(obj){
+  var o={};
+  if(obj){
+    for(var k in obj){
+      if(!Object.prototype.hasOwnProperty.call(obj,k))continue;
+      if(k==="token"||k==="access_token"||k==="refresh_token")continue;
+      o[k]=obj[k];
+    }
+  }
+  o.app_secret=getProxyAppSecret();
+  return o;
+}
+async function zohoProxyFetch(payload,timeoutMs){
+  return fetchWithTimeout(PROXY,{method:"POST",headers:zohoProxyHeaders(),body:JSON.stringify(zohoProxyBody(payload))},timeoutMs||ZOHO_FETCH_MS);
+}
 var SEC_LABELS=["1. Site Visit Summary","2. Equipment / Systems Serviced","3. Work Performed","4. Calibration Results & Readings","5. Findings & Observations","6. Issues / Deficiencies","7. Recommendations & Next Steps","8. Follow-Up Required","9. Materials / Parts Used"];
 var SEC_IDS=["sec1","sec2","sec3","sec4","sec5","sec6","sec7","sec8","sec9"];
 var SORT_FIELDS=[{k:"Account_Name",l:"Account"},{k:"Deal_Name",l:"Deal"},{k:"Stage",l:"Stage"},{k:"Amount",l:"Amount"},{k:"Closing_Date",l:"Date"}];
@@ -318,8 +343,8 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="356";
-var MIN_ZOHO_PROXY_BUILD=284;
+var FP_VERSION="357";
+var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -495,7 +520,7 @@ var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/fun
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
-var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research","fp_asset_bg_specs"];
+var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research","fp_asset_bg_specs","fp_proxy_secret"];
 var KEY_SYNC_AUTO_PUSH_MS=8000;
 var KEY_SYNC_AUTO_PULL_MS=1500;
 var keySyncPushTimer=null;
@@ -1380,7 +1405,7 @@ async function findExistingZohoNote(){
   if(A.zohoNoteId||!A.sel)return A.zohoNoteId||null;
   var marker=zohoReportMarker();
   if(!marker)return null;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_note",token:A.zohoToken,deal_id:A.sel.id,note_title:zohoNoteTitle(),marker:marker})},ZOHO_FETCH_MS);
+  var r=await zohoProxyFetch({action:"find_note",deal_id:A.sel.id,note_title:zohoNoteTitle(),marker:marker},ZOHO_FETCH_MS);
   if(!r.ok)return null;
   var d={};try{d=await r.json();}catch(e){}
   if(d&&d.note_id){A.zohoNoteId=d.note_id;return A.zohoNoteId;}
@@ -1439,7 +1464,7 @@ async function loadTechniciansFromZoho(opts){
   if(cached.length&&!opts.force)renderTechnicianSelects(cached);
   try{
     await refreshZohoToken();
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_technicians",token:A.zohoToken,field_api_name:"Users"})},30000);
+    var r=await zohoProxyFetch({action:"get_technicians",field_api_name:"Users"},30000);
     var txt=await r.text();
     if(!r.ok)throw new Error("Technician list "+r.status+": "+txt.substring(0,120));
     var d={};try{d=JSON.parse(txt);}catch(e){}
@@ -1560,6 +1585,18 @@ function saveApiKey(){
   API_KEY=k;
   try{localStorage.setItem("fp_api_key",k);}catch(e){if(err)err.textContent="Could not save: "+e.message;return;}
   setKeyUI(true);closeKeyModal();showToast("API key saved"+keySyncCrossDeviceHint(),keySyncReady()?3000:7000);scheduleKeySyncAutoPush();
+}
+function saveProxyAppSecret(){
+  var inp=el("proxy-secret-input");
+  var v=(inp&&inp.value||"").trim();
+  try{
+    if(v)localStorage.setItem("fp_proxy_secret",v);
+    else localStorage.removeItem("fp_proxy_secret");
+  }catch(e){showToast("Could not save proxy secret",4000);return;}
+  A.zohoToken=null;A.zohoTokenExpiresAt=0;clearZohoTokenCache();
+  if(inp)inp.value="";
+  showToast(v?"Proxy secret saved on this device":"Proxy secret cleared — using build default",4000);
+  scheduleKeySyncAutoPush();
 }
 function showDealsErr(msg){
   var d=el("deals-err");if(!d)return;
@@ -2084,54 +2121,54 @@ function clearCapture(){
 }
 function saveCurrentToHistory(){return saveCaptureWorkLocally({silent:true});}
 
-// ZOHO
+// ZOHO — access tokens stay on the Netlify proxy; CapStone only tracks session readiness.
+function clearZohoTokenCache(){
+  try{sessionStorage.removeItem("fp_zoho_tok");}catch(e){}
+}
 function restoreZohoTokenCache(){
-  try{
-    var raw=sessionStorage.getItem("fp_zoho_tok");
-    if(!raw)return;
-    var j=JSON.parse(raw);
-    if(j.t&&j.e&&Date.now()<j.e-60000){A.zohoToken=j.t;A.zohoTokenExpiresAt=j.e;}
-  }catch(e){}
+  // Legacy builds stored live Zoho access tokens in sessionStorage — wipe them.
+  clearZohoTokenCache();
+  A.zohoToken=null;
+  A.zohoTokenExpiresAt=0;
 }
-function saveZohoTokenCache(){
-  try{
-    if(A.zohoToken&&A.zohoTokenExpiresAt)sessionStorage.setItem("fp_zoho_tok",JSON.stringify({t:A.zohoToken,e:A.zohoTokenExpiresAt}));
-  }catch(e){}
-}
+function saveZohoTokenCache(){/* no-op: Zoho tokens are never stored in the browser */}
 async function refreshZohoToken(force){
   A.zohoRefreshError=null;
   if(!force&&A.zohoToken&&A.zohoTokenExpiresAt&&Date.now()<A.zohoTokenExpiresAt-120000)return true;
   for(var attempt=0;attempt<2;attempt++){
     try{
-      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"refresh_token"})},45000);
+      var r=await zohoProxyFetch({action:"ensure_auth",force:!!force},45000);
       var txt=await r.text();
       var d={};
       try{d=JSON.parse(txt);}catch(pe){}
-      if(d.error_description&&!d.access_token)A.zohoRefreshError=String(d.error_description);
-      else if(d.error&&!d.access_token)A.zohoRefreshError=String(d.error);
-      if(d.access_token){
-        A.zohoToken=d.access_token;
+      if(r.ok&&d.ok){
+        // Sentinel only — not a Zoho credential. Real OAuth token never reaches the browser.
+        A.zohoToken="server";
         A.zohoTokenExpiresAt=Date.now()+(parseInt(d.expires_in,10)||3600)*1000;
-        saveZohoTokenCache();
+        clearZohoTokenCache();
         return true;
       }
-      if(!A.zohoRefreshError)A.zohoRefreshError=String(d.error||d.message||("HTTP "+r.status+(txt?": "+txt.substring(0,100):""))).trim();
+      A.zohoRefreshError=String(d.error||d.error_description||d.message||("HTTP "+r.status+(txt?": "+txt.substring(0,100):""))).trim();
+      if(r.status===401||r.status===403)A.zohoRefreshError=A.zohoRefreshError||"Unauthorized — CapStone app secret rejected by proxy";
     }catch(e){
       A.zohoRefreshError=e.message||String(e);
     }
-    if(attempt===0&&!/too many requests|Access Denied/i.test(A.zohoRefreshError||""))await waitMs(1500);
+    if(attempt===0&&!/too many requests|Access Denied|Unauthorized/i.test(A.zohoRefreshError||""))await waitMs(1500);
     else break;
   }
+  A.zohoToken=null;
+  A.zohoTokenExpiresAt=0;
   return false;
 }
 function zohoRefreshFailMsg(){
   var err=A.zohoRefreshError||"";
+  if(/CAPSTONE_APP_SECRET|app secret|Unauthorized/i.test(err))return"CapStone proxy secret missing or wrong — set Netlify CAPSTONE_APP_SECRET to match this build (or localStorage fp_proxy_secret), then redeploy the proxy.";
   if(/too many requests|Access Denied|rate limit/i.test(err))return"Zoho rate limit — too many token requests. Wait 10–15 minutes, then tap Refresh once. Do not tap repeatedly.";
   if(err.indexOf("timed out")>=0||err.indexOf("Timeout")>=0)return"Zoho connection timed out — check cell/Wi‑Fi signal and try again.";
-  if(/invalid|expired|revoked|REFRESH/i.test(err))return"Zoho login expired — contact admin to refresh CapStone OAuth credentials.";
-  if(/Failed to fetch|NetworkError|offline|Load failed/i.test(err))return"Cannot reach Zoho — device appears offline or Netlify proxy blocked.";
+  if(/invalid|expired|revoked|REFRESH|OAuth not configured/i.test(err))return"Zoho login expired — contact admin to refresh CapStone OAuth credentials on Netlify.";
+  if(/Failed to fetch|NetworkError|offline|Load failed|CORS/i.test(err))return"Cannot reach Zoho — device appears offline or Netlify proxy blocked (CORS/origin).";
   if(err)return"Zoho error: "+err;
-  return"Zoho token refresh failed — check connection and try again.";
+  return"Zoho auth failed — check connection and proxy configuration.";
 }
 async function loadDeals(){
   var btn=el("ref-btn");if(btn){btn.disabled=true;btn.textContent="Syncing...";}
@@ -2142,8 +2179,8 @@ async function loadDeals(){
     if(!tokOk)throw new Error(zohoRefreshFailMsg());
     var allDeals=[],page=1,hasMore=true;
     while(hasMore&&page<=10){
-      var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})},ZOHO_FETCH_MS);
-      if(!r.ok){if(r.status===401){await refreshZohoToken(true);r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_deals",token:A.zohoToken,page:page})},ZOHO_FETCH_MS);if(!r.ok)throw new Error("Zoho auth failed");}else throw new Error("Proxy error "+r.status);}
+      var r=await zohoProxyFetch({action:"get_deals",page:page},ZOHO_FETCH_MS);
+      if(!r.ok){if(r.status===401){await refreshZohoToken(true);r=await zohoProxyFetch({action:"get_deals",page:page},ZOHO_FETCH_MS);if(!r.ok)throw new Error("Zoho auth failed");}else throw new Error("Proxy error "+r.status);}
       var d=await r.json();
       function str(v){if(!v)return"";if(typeof v==="object")return v.name||v.id||"";return String(v);}
       (d.data||[]).forEach(function(rec){allDeals.push({id:rec.id,Deal_Name:str(rec.Deal_Name),Account_Name:str(rec.Account_Name),Account_Id:(rec.Account_Name&&rec.Account_Name.id)||"",Stage:str(rec.Stage),Amount:rec.Amount||null,Description:str(rec.Description),Owner:str(rec.Owner&&rec.Owner.name?rec.Owner.name:rec.Owner),Closing_Date:str(rec.Closing_Date)});});
@@ -2279,7 +2316,7 @@ async function refreshAssetCategoryPicklist(){
   setAssetCategoryPicklistValues(merged);
   if(!A.zohoToken)return merged;
   try{
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_asset_category_picklist",token:A.zohoToken})},30000);
+    var r=await zohoProxyFetch({action:"get_asset_category_picklist"},30000);
     if(!r.ok)return merged;
     var d={};try{d=await r.json();}catch(e){}
     var zohoVals=d&&d.data;
@@ -2318,7 +2355,7 @@ function resolveEngineeringUnitLookupId(val){
     if(String(opts[i].id)===s)return String(opts[i].id);
     if(String(opts[i].name)===s)return String(opts[i].id);
   }
-  return/^\d{10,}$/.test(s)?s:null;
+  return/^\d{10}$/.test(s)?s:null;
 }
 function engineeringUnitLookupLabel(val){
   var s=String(val||"").trim();if(!s)return"";
@@ -2335,7 +2372,7 @@ async function loadEngineeringUnitLookups(){
   if(!cfg||!cfg.moduleApiName||!A.zohoToken)return [];
   A.engineeringUnitLookupsLoading=true;
   try{
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"list_engineering_units",token:A.zohoToken,module_api_name:cfg.moduleApiName,name_field:cfg.nameField||"Name"})},30000);
+    var r=await zohoProxyFetch({action:"list_engineering_units",module_api_name:cfg.moduleApiName,name_field:cfg.nameField||"Name"},30000);
     if(!r.ok)throw new Error("Engineering units "+r.status);
     var d={};try{d=await r.json();}catch(e){}
     A.engineeringUnitLookups=(d&&d.data)||[];
@@ -3019,7 +3056,7 @@ function normalizeCalFactorForZoho(val){
   return isNaN(n)?v:n;
 }
 function isZohoLookupRecordId(id){
-  return/^\d{10,}$/.test(String(id||"").trim());
+  return/^\d{10}$/.test(String(id||"").trim());
 }
 function sanitizeZohoRecordId(id){
   var s=String(id||"").trim();
@@ -3229,7 +3266,7 @@ async function refreshSubformOutputTypePicklist(){
   if(A.subformOutputTypePicklistLoading)return A.subformOutputTypePicklist||merged;
   A.subformOutputTypePicklistLoading=true;
   try{
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_subform_function_picklist",token:A.zohoToken})},30000);
+    var r=await zohoProxyFetch({action:"get_subform_function_picklist"},30000);
     if(!r.ok)return merged;
     var d={};try{d=await r.json();}catch(e){}
     var zohoVals=d&&d.data;
@@ -3834,7 +3871,7 @@ async function ensureAssetAccountsLoaded(){
   await refreshZohoToken();
   var all=[],page=1;
   while(page<=25){
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_accounts",token:A.zohoToken,page:page})},30000);
+    var r=await zohoProxyFetch({action:"get_accounts",page:page},30000);
     if(!r.ok)throw new Error("Could not load accounts from Zoho ("+r.status+")");
     var d={};try{d=await r.json();}catch(e){}
     var rows=d.data||[];
@@ -4072,7 +4109,7 @@ async function searchExistingAssets(){
     await refreshZohoToken();
     assetStatus("Searching Zoho assets for \""+q+"\"...",false);
     var acctId=assetSaveAccountId()||"";
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"search_equipment_assets",token:A.zohoToken,account_id:acctId,query:q})},30000);
+    var r=await zohoProxyFetch({action:"search_equipment_assets",account_id:acctId,query:q},30000);
     var txt=await r.text();if(!r.ok)throw new Error("Asset search "+r.status+": "+txt.substring(0,160));
     var d=JSON.parse(txt);A.asset.searchResults=d.data||[];renderAssetSearchResults();
     if(!A.asset.searchResults.length){
@@ -4695,7 +4732,7 @@ function inferSeriesFromModel(model){
     if(m.indexOf(v)===0&&v.length>best.length)best=v;
   });
   if(best)return best;
-  var numMatch=m.match(/^(\d{3,5}[A-Za-z]{0,3}?)(?=[A-Z]{2,}|\d|[\-]|$)/);
+  var numMatch=m.match(/^(\d{3,5}[A-Za-z]{0,3}?)(?=[A-Z]{2}|\d|[\-]|$)/);
   if(numMatch&&numMatch[1]&&numMatch[1].length<m.length)return numMatch[1];
   numMatch=m.match(/^(\d{4})/);
   if(numMatch&&numMatch[1].length<m.length)return numMatch[1];
@@ -5235,10 +5272,10 @@ function equipmentSaveError(parsed,httpStatus,txt){
 }
 async function postEquipmentToZoho(action,equipmentId,payload,opts){
   opts=opts||{};
-  var body={action:action,token:A.zohoToken,equipment:payload||{}};
+  var body={action:action,equipment:payload||{}};
   if(equipmentId)body.equipment_id=equipmentId;
   if(opts.applyLayoutRules)body.apply_layout_rules=true;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},30000);
+  var r=await zohoProxyFetch(body,30000);
   var txt=await r.text();
   var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
   equipmentSaveError(parsed,r.status,txt);
@@ -5250,7 +5287,7 @@ async function checkZohoProxyDeploy(silent){
   if(statusEl&&!silent)statusEl.textContent="Checking Zoho proxy...";
   try{
     await refreshZohoToken();
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"ping_proxy",token:A.zohoToken})},15000);
+    var r=await zohoProxyFetch({action:"ping_proxy"},15000);
     var txt=await r.text();
     var d={};try{d=JSON.parse(txt);}catch(e){}
     if(!r.ok||!d.ok){
@@ -5264,7 +5301,12 @@ async function checkZohoProxyDeploy(silent){
       if(statusEl)statusEl.textContent=oldMsg;
       return{ok:false,message:oldMsg,proxy_build:build};
     }
-    var okMsg="Zoho proxy OK (build "+d.proxy_build+") — category layout activation ready.";
+    if(!d.server_side_zoho_auth||!d.app_secret_required){
+      var authMsg="Zoho proxy build "+d.proxy_build+" is missing server-side auth — redeploy zoho-proxy build "+MIN_ZOHO_PROXY_BUILD+"+ and set CAPSTONE_APP_SECRET.";
+      if(statusEl)statusEl.textContent=authMsg;
+      return{ok:false,message:authMsg,proxy_build:build};
+    }
+    var okMsg="Zoho proxy OK (build "+d.proxy_build+") — server-side Zoho auth + app secret ready.";
     if(statusEl)statusEl.textContent=okMsg;
     return{ok:true,message:okMsg,proxy_build:build};
   }catch(e){
@@ -5281,13 +5323,12 @@ async function postEquipmentCategoryLayoutActivation(equipmentId,category,extens
   assetStatus("Applying asset category layout in Zoho (first pass)...",false);
   var body={
     action:"activate_equipment_category_layout",
-    token:A.zohoToken,
     equipment_id:equipmentId,
     category:category,
     extension:ext,
     category_values:assetPicklistValues("Asset_Category")
   };
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},120000);
+  var r=await zohoProxyFetch(body,120000);
   var txt=await r.text();
   var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
   if(!r.ok||parsed.ok===false){
@@ -5298,7 +5339,7 @@ async function postEquipmentCategoryLayoutActivation(equipmentId,category,extens
   assetStatus("Confirming category layout in Zoho (reopen + reselect pass)...",false);
   await waitMs(2500);
   var body2=Object.assign({},body,{reopen_confirm:true});
-  var r2=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body2)},120000);
+  var r2=await zohoProxyFetch(body2,120000);
   var txt2=await r2.text();
   var parsed2={};try{parsed2=JSON.parse(txt2);}catch(e){}
   if(!r2.ok||parsed2.ok===false){
@@ -5367,7 +5408,7 @@ async function findExistingEquipmentBySerial(){
   var serial=assetInput("asset-serial");
   var acctId=assetSaveAccountId();
   if(!serial||!acctId)return null;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"find_equipment",token:A.zohoToken,account_id:acctId,serial_number:serial})},30000);
+  var r=await zohoProxyFetch({action:"find_equipment",account_id:acctId,serial_number:serial},30000);
   if(!r.ok)return null;
   var d={};try{d=await r.json();}catch(e){}
   if(d&&d.equipment_id)return d;
@@ -5503,7 +5544,7 @@ function assetDealNotes(){
 }
 async function linkEquipmentToSelectedDeal(equipmentId){
   if(!A.sel||!A.sel.id||!equipmentId)return{linked:false};
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"link_equipment_to_deal",token:A.zohoToken,deal_id:A.sel.id,equipment_id:equipmentId,description:assetDealDescription(),notes:assetDealNotes()})},30000);
+  var r=await zohoProxyFetch({action:"link_equipment_to_deal",deal_id:A.sel.id,equipment_id:equipmentId,description:assetDealDescription(),notes:assetDealNotes()},30000);
   var txt=await r.text();
   if(!r.ok)throw new Error("Deal asset link "+r.status+": "+txt.substring(0,160));
   var d={};try{d=JSON.parse(txt);}catch(e){}
@@ -5552,7 +5593,7 @@ function assetUpdateNoteContent(){
 }
 async function saveEquipmentUpdateNote(equipmentId){
   if(!equipmentId)return;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_equipment_note",token:A.zohoToken,equipment_id:equipmentId,note_title:"CapStone Asset Update — "+new Date().toLocaleDateString(),note_content:assetUpdateNoteContent()})},30000);
+  var r=await zohoProxyFetch({action:"save_equipment_note",equipment_id:equipmentId,note_title:"CapStone Asset Update — "+new Date().toLocaleDateString(),note_content:assetUpdateNoteContent()},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Asset note "+r.status+": "+txt.substring(0,120));}
 }
 function zohoNoteTitleLimit(s){
@@ -5564,7 +5605,7 @@ async function saveDealAssetUpdateNote(equipmentId){
   var assetLabel=(assetInput("asset-name")||assetInput("asset-model")||assetInput("asset-serial")||"Asset");
   var title=zohoNoteTitleLimit("CapStone Asset Update — "+assetLabel+" — "+new Date().toLocaleDateString());
   var content=assetUpdateNoteContent()+"\n\nZoho Equipment ID: "+equipmentId;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:A.sel.id,note_title:title,note_content:content})},30000);
+  var r=await zohoProxyFetch({action:"save_note",deal_id:A.sel.id,note_title:title,note_content:content},30000);
   if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}
 }
 function enqueueDealAssetLink(equipmentId,error){
@@ -5580,9 +5621,9 @@ function enqueueDealAssetNote(equipmentId,error){
   var assetLabel=(assetInput("asset-name")||assetInput("asset-model")||assetInput("asset-serial")||"Asset");
   enqueuePendingUpload({type:"deal_asset_note",dealId:A.sel.id,equipmentId:equipmentId,noteTitle:zohoNoteTitleLimit("CapStone Asset Update — "+assetLabel+" — "+new Date().toLocaleDateString()),noteContent:assetUpdateNoteContent()+"\n\nZoho Equipment ID: "+equipmentId,assetLabel:"Deal asset note",filename:assetLabel,error:error||""});
 }
-async function uploadPendingDealAssetLink(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"link_equipment_to_deal",token:A.zohoToken,deal_id:item.dealId,equipment_id:item.equipmentId,description:item.description||"",notes:item.notes||""})},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset link "+r.status+": "+txt.substring(0,120));}}
-async function uploadPendingEquipmentNote(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_equipment_note",token:A.zohoToken,equipment_id:item.equipmentId,note_title:item.noteTitle,note_content:item.noteContent})},30000);if(!r.ok){var txt=await r.text();throw new Error("Equipment note "+r.status+": "+txt.substring(0,120));}}
-async function uploadPendingDealAssetNote(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:item.noteTitle,note_content:item.noteContent})},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingDealAssetLink(item){await refreshZohoToken();var r=await zohoProxyFetch({action:"link_equipment_to_deal",deal_id:item.dealId,equipment_id:item.equipmentId,description:item.description||"",notes:item.notes||""},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset link "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingEquipmentNote(item){await refreshZohoToken();var r=await zohoProxyFetch({action:"save_equipment_note",equipment_id:item.equipmentId,note_title:item.noteTitle,note_content:item.noteContent},30000);if(!r.ok){var txt=await r.text();throw new Error("Equipment note "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingDealAssetNote(item){await refreshZohoToken();var r=await zohoProxyFetch({action:"save_note",deal_id:item.dealId,note_title:item.noteTitle,note_content:item.noteContent},30000);if(!r.ok){var txt=await r.text();throw new Error("Deal asset note "+r.status+": "+txt.substring(0,120));}}
 function enqueueReportNoteSave(payload,error){
   if(!payload||!payload.deal_id||!payload.note_content)return;
   var items=getPendingUploads();
@@ -5593,8 +5634,8 @@ function enqueueReportNoteSave(payload,error){
 }
 async function uploadPendingReportNote(item){
   await refreshZohoToken();
-  var payload={action:item.noteId?"update_note":"save_note",token:A.zohoToken,deal_id:item.dealId,note_id:item.noteId||null,note_title:item.noteTitle,note_content:item.noteContent};
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
+  var payload={action:item.noteId?"update_note":"save_note",deal_id:item.dealId,note_id:item.noteId||null,note_title:item.noteTitle,note_content:item.noteContent};
+  var r=await zohoProxyFetch(payload,30000);
   if(!r.ok){var txt=await r.text();throw new Error("Zoho note "+r.status+": "+txt.substring(0,120));}
 }
 async function buildReportPdfPayload(){
@@ -5630,7 +5671,7 @@ function enqueueReportPdfUpload(type,payload,error){
   if(exists)return;
   enqueuePendingUpload({type:type,dealId:payload.dealId,folderId:payload.folderId||null,filename:payload.filename,fileB64:payload.b64,mimeType:"application/pdf",assetLabel:type==="deal_pdf"?"Deal PDF attachment":"WorkDrive report PDF",error:error||""});
 }
-async function uploadPendingDealPdf(item){await refreshZohoToken();var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:item.dealId,filename:item.filename,file_b64:item.fileB64,mime_type:item.mimeType||"application/pdf"})},90000);if(!r.ok){var txt=await r.text();throw new Error("Deal PDF "+r.status+": "+txt.substring(0,120));}}
+async function uploadPendingDealPdf(item){await refreshZohoToken();var r=await zohoProxyFetch({action:"upload_deal_attachment",deal_id:item.dealId,filename:item.filename,file_b64:item.fileB64,mime_type:item.mimeType||"application/pdf"},90000);if(!r.ok){var txt=await r.text();throw new Error("Deal PDF "+r.status+": "+txt.substring(0,120));}}
 async function uploadPendingWorkDrivePdf(item){await refreshZohoToken();var folderId=item.folderId||WORKDRIVE_FOLDER;var link=await uploadToWorkDrive(item.fileB64,item.filename,item.mimeType||"application/pdf",folderId,90000);if(link)A.workdrivePdfUrl=link;}
 function getPendingUploads(){try{return JSON.parse(localStorage.getItem("fp_pending_uploads")||"[]");}catch(e){return[];}}
 function savePendingUploads(items){try{localStorage.setItem("fp_pending_uploads",JSON.stringify(items));}catch(e){showToast("Could not save pending sync item",5000);}renderPendingUploads();if(typeof renderHistory==="function")renderHistory();compactPendingUploads();if(items&&items.length)schedulePendingUploadRetry("queue_saved",5000);}
@@ -5710,7 +5751,7 @@ async function uploadPendingAssetPhoto(item){
   var b64=await compressPhoto(item.imageData,1200,0.8);
   if(!b64)throw new Error("Could not compress pending photo");
   await refreshZohoToken();
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:item.equipmentId,filename:item.filename||"asset-photo.jpg",image_b64:b64})},45000);
+  var r=await zohoProxyFetch({action:"upload_equipment_photo",equipment_id:item.equipmentId,filename:item.filename||"asset-photo.jpg",image_b64:b64},45000);
   if(!r.ok){var txt=await r.text();throw new Error("Photo upload "+r.status+": "+txt.substring(0,120));}
 }
 async function retryPendingUploads(opts){
@@ -6086,7 +6127,7 @@ function setupAssetFieldAiButtons(){
 }
 function sanitizeAssetFilePart(s){return String(s||"").replace(/[^a-z0-9_-]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80)||"asset";}
 async function getEquipmentRecord(equipmentId){
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_equipment",token:A.zohoToken,equipment_id:equipmentId})},30000);
+  var r=await zohoProxyFetch({action:"get_equipment",equipment_id:equipmentId},30000);
   if(!r.ok)return null;
   var d={};try{d=await r.json();}catch(e){}
   return d&&d.data&&d.data[0]||null;
@@ -6284,7 +6325,7 @@ async function saveAssetToZoho(){
           if(!b64)throw new Error("Could not compress nameplate photo");
           var photoFilename=await assetPhotoAttachmentName(assetFilePrefix,ap,upi);
           try{
-            var pr=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_equipment_photo",token:A.zohoToken,equipment_id:equipmentId,filename:photoFilename,image_b64:b64})},45000);
+            var pr=await zohoProxyFetch({action:"upload_equipment_photo",equipment_id:equipmentId,filename:photoFilename,image_b64:b64},45000);
             if(!pr.ok){var pt=await pr.text();throw new Error("Photo upload "+pr.status+": "+pt.substring(0,120));}
             A.asset.lastUploadedPhotoFingerprints[ap.fingerprint]=true;
           }catch(onePhotoErr){
@@ -7073,13 +7114,12 @@ async function zohoSave(){
     if(!A.zohoNoteId){try{await findExistingZohoNote();}catch(fe){console.log("findExistingZohoNote:",fe);}}
     var payload={
       action:A.zohoNoteId?"update_note":"save_note",
-      token:A.zohoToken,
       deal_id:A.sel.id,
       note_id:A.zohoNoteId||null,
       note_title:zohoNoteTitle(),
       note_content:buildZohoNote()
     };
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},ZOHO_FETCH_MS);
+    var r=await zohoProxyFetch(payload,ZOHO_FETCH_MS);
     if(r.ok){
       var d={};try{d=await r.json();}catch(pe){}
       var noteId=zohoNoteIdFromResponse(d)||A.zohoNoteId||null;
@@ -7259,8 +7299,7 @@ async function resolveDealFolder(){
     await refreshZohoToken();
     var name=dealFolderName();
     showUploadStatus("Opening WorkDrive folder: "+name,false);
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"workdrive_get_or_create_folder",token:A.zohoToken,parent_id:WORKDRIVE_FOLDER,folder_name:name})},ZOHO_FETCH_MS);
+    var r=await zohoProxyFetch({action:"workdrive_get_or_create_folder",parent_id:WORKDRIVE_FOLDER,folder_name:name},ZOHO_FETCH_MS);
     var d=JSON.parse(await r.text());
     if(d.ok&&d.folder_id&&d.folder_id!==WORKDRIVE_FOLDER&&!d.fallback){
       A.workdriveFolderUrl=d.folder_url||("https://workdrive.zoho.com/folder/"+d.folder_id);
@@ -7295,15 +7334,14 @@ function parseWorkDriveLink(txt){
     }
     return attrs.permalink||attrs.download_url||attrs.web_url||(rid?"https://workdrive.zoho.com/file/"+rid:null);
   }catch(e){
-    var m=txt.match(/[a-z0-9]{30,}/i);
+    var m=txt.match(/[a-z0-9]{30}/i);
     if(m&&txt.indexOf("error")<0)return"https://workdrive.zoho.com/file/"+m[0];
     return null;
   }
 }
 async function uploadToWorkDrive(b64,filename,mimeType,folderId,timeoutMs){
   var target=folderId||WORKDRIVE_FOLDER;
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"workdrive_upload",token:A.zohoToken,folder_id:target,filename:filename,file_b64:b64,mime_type:mimeType})},timeoutMs||UPLOAD_FETCH_MS);
+  var r=await zohoProxyFetch({action:"workdrive_upload",folder_id:target,filename:filename,file_b64:b64,mime_type:mimeType},timeoutMs||UPLOAD_FETCH_MS);
   var txt=await r.text();
   console.log("WorkDrive response:",r.status,txt.substring(0,300));
   if(!r.ok)throw new Error("WorkDrive "+r.status+": "+txt.substring(0,120));
@@ -7431,7 +7469,7 @@ async function uploadReportPdfToDealAttachment(){
     return false;
   }
   var fname=workdrivePdfFileName();
-  var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"upload_deal_attachment",token:A.zohoToken,deal_id:A.sel.id,filename:fname,file_b64:b64,mime_type:"application/pdf"})},90000);
+  var r=await zohoProxyFetch({action:"upload_deal_attachment",deal_id:A.sel.id,filename:fname,file_b64:b64,mime_type:"application/pdf"},90000);
   var txt=await r.text();
   if(!r.ok)throw new Error("Deal attachment "+r.status+": "+txt.substring(0,120));
   A.dealPdfAttached=true;
@@ -8274,7 +8312,7 @@ async function saveInboxToZoho(itemId){
     await refreshZohoToken();
     var title="CapStone Inbox — "+(item.dealName||"Deal")+" — "+new Date().toLocaleDateString();
     var content=body+"\n\n---\nSource: "+(item.source||"inbox")+"\nInbox item: "+item.id;
-    var r=await fetchWithTimeout(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save_note",token:A.zohoToken,deal_id:item.dealId,note_title:title,note_content:content})},30000);
+    var r=await zohoProxyFetch({action:"save_note",deal_id:item.dealId,note_title:title,note_content:content},30000);
     if(!r.ok){var err=await r.text();throw new Error("Zoho save "+r.status+": "+err.substring(0,120));}
     item.status="synced";
     item.zohoSavedAt=new Date().toISOString();
