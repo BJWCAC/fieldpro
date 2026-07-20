@@ -28,7 +28,7 @@ As of **v357**, Zoho access tokens also stay on the server. CapStone never recei
 CAPSTONE_APP_SECRET
 ```
 
-Set `CAPSTONE_APP_SECRET` to the same value as `PROXY_APP_SECRET` in `src/app.js` (or override per device with Settings → Save Proxy Secret / `localStorage.fp_proxy_secret`). Optional:
+Set `CAPSTONE_APP_SECRET` to the same value as `PROXY_APP_SECRET` in `src/app.js` (or override per device with Settings → Save Proxy Secret / `localStorage.fp_proxy_secret`). A **401** from Check Zoho Proxy means this env var is missing or does not match the client — fix the value, then redeploy. Optional:
 
 ```text
 CAPSTONE_ALLOWED_ORIGINS=https://bjwcac.github.io,http://localhost:8000

@@ -5286,10 +5286,20 @@ async function checkZohoProxyDeploy(silent){
   var statusEl=el("zoho-proxy-status");
   if(statusEl&&!silent)statusEl.textContent="Checking Zoho proxy...";
   try{
-    await refreshZohoToken();
+    // Ping first — needs CapStone app secret only (no Zoho OAuth).
     var r=await zohoProxyFetch({action:"ping_proxy"},15000);
     var txt=await r.text();
     var d={};try{d=JSON.parse(txt);}catch(e){}
+    if(r.status===401||r.status===403||(/Unauthorized|app secret/i.test(String(d.error||"")))){
+      var secretMsg="CapStone app secret rejected ("+(r.status||"401")+"). Netlify → Site configuration → Environment variables: set CAPSTONE_APP_SECRET to the exact same value as PROXY_APP_SECRET in this CapStone build (or paste your Netlify value into Settings → Proxy app secret override → Save). Then Deploys → Clear cache and deploy site, and Check Zoho Proxy again.";
+      if(statusEl)statusEl.textContent=secretMsg;
+      return{ok:false,message:secretMsg,status:r.status};
+    }
+    if(r.status===503||/CAPSTONE_APP_SECRET|not configured/i.test(String(d.error||""))){
+      var missingMsg="Netlify CAPSTONE_APP_SECRET is not set. Add it (same value as PROXY_APP_SECRET in this build), then Clear cache and deploy site.";
+      if(statusEl)statusEl.textContent=missingMsg;
+      return{ok:false,message:missingMsg,status:r.status};
+    }
     if(!r.ok||!d.ok){
       var failMsg="Zoho proxy check failed ("+(r.status||"?")+"). In Netlify: Deploys → Trigger deploy → Clear cache and deploy site. Then Settings → Check Zoho Proxy.";
       if(statusEl)statusEl.textContent=failMsg;
@@ -5305,6 +5315,12 @@ async function checkZohoProxyDeploy(silent){
       var authMsg="Zoho proxy build "+d.proxy_build+" is missing server-side auth — redeploy zoho-proxy build "+MIN_ZOHO_PROXY_BUILD+"+ and set CAPSTONE_APP_SECRET.";
       if(statusEl)statusEl.textContent=authMsg;
       return{ok:false,message:authMsg,proxy_build:build};
+    }
+    var authOk=await refreshZohoToken(true);
+    if(!authOk){
+      var zohoMsg="Proxy secret OK (build "+d.proxy_build+"), but Zoho OAuth failed — "+zohoRefreshFailMsg();
+      if(statusEl)statusEl.textContent=zohoMsg;
+      return{ok:false,message:zohoMsg,proxy_build:build};
     }
     var okMsg="Zoho proxy OK (build "+d.proxy_build+") — server-side Zoho auth + app secret ready.";
     if(statusEl)statusEl.textContent=okMsg;
