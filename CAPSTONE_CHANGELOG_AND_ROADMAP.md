@@ -189,7 +189,7 @@ Related docs (detail, not status):
 
 | Date | What shipped |
 |------|--------------|
-| 2026-07-20 | `docs/CAPSTONE_PROGRAM_REVIEW_2026-07.md` — full independent program review (security, reliability in/out of service, efficiency, architecture) + prioritized roadmap; structured to merge with the separate Grok review |
+| 2026-07-20 | `docs/CAPSTONE_PROGRAM_REVIEW_2026-07.md` — merged Cursor + Grok program review (security, reliability in/out of service, efficiency, architecture) with a single unified phased roadmap; notes the v357/PR #246 lockdown already shipped |
 | 2026-06-25 | `README.md` — sync milestone build to v307; add Inbox, Accounts Map, and asset category layouts; update versioned URLs |
 | 2026-06-08 | `CAPSTONE_CHANGELOG_AND_ROADMAP.md` — living status doc |
 | 2026-06-08 | `PLAUD_INTEGRATION.md` — Plaud Note Pro division of labor, Inbox tab, Fork A/B sequencing |
