@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=360"/>
+<link rel="stylesheet" href="src/styles.css?v=361"/>
 
 </head>
 <body autocomplete="off">
@@ -369,7 +369,6 @@
     </div>
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 3 per type). Nameplate values win; research only fills empty fields — confirm everything before saving.</div></div>
     <button class="bb-lg" id="asset-research-btn" onclick="researchAndPrefillAsset()" style="display:none;margin-bottom:8px;width:100%">Research &amp; prefill</button>
-    <div id="asset-prefill-banner" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px;margin-bottom:10px"></div>
     <div class="g2" style="margin-bottom:8px">
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
@@ -408,6 +407,7 @@
     <div style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
     <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
+    <div id="asset-prefill-banner" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px;margin-top:10px"></div>
     <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none">Start New Asset</button></div>
     <div id="asset-status" class="err-box" style="display:none;margin-top:10px"></div>
     <button class="bd-lg" id="asset-delete-btn" onclick="deleteLoadedAsset()" style="display:none;margin-top:10px">Delete Asset from Zoho</button>
@@ -1007,8 +1007,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=360"></script>
-<script src="src/app.js?v=360"></script>
+<script src="src/accounts-map.js?v=361"></script>
+<script src="src/app.js?v=361"></script>
 
 </body>
 </html>
