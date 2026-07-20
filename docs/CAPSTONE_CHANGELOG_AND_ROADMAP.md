@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-07-20
-Current live version: v359
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=359
+Current live version: v360
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=360
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v360 | — | **Asset save status moved below the Save button** — the `#asset-status` box (save results, "Cannot save yet: …" validation messages) used to sit at the very top of the Add Asset card, so after tapping Save on the long form the technician had to scroll back up to see what happened. It now renders directly under **Save Asset to Zoho / Start New Asset**. While the entry form is hidden (setup/search phase) `assetStatus()` moves the box back to the top of the card so search/load messages stay visible. |
 | v359 | — | **Don't require an account pick when updating a loaded asset** — drafts saved under v357 stored the loaded asset's account with a blanked ID (side effect of the v357 regex regression), and Update Existing mode has no "Account only — pick account" button, so those restored drafts were stuck on "Zoho Account … required" even after v358. Since the update payload already omits `Account` when no valid ID is on hand (Zoho keeps the record's existing account lookup), `validateAssetForm()` now skips the account/deal requirement whenever an existing asset is loaded (`currentAssetId` set); the save checklist shows "Update keeps the asset's existing Zoho account." instead of a red item. |
 | v358 | — | **Fix asset save/update "Zoho Account … required" regression (v357)** — the v357 lock-down accidentally changed the Zoho record-ID checks in `isZohoLookupRecordId()` and `resolveEngineeringUnitLookupId()` from "10 or more digits" to "exactly 10 digits". Real Zoho CRM record IDs are 18–19 digits, so every account/equipment ID failed validation: updating a loaded asset (e.g. AMD1073) toasted "Zoho Account (tap Account only — pick account) required", new-asset saves failed the Account check, and loading a record could throw "invalid equipment record ID". Restored the `10,` quantifier in both regexes. |
 | v357 | #246 | **Zoho proxy lock-down** — require `CAPSTONE_APP_SECRET` on every `zoho-proxy` call; restrict CORS to CapStone origins; keep Zoho OAuth access tokens server-side only (browser never receives/stores them). Client uses `ensure_auth` + `zohoProxyFetch`; Settings can override secret via `fp_proxy_secret`. Proxy build **287**. |

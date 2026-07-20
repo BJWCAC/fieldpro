@@ -343,7 +343,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="359";
+var FP_VERSION="360";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2282,7 +2282,24 @@ function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++)
 
 
 // ASSETS / EQUIPMENTS
-function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
+// The status box lives under the Save/Update button so technicians see save
+// results without scrolling up. While the entry form is hidden (setup/search
+// phase) it is moved to the top of the card so search/load messages stay visible.
+function placeAssetStatusBox(e){
+  try{
+    var panel=el("asset-entry-panel");
+    var formVisible=!!panel&&panel.style.display!=="none";
+    if(formVisible){
+      var saveBtn=el("asset-save-btn");
+      var row=saveBtn?saveBtn.parentElement:null;
+      if(row&&row.parentElement&&row.nextElementSibling!==e)row.parentElement.insertBefore(e,row.nextSibling);
+    }else{
+      var top=el("asset-draft-status");
+      if(top&&top.parentElement&&e.nextElementSibling!==top)top.parentElement.insertBefore(e,top);
+    }
+  }catch(err){console.log("placeAssetStatusBox",err);}
+}
+function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;placeAssetStatusBox(e);if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
 function setAssetInput(id,val){var e=el(id);if(e){e.value=val||"";if(id.indexOf("asset-")===0&&id!=="asset-status"&&typeof updateAssetSaveState==="function"){setTimeout(updateAssetSaveState,0);if(id!=="asset-draft-status")scheduleAssetDraftSave();}if((id==="asset-brand-other"||id==="asset-series-other")&&assetInput("asset-category")&&categoryLayout(assetInput("asset-category")))setTimeout(refreshCategoryFieldDefaultsOnly,0);}}
 function assetPicklists(){return A.equipmentConfig&&A.equipmentConfig.modules&&A.equipmentConfig.modules.Equipments&&A.equipmentConfig.modules.Equipments.picklists||{};}
