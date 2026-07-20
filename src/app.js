@@ -343,7 +343,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="358";
+var FP_VERSION="359";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -3940,13 +3940,14 @@ function renderAssetSaveChecklist(){
   var missing=markAssetRequiredFields();
   var hasDeal=!!A.sel&&A.asset.linkMode!=="account";
   var hasAccount=!!assetSaveAccountId();
+  var keepsAccount=!hasAccount&&!!A.asset.currentAssetId;
   var hasIntent=!!A.asset.intent;
   var updateReady=A.asset.intent!=="update"||!!A.asset.currentAssetId;
   var photoCount=A.asset.photos.length,pendingCount=getPendingUploads().length;
   var html="<div class='stitle' style='margin-bottom:8px'>Asset Save Checklist</div>"+
     reportChecklistItem(hasIntent,"Add or update selected",A.asset.intent==="update"?"Update Existing Asset":(A.asset.intent==="add"?"Add New Asset":"Choose Add New or Update Existing first."))+
     reportChecklistItem(assetEntryReady()||A.asset.intent!=="add","Setup complete",assetEntryReady()?(A.asset.intent==="update"?"Asset loaded — form ready.":(A.asset.linkMode==="deal"?"Deal linked — form ready.":"Account picked — form ready.")):(A.asset.intent==="update"?"Search and load an existing asset.":(A.asset.intent==="add"?(A.asset.linkMode==="deal"?"Pick a deal to continue.":"Pick an account to continue."):"Select Add New or Update Existing.")))+
-    reportChecklistItem(hasAccount,"Account for Equipments",hasAccount?(assetSaveAccountName()||"Account ready"):"Pick a deal or use Account only — pick account.")+
+    reportChecklistItem(hasAccount||keepsAccount,"Account for Equipments",hasAccount?(assetSaveAccountName()||"Account ready"):(keepsAccount?"Update keeps the asset's existing Zoho account.":"Pick a deal or use Account only — pick account."))+
     reportChecklistItem(!hasDeal||hasAccount,"Deal link (optional)",hasDeal?"Will link asset to the active Deal after save.":"Saving to account only — no deal link.")+
     reportChecklistItem(!missing.length,"Required fields complete",missing.length?missing.join(", "):"All required asset fields are complete.")+
     reportChecklistItem(updateReady,"Existing asset loaded",A.asset.intent==="update"?(updateReady?"Loaded existing asset will be updated.":"Search and load an existing asset first."):"Not required for Add New Asset.")+
@@ -5252,7 +5253,10 @@ function reopenSavedAsset(idx){
 }
 function validateAssetForm(){
   var missing=markAssetRequiredFields().concat(markDynamicRequiredFields()).concat(markSubformRequiredFields());
-  if(A.asset.linkMode==="account"){
+  if(A.asset.currentAssetId){
+    // Updating a loaded asset: the update payload omits Account when no valid
+    // ID is on hand, so Zoho keeps the record's existing Account lookup.
+  }else if(A.asset.linkMode==="account"){
     if(!assetSaveAccountId())missing.unshift("Zoho Account (tap Account only — pick account)");
   }else{
     if(!A.sel)missing.unshift("Deal (pick Add New → Pick deal & link)");
