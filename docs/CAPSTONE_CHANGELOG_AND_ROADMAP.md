@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-07-20
-Current live version: v361
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=361
+Last updated: 2026-07-21
+Current live version: v362
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=362
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v362 | — | **Asset extraction fills more fields + 6 photos per label type + easier label switching** — (1) Nameplate extraction now also captures tag/customer asset number, process range (→ Input PV @ Zero/Span + Input Engineering Units), gas type (→ Gas Sensor Type/s), scale class, and display resolution (d=), and maps them into the category fields instead of only dumping them into Nameplate Additional Info; printed units are normalized to Zoho picklist values (GPM→GPM US, °F→Degrees F, inWC→In H2O, …); output signal and pipe size also fall back to the ratings/visible-text blocks; when no Asset Category is picked yet, a clearly gas/scale/flow nameplate auto-selects the category (toast, changeable). Values that can't land in a field still go to Additional Info. (2) Photo label limits raised from 3/3/6 to **6 transmitter, 6 sensor, 6 other**, and extraction now sends up to 5 photos per type to the AI. (3) The Label This Photo dialog is easier to use: each type button shows a live count (e.g. `2/6`) and greys out when full, tapping a full type explains why, a full default type auto-selects one with room, **Use Default** never dead-ends on a full type, and Use Label is blocked while the selected type is full. |
 | v361 | — | **AI prefill confirmation banner moved above the Save button** — the "N AI-prefilled fields need review / Confirm prefilled fields" banner (`#asset-prefill-banner`) used to sit near the top of the asset form (under the photo/extract buttons), so after reviewing the long form the technician had to scroll back up to confirm before saving. It now renders between Deal Asset Notes and **Save Asset to Zoho**, right where the blocked save happens. |
 | v360 | — | **Asset save status moved below the Save button** — the `#asset-status` box (save results, "Cannot save yet: …" validation messages) used to sit at the very top of the Add Asset card, so after tapping Save on the long form the technician had to scroll back up to see what happened. It now renders directly under **Save Asset to Zoho / Start New Asset**. While the entry form is hidden (setup/search phase) `assetStatus()` moves the box back to the top of the card so search/load messages stay visible. |
 | v359 | — | **Don't require an account pick when updating a loaded asset** — drafts saved under v357 stored the loaded asset's account with a blanked ID (side effect of the v357 regex regression), and Update Existing mode has no "Account only — pick account" button, so those restored drafts were stuck on "Zoho Account … required" even after v358. Since the update payload already omits `Account` when no valid ID is on hand (Zoho keeps the record's existing account lookup), `validateAssetForm()` now skips the account/deal requirement whenever an existing asset is loaded (`currentAssetId` set); the save checklist shows "Update keeps the asset's existing Zoho account." instead of a red item. |

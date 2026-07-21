@@ -44,18 +44,19 @@ var VOICE_CORRECTIONS=[
 function applyCorrections(t){VOICE_CORRECTIONS.forEach(function(c){t=t.replace(c.from,c.to);});return t;}
 
 var ASSET_AI_FIELD_IDS=["asset-description","asset-deal-notes","asset-building","asset-designator"];
-var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number, order_number, part_number, series, serial_number, k_factor, cal_factor, nominal_diameter, output_signal, power_supply, engineering_units, enclosure_rating, ratings, visible_text";
+var ASSET_EXTRACT_JSON_KEYS="manufacturer, asset_type, device_name, model_number, order_number, part_number, series, serial_number, k_factor, cal_factor, nominal_diameter, output_signal, power_supply, engineering_units, enclosure_rating, tag_number, range, gas_type, scale_class, display_resolution, ratings, visible_text";
 var ASSET_PART_PREFIX_SERIES=[{prefix:"174111",series:"Ultra 4",brand:"Pulsar",assetType:"Ultrasonic Flow"}];
 var ASSET_EXTRACT_ULTRA4="Pulsar Ultra 4 flow controller: If Part Number (P/N) or model/order code digits start with 174111 (example 1741110002XX-XXP), Asset Series = Ultra 4, Brand = Pulsar, Asset Type = Ultrasonic Flow. Keep the full catalog string as Model Number.";
 var ASSET_EXTRACT_MAGMETER_CAL="Magnetic flow meter calibration (all brands): Most magmeters show Cal Factor, Cal. Fact., Calibration Factor, K-Factor, or K Factor on the nameplate. Put that numeric value in k_factor (and cal_factor if needed). This maps to the Zoho Cal Factor field — do not omit when visible on the plate.";
 var ASSET_EXTRACT_EH_MAGMETER="Endress+Hauser magnetic flow meter (Promag) nameplate rules:\n- device_name → Asset Series: transmitter/product family exactly as printed (e.g. Proline Promag W 400, Promag 50P). NOT the order code.\n- order_number → Asset Model Number: FULL Order Code (Ord. Cd. / Order code), e.g. 5W4B80-AAI7/0. Copy the entire string including slashes and suffixes.\n- serial_number: Ser. No. exactly (often ~11 chars, e.g. M801B416000).\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor (e.g. 1.2345) → Cal Factor field.\n- nominal_diameter: DN / pipe size if shown (e.g. DN 80 / 3 inch).\n- ratings: combine DN, PN, liner, electrodes, power supply, enclosure IP, outputs if readable (exclude cal factor if already in k_factor).\n- asset_type: Magnetic Flow Meter when applicable.\nDo NOT put Order Code in series. Do NOT truncate Order Code.";
-var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n- output_signal: output/signal type if printed (e.g. 4-20 mA, 4-20mA HART, pulse/frequency, Modbus RTU, 0-10V, relay). Copy exactly as shown.\n- power_supply: supply/input power if printed (e.g. 24 VDC, 90-264 VAC, 120 VAC, loop-powered).\n- engineering_units: process/display units if printed (e.g. GPM, MGD, m3/h, PSI, degF).\n- enclosure_rating: enclosure/ingress rating if printed (e.g. NEMA 4X, IP67).\nOnly fill output_signal / power_supply / engineering_units / enclosure_rating when actually printed on the plate — else null. Do not infer from the model number here.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_ULTRA4+"\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
+var ASSET_EXTRACT_PROMPT="Extract equipment nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields (critical):\n- series → Asset Series: SHORT family/product line OR Endress+Hauser device_name (Promag family).\n- model_number → Asset Model Number: FULL model/order string exactly as printed.\n- order_number: Endress+Hauser Order Code (Ord. Cd.) — full value, also use for model_number.\n- device_name: Endress+Hauser transmitter type (maps to series).\n- part_number: only if separate P/N different from Model/Order.\n- serial_number → Serial Number.\n- k_factor / cal_factor → Cal Factor field on magnetic flow meters.\n- nominal_diameter: capture when visible.\n- output_signal: output/signal type if printed (e.g. 4-20 mA, 4-20mA HART, pulse/frequency, Modbus RTU, 0-10V, relay). Copy exactly as shown.\n- power_supply: supply/input power if printed (e.g. 24 VDC, 90-264 VAC, 120 VAC, loop-powered).\n- engineering_units: process/display units if printed (e.g. GPM, MGD, m3/h, PSI, degF).\n- enclosure_rating: enclosure/ingress rating if printed (e.g. NEMA 4X, IP67).\n- tag_number → Customer Asset Number: customer TAG / asset ID printed on the plate or an attached tag (e.g. TAG NO, FIT-101, Asset #). NOT the serial or model.\n- range → Input PV Zero/Span: calibrated/measuring PROCESS range with units exactly as printed (e.g. 0-150 PSI, 0 to 30 ft, 0-2000 GPM). NEVER the 4-20 mA output range.\n- gas_type: gas detectors only — the monitored gas as printed (e.g. CL2, O2, H2S, LEL, CO, NH3, SO2, NO2, O3, ClO2).\n- scale_class: scales/balances only — accuracy class as printed (e.g. Class III, IIIL).\n- display_resolution: display readability/resolution d= or e= value as a number (e.g. 0.01).\nOnly fill output_signal / power_supply / engineering_units / enclosure_rating / tag_number / range / gas_type / scale_class / display_resolution when actually printed — else null. Do not infer from the model number here.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\nRosemount example: Series 8750, Model Number 8750WM4AXD1DA2, Serial 210642244.\n\n"+ASSET_EXTRACT_ULTRA4+"\n\n"+ASSET_EXTRACT_EH_MAGMETER+"\n\nDo not guess unreadable characters.";
 var ASSET_EXTRACT_SENSOR_JSON_KEYS="sensor_model_number, sensor_serial_number, order_number, part_number, manufacturer, model_number, serial_number, k_factor, cal_factor, nominal_diameter, ratings, visible_text";
 var ASSET_EXTRACT_EH_SENSOR="Endress+Hauser Promag sensor / flow-tube label rules:\n- sensor_model_number → Sensor Model Number: FULL order code on the sensor or flow-tube tag (often different from the transmitter Order Code).\n- sensor_serial_number → Sensor Serial Number: Ser. No. on the sensor tag.\n- order_number / part_number: use for sensor_model_number when that is the order or part code on the sensor label.\n- serial_number: use for sensor_serial_number when Ser. No. is on the sensor tag.\n- k_factor / cal_factor: Cal. Fact. / Calibration Factor / K-Factor on the sensor tag → Cal Factor field (same Zoho field as transmitter).\n- nominal_diameter / ratings: capture DN, liner, electrodes, PN when visible.";
 var ASSET_EXTRACT_SENSOR_PROMPT="Extract sensor / flow-tube / measuring-tube nameplate details from these photos for a Zoho Equipments record. Return ONLY minified valid JSON, no markdown, no comments, no trailing commas. Use exactly these keys: "+ASSET_EXTRACT_SENSOR_JSON_KEYS+". All values must be strings or null.\n\nMap to Zoho CRM fields:\n- sensor_model_number → Sensor Model Number (sensor body model, order code, or part number on the sensor label).\n- sensor_serial_number → Sensor Serial Number (Ser. No. on the sensor label).\n- order_number / part_number / model_number: map to sensor_model_number when they are the sensor order or part code.\n- serial_number: map to sensor_serial_number when it is the sensor serial.\n- k_factor / cal_factor → Cal Factor field (Cal. Fact., calibration factor, K-factor on sensor or flow-tube label).\n- manufacturer: sensor brand if shown.\n- nominal_diameter / ratings / visible_text: liner, electrodes, DN, PN, or other sensor-only details.\n\n"+ASSET_EXTRACT_MAGMETER_CAL+"\n\n"+ASSET_EXTRACT_EH_SENSOR+"\n\nDo not guess unreadable characters.";
 var ASSET_PHOTO_ROLES={transmitter:{label:"Transmitter label",short:"transmitter-label"},sensor:{label:"Sensor label",short:"sensor-label"},other:{label:"Other",short:"other"}};
-var ASSET_PHOTO_ROLE_LIMITS={transmitter:3,sensor:3,other:6};
+var ASSET_PHOTO_ROLE_LIMITS={transmitter:6,sensor:6,other:6};
 var ASSET_PHOTO_ROLE_DEFAULT="transmitter";
+var ASSET_EXTRACT_MAX_PHOTOS=5;
 var MODEL_AI_SPECS_SYSTEM_PROMPT="You write the Model_AI_Specs field on a Zoho CRM Equipments record for a calibration company (Calibrations & Controls). Full rules: docs/CALIBRATION_SPEC_RULES.md in this repo — keep this prompt in sync with that file.\n\nFIRST, before writing anything, DO A DEEP, THOROUGH WEB SEARCH — do not answer from memory. Run SEVERAL targeted searches, not just one: (1) \"<Asset_Brand> <Asset_Model_Number> datasheet\", (2) \"<Asset_Brand> <Asset_Model_Number> accuracy specification\", (3) the manufacturer operating/instruction manual, and (4) a query for the specific accuracy basis (e.g. \"% of reading\" vs \"% of span\") whenever the first results are unclear. If Asset_Brand is a generic \"Other\" value (e.g. \"1 Other\") and an If_Asset_Brand_Other_explain value is provided, treat that explain text as the real brand/manufacturer and use it in place of Asset_Brand for the search and the spec. Decode the FULL model/order code (options, sensor size, output) — do not stop at the family name. Prefer the MANUFACTURER's own datasheet; when the first source is ambiguous, incomplete, or looks wrong, open a SECOND independent source and cross-check the figure before committing to it. Read the published accuracy, zero/span, ranges, and resolution from what you actually found and base every number on it — a figure confirmed by search always beats a remembered one. In the [AI-gen] line cite the source you used (manufacturer or domain). Only write NOT VERIFIED after a genuine search fails to surface a trustworthy figure. Never invent a number and never guess at unreadable model codes.\n\nOutput plain text only — NO HTML tags, no markdown, no bullet asterisks, under 1900 characters. Write every section title and field label in ALL CAPS. Do NOT wrap anything in <b> tags or any other markup; the field cannot render HTML and would show the tags as literal text.\n\nFormat, in this exact order:\nLine 1 — accuracy always first:\nACCURACY: plus/minus value — state the basis explicitly (OF READING, OF SPAN, OF FULL SCALE, OF RANGE, or absolute units; see table below). If not verified: NOT VERIFIED — confirm from manufacturer datasheet.\nZERO/LRL: value or how established\nSPAN/URL: value, or NOT SET BY THIS MODEL CODE + where to find it\nMINIMUM SPAN: value or n/a\nRESOLUTION: value\nGENERAL\n3-6 lines: type, sensor tech, output, supply, ratings, discontinued/successor status.\nCAL NOTES: 1-3 lines of practical field guidance a datasheet would not say — what fails, what to check first, what the spec hides. Write it for someone standing at the instrument with a calibrator (e.g. \"A poisoned catalytic bead reads LOW while still passing a zero check\" / \"Wear always reads LOW; test at three AWWA points\" / \"Simulating an RTD tests the transmitter, not the element\").\n[AI-gen: source, Month Year]\n\nAccuracy basis by instrument type (state one explicitly, always):\n% of READING/rate: magnetic flowmeters (all brands), vortex, propeller/turbine/AWWA, gas-detector span points, Coriolis, thermal-mass gas, clamp-on ultrasonic.\n% of SPAN: DP/gauge/absolute pressure transmitters.\n% of FULL SCALE: fixed-point gas monitors.\n% of RANGE/distance: ultrasonic level/open-channel; radar (FMR/FMP/VEGAPULS) is a fixed +/-2mm absolute.\nAbsolute units: Hach LDO (+/-0.1 mg/L), pH (+/-0.02 pH), CL17 (+/-5% reading or 0.04 mg/L floor), conductivity.\nNO single %: RTD/temp transmitters (two error terms, summed); balances/checkweighers/multihead (linearity+repeatability+readability, NIST mass); BTU meters (combined flow + 2 RTDs); displays/controllers/pumps/alarms have nothing to calibrate.\nFloor terms dominate at low signal (e.g. mag +/-1-2 mm/s floors) — call them out. Square-root DP flow: fixed span-% error becomes much larger % error in indicated flow at low flow.\n\nMetal detectors are verified with certified test spheres (ferrous/non-ferrous/stainless), NOT zero/span — pass/fail against the test-piece standard, not a % figure; note HACCP/BRC documented QA record and re-phasing on product changeover.\n\nSensor-model gap: many transmitters (Rosemount 8712/8732, Siemens MAG5000/6000 SENSORPROM, Krohne IFC GK value, Micro Motion FCF, Foxboro IMT25 Meter Factor, ABB MagMaster, Badger M2000, Hach sc) hold the real cal data on the SENSOR, not the transmitter model given — say so, do not invent a sensor model.\n\nFamily traps: Siemens/E+H mag cal factor lives in SENSORPROM/S-DAT on the sensor, transmitter swap needs no recal; clamp-on ultrasonic accuracy is dominated by entered pipe data (OD/wall/liner/velocity); absolute-pressure units cannot be vent-zeroed; gas: expired cal gas is the #1 span-failure cause, poisoned catalytic beads read LOW while still zeroing OK, IR LEL cannot detect hydrogen, O2 cells die on the calendar; Hach sc100/sc200 are controllers (sensor holds cal); pH has no zero (isopotential 7=0mV, span=slope, <90% slope=dying electrode); mechanical water meters use AWWA %-of-registration tested at three flow points, wear reads LOW; RTD transmitters have two error terms and simulating the RTD does not test the element; shop standards need 4:1 test uncertainty ratio.\n\nAccuracy rule: search first, then report what you found. If a web search does not surface the exact published figure for this model/family, write NOT VERIFIED — confirm from manufacturer datasheet. NEVER invent a numeric spec.\n\nIf the brand/model given is not a real, identifiable instrument (placeholder text, non-manufacturer brand, no usable model), respond with exactly: SKIP";
 function isUsableModelForAiSpecs(model,brand,brandOther){
   var m=String(model||"").trim();
@@ -343,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="361";
+var FP_VERSION="362";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4576,18 +4577,25 @@ function applyAssetExtraction(x){
   var serialVal=x.serial_number||x.serial||"";
   setAssetInput("asset-serial",serialVal);
   if(serialVal)markAssetPrefill("asset-serial","nameplate");
+  ensureCategoryFromExtraction(x);
   applyExtractedDynamicFields(x);
   var nameParts=[];if(manufacturer)nameParts.push(manufacturer);if(x.asset_type||x.equipment_type)nameParts.push(x.asset_type||x.equipment_type);
   if(seriesVal&&!nameParts.some(function(p){return p===seriesVal;}))nameParts.push(seriesVal);
   if(fullModel)nameParts.push(fullModel);
   if(!assetInput("asset-name")&&nameParts.length){setAssetInput("asset-name",nameParts.join(" "));markAssetPrefill("asset-name","nameplate");}
   var notes=[];
+  var dynVals=A.asset.dynamicValues||{};
   if(x.part_number&&x.part_number!==fullModel)notes.push("Part Number: "+x.part_number);
   if(x.order_number&&x.order_number!==fullModel)notes.push("Order Code: "+x.order_number);
   if(x.nominal_diameter)notes.push("Nominal Diameter: "+x.nominal_diameter);
   if(x.output_signal)notes.push("Output / Signal: "+x.output_signal);
   if(x.power_supply)notes.push("Power Supply: "+x.power_supply);
   if(x.enclosure_rating)notes.push("Enclosure: "+x.enclosure_rating);
+  if(x.tag_number&&!dynVals.Customer_Asset_Number)notes.push("Tag / Customer Asset Number: "+x.tag_number);
+  if(x.range&&dynVals.Input_PV_Zero==null&&dynVals.Input_PV_Span==null)notes.push("Range: "+x.range);
+  if(x.gas_type&&!dynVals.Gas_Sensor_Type&&!dynVals.Gas_Sensor_Type_s)notes.push("Gas Type: "+x.gas_type);
+  if(x.scale_class&&!dynVals.Scale_Class)notes.push("Scale Class: "+x.scale_class);
+  if(x.display_resolution&&dynVals.Display_Size_d_Readability==null)notes.push("Display Resolution: "+x.display_resolution);
   if(x.ratings)notes.push("Process / Electrical: "+x.ratings);
   if(x.visible_text)notes.push("Visible text: "+x.visible_text);
   if(notes.length){setAssetInput("asset-nameplate-additional",notes.join("\n"));markAssetPrefill("asset-nameplate-additional","nameplate");}
@@ -4632,8 +4640,9 @@ function applySensorExtraction(x){
     markAssetPrefill("dyn:Cal_Factor_K_Factor","nameplate");
     count++;
   }
-  if(x.nominal_diameter){
-    var pipeMatch=matchPipeSizeFromDiameter(String(x.nominal_diameter));
+  var sensorPipeSource=extractValTrim(x.nominal_diameter)||[x.ratings,x.visible_text].filter(Boolean).join("\n");
+  if(sensorPipeSource){
+    var pipeMatch=matchPipeSizeFromDiameter(String(sensorPipeSource));
     if(pipeMatch){A.asset.dynamicValues.Pipe_Size=pipeMatch;markDynamicFieldTouched("Pipe_Size");markAssetPrefill("dyn:Pipe_Size","nameplate");count++;}
   }
   if(notes.length){A.asset.dynamicValues.Sensor_Additional_Information=notes.join("\n");markDynamicFieldTouched("Sensor_Additional_Information");markAssetPrefill("dyn:Sensor_Additional_Information","nameplate");count++;}
@@ -4645,9 +4654,10 @@ function applyExtractedDynamicFields(x){
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   var cal=resolveExtractedCalFactor(x);
   if(cal)setCalFactorField(cal);
-  if(x.nominal_diameter){
-    var dn=String(x.nominal_diameter);
-    var pipeMatch=matchPipeSizeFromDiameter(dn);
+  var freeText=[x.ratings,x.visible_text].filter(Boolean).join("\n");
+  var pipeSource=extractValTrim(x.nominal_diameter)||freeText;
+  if(pipeSource){
+    var pipeMatch=matchPipeSizeFromDiameter(String(pipeSource));
     if(pipeMatch){
       A.asset.dynamicValues.Pipe_Size=pipeMatch;
       markDynamicFieldTouched("Pipe_Size");
@@ -4657,7 +4667,25 @@ function applyExtractedDynamicFields(x){
     }
   }
   if(x.engineering_units)prefillDynamicFromExtract("Engineering_Units",x.engineering_units,"nameplate");
-  if(x.output_signal)prefillDynamicFromExtract("Output_Engineering_Units",x.output_signal,"nameplate");
+  var outSignal=extractValTrim(x.output_signal)||extractOutputSignalFromText(freeText);
+  if(outSignal)prefillDynamicFromExtract("Output_Engineering_Units",outSignal,"nameplate");
+  if(x.tag_number)prefillDynamicFromExtract("Customer_Asset_Number",x.tag_number,"nameplate");
+  if(x.gas_type){
+    prefillDynamicFromExtract("Gas_Sensor_Type",x.gas_type,"nameplate");
+    prefillDynamicFromExtract("Gas_Sensor_Type_s",x.gas_type,"nameplate");
+  }
+  if(x.scale_class)prefillDynamicFromExtract("Scale_Class",x.scale_class,"nameplate");
+  if(x.display_resolution)prefillDynamicFromExtract("Display_Size_d_Readability",x.display_resolution,"nameplate");
+  var range=parseExtractedRange(x.range);
+  if(range){
+    prefillDynamicFromExtract("Input_PV_Zero",range.zero,"nameplate");
+    prefillDynamicFromExtract("Input_PV_Span",range.span,"nameplate");
+    if(range.units){
+      var rangeUnits=normalizeEngineeringUnitsValue(range.units)||range.units;
+      prefillDynamicFromExtract("Input_Engineering_Units",rangeUnits,"nameplate");
+      if(!x.engineering_units)prefillDynamicFromExtract("Engineering_Units",range.units,"nameplate");
+    }
+  }
   if(typeof renderAssetCategoryFields==="function"&&assetInput("asset-category"))syncAssetCategoryLayoutUi();
 }
 // Prefill a dynamic category field from an extracted/researched value, only when the field exists
@@ -4672,11 +4700,21 @@ function prefillDynamicFromExtract(api,rawVal,source){
   if(isDynamicFieldTouched(api)&&A.asset.dynamicValues&&A.asset.dynamicValues[api])return false;
   var storeVal=val;
   if(def.widget==="select"||def.widget==="picklist"){
-    var m=exactPicklistMatch(def.picklist||api,val);
+    var pk=def.picklist||api;
+    var m=exactPicklistMatch(pk,val)||normalizedPicklistMatchForField(pk,val);
     if(!m)return false;
     storeVal=m;
-  }else if(def.widget==="lookup"||def.widget==="multiselect"){
+  }else if(def.widget==="multiselect"){
+    var pkm=def.picklist||api;
+    var mm=exactPicklistMatch(pkm,val)||normalizedPicklistMatchForField(pkm,val);
+    if(!mm)return false;
+    storeVal=[mm];
+  }else if(def.widget==="lookup"){
     storeVal=[val];
+  }else if(def.widget==="number"||def.zohoType==="double"||def.zohoType==="integer"){
+    var num=parseNumericLoose(val);
+    if(!num)return false;
+    storeVal=num;
   }
   if(!A.asset.dynamicValues)A.asset.dynamicValues={};
   A.asset.dynamicValues[api]=storeVal;
@@ -4713,6 +4751,88 @@ function extractCalFactorFromText(text){
     if(m&&m[1])return m[1];
   }
   return null;
+}
+var ENGINEERING_UNIT_ALIASES={gpm:"GPM US",usgpm:"GPM US",galmin:"GPM US",gallonsperminute:"GPM US",mgd:"MGD US",usmgd:"MGD US",milliongallonsperday:"MGD US",gph:"GPH US",galhr:"GPH US",gallonsperhour:"GPH US",gpd:"GPD US",galday:"GPD US",gallonsperday:"GPD US",psi:"PSI",psig:"PSI",psia:"PSI",degf:"Degrees F",degreef:"Degrees F",degreesf:"Degrees F",fahrenheit:"Degrees F",degc:"Degrees C",degreec:"Degrees C",degreesc:"Degrees C",celsius:"Degrees C",inh2o:"In H2O",inchesh2o:"In H2O",inchh2o:"In H2O",inwc:"In H2O",inchwc:"In H2O",incheswc:"In H2O",fth2o:"FT H2O",feeth2o:"FT H2O",ftwc:"FT H2O",inhg:"in Hg",mgl:"mg/l",ppm:"ppm",percent:"Percent",pct:"Percent",ph:"pH",ft:"ft",feet:"ft",foot:"ft",inches:"Inches",inch:"Inches",gallons:"Gallons",gallon:"Gallons",gal:"Gallons",liters:"Liters",liter:"Liters",litres:"Liters",lmin:"L/min",lpm:"L/min",litersmin:"L/min",lb:"lb",lbs:"lb",pounds:"lb",lbshr:"lbs/hr",lbhr:"lbs/hr",poundsperhour:"lbs/hr",kg:"kg",kilograms:"kg",grams:"Grams",gram:"Grams",scfh:"SCFH",scfm:"SCFM",cubicft:"Cubic Ft",cubicfeet:"Cubic Ft",ft3:"Cubic Ft",btu:"Btu",mpa:"MPa"};
+function normalizeEngineeringUnitsValue(val){
+  var raw=String(val||"").trim();if(!raw)return"";
+  var exact=exactPicklistMatch("Engineering_Units",raw);if(exact)return exact;
+  var key=raw.toLowerCase().replace(/°/g,"deg").replace(/%/g,"percent").replace(/[^a-z0-9]/g,"");
+  return ENGINEERING_UNIT_ALIASES[key]||"";
+}
+function matchGasSensorType(val){
+  var raw=String(val||"").trim();if(!raw)return"";
+  var exact=exactPicklistMatch("Gas_Sensor_Type",raw);if(exact)return exact;
+  // Fold 0/O so plate text like "ClO2" matches CRM values spelled with zeros ("CL02").
+  var fold=function(s){return normalizePicklistCompare(s).replace(/0/g,"o");};
+  var norm=fold(raw);if(!norm)return"";
+  var vals=assetPicklistValues("Gas_Sensor_Type");
+  for(var i=0;i<vals.length;i++){
+    var parts=String(vals[i]).split("-");
+    var code=fold(parts[0]);
+    var name=fold(parts.slice(1).join("-"));
+    if(code&&norm===code)return vals[i];
+    if(name&&(norm===name||norm.indexOf(name)>=0))return vals[i];
+  }
+  return"";
+}
+function matchScaleClass(val){
+  var raw=String(val||"").trim();if(!raw)return"";
+  var m=raw.toUpperCase().match(/\b(IIII|IIIL|III|II|I)\b/);
+  var arab={"1":"I","2":"II","3":"III","4":"IIII"};
+  var key=m?m[1]:(arab[raw.replace(/[^0-9]/g,"")]||"");
+  if(!key)return"";
+  return exactPicklistMatch("Scale_Class",key)||"";
+}
+function normalizedPicklistMatchForField(field,val){
+  if(field==="Engineering_Units")return normalizeEngineeringUnitsValue(val);
+  if(field==="Gas_Sensor_Type"||field==="Gas_Sensor_Type_s")return matchGasSensorType(val);
+  if(field==="Scale_Class")return matchScaleClass(val);
+  var raw=String(val||"").trim();if(!raw)return"";
+  var norm=normalizePicklistCompare(raw);if(!norm)return"";
+  var vals=assetPicklistValues(field);
+  for(var i=0;i<vals.length;i++){if(normalizePicklistCompare(vals[i])===norm)return vals[i];}
+  return"";
+}
+function parseNumericLoose(v){
+  var m=String(v==null?"":v).replace(/,/g,".").match(/-?\d+(?:\.\d+)?/);
+  return m?m[0]:"";
+}
+function parseExtractedRange(rangeStr){
+  var s=String(rangeStr||"").trim();if(!s)return null;
+  if(/\bm\s*a\b|milliamp/i.test(s))return null;
+  var m=s.match(/(-?\d+(?:[.,]\d+)?)\s*(?:-|–|—|~|to|thru|through|\.\.\.?)\s*(-?\d+(?:[.,]\d+)?)\s*(.*)$/i);
+  if(!m)return null;
+  var units=String(m[3]||"").trim().replace(/^of\s+/i,"");
+  return{zero:m[1].replace(",","."),span:m[2].replace(",","."),units:units};
+}
+function extractOutputSignalFromText(text){
+  var s=String(text||"");if(!s)return null;
+  var m=s.match(/([0-4]\s*(?:-|–|to)\s*20\s*mA(?:\s*HART)?)/i);
+  if(m)return m[1].replace(/\s+/g," ");
+  if(/\bhart\b/i.test(s))return "4-20 mA HART";
+  if(/\bmodbus\b/i.test(s))return "Modbus";
+  return null;
+}
+function inferAssetCategoryFromExtract(x){
+  if(!x)return"";
+  if(extractValTrim(x.gas_type))return "Gas Detector";
+  if(extractValTrim(x.scale_class))return "Scales & Balances";
+  var t=String(x.asset_type||x.equipment_type||"").toLowerCase();
+  if(!t)return"";
+  if(/gas\s*(detect|monitor)|combustible|\blel\b/.test(t))return"Gas Detector";
+  if(/scale|balance|checkweigh/.test(t))return"Scales & Balances";
+  if(/open\s*channel|flume|weir/.test(t))return"Flow Open Channel";
+  if(/flow/.test(t))return"Flow Meter";
+  return"";
+}
+function ensureCategoryFromExtraction(x){
+  if(assetInput("asset-category"))return false;
+  var cat=inferAssetCategoryFromExtract(x);
+  if(!cat||!categoryLayout(cat))return false;
+  setAssetSelectIfPresent("asset-category",cat);
+  if(!categoryLayout(assetInput("asset-category")))return false;
+  showToast("Asset Category set to "+cat+" from nameplate — change if wrong",4500);
+  return true;
 }
 function matchPipeSizeFromDiameter(dn){
   var s=String(dn||""),vals=assetPicklistValues("Pipe_Size");
@@ -4843,21 +4963,21 @@ async function parseAssetSensorJsonWithRepair(txt){
 }
 async function buildAssetExtractContent(photos,maxCount){
   var content=[];
-  for(var pi=0;pi<Math.min(maxCount||3,photos.length);pi++){
+  for(var pi=0;pi<Math.min(maxCount||ASSET_EXTRACT_MAX_PHOTOS,photos.length);pi++){
     var b64=await compressPhoto(photos[pi].data,900,0.55);
     if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});
   }
   return content;
 }
 async function extractMainAssetPhotos(photos){
-  var content=await buildAssetExtractContent(photos,3);
+  var content=await buildAssetExtractContent(photos,ASSET_EXTRACT_MAX_PHOTOS);
   content.push({type:"text",text:ASSET_EXTRACT_PROMPT});
   var data=await callAPI({content:content,maxTok:750,ms:45000});
   applyAssetExtraction(await parseAssetJsonWithRepair(getText(data)));
   removePendingAiByTypeTarget("asset_extract","asset");
 }
 async function extractSensorAssetPhotos(photos){
-  var content=await buildAssetExtractContent(photos,3);
+  var content=await buildAssetExtractContent(photos,ASSET_EXTRACT_MAX_PHOTOS);
   var labels=photos.map(function(p){return assetPhotoRoleLabel(p);}).join(", ");
   content.push({type:"text",text:ASSET_EXTRACT_SENSOR_PROMPT+"\n\nThese photos are labeled: "+labels+". Extract sensor / flow-tube fields including Cal Factor / K-factor when visible on the sensor label — not the transmitter head."});
   var data=await callAPI({content:content,maxTok:600,ms:45000});
@@ -4868,7 +4988,7 @@ async function extractSensorAssetPhotos(photos){
 async function queueAssetExtractFailure(kind,photos,err){
   if(!shouldQueueAiError(err)||!photos.length)return false;
   var b64Photos=[];
-  for(var pi=0;pi<Math.min(3,photos.length);pi++){
+  for(var pi=0;pi<Math.min(ASSET_EXTRACT_MAX_PHOTOS,photos.length);pi++){
     var b64=await compressPhoto(photos[pi].data,900,0.55);
     if(b64)b64Photos.push(b64);
   }
@@ -4889,7 +5009,7 @@ async function extractAssetFromPhoto(){
   var parts=[],errors=[],queued=false;
   if(mainPhotos.length){
     try{
-      assetStatus("Extracting transmitter/main fields from "+Math.min(3,mainPhotos.length)+" photo(s)...",false);
+      assetStatus("Extracting transmitter/main fields from "+Math.min(ASSET_EXTRACT_MAX_PHOTOS,mainPhotos.length)+" photo(s)...",false);
       await extractMainAssetPhotos(mainPhotos);
       parts.push("main");
     }catch(e){
@@ -4899,7 +5019,7 @@ async function extractAssetFromPhoto(){
   }
   if(sensorPhotos.length){
     try{
-      assetStatus("Extracting sensor fields from "+Math.min(3,sensorPhotos.length)+" photo(s)...",false);
+      assetStatus("Extracting sensor fields from "+Math.min(ASSET_EXTRACT_MAX_PHOTOS,sensorPhotos.length)+" photo(s)...",false);
       await extractSensorAssetPhotos(sensorPhotos);
       parts.push("sensor");
     }catch(e){
@@ -6158,10 +6278,25 @@ async function assetPhotoFilePrefix(equipmentId){
   var cac=(rec&&rec.CAC_Asset_ID)||(A.asset.loadedOriginal&&A.asset.loadedOriginal.cacId)||equipmentId;
   return sanitizeAssetFilePart(cac);
 }
+function assetPhotoRoleHasRoom(role){
+  return assetPhotoCountByRole(role,A.assetPhotoLabelPhoto)<assetPhotoRoleLimit(role);
+}
 function updateAssetPhotoRoleButtons(role){
   Object.keys(ASSET_PHOTO_ROLES).forEach(function(key){
     var btn=el("asset-photo-role-"+key);
-    if(btn)btn.classList.toggle("on",key===role);
+    if(!btn)return;
+    var limit=assetPhotoRoleLimit(key);
+    var used=assetPhotoCountByRole(key,A.assetPhotoLabelPhoto);
+    var full=!assetPhotoRoleHasRoom(key);
+    btn.classList.toggle("on",key===role);
+    btn.classList.toggle("role-full",full&&key!==role);
+    var sig=Math.min(used,limit)+"/"+limit+(full&&key!==role?" — full":"");
+    // Only rewrite contents when the count text changes; rebuilding innerHTML mid-click
+    // (input blur -> change -> this fn) destroys the mousedown target and eats the click.
+    if(btn.getAttribute("data-role-sig")!==sig){
+      btn.setAttribute("data-role-sig",sig);
+      btn.innerHTML="<span>"+esc(ASSET_PHOTO_ROLES[key].label)+"</span><span class='asset-photo-role-count'>"+esc(sig)+"</span>";
+    }
   });
 }
 function updateAssetPhotoLabelUi(){
@@ -6169,7 +6304,7 @@ function updateAssetPhotoLabelUi(){
   var inp=el("asset-photo-desc-input");
   var confirmBtn=el("asset-photo-label-confirm");
   var text=inp?String(inp.value||"").trim():"";
-  var ok=role!=="other"||text.length>0;
+  var ok=(role!=="other"||text.length>0)&&assetPhotoRoleHasRoom(role);
   if(confirmBtn){
     confirmBtn.disabled=!ok;
     confirmBtn.classList.toggle("blocked",!ok);
@@ -6198,7 +6333,8 @@ function finalizeAssetPhotoLabel(desc,role){
   if(photo){
     var limit=assetPhotoRoleLimit(role);
     if(assetPhotoCountByRole(role,photo)>=limit){
-      showToast("Maximum "+limit+" "+roleDef.label+" photo"+(limit!==1?"s":"")+" allowed.",5000);
+      showToast("Maximum "+limit+" "+roleDef.label+" photo"+(limit!==1?"s":"")+" allowed. Pick a different type for this photo.",5000);
+      updateAssetPhotoLabelUi();
       return;
     }
     photo.shortDescription=desc;
@@ -6223,6 +6359,10 @@ function requestAssetPhotoLabel(photo,idx,opts){
     A.assetPhotoLabelResolver=resolve;
     A.assetPhotoDescResolver=resolve;
     A.assetPhotoLabelRole=photo.photoRole||ASSET_PHOTO_ROLE_DEFAULT;
+    if(!photo.photoRole&&!assetPhotoRoleHasRoom(A.assetPhotoLabelRole)){
+      var altRole=Object.keys(ASSET_PHOTO_ROLES).filter(assetPhotoRoleHasRoom)[0];
+      if(altRole)A.assetPhotoLabelRole=altRole;
+    }
     var img=el("asset-photo-desc-img"),inp=el("asset-photo-desc-input"),m=el("assetphotomodal");
     if(img)img.src=photo.data||"";
     if(inp){
@@ -6255,6 +6395,11 @@ function editAssetPhotoLabel(idx){
 }
 function pickAssetPhotoRole(role){
   if(!ASSET_PHOTO_ROLES[role])return;
+  if(!assetPhotoRoleHasRoom(role)){
+    showToast("All "+assetPhotoRoleLimit(role)+" "+ASSET_PHOTO_ROLES[role].label+" slots are used. Pick another type or relabel an existing photo.",4500);
+    updateAssetPhotoRoleButtons(A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT);
+    return;
+  }
   A.assetPhotoLabelRole=role;
   updateAssetPhotoRoleButtons(role);
   var inp=el("asset-photo-desc-input"),roleDef=ASSET_PHOTO_ROLES[role];
@@ -6269,7 +6414,9 @@ function pickAssetPhotoRole(role){
     return;
   }
   inp.placeholder="transmitter-label, sensor-label, wiring";
-  if(!cur||defaults.indexOf(cur)>=0)inp.value=roleDef.short;
+  // Always reset to the role's canonical label so switching types is predictable;
+  // custom text only matters for Other.
+  inp.value=roleDef.short;
   updateAssetPhotoLabelUi();
 }
 function closeAssetPhotoDescriptionModal(){var m=el("assetphotomodal");if(m)m.style.display="none";}
@@ -6279,7 +6426,15 @@ function confirmAssetPhotoDescription(){
 }
 function cancelAssetPhotoDescription(){
   var role=A.assetPhotoLabelRole||ASSET_PHOTO_ROLE_DEFAULT;
-  if(role==="other")role=ASSET_PHOTO_ROLE_DEFAULT;
+  if(role==="other"||!assetPhotoRoleHasRoom(role)){
+    var alt=["transmitter","sensor"].filter(assetPhotoRoleHasRoom)[0];
+    if(alt)role=alt;
+  }
+  if(role==="other"){
+    // "Other" needs a custom description; use a generic one so Use Default never dead-ends.
+    finalizeAssetPhotoLabel("photo",role);
+    return;
+  }
   finalizeAssetPhotoLabel(ASSET_PHOTO_ROLES[role].short,role);
 }
 async function assetPhotoAttachmentName(prefix,photo,idx){
