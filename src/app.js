@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="362";
+var FP_VERSION="363";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -467,6 +467,17 @@ function installAutoAdvanceInRoot(root){
 function installAutoAdvanceAll(){
   document.querySelectorAll(".pane, .smodal").forEach(installAutoAdvanceInRoot);
 }
+// Strip tokens that browser credential heuristics match on (browsers ignore
+// autocomplete="off" when a field looks like a username/password), so a
+// generated name like "fp-name" (from asset-name) never reads as a login field.
+function sanitizeNoAutofillName(name){
+  return String(name||"")
+    .replace(/name/gi,"nm")
+    .replace(/user/gi,"usr")
+    .replace(/pass(word)?/gi,"ps")
+    .replace(/login/gi,"lgn")
+    .replace(/e-?mail/gi,"eml");
+}
 function initNoAutofill(root){
   var scope=root||document;
   var noAutofillNames={
@@ -478,7 +489,12 @@ function initNoAutofill(root){
   var skipReadonlyIds={"asset-account-search":1,"asset-search":1,"inbox-d-search":1,"asset-photo-desc-input":1};
   scope.querySelectorAll("input:not([type=file]):not([type=checkbox]):not([type=radio]), textarea, select").forEach(function(node){
     if(node.id==="key-in"){node.setAttribute("autocomplete","off");return;}
-    node.setAttribute("autocomplete","off");
+    if(node.type==="password"){
+      // Keep the deliberate autocomplete (new-password/off) from the markup —
+      // forcing "off" here is ignored on password fields and re-enables
+      // saved-credential heuristics.
+      if(!node.getAttribute("autocomplete"))node.setAttribute("autocomplete","new-password");
+    }else node.setAttribute("autocomplete","off");
     node.setAttribute("autocorrect","off");
     node.setAttribute("autocapitalize","off");
     node.setAttribute("spellcheck","false");
@@ -487,7 +503,7 @@ function initNoAutofill(root){
     if(!node.getAttribute("data-bwignore"))node.setAttribute("data-bwignore","true");
     if(!node.getAttribute("data-form-type"))node.setAttribute("data-form-type","other");
     var safeName=noAutofillNames[node.id];
-    if(!safeName&&node.id)safeName="fp-"+String(node.id).replace(/^asset-/,"").replace(/account/gi,"acct");
+    if(!safeName&&node.id)safeName=sanitizeNoAutofillName("fp-"+String(node.id).replace(/^asset-/,"").replace(/account/gi,"acct"));
     if(safeName)node.setAttribute("name",safeName);
     if(node.tagName==="INPUT"&&node.type==="text"&&!node.readOnly)node.setAttribute("inputmode","text");
     if(node.id==="asset-account-search"&&node.type!=="search")node.setAttribute("type","search");
