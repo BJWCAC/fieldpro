@@ -194,6 +194,9 @@ CapStone fields are instrument data, not login forms. Prevent browsers from offe
 
 - Run `initNoAutofill()` at boot and on dynamically rendered asset category fields.
 - Set `autocomplete="off"`, `data-form-type="other"`, and non-login `name` attributes on inputs, textareas, and selects.
+- Generated `name` attributes must never contain credential-heuristic tokens (`name`, `user`, `pass`, `login`, `email`) — browsers ignore `autocomplete="off"` on fields that look like login fields. `sanitizeNoAutofillName()` in `src/app.js` rewrites these tokens (e.g. `asset-name` → `name="fp-nm"`); route any new generated names through it.
+- Every `type="password"` input (admin PIN, policy/sync passphrases, API keys) must sit inside its own `<form autocomplete="off" onsubmit="return false">` wrapper. Fields outside a `<form>` are grouped by the browser into one page-wide synthetic form; a bare password input there pairs with name-like text fields (e.g. Asset Name) and triggers "Use name and password" credential prompts on the Assets form.
+- Do not force `autocomplete="off"` onto `type="password"` inputs — browsers ignore it and fall back to saved-login heuristics. Keep the markup value (`new-password` or `off`); `initNoAutofill()` preserves it.
 - Use the readonly-on-focus trick for editable text fields where mobile browsers still prompt credentials.
 
 ## Zoho search API rules

@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=362"/>
+<link rel="stylesheet" href="src/styles.css?v=363"/>
 
 </head>
 <body autocomplete="off">
@@ -678,7 +678,7 @@
     <div id="role-admin-view" style="display:none">
       <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:10px">Admin mode. Choose which tabs and settings a <strong>User</strong>-mode device can access, set an admin PIN, then switch a device to User mode. The Settings tab and this Access card always stay reachable so admin can be unlocked again.</div>
       <label class="lbl" for="admin-pin-input">Admin PIN (4+ characters)</label>
-      <input type="password" id="admin-pin-input" placeholder="Set or change PIN" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/>
+      <form autocomplete="off" onsubmit="return false" style="margin:0"><input type="password" id="admin-pin-input" placeholder="Set or change PIN" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/></form>
       <div class="g2" style="margin-bottom:12px">
         <button type="button" class="bp bfull" onclick="saveAdminPin()">Save PIN</button>
         <button type="button" class="bg bfull" onclick="removeAdminPin()">Remove PIN</button>
@@ -692,7 +692,7 @@
       <div class="stitle" style="margin-top:6px">Cloud policy (all devices)</div>
       <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Publish the settings above to the cloud so every device applies them automatically on startup (no per-device setup). Protected by a publish passphrase — set it once; the same passphrase is required for future changes. Devices pull the policy on open; the shared admin PIN travels with it.</div>
       <label class="lbl" for="policy-pass-input">Publish passphrase (6+ characters)</label>
-      <input type="password" id="policy-pass-input" placeholder="Required to publish/change the cloud policy" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/>
+      <form autocomplete="off" onsubmit="return false" style="margin:0"><input type="password" id="policy-pass-input" placeholder="Required to publish/change the cloud policy" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" style="width:100%;margin-bottom:8px"/></form>
       <div class="g2" style="margin-bottom:12px">
         <button type="button" class="bp bfull" onclick="publishOrgPolicy()">Publish policy to cloud</button>
         <button type="button" class="bg bfull" onclick="pullOrgPolicyManual()">Pull policy now</button>
@@ -853,7 +853,7 @@
       </div>
     </div>
     <label class="lbl" for="sync-pass-input">Sync passphrase</label>
-    <input type="password" id="sync-pass-input" name="fp-sync-pass" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="Choose a passphrase (4+ characters)" style="width:100%;margin-bottom:8px;font-family:monospace"/>
+    <form autocomplete="off" onsubmit="return false" style="margin:0"><input type="password" id="sync-pass-input" name="fp-sync-ps" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="Choose a passphrase (4+ characters)" style="width:100%;margin-bottom:8px;font-family:monospace"/></form>
     <button type="button" class="bg bfull" onclick="saveSyncPassphrase()" style="margin-bottom:10px">Save passphrase on this device</button>
     <div class="g2" style="margin-bottom:10px">
       <button type="button" class="bp bfull" onclick="cloudKeyPush()">Back up keys to cloud</button>
@@ -974,7 +974,7 @@
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Google Gemini API Key</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For Model_AI_Specs research on new assets. Saved on this device. Keys from aistudio.google.com/apikey — new keys start with AQ.; older keys start with AIza. <strong style="color:var(--amber)">Note:</strong> some new AQ. keys ship with zero free-tier quota and return 429 on every call — if that happens, enable billing on the Google Cloud project or generate a standard AIza key. Claude specs still work without Gemini.</div>
     <label class="lbl" for="gemini-key-in">API Key</label>
-    <input type="password" id="gemini-key-in" placeholder="AQ. or AIza..." autocomplete="off" style="margin-bottom:8px"/>
+    <form autocomplete="off" onsubmit="return false" style="margin:0"><input type="password" id="gemini-key-in" placeholder="AQ. or AIza..." autocomplete="off" style="margin-bottom:8px"/></form>
     <div id="gemini-key-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
     <div class="g2">
       <button type="button" class="bg bfull" onclick="closeGeminiKeyModal()">Cancel</button>
@@ -988,7 +988,7 @@
     <div style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Anthropic API Key</div>
     <div style="font-size:12px;color:var(--dim);margin-bottom:12px;line-height:1.5">For AI reports only. Saved on this device. Keys from console.anthropic.com</div>
     <label class="lbl" for="key-in">API Key</label>
-    <input type="password" id="key-in" placeholder="sk-ant-..." autocomplete="off" style="margin-bottom:8px"/>
+    <form autocomplete="off" onsubmit="return false" style="margin:0"><input type="password" id="key-in" placeholder="sk-ant-..." autocomplete="off" style="margin-bottom:8px"/></form>
     <div id="key-err" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
     <div class="g2">
       <button type="button" class="bg bfull" onclick="closeKeyModal()">Cancel</button>
@@ -1007,8 +1007,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=362"></script>
-<script src="src/app.js?v=362"></script>
+<script src="src/accounts-map.js?v=363"></script>
+<script src="src/app.js?v=363"></script>
 
 </body>
 </html>
