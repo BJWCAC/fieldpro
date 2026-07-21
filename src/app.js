@@ -6286,11 +6286,11 @@ function updateAssetPhotoRoleButtons(role){
     var btn=el("asset-photo-role-"+key);
     if(!btn)return;
     var limit=assetPhotoRoleLimit(key);
-    var used=assetPhotoCountByRole(key);
+    var used=assetPhotoCountByRole(key,A.assetPhotoLabelPhoto);
     var full=!assetPhotoRoleHasRoom(key);
     btn.classList.toggle("on",key===role);
     btn.classList.toggle("role-full",full&&key!==role);
-    btn.innerHTML=esc(ASSET_PHOTO_ROLES[key].label)+"<span class='asset-photo-role-count'>"+Math.min(used,limit)+"/"+limit+(full&&key!==role?" — full":"")+"</span>";
+    btn.innerHTML="<span>"+esc(ASSET_PHOTO_ROLES[key].label)+"</span><span class='asset-photo-role-count'>"+Math.min(used,limit)+"/"+limit+(full&&key!==role?" — full":"")+"</span>";
   });
 }
 function updateAssetPhotoLabelUi(){
@@ -6408,7 +6408,9 @@ function pickAssetPhotoRole(role){
     return;
   }
   inp.placeholder="transmitter-label, sensor-label, wiring";
-  if(!cur||defaults.indexOf(cur)>=0)inp.value=roleDef.short;
+  // Always reset to the role's canonical label so switching types is predictable;
+  // custom text only matters for Other.
+  inp.value=roleDef.short;
   updateAssetPhotoLabelUi();
 }
 function closeAssetPhotoDescriptionModal(){var m=el("assetphotomodal");if(m)m.style.display="none";}
