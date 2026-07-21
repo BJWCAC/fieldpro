@@ -799,7 +799,7 @@
     <div id="zoho-proxy-status" style="font-size:12px;color:var(--amber);margin-bottom:8px;line-height:1.5">Not checked yet — tap Check Zoho Proxy</div>
     <button type="button" class="bp bfull" onclick="checkZohoProxyDeploy()" style="margin-bottom:12px">Check Zoho Proxy</button>
     <div style="font-size:12px;color:var(--dim);margin-bottom:6px">Proxy app secret override (optional — leave blank to use the build default)</div>
-    <input id="proxy-secret-input" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="fp_proxy_secret" style="margin-bottom:8px">
+    <form autocomplete="off" onsubmit="return false" style="margin:0"><input id="proxy-secret-input" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="fp_proxy_secret" style="margin-bottom:8px"></form>
     <button type="button" class="bg bfull" onclick="saveProxyAppSecret()" style="margin-bottom:12px">Save Proxy Secret on This Device</button>
     <button class="bg bfull" data-cap="destructive" onclick="resetAppCache()" style="margin-bottom:8px">Reset App Cache &amp; Reload</button>
     <button class="bg bfull" data-cap="destructive" onclick="clearWorkDriveFolderCache()" style="margin-bottom:8px">Clear WorkDrive Folder Cache</button>
