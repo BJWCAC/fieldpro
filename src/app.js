@@ -6290,7 +6290,13 @@ function updateAssetPhotoRoleButtons(role){
     var full=!assetPhotoRoleHasRoom(key);
     btn.classList.toggle("on",key===role);
     btn.classList.toggle("role-full",full&&key!==role);
-    btn.innerHTML="<span>"+esc(ASSET_PHOTO_ROLES[key].label)+"</span><span class='asset-photo-role-count'>"+Math.min(used,limit)+"/"+limit+(full&&key!==role?" — full":"")+"</span>";
+    var sig=Math.min(used,limit)+"/"+limit+(full&&key!==role?" — full":"");
+    // Only rewrite contents when the count text changes; rebuilding innerHTML mid-click
+    // (input blur -> change -> this fn) destroys the mousedown target and eats the click.
+    if(btn.getAttribute("data-role-sig")!==sig){
+      btn.setAttribute("data-role-sig",sig);
+      btn.innerHTML="<span>"+esc(ASSET_PHOTO_ROLES[key].label)+"</span><span class='asset-photo-role-count'>"+esc(sig)+"</span>";
+    }
   });
 }
 function updateAssetPhotoLabelUi(){
