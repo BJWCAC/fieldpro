@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="363";
+var FP_VERSION="364";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4533,7 +4533,10 @@ function renderAssetPicklistRequestPanel(){
 async function sendPicklistRequestPayload(payload){
   var r=await fetchWithTimeout(PICKLIST_REQUEST_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)},30000);
   var txt=await r.text();
-  if(!r.ok)throw new Error((r.status===503?"Email not configured":"Picklist request "+r.status)+": "+txt.substring(0,160));
+  if(!r.ok){
+    var detail=txt;try{var j=JSON.parse(txt);if(j&&j.error)detail=String(j.error);}catch(e){}
+    throw new Error((r.status===503?"Email not configured":"Picklist request "+r.status)+": "+detail.substring(0,160));
+  }
   try{return JSON.parse(txt);}catch(e){return{ok:true};}
 }
 function enqueuePicklistRequest(payload,error){
@@ -4541,7 +4544,9 @@ function enqueuePicklistRequest(payload,error){
   var key=picklistRequestKey(payload.fieldApi,payload.proposedValue);
   var items=getPendingUploads();
   if(items.some(function(i){return i.type==="picklist_request"&&(i.requestKey===key||(i.payload&&picklistRequestKey(i.payload.fieldApi,i.payload.proposedValue)===key));}))return;
-  enqueuePendingUpload({type:"picklist_request",requestKey:key,payload:payload,assetLabel:"Picklist request — "+payload.fieldLabel,filename:payload.proposedValue,error:error||""});
+  var entry={type:"picklist_request",requestKey:key,payload:payload,assetLabel:"Picklist request — "+payload.fieldLabel,filename:payload.proposedValue,error:error||""};
+  if(error&&isPendingConfigError(error))entry.configBlocked=1;
+  enqueuePendingUpload(entry);
 }
 async function uploadPendingPicklistRequest(item){
   if(!item||!item.payload)throw new Error("Pending picklist request missing data");
@@ -5911,6 +5916,13 @@ async function uploadPendingAssetPhoto(item){
   var r=await zohoProxyFetch({action:"upload_equipment_photo",equipment_id:item.equipmentId,filename:item.filename||"asset-photo.jpg",image_b64:b64},45000);
   if(!r.ok){var txt=await r.text();throw new Error("Photo upload "+r.status+": "+txt.substring(0,120));}
 }
+// Server-side configuration errors (e.g. a Netlify env var like RESEND_API_KEY
+// is missing) fail identically on every retry — nothing on this device can fix
+// them. Items that hit one are flagged so auto-retry stops hammering the server;
+// a manual Retry Sync still re-attempts them (for after the admin fixes Netlify).
+function isPendingConfigError(err){
+  return /not configured|is not set|environment variable/i.test(String(err&&err.message||err||""));
+}
 async function retryPendingUploads(opts){
   opts=opts||{};
   if(A.pendingRetrying)return;
@@ -5921,6 +5933,9 @@ async function retryPendingUploads(opts){
   var remaining=[],doneKeys=[],discarded=0;
   for(var i=0;i<items.length;i++){
     var orig=items[i];
+    // Paused on a server configuration error — auto-retry cannot succeed until an
+    // admin fixes the Netlify setup, so only a manual Retry Sync re-attempts it.
+    if(opts.auto&&orig.configBlocked){remaining.push(orig);continue;}
     var item=await hydratePendingUploadBinary(orig);
     // Unrecoverable: this item carries a photo/PDF that was offloaded to IndexedDB and is
     // no longer retrievable (evicted / cleared), so it can NEVER upload. Drop it instead of
@@ -5932,7 +5947,7 @@ async function retryPendingUploads(opts){
       continue;
     }
     try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="capture_video")await uploadPendingCaptureVideo(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");if(orig.binKey)doneKeys.push(orig.binKey);}
-    catch(e){orig.error=e.message;orig.attempts=(orig.attempts||0)+1;orig.lastAttempt=new Date().toISOString();remaining.push(orig);}
+    catch(e){orig.error=e.message;orig.attempts=(orig.attempts||0)+1;orig.lastAttempt=new Date().toISOString();if(isPendingConfigError(e))orig.configBlocked=1;else delete orig.configBlocked;remaining.push(orig);}
   }
   A.pendingRetrying=false;
   savePendingUploads(remaining);
@@ -5990,7 +6005,9 @@ function renderPendingUploads(){
   if(typeof renderAssetSaveChecklist==="function")renderAssetSaveChecklist();
   if(box)box.innerHTML=items.length?items.map(function(item){
     var stuck=(item.attempts||0)>=5;
-    var hint=stuck?"<br><span style='color:#92400e'>Not syncing after "+(item.attempts||0)+" tries — tap Discard if it won't complete.</span>":"";
+    var hint="";
+    if(item.configBlocked)hint="<br><span style='color:#92400e'>Blocked by a Netlify setup issue — retrying from this device can't fix it. Auto-retry is paused; an admin must add the missing Netlify environment variable, then tap Retry Sync. Or tap Discard to drop this request.</span>";
+    else if(stuck)hint="<br><span style='color:#92400e'>Not syncing after "+(item.attempts||0)+" tries — tap Discard if it won't complete.</span>";
     var btn="<button type='button' class='bg bsm' onclick=\"discardPendingUpload('"+esc(String(item.id||""))+"')\" style='margin-top:4px'>Discard</button>";
     return"<div style='font-size:12px;color:#2d6b60;margin-bottom:8px;border-top:1px solid #eef;padding-top:6px'>"+esc(pendingUploadLabel(item))+"<br><span style='color:var(--dim)'>Attempts: "+(item.attempts||0)+(item.error?" — "+esc(item.error):"")+"</span>"+hint+"<br>"+btn+"</div>";
   }).join(""):"<div style='font-size:12px;color:var(--dim)'>No pending sync items.</div>";
