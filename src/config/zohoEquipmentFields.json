@@ -12,12 +12,12 @@
     "Zoho Asset Category actual_value General is shown in CapStone as General (legacy planning label Analytical normalizes to General and is omitted from the picker). CapStone save must write General actual_value — never map to deprecated Analytical when General exists in Zoho picklist metadata.",
     "Set Up Input/Output Engineering Units are Zoho lookups to CustomModule8; CapStone loads options from CRM and saves lookup IDs (proxy resolves names when IDs are unavailable).",
     "Asset category layout activation on Zoho save applies to ALL Asset_Category values. CapStone saves core without category/extension fields, then calls Netlify activate_equipment_category_layout (temp swap + v8 layout_rules + persist). See docs/CAPSTONE_DEVELOPMENT_RULES.md.",
-    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, P838, P839.",
-    "Flow Meter categorySuggestedDefaults: Display GPM US; Set Up Input GPM US; Set Up Output 4-20 mA; Duration 0.75; same Pulsar Ultra 4 PV parameters as Flow Open Channel.",
+    "Flow Open Channel categorySuggestedDefaults: Display Engineering Units GPM US; Set Up Input H2O Inches; Set Up Output 4-20 mA; Duration 0.75; when Brand Pulsar + Series Ultra 4 → P005, P006, P838, P839. Input/Output PV Zero/Span Parameter fields are layout-visible only for Flow Open Channel.",
+    "Flow Meter categorySuggestedDefaults: Display GPM US; Set Up Input GPM US; Set Up Output 4-20 mA; Duration 0.75. Set Up Input/Output show PV @ Zero/Span values only — not the Parameter companion fields (those are Flow Open Channel only).",
     "Duration and Damping_Seconds are separate Zoho Equipments fields — do not merge labels or defaults.",
     "Deal Assets_and_Checklist Instrument_Description is refreshed when an asset is linked again on the same deal.",
     "Gas Detector categoryLayouts: sensor/display/duration & damping, Gas Sensor Info (Gas Sensor Type, Gas Sensor Type(s)), and Subform_1 grid — no Set Up Input/Output parent fields.",
-    "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O, duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
+    "General categoryLayouts (Zoho actual_value General; legacy Analytical alias): sensor, display, setup I/O (PV @ Zero/Span values only — Parameter fields are Flow Open Channel only), duration & damping, and Subform_1 — no flow, gas, LS, or scales-specific blocks.",
     "Flow Meter categoryLayouts: includes Rosemount Details (DA1/DA2, DA2 License, Totalizer Display, Rosemount LOI Display) when Asset Brand is Rosemount — hidden for Siemens and other brands.",
     "Lift Station categoryLayouts: sensor, display, LS Details (LS Shape, LS Diameter, Number of Pumps), and Subform_1 — no flow, gas, Rosemount, or scales-specific blocks.",
     "Scales & Balances categoryLayouts: sensor, display, Scales (Scale Class), and Subform_1 — no flow, gas, LS, or Rosemount blocks.",
@@ -125,7 +125,7 @@
         {
           "id": "setupInput",
           "title": "Set Up Input",
-          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero", "Input_PV_Span"]
         },
         {
           "id": "durationDamping",
@@ -135,7 +135,7 @@
         {
           "id": "setupOutput",
           "title": "Set Up Output",
-          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero", "Output_PV_Span"]
         },
         {
           "id": "rosemountDetails",
@@ -253,7 +253,7 @@
         {
           "id": "setupInput",
           "title": "Set Up Input",
-          "fields": ["Input_Engineering_Units", "Input_PV_Zero_Parameter", "Input_PV_Zero", "Input_PV_Span_Parameter", "Input_PV_Span"]
+          "fields": ["Input_Engineering_Units", "Input_PV_Zero", "Input_PV_Span"]
         },
         {
           "id": "durationDamping",
@@ -263,7 +263,7 @@
         {
           "id": "setupOutput",
           "title": "Set Up Output",
-          "fields": ["Output_Engineering_Units", "Output_PV_Zero_Parameter", "Output_PV_Zero", "Output_PV_Span_Parameter", "Output_PV_Span"]
+          "fields": ["Output_Engineering_Units", "Output_PV_Zero", "Output_PV_Span"]
         },
         {
           "id": "subform",
@@ -357,18 +357,7 @@
         "Input_Engineering_Units": { "lookup": ["GPM US"] },
         "Output_Engineering_Units": { "lookup": ["4-20 mA", "4-20mA"] },
         "Duration": "0.75"
-      },
-      "conditional": [
-        {
-          "when": { "brand": "Pulsar", "series": "Ultra 4" },
-          "fields": {
-            "Input_PV_Zero_Parameter": "P005",
-            "Input_PV_Span_Parameter": "P006",
-            "Output_PV_Zero_Parameter": "P838",
-            "Output_PV_Span_Parameter": "P839"
-          }
-        }
-      ]
+      }
     },
     "Gas Detector": {
       "fields": {
