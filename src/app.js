@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false}};
-var FP_VERSION="366";
+var FP_VERSION="367";
 var MIN_ZOHO_PROXY_BUILD=287;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2845,6 +2845,7 @@ function applyCategorySuggestedValues(category){
     if(!storeVal)return;
     A.asset.dynamicValues[api]=storeVal;
     markDynamicFieldTouched(api);
+    if(def.prefillHighlight)markAssetPrefill("dyn:"+api,"default");
   });
 }
 function applyCategoryFieldDefaults(category){
@@ -2854,6 +2855,9 @@ function applyCategoryFieldDefaults(category){
   var defs=categoryDynamicFieldDefs(norm);
   var has={};
   defs.forEach(function(d){has[d.apiName]=true;});
+  defs.forEach(function(d){
+    if(d.suggestedDefault&&!A.asset.dynamicSuggested[d.apiName])A.asset.dynamicSuggested[d.apiName]=d.suggestedDefault;
+  });
   var rule=categorySuggestedDefaultsRule(category);
   if(rule){
     applyCategorySuggestedRule(rule,has,assetRuleContext());

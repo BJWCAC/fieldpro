@@ -62,7 +62,7 @@
   },
   "assetFieldRegistry": {
     "Customer_Asset_Number": { "label": "Customer Asset Number", "widget": "text" },
-    "Frequency": { "label": "Frequency", "widget": "select", "picklist": "Frequency" },
+    "Frequency": { "label": "Frequency", "widget": "select", "picklist": "Frequency", "suggestedDefault": "Annual", "prefillHighlight": true },
     "Date_Installed": { "label": "Date Installed", "widget": "date", "zohoApiName": "Date", "optionalReminder": true },
     "Location": { "label": "Location", "widget": "text", "note": "No separate Zoho field; use Location Coordinates on main form" },
     "Room": { "label": "Room (Electrical, Filter, Pump, etc.)", "widget": "text" },
