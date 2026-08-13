@@ -1067,6 +1067,15 @@
     },
     "Internal_Assets": {
       "module_api_name": "Internal_Assets",
+      "capstone_usage": "CapStone IA tab saves company-owned tools (IAxxxx) via the same asset capture workflow as Equipments, without Deal/Account linkage.",
+      "id_field": "IA_Asset_ID",
+      "id_search_prefix": "IA",
+      "fields_shared_with_equipments": [
+        "Asset_Category", "Name", "Asset_Function", "Building", "Additional_Designator",
+        "Asset_Brand", "Asset_Type", "Asset_Model_Number", "Serial_Number", "Asset_Environment",
+        "Confined_Space", "Asset_Series", "Nameplate_Additional_Info", "Description_Instructions",
+        "Model_AI_Specs", "Location_Coordinates", "Subform_1"
+      ],
       "picklists": {
         "Use_Status": {
           "label": "Use Status",
