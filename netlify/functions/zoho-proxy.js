@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "288";
+var PROXY_BUILD = "289";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -519,6 +519,63 @@ exports.handler = async function(event) {
           module: "Internal_Assets",
           field_api_name: fieldApi,
           technicians: technicians
+        })
+      };
+    }
+
+    if (data.action === "get_internal_asset_fields") {
+      var iaFieldsResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/settings/fields?module=Internal_Assets",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (iaFieldsResult.status < 200 || iaFieldsResult.status >= 300) {
+        return { statusCode: iaFieldsResult.status, headers: h, body: iaFieldsResult.body };
+      }
+      var iaFieldsOut = [];
+      try {
+        var iaFieldRows = (JSON.parse(iaFieldsResult.body).fields || []);
+        for (var ifi = 0; ifi < iaFieldRows.length; ifi++) {
+          var iff = iaFieldRows[ifi] || {};
+          var api = String(iff.api_name || "").trim();
+          if (!api) continue;
+          var dt = String(iff.data_type || "").toLowerCase();
+          // Skip pure system/UI junk CapStone never edits
+          if (api === "id" || api === "Created_By" || api === "Modified_By" || api === "Created_Time" || api === "Modified_Time") continue;
+          if (api.indexOf("$") === 0) continue;
+          var pickVals = [];
+          if (Array.isArray(iff.pick_list_values)) {
+            iff.pick_list_values.forEach(function (opt) {
+              if (!opt || opt.type === "unused") return;
+              var pv = String(opt.actual_value || opt.display_value || "").trim();
+              if (!pv || pv === "-None-") return;
+              if (pickVals.indexOf(pv) < 0) pickVals.push(pv);
+            });
+          }
+          iaFieldsOut.push({
+            api_name: api,
+            label: String(iff.field_label || iff.display_label || api).trim(),
+            data_type: dt,
+            required: !!(iff.system_mandatory || iff.required),
+            read_only: !!(iff.read_only || iff.webhook || iff.formula),
+            custom_field: !!iff.custom_field,
+            pick_list_values: pickVals
+          });
+        }
+      } catch (ife) {
+        return { statusCode: 500, headers: h, body: JSON.stringify({ ok: false, error: "Could not parse Internal_Assets fields: " + String(ife && ife.message || ife) }) };
+      }
+      iaFieldsOut.sort(function (a, b) { return String(a.api_name).localeCompare(String(b.api_name)); });
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({
+          ok: true,
+          source: "zoho",
+          module: "Internal_Assets",
+          fields: iaFieldsOut,
+          count: iaFieldsOut.length
         })
       };
     }
@@ -1536,8 +1593,19 @@ exports.handler = async function(event) {
     }
 
     var INTERNAL_ASSET_MODULE = "Internal_Assets";
-    var INTERNAL_ASSET_ID_FIELD = "IA_Asset_ID";
-    var internalAssetGetFields = "Name," + INTERNAL_ASSET_ID_FIELD + ",Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Model_AI_Specs,Location_Coordinates,Frequency,Date,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Duration,Damping_Seconds,Flume_Weir_Type,Distance_Measurement_Units,Gas_Sensor_Type,LS_Shape,LS_Diameter,Number_of_Pumps,Scale_Class,Subform_1,Use_Status,Users";
+    var INTERNAL_ASSET_ID_FIELD = "Name"; // autonumber IAxxxx (no separate IA_Asset_ID field)
+    // Live Internal_Assets columns from get_internal_asset_fields (Zoho settings/fields).
+    // Name is the autonumber (IAxxxx). Descriptive title is Internal_Asset_Name.
+    // Do not include Equipments-only api names — Zoho ignores unknowns and the old
+    // Equipments paste exceeded the 50-field GET limit.
+    var internalAssetGetFields = [
+      "Name", "Internal_Asset_Name",
+      "Brand", "Part_Number", "Serial_Number",
+      "Description", "GPS_Tag", "Calibration_Due_Date",
+      "Currency", "Currency_1", "Exchange_Rate",
+      "Use_Status", "Users", "Tag",
+      "Record_Image"
+    ].join(",");
 
     function internalAssetWriteBody(record, applyLayoutRules) {
       var body = { data: [record || {}] };
@@ -1622,9 +1690,9 @@ exports.handler = async function(event) {
         if (searchResult.status < 200 || searchResult.status >= 300) return;
         try { iaAddHits(JSON.parse(searchResult.body).data || []); } catch (se) {}
       }
-      var iaIdFields = [INTERNAL_ASSET_ID_FIELD, "Name"];
-      var iaTextFields = ["Name", "Serial_Number", "Asset_Model_Number", INTERNAL_ASSET_ID_FIELD, "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
-      var iaExactFields = [INTERNAL_ASSET_ID_FIELD, "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      var iaIdFields = ["Name"];
+      var iaTextFields = ["Name", "Internal_Asset_Name", "Serial_Number", "Brand", "Part_Number", "Tag"];
+      var iaExactFields = ["Name", "Serial_Number", "Part_Number", "Brand", "Internal_Asset_Name", "Tag"];
       for (var ti = 0; ti < iaSearchTerms.length; ti++) {
         var term = iaSearchTerms[ti];
         await iaCollectWordSearch(term);
@@ -1651,7 +1719,7 @@ exports.handler = async function(event) {
       var iaCriteria = encodeURIComponent("(Serial_Number:equals:" + iaSerial + ")");
       var iaFindResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + iaCriteria + "&fields=Name," + INTERNAL_ASSET_ID_FIELD + ",Serial_Number,Asset_Model_Number",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + iaCriteria + "&fields=" + encodeURIComponent(internalAssetGetFields),
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });

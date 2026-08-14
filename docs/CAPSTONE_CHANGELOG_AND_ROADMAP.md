@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-08-14
-Current live version: v371
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=371
+Current live version: v373
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=372
 ```
 
 ---
@@ -34,7 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
-| v371 | #263 | **IA tab shows all Internal_Assets fields** — form again includes Asset Category/Function, Building, Designator, Type/Series (+ Other), Environment, Confined Space, and category layouts/subform (those exist on Zoho Internal_Assets). Added readonly **IA Asset ID**. Still hides Equipments-only Account / Deal notes / deal-link. Supersedes the v370 slim-form hide for shared IA fields. |
+| v372 | #264 | **IA tab form matches live Zoho Internal_Assets fields** — CapStone IA form now shows only real IA module columns (Internal Asset Number/Name, Brand, Part Number, Serial, Tag, Use Status, Current User, Calibration Due, Cost/Currency, GPS Tag, Description). Equipments-only fields (category/function/building/type/series/environment/confined/layouts) stay on the Assets tab. Proxy build **289** adds `get_internal_asset_fields` and fixes IA GET under Zoho’s 50-field limit. |
+| v371 | #263 | **IA field restore attempt (superseded by v372)** — restored Equipments-parity fields on IA; live Zoho inventory showed those api names are not on Internal_Assets. |
 | v370 | #262 | **IA tab field pass (superseded by v371)** — initial attempt to slim the IA form; v371 restores shared Internal_Assets fields so CapStone matches the Zoho IA module. |
 | v365 | #257 | **PV Parameter fields only for Flow Open Channel** — Input PV Zero/Span Parameter and Output PV Zero/Span Parameter are layout-visible and saved only when Asset Category is Flow Open Channel. Removed from Flow Meter and General Set Up Input/Output (numeric PV @ Zero/Span remain). Pulsar Ultra 4 P005/P006/P838/P839 suggested defaults apply to Flow Open Channel only. |
 | v364 | — | **Stop endless retries on Netlify-config pending sync errors** — a queued picklist request (or any pending sync item) failing with a server configuration error (e.g. `RESEND_API_KEY is not configured on Netlify`) retried forever — one field item hit 245 attempts — because retrying from the device can never fix a missing Netlify environment variable. Such items are now flagged `configBlocked`: auto-retry (startup / online / visibility / 2-min interval) skips them, while a manual **Retry Sync** still re-attempts them so the queue drains once the admin adds the env var. The Pending Sync card explains the situation ("Blocked by a Netlify setup issue… an admin must add the missing Netlify environment variable, then tap Retry Sync") instead of the generic "tap Discard" hint, and picklist-request errors now show the server's error message instead of raw JSON. Fix for the reported item itself: add `RESEND_API_KEY` under Netlify Site settings → Environment variables, then tap Retry Sync. |
