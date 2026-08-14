@@ -1067,7 +1067,7 @@
     },
     "Internal_Assets": {
       "module_api_name": "Internal_Assets",
-      "capstone_usage": "CapStone IA tab saves company-owned tools (IAxxxx) via the same asset capture workflow as Equipments, without Deal/Account linkage.",
+      "capstone_usage": "CapStone IA tab shows all Internal_Assets fields (shared Equipments fields + Use_Status/Users/IA_Asset_ID), without Deal/Account linkage.",
       "id_field": "IA_Asset_ID",
       "id_search_prefix": "IA",
       "fields_shared_with_equipments": [
