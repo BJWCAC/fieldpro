@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=372"/>
+<link rel="stylesheet" href="src/styles.css?v=373"/>
 
 </head>
 <body autocomplete="off">
@@ -349,7 +349,8 @@
         </div>
         <div class="g2" style="margin-bottom:8px">
           <button type="button" class="bg bsm" onclick="searchAssetByCurrentField('asset-serial')">Search by Serial</button>
-          <button type="button" class="bg bsm" onclick="searchAssetByCurrentField('asset-model')">Search by Model</button>
+          <button type="button" id="asset-search-by-model-btn" class="bg bsm asset-module-equipments" onclick="searchAssetByCurrentField('asset-model')">Search by Model</button>
+          <button type="button" id="asset-search-by-part-btn" class="bg bsm asset-module-internal" style="display:none" onclick="searchAssetByCurrentField('asset-ia-part')">Search by Part Number</button>
         </div>
         <div id="asset-search-results" style="display:none"></div>
         <div id="asset-replace-panel" style="display:none;margin-top:10px;border-top:1px solid #b2ddd6;padding-top:10px">

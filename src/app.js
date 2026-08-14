@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="372";
+var FP_VERSION="373";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4333,7 +4333,13 @@ async function searchExistingAssets(){
 }
 function searchAssetByCurrentField(id){
   var v=assetInput(id);
-  if(!v){assetStatus(id==="asset-serial"?"Enter a serial number first.":"Enter a model number first.",true);return;}
+  if(!v){
+    var miss=id==="asset-serial"?"Enter a serial number first."
+      :id==="asset-ia-part"?"Enter a part number first."
+      :"Enter a model number first.";
+    assetStatus(miss,true);
+    return;
+  }
   setAssetInput("asset-search",v);
   return searchExistingAssets();
 }
@@ -4452,10 +4458,19 @@ function applySavedAssetSnapshotToForm(snap){
     setAssetSelectIfPresent("asset-use-status",snap.useStatus||"Permenant");
     setAssetSelectIfPresent("asset-users",snap.users||"");
     setAssetInput("asset-ia-id",snap.cacId||"");
+    setAssetInput("asset-ia-name",snap.name||"");
+    setAssetInput("asset-ia-brand",snap.brand||"");
+    setAssetInput("asset-ia-part",snap.model||"");
+    setAssetInput("asset-ia-tag",snap.tag||"");
+    setAssetInput("asset-ia-description",snap.description||"");
+    setAssetInput("asset-ia-cal-due",snap.calDue||"");
+    setAssetInput("asset-ia-cost",snap.cost||"");
+    setAssetSelectIfPresent("asset-ia-currency",snap.currency||"");
+  }else{
+    setAssetInput("asset-nameplate-additional",snap.nameplateAdditional||"");
+    setAssetInput("asset-description",snap.description||"");
+    setAssetInput("asset-deal-notes",snap.dealNotes||"");
   }
-  setAssetInput("asset-nameplate-additional",snap.nameplateAdditional||"");
-  setAssetInput("asset-description",snap.description||"");
-  setAssetInput("asset-deal-notes",snap.dealNotes||"");
   setAssetInput("asset-search",snap.cacId||snap.serial||snap.model||snap.name||"");
   markRestoredAssetDynamicTouched();
 }
@@ -5562,6 +5577,14 @@ function savedAssetSnapshot(equipmentId,dealLinked,cacId){
   if(isInternalAssetModule()){
     snap.useStatus=assetInput("asset-use-status")||"";
     snap.users=assetInput("asset-users")||"";
+    snap.name=assetInput("asset-ia-name")||"";
+    snap.brand=assetInput("asset-ia-brand")||"";
+    snap.model=assetInput("asset-ia-part")||"";
+    snap.tag=assetInput("asset-ia-tag")||"";
+    snap.description=assetInput("asset-ia-description")||"";
+    snap.calDue=assetInput("asset-ia-cal-due")||"";
+    snap.cost=assetInput("asset-ia-cost")||"";
+    snap.currency=assetInput("asset-ia-currency")||"";
   }
   return snap;
 }

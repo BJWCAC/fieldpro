@@ -6,7 +6,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-08-14
-Current live version: v372
+Current live version: v373
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=372
 ```
 
