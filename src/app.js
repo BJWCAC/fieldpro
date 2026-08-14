@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="368";
+var FP_VERSION="369";
 var MIN_ZOHO_PROXY_BUILD=288;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -3766,7 +3766,9 @@ function saveAllTabDraftsNow(){
 function buildAssetDraft(){var fields={};assetFieldIdsToClear().concat(["asset-search"]).forEach(function(id){fields[id]=assetInput(id);});syncDynamicFieldValuesFromDom();syncSubformRowsFromDom();return{version:1,module:A.assetModule||ASSET_MOD_EQUIPMENTS,savedAt:new Date().toISOString(),deal:A.sel||null,location:A.location||null,mode:ast().mode,intent:ast().intent,linkMode:ast().linkMode,standaloneAccount:ast().standaloneAccount,currentAssetId:ast().currentAssetId,activeDealKey:ast().activeDealKey,loadedOriginal:ast().loadedOriginal,replacementMode:ast().replacementMode,photos:(ast().photos||[]).map(assetPhotoForStorage),lastUploadedPhotoFingerprints:ast().lastUploadedPhotoFingerprints,dynamicValues:ast().dynamicValues||{},dynamicSuggested:ast().dynamicSuggested||{},dynamicTouched:ast().dynamicTouched||{},sectionHidden:ast().sectionHidden||{},subformRows:ast().subformRows||[],subformTouched:ast().subformTouched||{},aiPrefill:ast().aiPrefill||{},fields:fields};}
 function saveAssetDraftNow(){if(!assetDraftHasWork())return;fpIdbPutPhotos(assetPhotosForIdbPut(ast().photos));try{localStorage.setItem(assetDraftStorageKey(),JSON.stringify(buildAssetDraft()));setAssetDraftStatus("Asset draft saved "+new Date().toLocaleTimeString());}catch(e){console.log("asset draft save",e);setAssetDraftStatus("Asset draft save failed",true);}}
 function scheduleAssetDraftSave(){if(A.assetDraftTimer)clearTimeout(A.assetDraftTimer);A.assetDraftTimer=setTimeout(function(){A.assetDraftTimer=null;saveAssetDraftNow();},800);}
-function clearAssetDraft(){try{localStorage.removeItem(assetDraftStorageKey());}catch(e){}setAssetDraftStatus("",false);}
+function clearAssetDraftByKey(key){try{localStorage.removeItem(key);}catch(e){}if(key===assetDraftStorageKey())setAssetDraftStatus("",false);}
+function clearAssetDraft(){clearAssetDraftByKey(assetDraftStorageKey());}
+function assetDraftModuleFromKey(key,d){if(d&&d.module===ASSET_MOD_INTERNAL)return ASSET_MOD_INTERNAL;if(d&&d.module===ASSET_MOD_EQUIPMENTS)return ASSET_MOD_EQUIPMENTS;return key==="fp_ia_draft"?ASSET_MOD_INTERNAL:ASSET_MOD_EQUIPMENTS;}
 var ASSET_DRAFT_SELECT_IDS=["asset-category","asset-function","asset-brand","asset-type","asset-series","asset-environment","asset-confined"];
 function applyAssetDraftFieldValues(fields,opts){
   if(!fields)return;
@@ -3785,13 +3787,20 @@ function markRestoredAssetDynamicTouched(){
     if(v!=null&&v!==""&&!(Array.isArray(v)&&!v.length))ast().dynamicTouched[api]=true;
   });
 }
-function restoreAssetDraft(d){
+function restoreAssetDraft(d,mod){
   if(!d)return Promise.resolve();
-  A.sel=d.deal||A.sel;
-  A.location=d.location||A.location;
+  mod=mod||assetDraftModuleFromKey("",d);
+  A.assetModule=mod;
+  renderAssetModuleUi();
+  if(mod===ASSET_MOD_INTERNAL){
+    A.location=d.location||A.location;
+  }else{
+    A.sel=d.deal||A.sel;
+    A.location=d.location||A.location;
+  }
   ast().mode=d.mode||"add";
   ast().intent=d.intent||(d.mode==="update"?"update":(d.currentAssetId?"update":"add"));
-  ast().linkMode=d.linkMode||"deal";
+  ast().linkMode=d.linkMode||(mod===ASSET_MOD_INTERNAL?"simple":"deal");
   ast().standaloneAccount=d.standaloneAccount||null;
   ast().currentAssetId=d.currentAssetId||null;
   ast().activeDealKey=d.activeDealKey||selectedAssetDealKey();
@@ -3824,21 +3833,63 @@ function restoreAssetDraft(d){
     });
   });
 }
-function assetDraftSummary(d,label){
+function assetDraftSummary(d,label,mod){
   var f=d&&d.fields||{};
-  var deal=d&&d.deal;
-  return [
-    "Restore unsaved CapStone asset draft saved "+label+"?",
-    "",
-    "Account/Deal: "+(deal?dealHeaderText(deal):"No deal selected"),
+  var isIa=(mod||assetDraftModuleFromKey("",d))===ASSET_MOD_INTERNAL;
+  var lines=[
+    "Restore unsaved CapStone "+(isIa?"internal asset":"asset")+" draft saved "+label+"?",
+    ""
+  ];
+  if(isIa){
+    lines.push("Module: Internal Assets (IAxxxx)");
+    if(f["asset-use-status"])lines.push("Use Status: "+f["asset-use-status"]);
+    if(f["asset-users"])lines.push("Current User: "+f["asset-users"]);
+  }else{
+    var deal=d&&d.deal;
+    lines.push("Account/Deal: "+(deal?dealHeaderText(deal):"No deal selected"));
+  }
+  lines.push(
     "Mode: "+((d&&d.mode)==="update"?"Update Existing Asset":"Add New Asset"),
     "Asset: "+(f["asset-name"]||"(blank)"),
     "Model: "+(f["asset-model"]||"(blank)"),
     "Serial: "+(f["asset-serial"]||"(blank)"),
     "Photos: "+((d&&d.photos&&d.photos.length)||0)
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
-function maybeRestoreAssetDraft(){var raw="";try{raw=localStorage.getItem("fp_asset_draft")||"";}catch(e){}if(!raw)return;var d=null;try{d=JSON.parse(raw);}catch(e){clearAssetDraft();return;}var label=d&&d.savedAt?new Date(d.savedAt).toLocaleString():"recently";if(confirm(assetDraftSummary(d,label))){loadEquipmentConfig().then(function(){return restoreAssetDraft(d);}).then(function(){A.assetDraftRestored=true;setAssetDraftStatus("Asset draft restored");showToast("Asset draft restored",3000);go("assets");}).catch(function(e){console.log("asset draft restore",e);showToast("Asset draft restore failed",5000);});}else clearAssetDraft();}
+function maybeRestoreAssetDraftForKey(key){
+  var raw="";try{raw=localStorage.getItem(key)||"";}catch(e){}
+  if(!raw)return Promise.resolve();
+  var d=null;try{d=JSON.parse(raw);}catch(e){clearAssetDraftByKey(key);return Promise.resolve();}
+  var mod=assetDraftModuleFromKey(key,d);
+  var label=d&&d.savedAt?new Date(d.savedAt).toLocaleString():"recently";
+  var isIa=mod===ASSET_MOD_INTERNAL;
+  if(!confirm(assetDraftSummary(d,label,mod))){clearAssetDraftByKey(key);return Promise.resolve();}
+  var loadCfg=isIa?loadInternalAssetConfig():loadEquipmentConfig();
+  return loadCfg.then(function(){return restoreAssetDraft(d,mod);}).then(function(){
+    A.assetDraftRestored=true;
+    setAssetDraftStatus((isIa?"IA ":"Asset ")+"draft restored");
+    showToast((isIa?"IA ":"Asset ")+"draft restored",3000);
+    go(isIa?"ia":"assets");
+  }).catch(function(e){
+    console.log("asset draft restore",e);
+    showToast((isIa?"IA ":"Asset ")+"draft restore failed",5000);
+  });
+}
+function maybeRestoreAssetDraft(){
+  var pending=[];
+  ["fp_asset_draft","fp_ia_draft"].forEach(function(key){
+    var raw="";try{raw=localStorage.getItem(key)||"";}catch(e){}
+    if(!raw)return;
+    try{
+      var d=JSON.parse(raw);
+      pending.push({key:key,savedAt:d&&d.savedAt?Date.parse(d.savedAt)||0:0});
+    }catch(e){clearAssetDraftByKey(key);}
+  });
+  if(!pending.length)return;
+  pending.sort(function(a,b){return b.savedAt-a.savedAt;});
+  pending.reduce(function(chain,item){return chain.then(function(){return maybeRestoreAssetDraftForKey(item.key);});},Promise.resolve());
+}
 function selectedAssetDealKey(){return A.sel?((A.sel.id||"")+":"+(A.sel.Account_Id||"")+":"+(A.sel.Account_Name||"")):"";}
 function assetSaveAccountId(){
   var id="";
@@ -8810,7 +8861,7 @@ function fpStorageBreakdown(){
   var deals=fpKeyStorageMB("fp_deals");
   var history=fpKeyStorageMB("fp_history");
   var queue=fpKeyStorageMB("fp_pending_uploads")+fpKeyStorageMB("fp_pending_ai")+fpKeyStorageMB("fp_inbox");
-  var drafts=fpKeyStorageMB("fp_capture_draft")+fpKeyStorageMB("fp_asset_draft");
+  var drafts=fpKeyStorageMB("fp_capture_draft")+fpKeyStorageMB("fp_asset_draft")+fpKeyStorageMB("fp_ia_draft");
   return{deals:deals,history:history,queue:queue,drafts:drafts,total:parseFloat(getStorageSize())||0};
 }
 // Clear the cached deal list from the Capture storage warning. Safe because
