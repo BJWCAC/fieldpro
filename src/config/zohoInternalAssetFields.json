@@ -1,63 +1,79 @@
 {
   "description": "CapStone Zoho CRM field reference for Internal Assets (company tools / IAxxxx records).",
-  "source": "Derived from modules.Internal_Assets in zohoEquipmentFields.json plus Equipments field parity for CapStone IA tab.",
+  "source": "Live Zoho CRM /crm/v3/settings/fields?module=Internal_Assets via get_internal_asset_fields (proxy build 289), 2026-08-14.",
   "notes": [
-    "Internal_Assets stores CAC-owned tools used for field service \u2014 IAxxxx auto-number (field IA_Asset_ID), not customer Equipments (AMD/CAC_Asset_ID).",
-    "CapStone IA tab shows all Internal_Assets fields CapStone maps: fields_shared_with_equipments from zohoEquipmentFields.json plus Use_Status, Users, and readonly IA Asset ID. Category layouts / Subform_1 appear when Asset Category is selected.",
-    "Equipments-only CapStone fields stay hidden on IA: Account, Customer Asset Number, Deal Asset Notes, and deal-link workflow.",
-    "Use_Status and Users are Internal_Assets-only fields documented in zohoEquipmentFields.json modules.Internal_Assets.",
-    "Use exact picklist strings from Zoho (e.g. Use_Status \"Permenant\" is misspelled in CRM \u2014 match exactly)."
+    "Internal_Assets is a separate module from Equipments. CapStone IA tab must only show fields that exist on Internal_Assets.",
+    "Name is the autonumber Internal Asset Number (IAxxxx). There is no IA_Asset_ID field.",
+    "Descriptive title is Internal_Asset_Name (not Name).",
+    "Brand / Part_Number / Description / GPS_Tag are Internal_Assets api names — do not use Asset_Brand, Asset_Model_Number, Description_Instructions, or Location_Coordinates.",
+    "Equipments-only CapStone fields (Asset Category, Function, Building, Designator, Type, Series, Environment, Confined Space, category layouts, Subform_1, Model_AI_Specs, Account, Deal notes) stay hidden on the IA tab."
   ],
   "internalAssetCapturePhase1": {
     "moduleApiName": "Internal_Assets",
     "layoutName": "Standard",
-    "idField": "IA_Asset_ID",
+    "idField": "Name",
     "idSearchPrefix": "IA",
-    "idLabel": "IA Asset ID",
+    "idLabel": "Internal Asset Number",
     "requiredFields": [
+      "Internal_Asset_Name",
+      "Serial_Number",
+      "Use_Status"
+    ],
+    "fields": [
+      { "apiName": "Name", "label": "Internal Asset Number", "widget": "text", "readOnly": true },
+      { "apiName": "Internal_Asset_Name", "label": "Internal Asset Name", "widget": "text" },
+      { "apiName": "Brand", "label": "Brand", "widget": "text" },
+      { "apiName": "Part_Number", "label": "Part Number", "widget": "text" },
+      { "apiName": "Serial_Number", "label": "Serial Number", "widget": "text" },
+      { "apiName": "Tag", "label": "Tag", "widget": "text" },
+      { "apiName": "Use_Status", "label": "Use Status", "widget": "select", "picklist": "Use_Status" },
+      { "apiName": "Users", "label": "Current User", "widget": "select", "picklist": "Users" },
+      { "apiName": "Calibration_Due_Date", "label": "Calibration Due Date", "widget": "date" },
+      { "apiName": "Currency_1", "label": "Cost", "widget": "number" },
+      { "apiName": "Currency", "label": "Currency", "widget": "select" },
+      { "apiName": "GPS_Tag", "label": "GPS Tag", "widget": "text" },
+      { "apiName": "Description", "label": "Description", "widget": "textarea" }
+    ],
+    "internalOnlyFields": [
+      "Use_Status",
+      "Users",
+      "Internal_Asset_Name",
+      "Brand",
+      "Part_Number",
+      "Calibration_Due_Date",
+      "Currency_1",
+      "Currency",
+      "GPS_Tag",
+      "Tag"
+    ],
+    "photoExtractionTargets": [
+      "Brand",
+      "Part_Number",
+      "Serial_Number",
+      "Internal_Asset_Name"
+    ],
+    "defaults": {
+      "Use_Status": "Permenant",
+      "Currency": "USD"
+    },
+    "skipFields": [
+      "Account",
+      "Customer_Asset_Number",
       "Asset_Category",
-      "Name",
       "Asset_Function",
       "Building",
       "Additional_Designator",
       "Asset_Brand",
       "Asset_Type",
-      "Asset_Model_Number",
-      "Serial_Number",
+      "Asset_Series",
       "Asset_Environment",
       "Confined_Space",
-      "Use_Status"
-    ],
-    "internalOnlyFields": [
-      "Use_Status",
-      "Users"
-    ],
-    "photoExtractionTargets": [
-      "Asset_Brand",
-      "Asset_Type",
-      "Asset_Series",
       "Asset_Model_Number",
-      "Serial_Number",
-      "Nameplate_Additional_Info"
-    ],
-    "capstoneContextFields": [
+      "Nameplate_Additional_Info",
+      "Description_Instructions",
+      "Model_AI_Specs",
       "Location_Coordinates",
-      "Date",
-      "Users",
-      "Use_Status"
-    ],
-    "otherExplainFieldMap": {
-      "Asset_Function": "If_Asset_is_other_explain",
-      "Asset_Brand": "If_Asset_Brand_Other_explain",
-      "Asset_Type": "If_Asset_Type_other_explain",
-      "Asset_Series": "If_Asset_Series_is_Other_Function_explain"
-    },
-    "defaults": {
-      "Use_Status": "Permenant"
-    },
-    "skipFields": [
-      "Account",
-      "Customer_Asset_Number"
+      "Subform_1"
     ],
     "proxyActions": {
       "create": "create_internal_asset",

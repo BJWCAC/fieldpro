@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=371"/>
+<link rel="stylesheet" href="src/styles.css?v=372"/>
 
 </head>
 <body autocomplete="off">
@@ -298,12 +298,12 @@
   <details class="help-box" data-help-id="ia-tab" id="asset-help-internal" style="display:none">
     <summary>Help: IA (Internal Assets)</summary>
     <div class="help-box-body">
-      <p>The IA tab saves company-owned tools to Zoho <strong>Internal_Assets</strong> (IAxxxx numbers). It shows the Internal_Assets fields (including category layouts, Use Status, and Current User) — photos, AI extract, and Model_AI_Specs — with no Deal or Account link.</p>
+      <p>The IA tab saves company-owned tools to Zoho <strong>Internal_Assets</strong> (IAxxxx). The form shows only fields that exist on that Zoho module — not Equipments/customer asset fields.</p>
       <ul>
         <li>Start with <strong>Add New Internal Asset</strong> or <strong>Update Existing</strong>.</li>
-        <li>Set <strong>Use Status</strong> (Permanent / Floating) and <strong>Current User</strong> when assigning a tool.</li>
-        <li>Search by IA number, serial, model, brand, or name before creating duplicates.</li>
-        <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
+        <li>Fill Internal Asset Name, Brand, Part Number, Serial, Use Status, Current User, and optional Cost / Calibration Due / Tag / Description.</li>
+        <li>Search by IA number, serial, brand, part number, or name before creating duplicates.</li>
+        <li>No Deal or Account link — these are CAC-owned tools, not customer instruments.</li>
       </ul>
     </div>
   </details>
@@ -387,45 +387,59 @@
       <div class="asset-module-internal" style="display:none"><label class="lbl">Current User</label><select id="asset-users"></select></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
-    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">IA Asset ID</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
-    <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
-    <div class="g2" style="margin-bottom:8px">
+    <!-- Equipments (Assets tab) core fields -->
+    <div class="asset-module-equipments" style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Asset Category *</label><select id="asset-category"></select></div>
       <div><label class="lbl">Asset Function *</label><select id="asset-function"></select></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Building *</label><input id="asset-building" placeholder="Example: Headworks"/></div>
       <div><label class="lbl">Additional Designator *</label><input id="asset-designator" placeholder="Example: FE-101"/></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Asset Brand *</label><select id="asset-brand"></select></div>
       <div><label class="lbl">Asset Type *</label><select id="asset-type"></select></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Brand Other</label><input id="asset-brand-other" placeholder="Only if brand is 1 Other"/></div>
       <div><label class="lbl">Type Other</label><input id="asset-type-other" placeholder="Only if type is 1 Other"/></div>
     </div>
-    <div id="asset-picklist-request-panel" class="asset-picklist-request-panel" style="display:none"></div>
-    <div class="g2" style="margin-bottom:8px">
-      <div><label class="lbl">Model Number *</label><input id="asset-model"/></div>
-      <div><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
-    </div>
-    <div class="g2" style="margin-bottom:8px">
+    <div id="asset-picklist-request-panel" class="asset-picklist-request-panel asset-module-equipments" style="display:none"></div>
+    <div class="asset-module-equipments" style="margin-bottom:8px"><label class="lbl">Model Number *</label><input id="asset-model"/></div>
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Series</label><select id="asset-series"></select></div>
       <div><label class="lbl">Series Other</label><input id="asset-series-other" placeholder="Only if series is Other"/></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
+    <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Environment *</label><select id="asset-environment"></select></div>
       <div><label class="lbl">Confined Space *</label><select id="asset-confined"></select></div>
     </div>
+    <div id="asset-category-fields" class="asset-category-fields asset-module-equipments" style="display:none"></div>
+    <div class="asset-module-equipments" style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
+    <div class="asset-module-equipments" style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
+    <div class="asset-module-equipments" style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
+
+    <!-- Internal_Assets (IA tab) fields — match Zoho CRM Internal_Assets module only -->
+    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Internal Asset Number</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
+    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Internal Asset Name *</label><input id="asset-ia-name" placeholder="Example: Fluke 87V shop meter"/></div>
+    <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
+      <div><label class="lbl">Brand</label><input id="asset-ia-brand" placeholder="Example: Fluke"/></div>
+      <div><label class="lbl">Part Number</label><input id="asset-ia-part" placeholder="Example: 87V"/></div>
+    </div>
+    <div class="g2" style="margin-bottom:8px">
+      <div><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
+      <div class="asset-module-internal" style="display:none"><label class="lbl">Tag</label><input id="asset-ia-tag" placeholder="Optional tag"/></div>
+    </div>
     <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
       <div><label class="lbl">Use Status *</label><select id="asset-use-status"></select></div>
-      <div></div>
+      <div><label class="lbl">Calibration Due Date</label><input id="asset-ia-cal-due" type="date"/></div>
     </div>
-    <div id="asset-category-fields" class="asset-category-fields" style="display:none"></div>
-    <div style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
-    <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
-    <div style="margin-bottom:10px" class="asset-module-equipments"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
+    <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
+      <div><label class="lbl">Cost</label><input id="asset-ia-cost" type="number" step="0.01" placeholder="0.00"/></div>
+      <div><label class="lbl">Currency</label><select id="asset-ia-currency"><option value="">Select currency</option><option value="USD">USD</option></select></div>
+    </div>
+    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Description</label><textarea id="asset-ia-description" rows="3" placeholder="Notes about this company tool"></textarea></div>
     <div id="asset-prefill-banner" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px;margin-top:10px"></div>
     <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()"><span class="asset-save-btn-label">Save Asset to Zoho</span></button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none"><span class="asset-next-btn-label">Start New Asset</span></button></div>
     <div id="asset-status" class="err-box" style="display:none;margin-top:10px"></div>
@@ -1026,8 +1040,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=371"></script>
-<script src="src/app.js?v=371"></script>
+<script src="src/accounts-map.js?v=372"></script>
+<script src="src/app.js?v=372"></script>
 
 </body>
 </html>

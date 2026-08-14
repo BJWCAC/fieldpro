@@ -1067,15 +1067,15 @@
     },
     "Internal_Assets": {
       "module_api_name": "Internal_Assets",
-      "capstone_usage": "CapStone IA tab shows all Internal_Assets fields (shared Equipments fields + Use_Status/Users/IA_Asset_ID), without Deal/Account linkage.",
-      "id_field": "IA_Asset_ID",
+      "capstone_usage": "CapStone IA tab form matches live Zoho Internal_Assets fields only (not Equipments). Name=autonumber IAxxxx; title=Internal_Asset_Name.",
+      "id_field": "Name",
       "id_search_prefix": "IA",
-      "fields_shared_with_equipments": [
-        "Asset_Category", "Name", "Asset_Function", "Building", "Additional_Designator",
-        "Asset_Brand", "Asset_Type", "Asset_Model_Number", "Serial_Number", "Asset_Environment",
-        "Confined_Space", "Asset_Series", "Nameplate_Additional_Info", "Description_Instructions",
-        "Model_AI_Specs", "Location_Coordinates", "Subform_1"
+      "fields": [
+        "Name", "Internal_Asset_Name", "Brand", "Part_Number", "Serial_Number", "Tag",
+        "Use_Status", "Users", "Calibration_Due_Date", "Currency_1", "Currency",
+        "GPS_Tag", "Description", "Record_Image"
       ],
+      "fields_shared_with_equipments": [],
       "picklists": {
         "Use_Status": {
           "label": "Use Status",

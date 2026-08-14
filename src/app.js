@@ -344,8 +344,8 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="371";
-var MIN_ZOHO_PROXY_BUILD=288;
+var FP_VERSION="372";
+var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -2343,7 +2343,7 @@ function assetModuleProxyActions(){
   if(isInternalAssetModule()&&cap.proxyActions)return cap.proxyActions;
   return{create:"create_equipment",update:"update_equipment",delete:"delete_equipment",get:"get_equipment",search:"search_equipment_assets",findBySerial:"find_equipment",uploadPhoto:"upload_equipment_photo",saveNote:"save_equipment_note",activateLayout:"activate_equipment_category_layout"};
 }
-function assetIdFieldName(){var cap=assetCaptureConfig();return isInternalAssetModule()?(cap.idField||"IA_Asset_ID"):"CAC_Asset_ID";}
+function assetIdFieldName(){var cap=assetCaptureConfig();return isInternalAssetModule()?(cap.idField||"Name"):"CAC_Asset_ID";}
 function assetIdSearchPrefix(){var cap=assetCaptureConfig();return isInternalAssetModule()?(cap.idSearchPrefix||"IA"):"AMD";}
 function assetDraftStorageKey(){return isInternalAssetModule()?"fp_ia_draft":"fp_asset_draft";}
 function assetSavedVisitStorageKey(){return isInternalAssetModule()?"fp_ia_saved_visit":"fp_asset_saved_visit";}
@@ -2385,7 +2385,9 @@ function renderAssetModuleUi(){
   var searchBtn=document.querySelector(".asset-search-btn-label");if(searchBtn)searchBtn.textContent=internal?"Search Internal Assets":"Search Assets";
   var saveBtn=document.querySelector(".asset-save-btn-label");if(saveBtn)saveBtn.textContent=internal?"Save Internal Asset to Zoho":"Save Asset to Zoho";
   var nextBtn=document.querySelector(".asset-next-btn-label");if(nextBtn)nextBtn.textContent=internal?"Start New Internal Asset":"Start New Asset";
-  var search=el("asset-search");if(search)search.placeholder=internal?"IA ID, serial, model, brand, type, name, building":"CAC ID, serial, model, brand, type, name, building";
+  var search=el("asset-search");if(search)search.placeholder=internal?"IA number, serial, brand, part number, name":"CAC ID, serial, model, brand, type, name, building";
+  var research=el("asset-research-btn");if(research&&internal)research.style.display="none";
+  if(intro&&internal)intro.textContent="Document CAC-owned tools in Zoho Internal_Assets. Form fields match the IA module only (no Equipments/customer-asset fields).";
 }
 function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;placeAssetStatusBox(e);if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
@@ -3006,6 +3008,7 @@ function resetCategoryDynamicStateForCategory(category){
   });
 }
 function markDynamicRequiredFields(){
+  if(isInternalAssetModule())return[];
   var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
   if(!cat)return[];
   syncDynamicFieldValuesFromDom();
@@ -3445,6 +3448,7 @@ function subformRowHasAnyValue(row){
   return Object.keys(row||{}).some(function(k){return String(row[k]||"").trim();});
 }
 function markSubformRequiredFields(){
+  if(isInternalAssetModule())return[];
   syncSubformRowsFromDom();
   var missing=[];
   var cols=assetSubformColumns();
@@ -4354,6 +4358,23 @@ function setAssetSelectIfPresent(id,value,opts){
 function applyEquipmentRecordToAssetForm(r){
   if(!r)return;
   var idField=assetIdFieldName();
+  setAssetInput("asset-serial",r.Serial_Number||"");
+  if(isInternalAssetModule()){
+    setAssetInput("asset-ia-id",r.Name||r[idField]||"");
+    setAssetInput("asset-ia-name",r.Internal_Asset_Name||"");
+    setAssetInput("asset-ia-brand",r.Brand||"");
+    setAssetInput("asset-ia-part",r.Part_Number||"");
+    setAssetInput("asset-ia-tag",r.Tag||"");
+    setAssetInput("asset-ia-description",r.Description||"");
+    setAssetInput("asset-ia-cal-due",(r.Calibration_Due_Date||"").toString().slice(0,10));
+    setAssetInput("asset-ia-cost",r.Currency_1!=null&&r.Currency_1!==""?String(r.Currency_1):"");
+    setAssetSelectIfPresent("asset-ia-currency",r.Currency||"");
+    setAssetSelectIfPresent("asset-use-status",r.Use_Status||"Permenant");
+    setAssetSelectIfPresent("asset-users",r.Users||"");
+    if(r.GPS_Tag)setAssetInput("asset-location",r.GPS_Tag);
+    setAssetInput("asset-search",r.Name||r.Serial_Number||r.Internal_Asset_Name||"");
+    return;
+  }
   setAssetInput("asset-name",r.Name||"");
   setAssetSelectIfPresent("asset-category",r.Asset_Category||"");
   setAssetSelectIfPresent("asset-function",r.Asset_Function||"");
@@ -4364,18 +4385,12 @@ function applyEquipmentRecordToAssetForm(r){
   setAssetInput("asset-brand-other",r.If_Asset_Brand_Other_explain||"");
   setAssetInput("asset-type-other",r.If_Asset_Type_other_explain||"");
   setAssetInput("asset-model",r.Asset_Model_Number||"");
-  setAssetInput("asset-serial",r.Serial_Number||"");
   setAssetSelectIfPresent("asset-series",r.Asset_Series||"");
   setAssetInput("asset-series-other",r.If_Asset_Series_is_Other_Function_explain||"");
   setAssetSelectIfPresent("asset-environment",r.Asset_Environment||"");
   setAssetSelectIfPresent("asset-confined",r.Confined_Space||"");
-  if(isInternalAssetModule()){
-    setAssetSelectIfPresent("asset-use-status",r.Use_Status||"Permenant");
-    setAssetSelectIfPresent("asset-users",r.Users||"");
-    setAssetInput("asset-ia-id",r[idField]||r.IA_Asset_ID||"");
-  }
   applyDynamicFieldsFromRecord(r);
-  if(!isInternalAssetModule())applyLoadedAssetAccount(r);
+  applyLoadedAssetAccount(r);
   setAssetInput("asset-nameplate-additional",r.Nameplate_Additional_Info||"");
   setAssetInput("asset-description",r.Description_Instructions||"");
   setAssetInput("asset-search",r[idField]||r.CAC_Asset_ID||r.Serial_Number||r.Name||"");
@@ -4765,6 +4780,24 @@ async function requestAssetPicklistValue(fieldApi){
 function applyAssetExtraction(x){
   x=normalizeExtractedPartModelSeries(x||{});
   x.k_factor=resolveExtractedCalFactor(x)||x.k_factor;
+  if(isInternalAssetModule()){
+    var manufacturer=x.manufacturer||x.brand||"";
+    var fullModel=x.model_number||x.model||x.part_number||"";
+    var serialVal=x.serial_number||x.serial||"";
+    if(manufacturer){setAssetInput("asset-ia-brand",manufacturer);markAssetPrefill("asset-ia-brand","nameplate");}
+    if(fullModel){setAssetInput("asset-ia-part",fullModel);markAssetPrefill("asset-ia-part","nameplate");}
+    if(serialVal){setAssetInput("asset-serial",serialVal);markAssetPrefill("asset-serial","nameplate");}
+    var nameParts=[];if(manufacturer)nameParts.push(manufacturer);if(fullModel)nameParts.push(fullModel);
+    if(!assetInput("asset-ia-name")&&nameParts.length){setAssetInput("asset-ia-name",nameParts.join(" "));markAssetPrefill("asset-ia-name","nameplate");}
+    var notes=[];
+    if(x.order_number&&x.order_number!==fullModel)notes.push("Order Code: "+x.order_number);
+    if(x.ratings)notes.push("Ratings: "+x.ratings);
+    if(x.visible_text)notes.push("Visible text: "+x.visible_text);
+    if(notes.length&&!assetInput("asset-ia-description")){setAssetInput("asset-ia-description",notes.join("\n"));markAssetPrefill("asset-ia-description","nameplate");}
+    refreshAssetPrefillUI();
+    updateAssetSaveState();
+    return;
+  }
   var manufacturer=x.manufacturer||x.brand||"";
   applyExtractedPicklistField("Asset_Brand",PICKLIST_REQUEST_FIELDS.Asset_Brand,manufacturer);
   if(assetInput("asset-brand"))markAssetPrefill("asset-brand","nameplate");
@@ -4814,6 +4847,7 @@ function applyAssetExtraction(x){
   renderAssetPicklistRequestPanel();
 }
 function ensureFlowMeterCategoryForSensor(){
+  if(isInternalAssetModule())return false;
   if(categoryLayout(assetInput("asset-category")))return false;
   setAssetSelectIfPresent("asset-category","Flow Meter");
   if(!categoryLayout(assetInput("asset-category")))return false;
@@ -5031,6 +5065,7 @@ function inferAssetCategoryFromExtract(x){
   return"";
 }
 function ensureCategoryFromExtraction(x){
+  if(isInternalAssetModule())return false;
   if(assetInput("asset-category"))return false;
   var cat=inferAssetCategoryFromExtract(x);
   if(!cat||!categoryLayout(cat))return false;
@@ -5327,8 +5362,15 @@ function toggleAssetAutoResearch(){
   scheduleKeySyncAutoPush();
 }
 function assetRequiredFields(){
-  // IA form shows every Internal_Assets field CapStone maps (shared + Use Status).
-  var fields=[
+  if(isInternalAssetModule()){
+    // Zoho Internal_Assets module fields only (live settings/fields inventory).
+    return [
+      ["asset-ia-name","Internal Asset Name"],
+      ["asset-serial","Serial Number"],
+      ["asset-use-status","Use Status"]
+    ];
+  }
+  return [
     ["asset-name","Asset Name"],
     ["asset-category","Asset Category"],
     ["asset-function","Asset Function"],
@@ -5341,8 +5383,6 @@ function assetRequiredFields(){
     ["asset-environment","Environment"],
     ["asset-confined","Confined Space"]
   ];
-  if(isInternalAssetModule())fields.push(["asset-use-status","Use Status"]);
-  return fields;
 }
 function markAssetRequiredFields(){
   var missing=[];
@@ -5447,8 +5487,9 @@ function setupAssetRequiredHandlers(){
   A.assetReqHandlersBound=true;
 }
 function assetFieldIdsToClear(){
-  var ids=["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes"];
-  if(isInternalAssetModule())ids.push("asset-use-status","asset-users","asset-ia-id");
+  var ids=["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes","asset-environment"];
+  if(isInternalAssetModule())ids.push("asset-use-status","asset-users","asset-ia-id","asset-ia-name","asset-ia-brand","asset-ia-part","asset-ia-tag","asset-ia-description","asset-ia-cal-due","asset-ia-cost","asset-ia-currency");
+  else ids.push("asset-confined");
   return ids;
 }
 var FP_ASSET_SAVED_VISIT_KEY="fp_asset_saved_visit";
@@ -5738,6 +5779,35 @@ function assetPayload(opts){
   opts=opts||{};
   var includeBlank=!!opts.includeBlank;
   var isUpdate=!!opts.isUpdate;
+  function setOptional(payload,apiName,value){
+    if(value==null||value===""){if(includeBlank)payload[apiName]="";return;}
+    payload[apiName]=value;
+  }
+  if(isInternalAssetModule()){
+    // Map CapStone IA form → live Zoho Internal_Assets api names only.
+    // Name is autonumber (IAxxxx) — never send on create; Zoho assigns it.
+    var ia={
+      Internal_Asset_Name:assetInput("asset-ia-name"),
+      Serial_Number:assetInput("asset-serial")
+    };
+    setOptional(ia,"Brand",assetInput("asset-ia-brand"));
+    setOptional(ia,"Part_Number",assetInput("asset-ia-part"));
+    setOptional(ia,"Description",assetInput("asset-ia-description"));
+    setOptional(ia,"Tag",assetInput("asset-ia-tag"));
+    setOptional(ia,"Calibration_Due_Date",assetInput("asset-ia-cal-due"));
+    setOptional(ia,"Use_Status",assetInput("asset-use-status")||"Permenant");
+    setOptional(ia,"Users",assetInput("asset-users")||A.technician||"");
+    setOptional(ia,"Currency",assetInput("asset-ia-currency")||"");
+    var cost=assetInput("asset-ia-cost");
+    if(cost!==""){
+      var costN=parseFloat(cost);
+      if(!isNaN(costN))ia.Currency_1=costN;
+      else if(includeBlank)ia.Currency_1="";
+    }else if(includeBlank)ia.Currency_1="";
+    var gps=A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):assetInput("asset-location");
+    setOptional(ia,"GPS_Tag",gps);
+    return ia;
+  }
   var payload={
     Asset_Category:normalizeAssetCategoryKey(assetInput("asset-category")),
     Name:assetInput("asset-name"),
@@ -5752,30 +5822,21 @@ function assetPayload(opts){
     Confined_Space:assetInput("asset-confined")
   };
   var acctId=assetSaveAccountId();
-  if(!isInternalAssetModule()){
-    if(!isUpdate)payload.Account={id:acctId};
-    else if(isZohoLookupRecordId(acctId))payload.Account={id:acctId};
-  }
-  function setOptional(apiName,value){
-    if(value==null||value===""){if(includeBlank)payload[apiName]="";return;}
-    payload[apiName]=value;
-  }
-  if(isInternalAssetModule()){
-    setOptional("Use_Status",assetInput("asset-use-status")||"Permenant");
-    setOptional("Users",assetInput("asset-users")||A.technician||"");
-  }
-  setOptional("Asset_Series",assetInput("asset-series"));
-  setOptional("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
-  setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
-  setOptional("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
-  setOptional("Nameplate_Additional_Info",assetInput("asset-nameplate-additional"));
+  if(!isUpdate)payload.Account={id:acctId};
+  else if(isZohoLookupRecordId(acctId))payload.Account={id:acctId};
+  function setOpt(apiName,value){setOptional(payload,apiName,value);}
+  setOpt("Asset_Series",assetInput("asset-series"));
+  setOpt("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
+  setOpt("If_Asset_Type_other_explain",assetInput("asset-type-other"));
+  setOpt("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
+  setOpt("Nameplate_Additional_Info",assetInput("asset-nameplate-additional"));
   var desc=assetInput("asset-description");
   var repl=replacementNote();
   if(repl)desc=desc?(desc+"\n\n"+repl):repl;
-  setOptional("Description_Instructions",desc);
-  setOptional("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
+  setOpt("Description_Instructions",desc);
+  setOpt("Location_Coordinates",A.location?(A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"");
   var dyn=mapDynamicValuesToZohoPayload(collectDynamicAssetPayload(includeBlank));
-  Object.keys(dyn).forEach(function(k){setOptional(k,dyn[k]);});
+  Object.keys(dyn).forEach(function(k){setOpt(k,dyn[k]);});
   var subRows=assetSubformPayload();
   if(subRows.length)payload.Subform_1=subRows;
   return payload;
@@ -5817,10 +5878,12 @@ async function saveEquipmentRecord(){
     fullPayload=assetPayload({includeBlank:true,isUpdate:true});
   }
   var equipmentIdForSpecs=ast().currentAssetId||null;
-  var bgSpecs=isAssetBgSpecsEnabled();
-  var specIdentity={category:assetInput("asset-category"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),series:assetInput("asset-series"),model:assetInput("asset-model"),brandOther:assetInput("asset-brand-other")};
+  var bgSpecs=!isInternalAssetModule()&&isAssetBgSpecsEnabled();
+  var specIdentity=isInternalAssetModule()?null:{category:assetInput("asset-category"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),series:assetInput("asset-series"),model:assetInput("asset-model"),brandOther:assetInput("asset-brand-other")};
   var existingSpecsText="";
-  if(bgSpecs){
+  if(isInternalAssetModule()){
+    ast().aiSpecsText="";ast().aiSpecsKey="";ast()._lastAiSpecsGen={ok:true,skipped:true,reason:"Internal_Assets has no Model_AI_Specs field"};
+  }else if(bgSpecs){
     // Background mode: don't block the save on AI research. The asset is written now; a
     // background worker researches specs and writes Model_AI_Specs to Zoho just after, so
     // the technician can move on to the next asset immediately.
@@ -6732,6 +6795,7 @@ async function saveAssetToZoho(){
     var cacId=fetched.cacId||"";
     if(cacId){
       if(isInternalAssetModule())setAssetInput("asset-ia-id",cacId);
+      else{
       var descWithCac=prependCacIdToAssetDescription(assetInput("asset-description"),cacId);
       if(descWithCac!==assetInput("asset-description")){
         setAssetInput("asset-description",descWithCac);
@@ -6742,6 +6806,7 @@ async function saveAssetToZoho(){
           console.log("CAC ID description update failed:",descErr);
           noteWarning=(noteWarning?noteWarning+" ":"")+"AMD number saved locally but Zoho description update failed.";
         }
+      }
       }
       if(equipmentRec){
         if(!ast().loadedOriginal)ast().loadedOriginal=originalAssetSnapshot(equipmentRec);

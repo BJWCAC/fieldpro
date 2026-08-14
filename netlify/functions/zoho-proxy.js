@@ -1593,16 +1593,18 @@ exports.handler = async function(event) {
     }
 
     var INTERNAL_ASSET_MODULE = "Internal_Assets";
-    var INTERNAL_ASSET_ID_FIELD = "IA_Asset_ID";
-    // Zoho caps ?fields= at 50 names. Keep this list to real Internal_Assets columns only
-    // (discovered via get_internal_asset_fields). Do not paste the full Equipments list.
+    var INTERNAL_ASSET_ID_FIELD = "Name"; // autonumber IAxxxx (no separate IA_Asset_ID field)
+    // Live Internal_Assets columns from get_internal_asset_fields (Zoho settings/fields).
+    // Name is the autonumber (IAxxxx). Descriptive title is Internal_Asset_Name.
+    // Do not include Equipments-only api names — Zoho ignores unknowns and the old
+    // Equipments paste exceeded the 50-field GET limit.
     var internalAssetGetFields = [
-      "Name", INTERNAL_ASSET_ID_FIELD,
-      "Asset_Brand", "If_Asset_Brand_Other_explain",
-      "Asset_Model_Number", "Serial_Number",
-      "Nameplate_Additional_Info", "Description_Instructions", "Model_AI_Specs",
-      "Location_Coordinates", "Date",
-      "Use_Status", "Users"
+      "Name", "Internal_Asset_Name",
+      "Brand", "Part_Number", "Serial_Number",
+      "Description", "GPS_Tag", "Calibration_Due_Date",
+      "Currency", "Currency_1", "Exchange_Rate",
+      "Use_Status", "Users", "Tag",
+      "Record_Image"
     ].join(",");
 
     function internalAssetWriteBody(record, applyLayoutRules) {
@@ -1688,9 +1690,9 @@ exports.handler = async function(event) {
         if (searchResult.status < 200 || searchResult.status >= 300) return;
         try { iaAddHits(JSON.parse(searchResult.body).data || []); } catch (se) {}
       }
-      var iaIdFields = [INTERNAL_ASSET_ID_FIELD, "Name"];
-      var iaTextFields = ["Name", "Serial_Number", "Asset_Model_Number", INTERNAL_ASSET_ID_FIELD, "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
-      var iaExactFields = [INTERNAL_ASSET_ID_FIELD, "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      var iaIdFields = ["Name"];
+      var iaTextFields = ["Name", "Internal_Asset_Name", "Serial_Number", "Brand", "Part_Number", "Tag"];
+      var iaExactFields = ["Name", "Serial_Number", "Part_Number", "Brand", "Internal_Asset_Name", "Tag"];
       for (var ti = 0; ti < iaSearchTerms.length; ti++) {
         var term = iaSearchTerms[ti];
         await iaCollectWordSearch(term);
@@ -1717,7 +1719,7 @@ exports.handler = async function(event) {
       var iaCriteria = encodeURIComponent("(Serial_Number:equals:" + iaSerial + ")");
       var iaFindResult = await req({
         hostname: "www.zohoapis.com",
-        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + iaCriteria + "&fields=Name," + INTERNAL_ASSET_ID_FIELD + ",Serial_Number,Asset_Model_Number",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + iaCriteria + "&fields=" + encodeURIComponent(internalAssetGetFields),
         method: "GET",
         headers: { "Authorization": "Zoho-oauthtoken " + token }
       });
