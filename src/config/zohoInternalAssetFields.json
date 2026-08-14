@@ -2,11 +2,11 @@
   "description": "CapStone Zoho CRM field reference for Internal Assets (company tools / IAxxxx records).",
   "source": "Derived from modules.Internal_Assets in zohoEquipmentFields.json plus Equipments field parity for CapStone IA tab.",
   "notes": [
-    "Internal_Assets stores CAC-owned tools used for field service — IAxxxx auto-number (field IA_Asset_ID), not customer Equipments (AMD/CAC_Asset_ID).",
-    "CapStone IA tab mirrors the Assets workflow (photos, AI extract, category layouts, Model_AI_Specs, subform) but does not link to Deals or Accounts.",
+    "Internal_Assets stores CAC-owned tools used for field service \u2014 IAxxxx auto-number (field IA_Asset_ID), not customer Equipments (AMD/CAC_Asset_ID).",
+    "IA CapStone form is intentionally slimmer than Equipments: no Asset Category, Function, Building, Additional Designator, Asset Type/Type Other, Series/Series Other, Environment, or Confined Space. Those Zoho fields remain on the CRM module and on the Assets tab; CapStone simply does not collect or overwrite them from the IA tab.",
+    "Category layouts / dynamic Set Up fields / Subform_1 are Equipments-tab only in CapStone UI (hidden with Asset Category on IA).",
     "Use_Status and Users are Internal_Assets-only fields documented in zohoEquipmentFields.json modules.Internal_Assets.",
-    "Category layouts, assetFieldRegistry, and picklists are shared with Equipments — loaded by merging this overlay onto zohoEquipmentFields.json at runtime.",
-    "Use exact picklist strings from Zoho (e.g. Use_Status \"Permenant\" is misspelled in CRM — match exactly)."
+    "Use exact picklist strings from Zoho (e.g. Use_Status \"Permenant\" is misspelled in CRM \u2014 match exactly)."
   ],
   "internalAssetCapturePhase1": {
     "moduleApiName": "Internal_Assets",
@@ -15,17 +15,10 @@
     "idSearchPrefix": "IA",
     "idLabel": "IA Asset ID",
     "requiredFields": [
-      "Asset_Category",
       "Name",
-      "Asset_Function",
-      "Building",
-      "Additional_Designator",
       "Asset_Brand",
-      "Asset_Type",
       "Asset_Model_Number",
       "Serial_Number",
-      "Asset_Environment",
-      "Confined_Space",
       "Use_Status"
     ],
     "internalOnlyFields": [
@@ -34,8 +27,6 @@
     ],
     "photoExtractionTargets": [
       "Asset_Brand",
-      "Asset_Type",
-      "Asset_Series",
       "Asset_Model_Number",
       "Serial_Number",
       "Nameplate_Additional_Info"
@@ -47,17 +38,24 @@
       "Use_Status"
     ],
     "otherExplainFieldMap": {
-      "Asset_Function": "If_Asset_is_other_explain",
-      "Asset_Brand": "If_Asset_Brand_Other_explain",
-      "Asset_Type": "If_Asset_Type_other_explain",
-      "Asset_Series": "If_Asset_Series_is_Other_Function_explain"
+      "Asset_Brand": "If_Asset_Brand_Other_explain"
     },
     "defaults": {
       "Use_Status": "Permenant"
     },
     "skipFields": [
       "Account",
-      "Customer_Asset_Number"
+      "Additional_Designator",
+      "Asset_Category",
+      "Asset_Environment",
+      "Asset_Function",
+      "Asset_Series",
+      "Asset_Type",
+      "Building",
+      "Confined_Space",
+      "Customer_Asset_Number",
+      "If_Asset_Series_is_Other_Function_explain",
+      "If_Asset_Type_other_explain"
     ],
     "proxyActions": {
       "create": "create_internal_asset",
