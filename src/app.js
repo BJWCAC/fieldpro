@@ -344,7 +344,7 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
   return combined;
 }
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="370";
+var FP_VERSION="371";
 var MIN_ZOHO_PROXY_BUILD=288;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2385,7 +2385,7 @@ function renderAssetModuleUi(){
   var searchBtn=document.querySelector(".asset-search-btn-label");if(searchBtn)searchBtn.textContent=internal?"Search Internal Assets":"Search Assets";
   var saveBtn=document.querySelector(".asset-save-btn-label");if(saveBtn)saveBtn.textContent=internal?"Save Internal Asset to Zoho":"Save Asset to Zoho";
   var nextBtn=document.querySelector(".asset-next-btn-label");if(nextBtn)nextBtn.textContent=internal?"Start New Internal Asset":"Start New Asset";
-  var search=el("asset-search");if(search)search.placeholder=internal?"IA ID, serial, model, brand, name":"CAC ID, serial, model, brand, type, name, building";
+  var search=el("asset-search");if(search)search.placeholder=internal?"IA ID, serial, model, brand, type, name, building":"CAC ID, serial, model, brand, type, name, building";
 }
 function assetStatus(msg,isErr){var e=el("asset-status");if(!e)return;placeAssetStatusBox(e);if(msg){e.textContent=msg;e.style.display="block";if(isErr){e.style.borderColor="#ef4444";e.style.color="#fca5a5";e.style.background="#1a0a0a";}else if(/saved to zoho/i.test(msg)){e.style.borderColor="#86efac";e.style.color="#166534";e.style.background="#f0fdf4";}else{e.style.borderColor="#006050";e.style.color="var(--amber)";e.style.background="#1a0a0a";}}else e.style.display="none";}
 function assetInput(id){var e=el(id);return e?(e.value||"").trim():"";}
@@ -3006,7 +3006,6 @@ function resetCategoryDynamicStateForCategory(category){
   });
 }
 function markDynamicRequiredFields(){
-  if(isInternalAssetModule())return[];
   var cat=normalizeAssetCategoryKey(assetInput("asset-category"));
   if(!cat)return[];
   syncDynamicFieldValuesFromDom();
@@ -3446,7 +3445,6 @@ function subformRowHasAnyValue(row){
   return Object.keys(row||{}).some(function(k){return String(row[k]||"").trim();});
 }
 function markSubformRequiredFields(){
-  if(isInternalAssetModule())return[];
   syncSubformRowsFromDom();
   var missing=[];
   var cols=assetSubformColumns();
@@ -4374,6 +4372,7 @@ function applyEquipmentRecordToAssetForm(r){
   if(isInternalAssetModule()){
     setAssetSelectIfPresent("asset-use-status",r.Use_Status||"Permenant");
     setAssetSelectIfPresent("asset-users",r.Users||"");
+    setAssetInput("asset-ia-id",r[idField]||r.IA_Asset_ID||"");
   }
   applyDynamicFieldsFromRecord(r);
   if(!isInternalAssetModule())applyLoadedAssetAccount(r);
@@ -4434,6 +4433,11 @@ function applySavedAssetSnapshotToForm(snap){
   setAssetInput("asset-series-other",snap.seriesOther||"");
   setAssetSelectIfPresent("asset-environment",snap.environment||"");
   setAssetSelectIfPresent("asset-confined",snap.confined||"");
+  if(isInternalAssetModule()){
+    setAssetSelectIfPresent("asset-use-status",snap.useStatus||"Permenant");
+    setAssetSelectIfPresent("asset-users",snap.users||"");
+    setAssetInput("asset-ia-id",snap.cacId||"");
+  }
   setAssetInput("asset-nameplate-additional",snap.nameplateAdditional||"");
   setAssetInput("asset-description",snap.description||"");
   setAssetInput("asset-deal-notes",snap.dealNotes||"");
@@ -4648,7 +4652,6 @@ function applyExtractedPicklistField(fieldApi,cfg,rawVal){
 function getAssetPicklistMisses(){
   var misses=[];
   Object.keys(PICKLIST_REQUEST_FIELDS).forEach(function(fieldApi){
-    if(isInternalAssetModule()&&fieldApi==="Asset_Type")return;
     var cfg=PICKLIST_REQUEST_FIELDS[fieldApi];
     var sel=assetInput(cfg.selectId),other=assetInput(cfg.otherId);
     if(sel===cfg.otherValue&&other){
@@ -4811,7 +4814,6 @@ function applyAssetExtraction(x){
   renderAssetPicklistRequestPanel();
 }
 function ensureFlowMeterCategoryForSensor(){
-  if(isInternalAssetModule())return false;
   if(categoryLayout(assetInput("asset-category")))return false;
   setAssetSelectIfPresent("asset-category","Flow Meter");
   if(!categoryLayout(assetInput("asset-category")))return false;
@@ -5029,7 +5031,6 @@ function inferAssetCategoryFromExtract(x){
   return"";
 }
 function ensureCategoryFromExtraction(x){
-  if(isInternalAssetModule())return false;
   if(assetInput("asset-category"))return false;
   var cat=inferAssetCategoryFromExtract(x);
   if(!cat||!categoryLayout(cat))return false;
@@ -5326,42 +5327,30 @@ function toggleAssetAutoResearch(){
   scheduleKeySyncAutoPush();
 }
 function assetRequiredFields(){
-  // IA tab omits site/layout fields (category, function, building, designator, type,
-  // series, environment, confined) — those stay on Equipments/Assets only.
-  var fields=[["asset-name","Asset Name"],["asset-brand","Asset Brand"],["asset-model","Model Number"],["asset-serial","Serial Number"]];
-  if(!isInternalAssetModule()){
-    fields=[
-      ["asset-name","Asset Name"],
-      ["asset-category","Asset Category"],
-      ["asset-function","Asset Function"],
-      ["asset-building","Building"],
-      ["asset-designator","Additional Designator"],
-      ["asset-brand","Asset Brand"],
-      ["asset-type","Asset Type"],
-      ["asset-model","Model Number"],
-      ["asset-serial","Serial Number"],
-      ["asset-environment","Environment"],
-      ["asset-confined","Confined Space"]
-    ];
-  }
+  // IA form shows every Internal_Assets field CapStone maps (shared + Use Status).
+  var fields=[
+    ["asset-name","Asset Name"],
+    ["asset-category","Asset Category"],
+    ["asset-function","Asset Function"],
+    ["asset-building","Building"],
+    ["asset-designator","Additional Designator"],
+    ["asset-brand","Asset Brand"],
+    ["asset-type","Asset Type"],
+    ["asset-model","Model Number"],
+    ["asset-serial","Serial Number"],
+    ["asset-environment","Environment"],
+    ["asset-confined","Confined Space"]
+  ];
   if(isInternalAssetModule())fields.push(["asset-use-status","Use Status"]);
   return fields;
 }
 function markAssetRequiredFields(){
   var missing=[];
-  var required={};
   assetRequiredFields().forEach(function(r){
-    required[r[0]]=true;
     var e=el(r[0]),isMissing=!assetInput(r[0]);
     if(e)e.classList.toggle("asset-required-missing",isMissing);
     if(isMissing)missing.push(r[1]);
   });
-  // Clear leftover red highlights on Equipments-only fields when on the IA tab.
-  if(isInternalAssetModule()){
-    ["asset-category","asset-function","asset-building","asset-designator","asset-type","asset-environment","asset-confined"].forEach(function(id){
-      var e=el(id);if(e&&!required[id])e.classList.remove("asset-required-missing");
-    });
-  }
   return missing;
 }
 function updateStartNewAssetButton(){
@@ -5459,7 +5448,7 @@ function setupAssetRequiredHandlers(){
 }
 function assetFieldIdsToClear(){
   var ids=["asset-name","asset-category","asset-function","asset-building","asset-designator","asset-brand","asset-type","asset-brand-other","asset-type-other","asset-model","asset-serial","asset-series","asset-series-other","asset-nameplate-additional","asset-description","asset-deal-notes"];
-  if(isInternalAssetModule())ids.push("asset-use-status","asset-users");
+  if(isInternalAssetModule())ids.push("asset-use-status","asset-users","asset-ia-id");
   return ids;
 }
 var FP_ASSET_SAVED_VISIT_KEY="fp_asset_saved_visit";
@@ -5528,7 +5517,12 @@ async function fetchEquipmentCacIdWithRetry(equipmentId){
 function savedAssetSnapshot(equipmentId,dealLinked,cacId){
   syncDynamicFieldValuesFromDom();
   syncSubformRowsFromDom();
-  return{id:equipmentId,cacId:cacId||"",savedAt:new Date().toISOString(),name:assetInput("asset-name"),category:assetInput("asset-category"),assetFunction:assetInput("asset-function"),building:assetInput("asset-building"),designator:assetInput("asset-designator"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),brandOther:assetInput("asset-brand-other"),typeOther:assetInput("asset-type-other"),model:assetInput("asset-model"),serial:assetInput("asset-serial"),series:assetInput("asset-series"),seriesOther:assetInput("asset-series-other"),environment:assetInput("asset-environment"),confined:assetInput("asset-confined"),nameplateAdditional:assetInput("asset-nameplate-additional"),description:assetInput("asset-description"),dealNotes:assetInput("asset-deal-notes"),dealLinked:!!dealLinked,accountOnly:!dealLinked&&(ast().linkMode==="account"||!A.sel),photos:(ast().photos||[]).map(assetPhotoForStorage),dynamicValues:Object.assign({},ast().dynamicValues||{}),dynamicSuggested:Object.assign({},ast().dynamicSuggested||{}),dynamicTouched:Object.assign({},ast().dynamicTouched||{}),sectionHidden:Object.assign({},ast().sectionHidden||{}),subformRows:(ast().subformRows||[]).map(function(row){return Object.assign({},row);}),subformTouched:Object.assign({},ast().subformTouched||{}),lastUploadedPhotoFingerprints:Object.assign({},ast().lastUploadedPhotoFingerprints||{}),loadedOriginal:ast().loadedOriginal?Object.assign({},ast().loadedOriginal):null};
+  var snap={id:equipmentId,cacId:cacId||"",savedAt:new Date().toISOString(),name:assetInput("asset-name"),category:assetInput("asset-category"),assetFunction:assetInput("asset-function"),building:assetInput("asset-building"),designator:assetInput("asset-designator"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),brandOther:assetInput("asset-brand-other"),typeOther:assetInput("asset-type-other"),model:assetInput("asset-model"),serial:assetInput("asset-serial"),series:assetInput("asset-series"),seriesOther:assetInput("asset-series-other"),environment:assetInput("asset-environment"),confined:assetInput("asset-confined"),nameplateAdditional:assetInput("asset-nameplate-additional"),description:assetInput("asset-description"),dealNotes:assetInput("asset-deal-notes"),dealLinked:!!dealLinked,accountOnly:!dealLinked&&(ast().linkMode==="account"||!A.sel),photos:(ast().photos||[]).map(assetPhotoForStorage),dynamicValues:Object.assign({},ast().dynamicValues||{}),dynamicSuggested:Object.assign({},ast().dynamicSuggested||{}),dynamicTouched:Object.assign({},ast().dynamicTouched||{}),sectionHidden:Object.assign({},ast().sectionHidden||{}),subformRows:(ast().subformRows||[]).map(function(row){return Object.assign({},row);}),subformTouched:Object.assign({},ast().subformTouched||{}),lastUploadedPhotoFingerprints:Object.assign({},ast().lastUploadedPhotoFingerprints||{}),loadedOriginal:ast().loadedOriginal?Object.assign({},ast().loadedOriginal):null};
+  if(isInternalAssetModule()){
+    snap.useStatus=assetInput("asset-use-status")||"";
+    snap.users=assetInput("asset-users")||"";
+  }
+  return snap;
 }
 function savedAssetOverviewLine(a,i){
   var line=(i+1)+". ";
@@ -5744,26 +5738,21 @@ function assetPayload(opts){
   opts=opts||{};
   var includeBlank=!!opts.includeBlank;
   var isUpdate=!!opts.isUpdate;
-  var ia=isInternalAssetModule();
-  // IA form does not collect category/function/building/designator/type/series/
-  // environment/confined — omit them so updates do not blank Zoho values.
   var payload={
+    Asset_Category:normalizeAssetCategoryKey(assetInput("asset-category")),
     Name:assetInput("asset-name"),
+    Asset_Function:assetInput("asset-function"),
+    Building:assetInput("asset-building"),
+    Additional_Designator:assetInput("asset-designator"),
     Asset_Brand:assetInput("asset-brand"),
+    Asset_Type:assetInput("asset-type"),
     Asset_Model_Number:assetInput("asset-model"),
-    Serial_Number:assetInput("asset-serial")
+    Serial_Number:assetInput("asset-serial"),
+    Asset_Environment:assetInput("asset-environment"),
+    Confined_Space:assetInput("asset-confined")
   };
-  if(!ia){
-    payload.Asset_Category=normalizeAssetCategoryKey(assetInput("asset-category"));
-    payload.Asset_Function=assetInput("asset-function");
-    payload.Building=assetInput("asset-building");
-    payload.Additional_Designator=assetInput("asset-designator");
-    payload.Asset_Type=assetInput("asset-type");
-    payload.Asset_Environment=assetInput("asset-environment");
-    payload.Confined_Space=assetInput("asset-confined");
-  }
   var acctId=assetSaveAccountId();
-  if(!ia){
+  if(!isInternalAssetModule()){
     if(!isUpdate)payload.Account={id:acctId};
     else if(isZohoLookupRecordId(acctId))payload.Account={id:acctId};
   }
@@ -5771,16 +5760,14 @@ function assetPayload(opts){
     if(value==null||value===""){if(includeBlank)payload[apiName]="";return;}
     payload[apiName]=value;
   }
-  if(ia){
+  if(isInternalAssetModule()){
     setOptional("Use_Status",assetInput("asset-use-status")||"Permenant");
     setOptional("Users",assetInput("asset-users")||A.technician||"");
   }
-  if(!ia){
-    setOptional("Asset_Series",assetInput("asset-series"));
-    setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
-    setOptional("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
-  }
+  setOptional("Asset_Series",assetInput("asset-series"));
   setOptional("If_Asset_Brand_Other_explain",assetInput("asset-brand-other"));
+  setOptional("If_Asset_Type_other_explain",assetInput("asset-type-other"));
+  setOptional("If_Asset_Series_is_Other_Function_explain",assetInput("asset-series-other"));
   setOptional("Nameplate_Additional_Info",assetInput("asset-nameplate-additional"));
   var desc=assetInput("asset-description");
   var repl=replacementNote();
@@ -6744,6 +6731,7 @@ async function saveAssetToZoho(){
     var equipmentRec=fetched.rec;
     var cacId=fetched.cacId||"";
     if(cacId){
+      if(isInternalAssetModule())setAssetInput("asset-ia-id",cacId);
       var descWithCac=prependCacIdToAssetDescription(assetInput("asset-description"),cacId);
       if(descWithCac!==assetInput("asset-description")){
         setAssetInput("asset-description",descWithCac);
