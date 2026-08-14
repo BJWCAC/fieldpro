@@ -1,0 +1,74 @@
+{
+  "description": "CapStone Zoho CRM field reference for Internal Assets (company tools / IAxxxx records).",
+  "source": "Derived from modules.Internal_Assets in zohoEquipmentFields.json plus Equipments field parity for CapStone IA tab.",
+  "notes": [
+    "Internal_Assets stores CAC-owned tools used for field service — IAxxxx auto-number (field IA_Asset_ID), not customer Equipments (AMD/CAC_Asset_ID).",
+    "CapStone IA tab mirrors the Assets workflow (photos, AI extract, category layouts, Model_AI_Specs, subform) but does not link to Deals or Accounts.",
+    "Use_Status and Users are Internal_Assets-only fields documented in zohoEquipmentFields.json modules.Internal_Assets.",
+    "Category layouts, assetFieldRegistry, and picklists are shared with Equipments — loaded by merging this overlay onto zohoEquipmentFields.json at runtime.",
+    "Use exact picklist strings from Zoho (e.g. Use_Status \"Permenant\" is misspelled in CRM — match exactly)."
+  ],
+  "internalAssetCapturePhase1": {
+    "moduleApiName": "Internal_Assets",
+    "layoutName": "Standard",
+    "idField": "IA_Asset_ID",
+    "idSearchPrefix": "IA",
+    "idLabel": "IA Asset ID",
+    "requiredFields": [
+      "Asset_Category",
+      "Name",
+      "Asset_Function",
+      "Building",
+      "Additional_Designator",
+      "Asset_Brand",
+      "Asset_Type",
+      "Asset_Model_Number",
+      "Serial_Number",
+      "Asset_Environment",
+      "Confined_Space",
+      "Use_Status"
+    ],
+    "internalOnlyFields": [
+      "Use_Status",
+      "Users"
+    ],
+    "photoExtractionTargets": [
+      "Asset_Brand",
+      "Asset_Type",
+      "Asset_Series",
+      "Asset_Model_Number",
+      "Serial_Number",
+      "Nameplate_Additional_Info"
+    ],
+    "capstoneContextFields": [
+      "Location_Coordinates",
+      "Date",
+      "Users",
+      "Use_Status"
+    ],
+    "otherExplainFieldMap": {
+      "Asset_Function": "If_Asset_is_other_explain",
+      "Asset_Brand": "If_Asset_Brand_Other_explain",
+      "Asset_Type": "If_Asset_Type_other_explain",
+      "Asset_Series": "If_Asset_Series_is_Other_Function_explain"
+    },
+    "defaults": {
+      "Use_Status": "Permenant"
+    },
+    "skipFields": [
+      "Account",
+      "Customer_Asset_Number"
+    ],
+    "proxyActions": {
+      "create": "create_internal_asset",
+      "update": "update_internal_asset",
+      "delete": "delete_internal_asset",
+      "get": "get_internal_asset",
+      "search": "search_internal_assets",
+      "findBySerial": "find_internal_asset",
+      "uploadPhoto": "upload_internal_asset_photo",
+      "saveNote": "save_internal_asset_note",
+      "activateLayout": "activate_internal_asset_category_layout"
+    }
+  }
+}

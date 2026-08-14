@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "287";
+var PROXY_BUILD = "288";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -1533,6 +1533,327 @@ exports.handler = async function(event) {
         } catch (e3) {}
       }
       return { statusCode: result5.status, headers: h, body: result5.body };
+    }
+
+    var INTERNAL_ASSET_MODULE = "Internal_Assets";
+    var INTERNAL_ASSET_ID_FIELD = "IA_Asset_ID";
+    var internalAssetGetFields = "Name," + INTERNAL_ASSET_ID_FIELD + ",Asset_Category,Asset_Function,Building,Additional_Designator,Asset_Brand,If_Asset_Brand_Other_explain,Asset_Type,If_Asset_Type_other_explain,Asset_Model_Number,Serial_Number,Asset_Environment,Confined_Space,Asset_Series,If_Asset_Series_is_Other_Function_explain,Nameplate_Additional_Info,Description_Instructions,Model_AI_Specs,Location_Coordinates,Frequency,Date,Room,Model_Number,Serial_Number1,Sensor_Additional_information,Engineering_Units,Instrument_Resolution_Increment_Amount,Measurement_Type_Input,Empty_Parameter_1,Empty_Distance,Span_Parameter_1,Span_Distance,Measurement_Units_Type_Output,Output_PV_Zero_Parameter_1,PV_Zero,Output_PV_Span_Parameter_1,PV_Span,Cal_Factor_K_factor_Etc,Pipe_Size,Duration,Damping_Seconds,Flume_Weir_Type,Distance_Measurement_Units,Gas_Sensor_Type,LS_Shape,LS_Diameter,Number_of_Pumps,Scale_Class,Subform_1,Use_Status,Users";
+
+    function internalAssetWriteBody(record, applyLayoutRules) {
+      var body = { data: [record || {}] };
+      if (applyLayoutRules) body.apply_feature_execution = [{ name: "layout_rules" }];
+      return JSON.stringify(body);
+    }
+
+    async function zohoInternalAssetPut(token, recordId, record, applyLayoutRules) {
+      var payload = internalAssetWriteBody(record || {}, applyLayoutRules);
+      var path = applyLayoutRules
+        ? "/crm/v8/" + INTERNAL_ASSET_MODULE + "/" + recordId
+        : "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + recordId;
+      return req({
+        hostname: "www.zohoapis.com",
+        path: path,
+        method: "PUT",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
+      }, payload);
+    }
+
+    function internalAssetBypassFilter(rec, q) {
+      var qLower = String(q || "").trim().toLowerCase();
+      if (!qLower) return false;
+      var ia = String(rec[INTERNAL_ASSET_ID_FIELD] || "").trim().toLowerCase();
+      if (ia && (ia === qLower || ia.indexOf(qLower) >= 0)) return true;
+      var name = String(rec.Name || "").trim().toLowerCase();
+      if (name && name.indexOf(qLower) >= 0) return true;
+      return false;
+    }
+
+    if (data.action === "get_internal_asset") {
+      var internalGetResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + encodeURIComponent(String(data.internal_asset_id || data.equipment_id || "")) + "?fields=" + encodeURIComponent(internalAssetGetFields),
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: internalGetResult.status, headers: h, body: internalGetResult.body };
+    }
+
+    if (data.action === "search_internal_assets") {
+      var iaQRaw = String(data.query || "").replace(/"/g, "").trim();
+      if (!iaQRaw) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: [] }) };
+      var iaMatch = iaQRaw.match(/IA\d+/i);
+      var iaQ = iaMatch ? iaMatch[0] : iaQRaw;
+      var isIaQuery = /^IA\d+/i.test(iaQ);
+      var iaSearchTerms = [iaQ];
+      if (isIaQuery) {
+        iaSearchTerms.push(iaQ.toUpperCase());
+        var iaNum = iaQ.replace(/^IA/i, "");
+        if (iaNum && iaSearchTerms.indexOf(iaNum) < 0) iaSearchTerms.push(iaNum);
+      }
+      var iaSeen = {};
+      var iaHits = [];
+      function iaAddHits(rows) {
+        for (var hi = 0; hi < rows.length; hi++) {
+          var rec = rows[hi];
+          if (!rec || !rec.id) continue;
+          if (!iaSeen[rec.id]) { iaSeen[rec.id] = true; iaHits.push(rec); }
+        }
+      }
+      async function iaCollectWordSearch(term) {
+        var wordResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?word=" + encodeURIComponent(term) + "&fields=" + internalAssetGetFields,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (wordResult.status === 204) return;
+        if (wordResult.status < 200 || wordResult.status >= 300) return;
+        try { iaAddHits(JSON.parse(wordResult.body).data || []); } catch (we) {}
+      }
+      async function iaCollectCriteriaSearch(field, operator, term) {
+        var crit = encodeURIComponent("(" + field + ":" + operator + ":" + term + ")");
+        var searchResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + crit + "&fields=" + internalAssetGetFields,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (searchResult.status === 204) return;
+        if (searchResult.status < 200 || searchResult.status >= 300) return;
+        try { iaAddHits(JSON.parse(searchResult.body).data || []); } catch (se) {}
+      }
+      var iaIdFields = [INTERNAL_ASSET_ID_FIELD, "Name"];
+      var iaTextFields = ["Name", "Serial_Number", "Asset_Model_Number", INTERNAL_ASSET_ID_FIELD, "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      var iaExactFields = [INTERNAL_ASSET_ID_FIELD, "Serial_Number", "Asset_Model_Number", "Name", "Building", "Additional_Designator", "Asset_Brand", "Asset_Type", "Asset_Series"];
+      for (var ti = 0; ti < iaSearchTerms.length; ti++) {
+        var term = iaSearchTerms[ti];
+        await iaCollectWordSearch(term);
+        for (var idi = 0; idi < iaIdFields.length; idi++) {
+          await iaCollectCriteriaSearch(iaIdFields[idi], "equals", term);
+          await iaCollectCriteriaSearch(iaIdFields[idi], "starts_with", term);
+        }
+        for (var efi = 0; efi < iaExactFields.length; efi++) {
+          if (iaIdFields.indexOf(iaExactFields[efi]) >= 0) continue;
+          await iaCollectCriteriaSearch(iaExactFields[efi], "equals", term);
+        }
+        if (!isIaQuery) {
+          for (var tfi = 0; tfi < iaTextFields.length; tfi++) {
+            await iaCollectCriteriaSearch(iaTextFields[tfi], "starts_with", term);
+          }
+        }
+      }
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, data: iaHits.slice(0, 20) }) };
+    }
+
+    if (data.action === "find_internal_asset") {
+      var iaSerial = String(data.serial_number || "").replace(/"/g, "").trim();
+      if (!iaSerial) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, internal_asset_id: null }) };
+      var iaCriteria = encodeURIComponent("(Serial_Number:equals:" + iaSerial + ")");
+      var iaFindResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/search?criteria=" + iaCriteria + "&fields=Name," + INTERNAL_ASSET_ID_FIELD + ",Serial_Number,Asset_Model_Number",
+        method: "GET",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      if (iaFindResult.status === 204) return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, internal_asset_id: null }) };
+      if (iaFindResult.status < 200 || iaFindResult.status >= 300) return { statusCode: iaFindResult.status, headers: h, body: iaFindResult.body };
+      var iaFound = null;
+      try {
+        var iaRecords = (JSON.parse(iaFindResult.body).data || []);
+        if (iaRecords.length) iaFound = iaRecords[0];
+      } catch (ee) {}
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, internal_asset_id: iaFound && iaFound.id || null, internal_asset: iaFound || null, equipment_id: iaFound && iaFound.id || null, equipment: iaFound || null }) };
+    }
+
+    if (data.action === "update_internal_asset") {
+      var iaApplyLayoutRules = !!data.apply_layout_rules;
+      var iaUpdateData = await resolveEquipmentCategoryField(token, data.internal_asset || data.equipment || {});
+      iaUpdateData = await resolveEquipmentPayloadLookups(token, iaUpdateData);
+      var iaUpdatePayload = internalAssetWriteBody(iaUpdateData, iaApplyLayoutRules);
+      var iaUpdatePath = iaApplyLayoutRules
+        ? "/crm/v8/" + INTERNAL_ASSET_MODULE + "/" + (data.internal_asset_id || data.equipment_id)
+        : "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + (data.internal_asset_id || data.equipment_id);
+      var iaUpdateResult = await req({
+        hostname: "www.zohoapis.com",
+        path: iaUpdatePath,
+        method: "PUT",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(iaUpdatePayload) }
+      }, iaUpdatePayload);
+      return { statusCode: iaUpdateResult.status, headers: h, body: iaUpdateResult.body };
+    }
+
+    if (data.action === "delete_internal_asset") {
+      var iaDeleteId = String(data.internal_asset_id || data.equipment_id || "").trim();
+      if (!iaDeleteId) return { statusCode: 400, headers: h, body: JSON.stringify({ error: "internal_asset_id required" }) };
+      var iaDeleteResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + encodeURIComponent(iaDeleteId),
+        method: "DELETE",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: iaDeleteResult.status, headers: h, body: iaDeleteResult.body };
+    }
+
+    if (data.action === "create_internal_asset") {
+      var iaCreateApplyLayoutRules = !!data.apply_layout_rules;
+      var iaCreateData = await resolveEquipmentCategoryField(token, data.internal_asset || data.equipment || {});
+      iaCreateData = await resolveEquipmentPayloadLookups(token, iaCreateData);
+      var iaCreatePayload = internalAssetWriteBody(iaCreateData, iaCreateApplyLayoutRules);
+      var iaCreatePath = iaCreateApplyLayoutRules ? "/crm/v8/" + INTERNAL_ASSET_MODULE : "/crm/v3/" + INTERNAL_ASSET_MODULE;
+      var iaCreateResult = await req({
+        hostname: "www.zohoapis.com",
+        path: iaCreatePath,
+        method: "POST",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(iaCreatePayload) }
+      }, iaCreatePayload);
+      return { statusCode: iaCreateResult.status, headers: h, body: iaCreateResult.body };
+    }
+
+    if (data.action === "upload_internal_asset_photo") {
+      var iaImgBuf = Buffer.from(data.image_b64, "base64");
+      var iaBoundary = "CapStoneBound" + Date.now();
+      var iaHdr = Buffer.from("--" + iaBoundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + data.filename + "\"\r\nContent-Type: image/jpeg\r\n\r\n");
+      var iaFtr = Buffer.from("\r\n--" + iaBoundary + "--\r\n");
+      var iaUploadBody = Buffer.concat([iaHdr, iaImgBuf, iaFtr]);
+      var iaUploadResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + (data.internal_asset_id || data.equipment_id) + "/Attachments",
+        method: "POST",
+        headers: {
+          "Authorization": "Zoho-oauthtoken " + token,
+          "Content-Type": "multipart/form-data; boundary=" + iaBoundary,
+          "Content-Length": iaUploadBody.length
+        }
+      }, iaUploadBody);
+      return { statusCode: iaUploadResult.status, headers: h, body: iaUploadResult.body };
+    }
+
+    if (data.action === "save_internal_asset_note") {
+      var iaNote = data.note_content || "";
+      if (iaNote.indexOf("Generated by CapStone") < 0) {
+        iaNote += "\n\n--------------------\nGenerated by CapStone - Calibrations & Controls";
+      }
+      var iaNotePayload = JSON.stringify({ data: [{ Note_Title: data.note_title, Note_Content: iaNote, Parent_Id: data.internal_asset_id || data.equipment_id, se_module: INTERNAL_ASSET_MODULE }] });
+      var iaNoteResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + (data.internal_asset_id || data.equipment_id) + "/Notes",
+        method: "POST",
+        headers: { "Authorization": "Zoho-oauthtoken " + token, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(iaNotePayload) }
+      }, iaNotePayload);
+      return { statusCode: iaNoteResult.status, headers: h, body: iaNoteResult.body };
+    }
+
+    if (data.action === "activate_internal_asset_category_layout") {
+      var iaLayoutId = data.internal_asset_id || data.equipment_id;
+      var iaLayoutCategory = String(data.category || "").trim();
+      var iaLayoutExtension = data.extension || {};
+      var iaLayoutCategoryValues = Array.isArray(data.category_values) ? data.category_values : [];
+      var iaReopenConfirm = !!data.reopen_confirm;
+      if (!iaLayoutId || !iaLayoutCategory) {
+        return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "internal_asset_id and category are required" }) };
+      }
+      iaLayoutCategory = await resolveAssetCategoryValue(token, iaLayoutCategory);
+      var iaZohoCategoryValues = await loadAssetCategoryPicklistValues(token);
+      var iaMergedCategoryValues = iaLayoutCategoryValues.slice();
+      iaZohoCategoryValues.forEach(function(v) { if (v && iaMergedCategoryValues.indexOf(v) < 0) iaMergedCategoryValues.push(v); });
+      iaLayoutCategoryValues = iaMergedCategoryValues;
+      if (isFlowMeterCategory(iaLayoutCategory)) iaLayoutCategory = pickCanonicalFlowMeterCategory(iaLayoutCategoryValues);
+      else if (isOpenChannelFlowCategory(iaLayoutCategory)) iaLayoutCategory = pickCanonicalOcfCategory(iaLayoutCategoryValues);
+      else if (isGeneralCategory(iaLayoutCategory) || isAnalyticalCategory(iaLayoutCategory)) iaLayoutCategory = pickCanonicalGeneralCategory(iaLayoutCategoryValues);
+
+      async function iaReadCurrentCategory() {
+        var getCategoryResult = await req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + INTERNAL_ASSET_MODULE + "/" + iaLayoutId + "?fields=Asset_Category",
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+        if (getCategoryResult.status < 200 || getCategoryResult.status >= 300) return "";
+        try { return String((JSON.parse(getCategoryResult.body).data || [])[0].Asset_Category || "").trim(); } catch (ge) { return ""; }
+      }
+
+      async function iaRunCategoryReselectCycle(cycleName, currentCategory) {
+        var cycleSteps = [];
+        var sameCategory = categoriesEquivalent(currentCategory, iaLayoutCategory);
+        var pauseBefore = iaReopenConfirm ? 2800 : (sameCategory ? 1600 : 900);
+        await sleepMs(pauseBefore);
+        cycleSteps.push({ cycle: cycleName, step: "pause_before_reselect", ms: pauseBefore, same_category: sameCategory });
+
+        var tempCategory = pickTempCategoryForLayout(currentCategory, iaLayoutCategory, iaLayoutCategoryValues);
+        if (tempCategory) {
+          var tempResult = await zohoInternalAssetPut(token, iaLayoutId, { Asset_Category: tempCategory }, true);
+          cycleSteps.push({ cycle: cycleName, step: "temp_category", category: tempCategory, status: tempResult.status });
+          if (zohoWriteFailed(tempResult)) {
+            return { ok: false, error: "Temporary category swap failed: " + zohoWriteErrorMessage(tempResult), steps: cycleSteps };
+          }
+          await sleepMs(iaReopenConfirm ? 2000 : 1400);
+          currentCategory = tempCategory;
+        }
+
+        var catOnly = { Asset_Category: iaLayoutCategory };
+        var selectPasses = iaReopenConfirm ? 2 : (sameCategory ? 2 : 1);
+        for (var pi = 0; pi < selectPasses; pi++) {
+          var selectResult = await zohoInternalAssetPut(token, iaLayoutId, catOnly, true);
+          cycleSteps.push({ cycle: cycleName, step: "select_target_category_" + (pi + 1), category: iaLayoutCategory, status: selectResult.status });
+          if (zohoWriteFailed(selectResult)) {
+            return { ok: false, error: "Target category select failed: " + zohoWriteErrorMessage(selectResult), steps: cycleSteps };
+          }
+          await sleepMs(pi < selectPasses - 1 ? (iaReopenConfirm ? 2000 : 1400) : (iaReopenConfirm ? 1500 : 1000));
+        }
+        return { ok: true, steps: cycleSteps, currentCategory: iaLayoutCategory };
+      }
+
+      var iaSteps = [];
+      var iaCurrentCategory = await iaReadCurrentCategory();
+      iaSteps.push({ step: "read_category", category: iaCurrentCategory });
+
+      if (iaReopenConfirm) {
+        await sleepMs(2800);
+        iaCurrentCategory = await iaReadCurrentCategory();
+        iaSteps.push({ step: "reopen_read_category", category: iaCurrentCategory });
+      } else {
+        var iaCycle1 = await iaRunCategoryReselectCycle("initial", iaCurrentCategory);
+        iaSteps = iaSteps.concat(iaCycle1.steps || []);
+        if (!iaCycle1.ok) {
+          return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: iaCycle1.error, steps: iaSteps }) };
+        }
+        if (iaLayoutExtension && Object.keys(iaLayoutExtension).length) {
+          var iaSanitized = await sanitizeEquipmentExtensionPayloadAsync(token, iaLayoutExtension, iaLayoutCategory);
+          delete iaSanitized.Subform_1;
+          if (iaSanitized && Object.keys(iaSanitized).length) {
+            var iaExtMid = await zohoInternalAssetPut(token, iaLayoutId, iaSanitized, true);
+            iaSteps.push({ step: "save_extension_fields", status: iaExtMid.status, fields: Object.keys(iaSanitized) });
+            if (zohoWriteFailed(iaExtMid)) {
+              return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: "Extension field save failed: " + zohoWriteErrorMessage(iaExtMid), steps: iaSteps }) };
+            }
+            await sleepMs(450);
+          }
+        }
+        return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "initial", proxy_build: PROXY_BUILD, resolved_category: iaLayoutCategory, current_category: iaCurrentCategory, target_category: iaLayoutCategory, steps: iaSteps }) };
+      }
+
+      var iaCycle2 = await iaRunCategoryReselectCycle("reopen_confirm", iaCurrentCategory);
+      iaSteps = iaSteps.concat(iaCycle2.steps || []);
+      if (!iaCycle2.ok) {
+        return { statusCode: 400, headers: h, body: JSON.stringify({ ok: false, error: iaCycle2.error, steps: iaSteps }) };
+      }
+
+      var iaTargetPayload = await sanitizeEquipmentExtensionPayloadAsync(token, iaLayoutExtension, iaLayoutCategory);
+      delete iaTargetPayload.Subform_1;
+      var iaResaveV8 = await zohoInternalAssetPut(token, iaLayoutId, iaTargetPayload, true);
+      iaSteps.push({ step: "resave_category_and_fields_v8", category: iaLayoutCategory, status: iaResaveV8.status });
+      if (zohoWriteFailed(iaResaveV8)) {
+        return { statusCode: iaResaveV8.status >= 400 ? iaResaveV8.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v8) failed: " + zohoWriteErrorMessage(iaResaveV8), steps: iaSteps }) };
+      }
+      await sleepMs(1500);
+
+      var iaResaveV3 = await zohoInternalAssetPut(token, iaLayoutId, iaTargetPayload, false);
+      iaSteps.push({ step: "resave_category_and_fields_v3", category: iaLayoutCategory, status: iaResaveV3.status });
+      if (zohoWriteFailed(iaResaveV3)) {
+        return { statusCode: iaResaveV3.status >= 400 ? iaResaveV3.status : 400, headers: h, body: JSON.stringify({ ok: false, error: "Category resave (v3) failed: " + zohoWriteErrorMessage(iaResaveV3), steps: iaSteps }) };
+      }
+
+      return { statusCode: 200, headers: h, body: JSON.stringify({ ok: true, pass: "reopen_confirm", proxy_build: PROXY_BUILD, resolved_category: iaLayoutCategory, current_category: iaCurrentCategory, target_category: iaLayoutCategory, steps: iaSteps }) };
     }
 
     return { statusCode: 400, headers: h, body: JSON.stringify({ error: "Unknown action" }) };

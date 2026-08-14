@@ -37,6 +37,7 @@
   <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
   <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
+  <div class="tab" id="t-ia" onclick="go('ia')">IA</div>
   <div class="tab" id="t-inbox" onclick="go('inbox')">Inbox <span class="tbadge" id="tb-inbox" style="display:none"></span></div>
   <div class="tab" id="t-report" onclick="go('report')">Report</div>
   <div class="tab" id="t-history" onclick="go('history')">History <span class="tbadge" id="tb-hist" style="display:none"></span></div>
@@ -279,9 +280,9 @@
 </div>
 
 
-<!-- ASSETS -->
+<!-- ASSETS / IA (shared pane — module toggled in JS) -->
 <div class="pane" id="p-assets">
-  <details class="help-box" data-help-id="assets-tab">
+  <details class="help-box" data-help-id="assets-tab" id="asset-help-equipments">
     <summary>Help: Assets</summary>
     <div class="help-box-body">
       <p>The Assets tab saves equipment to Zoho <strong>Equipments</strong>, links the asset to the active Deal, and records update notes on both records.</p>
@@ -294,18 +295,30 @@
       </ul>
     </div>
   </details>
+  <details class="help-box" data-help-id="ia-tab" id="asset-help-internal" style="display:none">
+    <summary>Help: IA (Internal Assets)</summary>
+    <div class="help-box-body">
+      <p>The IA tab saves company-owned tools to Zoho <strong>Internal_Assets</strong> (IAxxxx numbers). Same workflow as customer Assets — photos, AI extract, category fields, and Model_AI_Specs — but no Deal or Account link.</p>
+      <ul>
+        <li>Start with <strong>Add New Internal Asset</strong> or <strong>Update Existing</strong>.</li>
+        <li>Set <strong>Use Status</strong> (Permanent / Floating) and <strong>Current User</strong> when assigning a tool.</li>
+        <li>Search by IA number, serial, model, brand, or name before creating duplicates.</li>
+        <li>Required fields must be complete before save. CapStone highlights missing items in light red.</li>
+      </ul>
+    </div>
+  </details>
   <div class="card">
-    <div class="stitle">Add Asset to Zoho</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Start by choosing whether you are adding a new asset or updating an existing one. CapStone shows only the steps that apply.</div>
+    <div class="stitle" id="asset-pane-title">Add Asset to Zoho</div>
+    <div id="asset-pane-intro" style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px">Start by choosing whether you are adding a new asset or updating an existing one. CapStone shows only the steps that apply.</div>
     <div id="asset-draft-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;color:#2d6b60"></div>
     <div id="asset-save-checklist" class="report-save-checklist"></div>
     <div id="asset-setup-card" class="asset-setup-card">
       <div class="stitle" style="margin-bottom:8px">What are you doing?</div>
       <div id="asset-intent-step" class="asset-setup-options">
-        <button type="button" id="asset-intent-add" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('add')">Add New Asset</button>
-        <button type="button" id="asset-intent-update" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('update')">Update Existing Asset</button>
+        <button type="button" id="asset-intent-add" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('add')"><span class="asset-intent-add-label">Add New Asset</span></button>
+        <button type="button" id="asset-intent-update" class="asset-setup-btn asset-path-btn" onclick="setAssetIntent('update')"><span class="asset-intent-update-label">Update Existing Asset</span></button>
       </div>
-      <div id="asset-add-path-step" style="display:none">
+      <div id="asset-add-path-step" class="asset-module-equipments" style="display:none">
         <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:8px">How should this new asset be linked in Zoho?</div>
         <div class="asset-setup-options">
           <button type="button" id="asset-setup-deal-add" class="asset-setup-btn asset-path-btn" onclick="startAssetDealAdd()">Pick deal &amp; link new asset</button>
@@ -332,7 +345,7 @@
         <div style="font-size:11px;color:var(--dim);line-height:1.5;margin:8px 0">Search and load the asset before saving updates.</div>
         <div class="g2" style="margin-bottom:8px">
           <input id="asset-search" data-no-auto-advance placeholder="CAC ID, serial, model, brand, type, name, building"/>
-          <button class="bb-lg" onclick="searchExistingAssets()">Search Assets</button>
+          <button class="bb-lg" onclick="searchExistingAssets()"><span class="asset-search-btn-label">Search Assets</span></button>
         </div>
         <div class="g2" style="margin-bottom:8px">
           <button type="button" class="bg bsm" onclick="searchAssetByCurrentField('asset-serial')">Search by Serial</button>
@@ -370,7 +383,8 @@
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 5 per type). Nameplate values win; research only fills empty fields — confirm everything before saving.</div></div>
     <button class="bb-lg" id="asset-research-btn" onclick="researchAndPrefillAsset()" style="display:none;margin-bottom:8px;width:100%">Research &amp; prefill</button>
     <div class="g2" style="margin-bottom:8px">
-      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
+      <div class="asset-module-equipments"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
+      <div class="asset-module-internal" style="display:none"><label class="lbl">Current User</label><select id="asset-users"></select></div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <div style="margin-bottom:8px"><label class="lbl">Asset Name *</label><input id="asset-name" placeholder="Example: Rosemount flow meter"/></div>
@@ -403,12 +417,16 @@
       <div><label class="lbl">Environment *</label><select id="asset-environment"></select></div>
       <div><label class="lbl">Confined Space *</label><select id="asset-confined"></select></div>
     </div>
+    <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
+      <div><label class="lbl">Use Status *</label><select id="asset-use-status"></select></div>
+      <div></div>
+    </div>
     <div id="asset-category-fields" class="asset-category-fields" style="display:none"></div>
     <div style="margin-bottom:8px"><label class="lbl">Nameplate Additional Info</label><textarea id="asset-nameplate-additional" rows="3" placeholder="Part number, ratings, and other nameplate text from AI extract"></textarea></div>
     <div style="margin-bottom:8px"><label class="lbl">Description / Instructions</label><textarea id="asset-description" rows="3" placeholder="Service instructions, visit notes, or replacement history"></textarea></div>
-    <div style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
+    <div style="margin-bottom:10px" class="asset-module-equipments"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
     <div id="asset-prefill-banner" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px;margin-top:10px"></div>
-    <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()">Save Asset to Zoho</button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none">Start New Asset</button></div>
+    <div class="g2" style="margin-top:10px"><button class="bs-lg" id="asset-save-btn" onclick="saveAssetToZoho()"><span class="asset-save-btn-label">Save Asset to Zoho</span></button><button class="bb-lg" id="asset-next-btn" onclick="startNewAsset()" style="display:none"><span class="asset-next-btn-label">Start New Asset</span></button></div>
     <div id="asset-status" class="err-box" style="display:none;margin-top:10px"></div>
     <button class="bd-lg" id="asset-delete-btn" onclick="deleteLoadedAsset()" style="display:none;margin-top:10px">Delete Asset from Zoho</button>
     <div id="asset-saved-list" style="display:none;margin-top:12px"></div>
@@ -1008,7 +1026,7 @@
 </div>
 
 <script src="src/accounts-map.js?v=365"></script>
-<script src="src/app.js?v=367"></script>
+<script src="src/app.js?v=368"></script>
 
 </body>
 </html>
