@@ -46,11 +46,8 @@ body.light .card{background:#fff}
 #p-report .card{background:#fff;color:#0f2420;border-color:#b2ddd6}
 .stitle{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
 .lbl{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:4px}
-/* IA Number sits alone beside GPS; short label + nowrap avoid mid-word wrap on phone */
+/* IA Number short label + nowrap avoid mid-word wrap on phone */
 .asset-ia-top .lbl{letter-spacing:.06em;white-space:nowrap}
-/* IA: Number takes remaining screen width; GPS stays top-right on the same row */
-.asset-ia-number-gps-row{align-items:start}
-.asset-ia-number-gps-row.is-ia{grid-template-columns:minmax(0,1fr) minmax(7.5rem,32%)}
 .bp{background:var(--amber);color:#001a18;padding:9px 16px;font-size:13px}
 .bp-lg{background:var(--amber);color:#001a18;padding:14px 20px;font-size:16px;width:100%}
 .bd{background:var(--red);color:#fff;padding:9px 16px;font-size:13px}
@@ -76,6 +73,14 @@ body.light .card{background:#fff}
 .bsm{padding:5px 10px;font-size:11px}
 .bfull{width:100%}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/*
+ * IA top fields: Number spans the full screen width; GPS sits on the same row
+ * (top-right), aligned with the Number field. Name is full-width on the next row.
+ */
+.asset-ia-number-gps-row.is-ia{
+  grid-template-columns:minmax(0,1fr) minmax(9.5rem,11.5rem);
+  align-items:start;
+}
 .deal-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .deal-card.sel{border-color:var(--amber);background:#0a2020}
 body.light .deal-card{background:#fff}
