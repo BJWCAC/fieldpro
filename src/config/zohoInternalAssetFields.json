@@ -13,15 +13,15 @@
     "layoutName": "Standard",
     "idField": "Name",
     "idSearchPrefix": "IA",
-    "idLabel": "Internal Asset Number",
+    "idLabel": "IA Number",
     "requiredFields": [
       "Internal_Asset_Name",
       "Serial_Number",
       "Use_Status"
     ],
     "fields": [
-      { "apiName": "Name", "label": "Internal Asset Number", "widget": "text", "readOnly": true },
-      { "apiName": "Internal_Asset_Name", "label": "Internal Asset Name", "widget": "text" },
+      { "apiName": "Name", "label": "IA Number", "widget": "text", "readOnly": true, "zohoLabel": "Internal Asset Number" },
+      { "apiName": "Internal_Asset_Name", "label": "IA Name", "widget": "text", "zohoLabel": "Internal Asset Name" },
       { "apiName": "Brand", "label": "Brand", "widget": "text" },
       { "apiName": "Part_Number", "label": "Part Number", "widget": "text" },
       { "apiName": "Serial_Number", "label": "Serial Number", "widget": "text" },
