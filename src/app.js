@@ -2373,6 +2373,8 @@ function renderAssetModuleUi(){
   var internal=isInternalAssetModule();
   document.querySelectorAll(".asset-module-equipments").forEach(function(n){n.style.display=internal?"none":"";});
   document.querySelectorAll(".asset-module-internal").forEach(function(n){n.style.display=internal?"":"none";});
+  var topRow=document.querySelector(".asset-ia-number-gps-row");
+  if(topRow)topRow.classList.toggle("is-ia",!!internal);
   var helpEq=el("asset-help-equipments"),helpIa=el("asset-help-internal");
   if(helpEq)helpEq.style.display=internal?"none":"";
   if(helpIa)helpIa.style.display=internal?"":"none";
