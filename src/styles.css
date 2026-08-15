@@ -73,14 +73,10 @@ body.light .card{background:#fff}
 .bsm{padding:5px 10px;font-size:11px}
 .bfull{width:100%}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-/*
- * IA top fields: Number spans the full screen width; GPS sits on the same row
- * (top-right), aligned with the Number field. Name is full-width on the next row.
- */
-.asset-ia-number-gps-row.is-ia{
-  grid-template-columns:minmax(0,1fr) minmax(9.5rem,11.5rem);
-  align-items:start;
-}
+/* IA: Number grows across the screen; GPS stays top-right on the same row */
+.asset-ia-number-gps-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(9.5rem,11.5rem);gap:8px;align-items:start}
+.asset-ia-number-full{width:100%}
+.asset-gps-slot:empty{display:none}
 .deal-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .deal-card.sel{border-color:var(--amber);background:#0a2020}
 body.light .deal-card{background:#fff}

@@ -383,10 +383,15 @@
     </div>
     <div id="asset-photo-wrap" style="display:none;margin-bottom:10px"><div id="asset-photo-grid" class="asset-photo-grid"></div><button class="bb-lg" id="asset-extract-btn" onclick="extractAssetFromPhoto()" style="display:none;margin-top:10px;margin-bottom:6px;width:100%">Extract with AI</button><div style="font-size:11px;color:var(--dim);margin-top:6px">Label each photo when added. AI uses transmitter labels for main fields and sensor labels for sensor fields (up to 5 per type). Nameplate values win; research only fills empty fields — confirm everything before saving.</div></div>
     <button class="bb-lg" id="asset-research-btn" onclick="researchAndPrefillAsset()" style="display:none;margin-bottom:8px;width:100%">Research &amp; prefill</button>
-    <div class="g2 asset-ia-number-gps-row" style="margin-bottom:8px">
+    <div class="asset-module-internal asset-ia-number-full" style="display:none;margin-bottom:8px">
+      <div class="asset-ia-number-gps-pair">
+        <div class="asset-ia-top"><label class="lbl" title="Internal Asset Number">IA Number</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
+        <div class="asset-gps-slot" id="asset-gps-slot-ia"></div>
+      </div>
+    </div>
+    <div class="g2 asset-account-gps-row" style="margin-bottom:8px">
       <div class="asset-module-equipments"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
-      <div class="asset-module-internal asset-ia-top" style="display:none"><label class="lbl" title="Internal Asset Number">IA Number</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
-      <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
+      <div class="asset-gps-cell" id="asset-gps-cell"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl" title="Internal Asset Name">IA Name *</label><input id="asset-ia-name" placeholder="Example: Fluke 87V shop meter"/></div>
     <!-- Equipments (Assets tab) core fields -->
