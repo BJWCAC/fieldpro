@@ -73,14 +73,12 @@ body.light .card{background:#fff}
 .bsm{padding:5px 10px;font-size:11px}
 .bfull{width:100%}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-/* IA: Number + GPS same row (aligned). Number ~2/3 of screen width; GPS ~1/3. */
-.asset-ia-number-gps-pair{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px;width:100%;align-items:start}
+/* IA: Number is full screen width; GPS moves onto the Number block, same top section, full width under Number */
+.asset-ia-number-gps-pair{display:flex;flex-direction:column;gap:8px;width:100%}
 .asset-ia-number-full{width:100%}
-.asset-ia-top{min-width:0;width:100%}
+.asset-ia-top{width:100%}
 .asset-gps-slot:empty{display:none}
-.asset-gps-slot .asset-gps-cell{width:100%;min-width:0;box-sizing:border-box}
-.asset-gps-slot .asset-gps-cell input{width:100%;box-sizing:border-box}
-.asset-gps-slot .asset-gps-cell .bsm{padding:4px 6px;font-size:10px}
+.asset-gps-slot,.asset-gps-slot .asset-gps-cell{width:100%;box-sizing:border-box}
 .deal-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .deal-card.sel{border-color:var(--amber);background:#0a2020}
 body.light .deal-card{background:#fff}
