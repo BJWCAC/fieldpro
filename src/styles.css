@@ -46,8 +46,10 @@ body.light .card{background:#fff}
 #p-report .card{background:#fff;color:#0f2420;border-color:#b2ddd6}
 .stitle{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
 .lbl{font-family:"Barlow Condensed",sans-serif;font-size:10px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:4px}
-/* IA Number/Name sit in a half-width g2 column; short labels + nowrap avoid mid-word wraps like "NUMB ER" on phone */
+/* IA Number sits alone beside GPS; short label + nowrap avoid mid-word wrap on phone */
 .asset-ia-top .lbl{letter-spacing:.06em;white-space:nowrap}
+/* IA top row: Number left, GPS right (aligned). Name is full-width on the next row. */
+.asset-ia-number-gps-row{align-items:start}
 .bp{background:var(--amber);color:#001a18;padding:9px 16px;font-size:13px}
 .bp-lg{background:var(--amber);color:#001a18;padding:14px 20px;font-size:16px;width:100%}
 .bd{background:var(--red);color:#fff;padding:9px 16px;font-size:13px}
