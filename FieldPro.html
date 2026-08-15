@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=377"/>
+<link rel="stylesheet" href="src/styles.css?v=378"/>
 
 </head>
 <body autocomplete="off">
@@ -390,8 +390,8 @@
       </div>
     </div>
     <div class="g2 asset-account-gps-row" style="margin-bottom:8px">
-      <div class="asset-module-equipments"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
-      <div class="asset-gps-cell" id="asset-gps-cell"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
+      <div class="asset-module-equipments"><div class="fld-hdr"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
+      <div class="asset-gps-cell" id="asset-gps-cell"><div class="fld-hdr"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm gps-update-btn" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl" title="Internal Asset Name">IA Name *</label><input id="asset-ia-name" placeholder="Example: Fluke 87V shop meter"/></div>
     <!-- Equipments (Assets tab) core fields -->
@@ -1046,8 +1046,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=377"></script>
-<script src="src/app.js?v=377"></script>
+<script src="src/accounts-map.js?v=378"></script>
+<script src="src/app.js?v=378"></script>
 
 </body>
 </html>
