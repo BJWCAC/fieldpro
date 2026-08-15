@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-08-14
-Current live version: v373
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=372
+Last updated: 2026-08-15
+Current live version: v374
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=374
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v374 | — | **IA form: Internal Asset Number/Name top-left with GPS top-right** — Number and Name sit in the left column of the top field row; GPS stays right-aligned. Current User moves next to Use Status. |
 | v372 | #264 | **IA tab form matches live Zoho Internal_Assets fields** — CapStone IA form now shows only real IA module columns (Internal Asset Number/Name, Brand, Part Number, Serial, Tag, Use Status, Current User, Calibration Due, Cost/Currency, GPS Tag, Description). Equipments-only fields (category/function/building/type/series/environment/confined/layouts) stay on the Assets tab. Proxy build **289** adds `get_internal_asset_fields` and fixes IA GET under Zoho’s 50-field limit. |
 | v371 | #263 | **IA field restore attempt (superseded by v372)** — restored Equipments-parity fields on IA; live Zoho inventory showed those api names are not on Internal_Assets. |
 | v370 | #262 | **IA tab field pass (superseded by v371)** — initial attempt to slim the IA form; v371 restores shared Internal_Assets fields so CapStone matches the Zoho IA module. |
