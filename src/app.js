@@ -2378,8 +2378,8 @@ function placeAssetGpsCell(internal){
   if(internal&&iaSlot){
     if(gps.parentElement!==iaSlot)iaSlot.appendChild(gps);
     if(acctRow)acctRow.style.display="none";
-    if(pair){pair.style.display="grid";pair.style.gridTemplateColumns="minmax(0,1fr) auto";pair.style.gap="8px";pair.style.alignItems="start";pair.style.width="100%";}
-    gps.style.width="11rem";gps.style.maxWidth="42vw";
+    if(pair){pair.style.display="grid";pair.style.gridTemplateColumns="minmax(0,1fr) 11rem";pair.style.gap="8px";pair.style.alignItems="start";pair.style.width="100%";}
+    gps.style.width="100%";gps.style.maxWidth="";gps.style.minWidth="0";gps.style.boxSizing="border-box";
   }else if(acctRow){
     if(gps.parentElement!==acctRow)acctRow.appendChild(gps);
     acctRow.style.display="";
