@@ -2373,13 +2373,18 @@ function placeAssetGpsCell(internal){
   var gps=el("asset-gps-cell");
   var iaSlot=el("asset-gps-slot-ia");
   var acctRow=document.querySelector(".asset-account-gps-row");
+  var pair=document.querySelector(".asset-ia-number-gps-pair");
   if(!gps)return;
   if(internal&&iaSlot){
     if(gps.parentElement!==iaSlot)iaSlot.appendChild(gps);
     if(acctRow)acctRow.style.display="none";
+    if(pair){pair.style.display="grid";pair.style.gridTemplateColumns="minmax(0,1fr) auto";pair.style.gap="8px";pair.style.alignItems="start";pair.style.width="100%";}
+    gps.style.width="11rem";gps.style.maxWidth="42vw";
   }else if(acctRow){
     if(gps.parentElement!==acctRow)acctRow.appendChild(gps);
     acctRow.style.display="";
+    if(pair){pair.style.display="";pair.style.gridTemplateColumns="";pair.style.gap="";pair.style.alignItems="";pair.style.width="";}
+    gps.style.width="";gps.style.maxWidth="";
   }
 }
 function renderAssetModuleUi(){
