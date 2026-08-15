@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=373"/>
+<link rel="stylesheet" href="src/styles.css?v=374"/>
 
 </head>
 <body autocomplete="off">
@@ -385,7 +385,10 @@
     <button class="bb-lg" id="asset-research-btn" onclick="researchAndPrefillAsset()" style="display:none;margin-bottom:8px;width:100%">Research &amp; prefill</button>
     <div class="g2" style="margin-bottom:8px">
       <div class="asset-module-equipments"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">Account</label></div><input id="asset-account" readonly placeholder="Pick deal or account below"/></div>
-      <div class="asset-module-internal" style="display:none"><label class="lbl">Current User</label><select id="asset-users"></select></div>
+      <div class="asset-module-internal" style="display:none">
+        <div style="margin-bottom:8px"><label class="lbl">Internal Asset Number</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
+        <div><label class="lbl">Internal Asset Name *</label><input id="asset-ia-name" placeholder="Example: Fluke 87V shop meter"/></div>
+      </div>
       <div><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:27px"><label class="lbl" style="margin-bottom:0">GPS</label><button type="button" class="bg bsm" onclick="getLocation()">Update GPS</button></div><input id="asset-location" readonly placeholder="No GPS captured"/><div id="asset-osm-link"></div></div>
     </div>
     <!-- Equipments (Assets tab) core fields -->
@@ -422,8 +425,6 @@
     <div class="asset-module-equipments" style="margin-bottom:10px"><label class="lbl">Deal Asset Notes</label><textarea id="asset-deal-notes" rows="2" placeholder="Visit-specific notes for the Deal asset row"></textarea></div>
 
     <!-- Internal_Assets (IA tab) fields — match Zoho CRM Internal_Assets module only -->
-    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Internal Asset Number</label><input id="asset-ia-id" readonly placeholder="Assigned on save (IAxxxx)"/></div>
-    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Internal Asset Name *</label><input id="asset-ia-name" placeholder="Example: Fluke 87V shop meter"/></div>
     <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
       <div><label class="lbl">Brand</label><input id="asset-ia-brand" placeholder="Example: Fluke"/></div>
       <div><label class="lbl">Part Number</label><input id="asset-ia-part" placeholder="Example: 87V"/></div>
@@ -434,8 +435,9 @@
     </div>
     <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
       <div><label class="lbl">Use Status *</label><select id="asset-use-status"></select></div>
-      <div><label class="lbl">Calibration Due Date</label><input id="asset-ia-cal-due" type="date"/></div>
+      <div><label class="lbl">Current User</label><select id="asset-users"></select></div>
     </div>
+    <div class="asset-module-internal" style="display:none;margin-bottom:8px"><label class="lbl">Calibration Due Date</label><input id="asset-ia-cal-due" type="date"/></div>
     <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
       <div><label class="lbl">Cost</label><input id="asset-ia-cost" type="number" step="0.01" placeholder="0.00"/></div>
       <div><label class="lbl">Currency</label><select id="asset-ia-currency"><option value="">Select currency</option><option value="USD">USD</option></select></div>
@@ -1041,8 +1043,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=372"></script>
-<script src="src/app.js?v=372"></script>
+<script src="src/accounts-map.js?v=374"></script>
+<script src="src/app.js?v=374"></script>
 
 </body>
 </html>
