@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-08-15
-Current live version: v377
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=377
+Current live version: v378
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=378
 ```
 
 ---
@@ -34,7 +34,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
-| v377 | #267 | **IA Number wide beside GPS; Name full-width below** — Number and GPS share one top row (GPS aligned with the number field). Number takes the remaining screen width; GPS is a compact right column. IA Name is full-width under that. Shared GPS cell moves into the IA Number row on the IA tab. |
+| v378 | #268 | **Update GPS button matches the field labels + dead `button{}` rule fixed** — the Update GPS button now uses the same 10px Barlow Condensed label type and sits on one line with the GPS label (`.fld-hdr`). Fixing this exposed a long-standing typo from v257: the base rule was written `<button{…}`, an invalid selector, so **every** button had been falling back to the browser default font (no uppercase, no radius, no flex centering). Removing the stray `<` restores the intended button styling app-wide. |
+| v377 | #267 | **IA Number wide beside GPS; Name full-width below** — Number and GPS share one top row (GPS aligned with the number field). Number takes ~2/3 of the row; GPS ~1/3 on the right. IA Name is full-width under that. Shared GPS cell moves into the IA Number row on the IA tab. |
 | v376 | #267 | *(superseded by v377)* IA Number/GPS top-row layout iteration. |
 | v375 | #266 | **IA Number/Name labels fit half-column on phone** — top-left g2 column was wrapping `INTERNAL ASSET NUMBER` mid-word as "NUMB ER". Form labels shortened to **IA Number** / **IA Name** (full Zoho names kept in `title` tooltips); nowrap + slightly tighter letter-spacing on `.asset-ia-top`. |
 | v374 | #265 | **IA form: Internal Asset Number/Name top-left with GPS top-right** — Number and Name sit in the left column of the top field row; GPS stays right-aligned. Current User moves next to Use Status. |
