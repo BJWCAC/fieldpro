@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-08-15
-Current live version: v378
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=378
+Last updated: 2026-08-16
+Current live version: v379
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=379
 ```
 
 ---
@@ -34,6 +34,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v379 | #269 | **IA Number and GPS line up horizontally** — the Number cell used a bare `.lbl` (~16px tall) while the GPS cell used a 27px `.fld-hdr` to hold the Update GPS button, so the GPS label and input sat ~11px lower than Number's. Number now uses the same `.fld-hdr` header, putting both field names on one line and both input boxes on one line. |
 | v378 | #268 | **Update GPS button matches the field labels + dead `button{}` rule fixed** — the Update GPS button now uses the same 10px Barlow Condensed label type and sits on one line with the GPS label (`.fld-hdr`). Fixing this exposed a long-standing typo from v257: the base rule was written `<button{…}`, an invalid selector, so **every** button had been falling back to the browser default font (no uppercase, no radius, no flex centering). Removing the stray `<` restores the intended button styling app-wide. |
 | v377 | #267 | **IA Number wide beside GPS; Name full-width below** — Number and GPS share one top row (GPS aligned with the number field). Number takes ~2/3 of the row; GPS ~1/3 on the right. IA Name is full-width under that. Shared GPS cell moves into the IA Number row on the IA tab. |
 | v376 | #267 | *(superseded by v377)* IA Number/GPS top-row layout iteration. |
