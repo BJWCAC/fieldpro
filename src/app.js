@@ -9317,17 +9317,22 @@ function captureInputsHaveContent(){
 // would rebuild the report from nothing. Live capture work on screen wins, so
 // unsaved edits are never overwritten.
 async function regenerateReport(){
+  var reloaded=false;
   if(!captureInputsHaveContent()){
     var rec=historyRecordById(A.currentHistoryId);
     if(rec&&await loadHistoryRecordIntoCapture(rec)){
+      reloaded=true;
       updateCaptureModeStatus();
-      // A toast alone is missed here: generate() can put an alert up before the
-      // toast ever paints, so leave a persistent line on Capture as well.
-      setCaptureDraftStatus("Reloaded this report's saved capture (photos, notes, sections) so Regenerate uses the full field data.");
       showToast("Loaded this report's saved capture — regenerating from the full field data",6000);
     }
   }
-  await generate();
+  try{
+    await generate();
+  }finally{
+    // generate() writes its own capture status, so say this last or the
+    // technician never learns why the Capture tab filled itself in.
+    if(reloaded)setCaptureDraftStatus("Regenerate reloaded this report's saved capture — photos, notes, and sections came from History.");
+  }
 }
 async function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;
