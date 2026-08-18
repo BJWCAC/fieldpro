@@ -68,6 +68,8 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - organized Settings tab (technician, sync, storage, troubleshooting, appearance, Anthropic + Gemini API keys, app info)
 - Pending Sync badge and retry for failed Zoho/WorkDrive/asset operations
 - AI report generation with optional nine structured fields
+- **Report copy names** — issue the same visit as a Customer Copy, an Internal Copy, or a name you type; the name shows in the PDF header and is used for the PDF, WorkDrive file, Deal attachment, and Zoho note title, so a second copy is filed next to the first instead of duplicating it
+- no deal amount anywhere in the report — the PDF header, on-screen report header, and Zoho note carry no pricing
 - Zoho deal note update/recovery behavior
 - direct report PDF attachment to the Zoho deal
 - asset update notes on both Equipment and Deal records
@@ -118,12 +120,13 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 8. Add photo labels and descriptions.
 9. Dictate or type field notes.
 10. Optionally fill in any of the nine structured report fields.
-11. Generate the AI report.
-12. Review the report.
-13. Regenerate if details need correction.
-14. Save Report to Zoho when signal allows.
-15. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
-16. Use History if the report needs to be continued later.
+11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name).
+12. Generate the AI report.
+13. Review the report.
+14. Regenerate if details need correction — keep the same copy name to replace that copy, or pick a different name to issue a second copy of the same visit.
+15. Save Report to Zoho when signal allows.
+16. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
+17. Use History if the report needs to be continued later.
 
 ## Reliability on poor cell service
 
@@ -265,6 +268,7 @@ Recommended Android smoke test:
 15. Change a note or field.
 16. Generate again.
 17. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
+18. Switch **Report Copy Name** to Internal Copy, generate/save again, and confirm the Deal keeps one PDF per copy name.
 
 Stress test (poor signal):
 

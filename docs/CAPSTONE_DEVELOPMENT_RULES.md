@@ -341,6 +341,20 @@ When working with WorkDrive:
 - use clear filenames with report ID, asset number, or short description where possible
 - keep WorkDrive links in Zoho notes when relevant
 
+## Report copy name rules
+
+A visit can be issued as more than one report copy (customer, internal, or a name the technician types). The copy name is what keeps those copies apart:
+
+- The name comes from `reportCopyLabel()` — presets in `REPORT_COPY_TYPES` plus a typed name for `Other`, remembered per device in `fp_report_copy`.
+- `Other` is a required field: block Generate / Download PDF and highlight the input until it is named.
+- Any new place a report is filed or titled must include the copy name: `workdrivePdfFileName()` (WorkDrive file and Deal attachment), `reportPdfFileName()` (local download), `zohoNoteTitle()`, note/share text, on-screen header, History.
+- Same copy name = replace (WorkDrive overrides by name; the Deal PDF is deleted through `delete_deal_attachment` then re-attached). Different copy name = file alongside. Never stack copies of the same name.
+- Store `copyType`, `copyLabel`, and `dealPdfAttachments` on the History record and Capture draft so reopening a project keeps replace-instead-of-duplicate behavior. Records saved before copy names existed keep their unlabeled filenames.
+
+## Report pricing rule
+
+The field service report is a customer-facing document: keep deal money out of it. The PDF header, on-screen Report header, Zoho note header, and the AI generation prompt must not carry `Amount` (or any pricing). Deal amount stays on the Deals tab, where it helps pick the right deal.
+
 ## Documentation rules
 
 Update documentation when a change affects:

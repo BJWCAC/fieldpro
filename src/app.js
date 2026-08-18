@@ -7544,7 +7544,7 @@ function reportCopyPickerHtml(scope){
   return "<div class=\"report-copy-row\">"+btns+"</div>"+
     "<div class=\"report-copy-custom\" style=\"display:"+(custom?"block":"none")+"\">"+
       "<label class=\"lbl\" for=\"report-copy-custom-"+scope+"\">Copy Name (required for Other)</label>"+
-      "<input id=\"report-copy-custom-"+scope+"\" class=\"report-copy-input"+(missing?" asset-required-missing":"")+"\" name=\"fp-copy-nm\" autocomplete=\"off\" autocapitalize=\"words\" autocorrect=\"off\" spellcheck=\"false\" data-lpignore=\"true\" data-1p-ignore=\"true\" data-form-type=\"other\" maxlength=\""+REPORT_COPY_MAX_LEN+"\" placeholder=\"Warranty Copy, Office Copy, Follow-Up Copy\" value=\""+esc(reportCopyCustomText())+"\" oninput=\"onReportCopyCustomInput(this)\"/>"+
+      "<input id=\"report-copy-custom-"+scope+"\" class=\"report-copy-input"+(missing?" asset-required-missing":"")+"\" name=\"fp-copy-nm\" autocomplete=\"off\" autocorrect=\"off\" spellcheck=\"false\" data-lpignore=\"true\" data-1p-ignore=\"true\" data-form-type=\"other\" maxlength=\""+REPORT_COPY_MAX_LEN+"\" placeholder=\"Warranty Copy, Office Copy, Follow-Up Copy\" oninput=\"onReportCopyCustomInput(this)\"/>"+
     "</div>"+
     "<div class=\"report-copy-status\" id=\"report-copy-status-"+scope+"\">"+reportCopyStatusHtml()+"</div>";
 }
@@ -7557,6 +7557,9 @@ function renderReportCopyPickers(){
     var focused=document.activeElement;
     if(focused&&focused.id==="report-copy-custom-"+scope)return;
     host.innerHTML=reportCopyPickerHtml(scope);
+    // Set the typed name as a value, not markup, so quotes in it stay harmless.
+    var inp=el("report-copy-custom-"+scope);
+    if(inp)inp.value=reportCopyCustomText();
     initNoAutofill(host);
   });
 }
