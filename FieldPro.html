@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=379"/>
+<link rel="stylesheet" href="src/styles.css?v=380"/>
 
 </head>
 <body autocomplete="off">
@@ -271,6 +271,22 @@
     <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">8. Follow-Up Required</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec8" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec8')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec8"></div><textarea id="sec8" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
     <div><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">9. Materials / Parts Used</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec9" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec9')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec9"></div><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
   </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Report Copy Name</div>
+    <details class="help-box nested" data-help-id="capture-report-copy">
+      <summary>Help: Report Copy Name</summary>
+      <div class="help-box-body">
+        <p>Name each copy of the report so the same visit can be issued more than once without one copy replacing the other.</p>
+        <ul>
+          <li><strong>Customer Copy</strong> and <strong>Internal Copy</strong> are ready to tap; <strong>Other</strong> lets you type your own name.</li>
+          <li>The name appears in the PDF header and is used in the PDF filename, WorkDrive filename, Deal attachment name, and Zoho note title.</li>
+          <li>Generating the same copy name again replaces that copy. Pick a different name to keep both.</li>
+          <li>You can change the name on the Report tab before downloading or saving again.</li>
+        </ul>
+      </div>
+    </details>
+    <div id="report-copy-picker-capture"></div>
+  </div>
   <div id="gen-summary" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#0f2420">
     <div style="font-family:Barlow Condensed,sans-serif;font-weight:700;color:var(--green);margin-bottom:6px">Field Data Checklist Before Generate</div>
     <div id="gen-summary-txt" style="color:#2d6b60;line-height:1.6"></div>
@@ -489,6 +505,11 @@
     <div class="g2" style="margin-bottom:8px">
       <button id="save-btn" class="bp" onclick="saveNote()">Save Report to Zoho</button>
       <button class="bpu" onclick="openShare()">Share</button>
+    </div>
+    <div class="card" style="margin-bottom:8px">
+      <div class="stitle">Report Copy Name</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5">Change the name before you download or regenerate to issue a second copy of this visit instead of replacing the first.</div>
+      <div id="report-copy-picker-report"></div>
     </div>
     <div class="pdf-opts">
       <div class="stitle">PDF Options</div>
@@ -1046,8 +1067,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=379"></script>
-<script src="src/app.js?v=379"></script>
+<script src="src/accounts-map.js?v=380"></script>
+<script src="src/app.js?v=380"></script>
 
 </body>
 </html>
