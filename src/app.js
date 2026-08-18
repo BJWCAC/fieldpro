@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="381";
+var FP_VERSION="382";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7308,7 +7308,7 @@ function checkGen(){
     var assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
     var copyName=reportCopyLabel();
     var rows=[
-      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."+(reportCopyIsCustomer()?" Part numbers, serial numbers, and pricing are withheld from this copy.":"")):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
+      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are withheld from this copy.":"")):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
       [!!A.sel,"Deal selected",A.sel?dealHeaderText(A.sel):"Pick the correct Deal before generating if this report goes to Zoho."],
       [!!currentTechnicianName(),"Technician selected",currentTechnicianName()||"Select technician so the report identifies who performed the work."],
       [!!A.location,"GPS captured",A.location?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Tap Get Location if site/GPS should be included."],
@@ -7533,7 +7533,7 @@ function saveReportCopyPref(){
 function reportCopyStatusHtml(){
   if(reportCopyMissingCustom())return "Type a copy name to use Other — or pick Customer Copy / Internal Copy.";
   return "This copy will be named <strong>"+esc(reportCopyLabel())+"</strong> in the PDF header, PDF file, WorkDrive file, and Zoho note."+
-    (reportCopyIsCustomer()?" Equipment part numbers, serial numbers, and pricing are left off this copy — use Internal Copy or Other for the full detail.":"");
+    (reportCopyIsCustomer()?" Equipment part, model, order, and serial numbers and pricing are left off this copy — use Internal Copy or Other for the full detail.":"");
 }
 function reportCopyPickerHtml(scope){
   var active=normalizeReportCopyType(A.reportCopyType);
@@ -7637,19 +7637,20 @@ function applyReportCopyFromRecord(r){
   updateReportCopyStatus();
 }
 // CUSTOMER COPY CONTENT RULE
-// A customer copy never carries equipment part numbers, serial numbers, or
-// pricing — not in the report text, not in a photo description, and not in the
+// A customer copy never carries equipment part, model, order, or serial
+// numbers, or pricing — not in the report text, not in a photo description, and not in the
 // AI observation or synthesis. Internal and other copies keep everything.
 // The report is generated once and any copy can be rendered from it later, so
 // the filtering happens at render time (PDF + share text), never by weakening
 // what was captured.
-var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part numbers, serial numbers, and pricing are not included.";
+var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part, model, order, and serial numbers and pricing are not included.";
 var CUSTOMER_COPY_REDACT_ID="[not shown on customer copy]";
 var CUSTOMER_COPY_REDACT_PRICE="[pricing not shown on customer copy]";
-// Labeled identifiers: the label stays so the reader sees what was withheld.
-// The value must contain a digit, so prose ("parts used", "part of the line")
-// is left alone.
-var CUSTOMER_COPY_ID_RE=/\b(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|catalog|cat)\b(\s*(?:numbers?|nos?\.?|#))?\s*[:=#-]?\s*((?=[A-Za-z0-9._\-\/]*\d)[A-Za-z0-9][A-Za-z0-9._\-\/]{2,})/gi;
+// Labeled equipment identifiers: the label stays so the reader sees what was
+// withheld. A model number counts as a part number, and Endress+Hauser prints
+// the same thing as an order number / order code. The value must contain a
+// digit, so prose ("parts used", "part of the line") is left alone.
+var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|models?|mdl|orders?|ordering|catalog|cat)\b(\s*(?:numbers?|nos?\.?|#|codes?))?\s*[:=#-]?\s*((?=[A-Za-z0-9._+\-\/]*\d)[A-Za-z0-9][A-Za-z0-9._+\-\/]{1,})/gi;
 var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
 // Money written without a symbol only reads as money next to a pricing word.
 var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
@@ -7666,7 +7667,10 @@ function redactCustomerCopyText(text){
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
     s=s.replace(re,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
   });
-  s=s.replace(CUSTOMER_COPY_ID_RE,function(m,label,word,value){
+  s=s.replace(CUSTOMER_COPY_ID_RE,function(m,qualifier,label,word,value){
+    // A work/purchase/sales order number is a job reference, not equipment
+    // data, so it stays on the customer copy.
+    if(qualifier)return m;
     count++;
     // Keep sentence punctuation the identifier pattern swallowed.
     var tail=String(value||"").match(/[.,;:]+$/);
@@ -7703,7 +7707,7 @@ function renderCustomerCopyNotice(){
   var n=A.report?customerCopyRedactionCount():0;
   box.style.display="block";
   box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
-    "<div>Equipment part numbers, serial numbers, and pricing are removed from the PDF and the shared text — report body, your photo descriptions, AI Observations, and AI Synthesis. "+
+    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, your photo descriptions, AI Observations, and AI Synthesis. "+
     (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
     " Switch to Internal Copy (or Other) for the full detail.</div>";
 }
@@ -7734,7 +7738,7 @@ async function generate(){
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part number or serial number where it appears (for example \"Serial: 12345\" or \"Part number: 4X-9921\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -7746,7 +7750,7 @@ async function generate(){
       for(var bi=0;bi<savedPhotos.length;bi+=4){
         var batch=savedPhotos.slice(bi,bi+4);var cc=[];
         for(var ci=0;ci<batch.length;ci++){var cb=await compressPhoto(batch[ci].display,500,0.3);if(cb)cc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:cb}});cc.push({type:"text",text:"[Photo "+(bi+ci+1)+": technician said: "+(batch[ci].desc||"nothing")+"]"});}
-        cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part or serial number you can read (for example \"Serial: 12345\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
+        cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part, model, order, or serial number you can read (for example \"Serial: 12345\", \"Model number: FMU90\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
         var cd=await callAPI({content:cc,maxTok:800,ms:45000});var ct=getText(cd);
         var m=ct.match(/\[[\s\S]*?\]/);if(m){var caps=JSON.parse(m[0]);caps.forEach(function(cap,i){if(batch[i])batch[i].aiDesc=cap;});}
       }
@@ -7755,7 +7759,7 @@ async function generate(){
         var sp=savedPhotos[si];if(!(sp.desc||sp.aiDesc))continue;
         try{
           var sc=[];var scb=await compressPhoto(sp.display,400,0.3);if(scb)sc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:scb}});
-          sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part or serial number (for example \"Serial: 12345\") so customer copies can withhold it. Start each with -. Return only bullets."});
+          sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part, model, order, or serial number (for example \"Serial: 12345\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Start each with -. Return only bullets."});
           var sd2=await callAPI({content:sc,maxTok:200,ms:20000});sp.synthesis=getText(sd2).trim();
         }catch(e){}
       }
@@ -7814,7 +7818,7 @@ function renderReportSaveChecklist(){
   var hasDeal=!!A.sel,hasTech=!!currentTechnicianName(),hasGps=!!A.location,photoCount=A.reportPhotos&&A.reportPhotos.length||0,assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
   var copyName=reportCopyLabel();
   box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Before Saving Report to Zoho</div>"+
-    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."+(reportCopyIsCustomer()?" Part numbers, serial numbers, and pricing are withheld from this copy.":"")):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
+    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are withheld from this copy.":"")):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
     reportChecklistItem(hasDeal,"Deal selected",hasDeal?dealHeaderText(A.sel):"Pick the correct Deal before saving.")+
     reportChecklistItem(hasTech,"Technician selected",hasTech?technicianDisplayName():"Select technician in Settings or the startup prompt.")+
     reportChecklistItem(hasGps,"GPS captured",hasGps?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Capture GPS if location should appear in the report.")+
