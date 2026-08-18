@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=380"/>
+<link rel="stylesheet" href="src/styles.css?v=381"/>
 
 </head>
 <body autocomplete="off">
@@ -280,6 +280,7 @@
         <ul>
           <li><strong>Customer Copy</strong> and <strong>Internal Copy</strong> are ready to tap; <strong>Other</strong> lets you type your own name.</li>
           <li>The name appears in the PDF header and is used in the PDF filename, WorkDrive filename, Deal attachment name, and Zoho note title.</li>
+          <li><strong>Customer Copy withholds equipment part numbers, serial numbers, and pricing</strong> — from the report text, your photo descriptions, AI Observations, and AI Synthesis. Internal Copy and Other keep the full detail.</li>
           <li>Generating the same copy name again replaces that copy. Pick a different name to keep both.</li>
           <li>You can change the name on the Report tab before downloading or saving again.</li>
         </ul>
@@ -508,9 +509,10 @@
     </div>
     <div class="card" style="margin-bottom:8px">
       <div class="stitle">Report Copy Name</div>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5">Change the name before you download or regenerate to issue a second copy of this visit instead of replacing the first.</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5">Change the name before you download or regenerate to issue a second copy of this visit instead of replacing the first. A Customer Copy never includes equipment part numbers, serial numbers, or pricing.</div>
       <div id="report-copy-picker-report"></div>
     </div>
+    <div id="report-customer-notice" class="report-customer-notice" style="display:none"></div>
     <div class="pdf-opts">
       <div class="stitle">PDF Options</div>
       <div class="tog-row" onclick="togPhotos()">
@@ -1067,8 +1069,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=380"></script>
-<script src="src/app.js?v=380"></script>
+<script src="src/accounts-map.js?v=381"></script>
+<script src="src/app.js?v=381"></script>
 
 </body>
 </html>
