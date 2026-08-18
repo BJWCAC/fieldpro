@@ -1399,12 +1399,35 @@ function persistHistoryRecords(h,keepPhotosIndex){
   }
   return{saved:saved,records:out};
 }
-function saveOrUpdateHistory(meta){
+// Content fields a background autosave must never blank. The Capture DOM is
+// empty when a report was opened from History with View, so an incidental save
+// from the Report tab would otherwise write empty text over a full record.
+var HISTORY_CONTENT_KEYS=["report","voiceNotes","videoTranscript","sections","photoData","videos","locationData","location","technician","account","deal","stage"];
+function historyValueIsEmpty(v){
+  if(v===null||v===undefined)return true;
+  if(typeof v==="string")return !v.trim();
+  if(Array.isArray(v))return !v.length;
+  if(typeof v==="object")return !Object.keys(v).some(function(k){return String(v[k]===null||v[k]===undefined?"":v[k]).trim();});
+  return false;
+}
+function mergeHistoryRecord(existing,meta,preserveExisting){
+  var out=Object.assign({},existing,meta);
+  if(!preserveExisting)return out;
+  HISTORY_CONTENT_KEYS.forEach(function(k){
+    if(historyValueIsEmpty(meta[k])&&!historyValueIsEmpty(existing[k]))out[k]=existing[k];
+  });
+  // Photo/video counts have to follow whatever data survived the merge.
+  if(out.photoData!==meta.photoData)out.photos=existing.photos;
+  if(out.videos!==meta.videos)out.hasVideo=existing.hasVideo;
+  return out;
+}
+function saveOrUpdateHistory(meta,opts){
+  opts=opts||{};
   if(A.currentHistoryId){
     var h=getHistory(),idx=-1;
     for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){idx=i;break;}}
     if(idx>=0){
-      h[idx]=Object.assign({},h[idx],meta,{id:A.currentHistoryId,zohoNoteId:A.zohoNoteId||meta.zohoNoteId||h[idx].zohoNoteId||null});
+      h[idx]=Object.assign(mergeHistoryRecord(h[idx],meta,opts.preserveExisting),{id:A.currentHistoryId,zohoNoteId:A.zohoNoteId||meta.zohoNoteId||h[idx].zohoNoteId||null});
       var pr=persistHistoryRecords(h,idx);
       if(!pr.saved)return null;
       badge("tb-hist",pr.records.filter(function(r){return!r.archived;}).length||"");
@@ -2014,7 +2037,11 @@ function buildCaptureDraft(){
 function buildCaptureHistoryMeta(){
   var vn=(el("tx")||{value:""}).value;
   var sd={};SEC_IDS.forEach(function(id){var e=el(id);if(e)sd[id]=e.value;});
-  var sp=A.photos.map(fpPhotoForStorage);
+  // Opening a report from History with View fills reportPhotos, not photos, so a
+  // background save must describe the report's photos instead of writing an
+  // empty list over the record. Same source order the PDF and generate use.
+  var photoSrc=(A.photos&&A.photos.length)?A.photos:(A.reportPhotos||[]);
+  var sp=photoSrc.map(fpPhotoForStorage);
   if(!A.currentHistoryId)A.currentHistoryId="r"+Date.now();
   return{
     id:A.currentHistoryId,
@@ -2049,14 +2076,16 @@ function saveCaptureWorkLocally(opts){
   if(!captureDraftHasWork())return false;
   fpIdbPutPhotos((A.photos||[]).concat(A.reportPhotos||[]));
   var meta=buildCaptureHistoryMeta();
-  var result=saveOrUpdateHistory(meta);
+  // A silent autosave can add or update, never blank what the record already
+  // holds; a deliberate save reflects exactly what is on screen.
+  var result=saveOrUpdateHistory(meta,{preserveExisting:!!opts.silent});
   if(!result&&isStoragePressure()){
     clearCaptureDraftStorage();
     var h=getHistory(),keepIdx=0;
     if(A.currentHistoryId){for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){keepIdx=i;break;}}}
     if(A.currentHistoryId){
       var found=false;
-      for(var u=0;u<h.length;u++){if(h[u].id===A.currentHistoryId){h[u]=Object.assign({},h[u],meta,{id:A.currentHistoryId});found=true;keepIdx=u;break;}}
+      for(var u=0;u<h.length;u++){if(h[u].id===A.currentHistoryId){h[u]=Object.assign(mergeHistoryRecord(h[u],meta,!!opts.silent),{id:A.currentHistoryId});found=true;keepIdx=u;break;}}
       if(!found){h.unshift(meta);keepIdx=0;}
     }else{h.unshift(meta);keepIdx=0;}
     var pr=persistHistoryRecords(prepareStorageForHistorySave(h,keepIdx),keepIdx);
@@ -7585,6 +7614,19 @@ function syncReportCopyCustomInputs(skipId){
     if(inp.value!==text)inp.value=text;
   });
 }
+// Write just the copy name onto the open History record. Rebuilding the whole
+// record here would describe the Capture tab instead of the report being
+// viewed, so History keeps every captured detail regardless of which copy is
+// rendered from it.
+function persistReportCopyToHistory(){
+  if(!A.currentHistoryId)return;
+  var h=getHistory();
+  for(var i=0;i<h.length;i++){
+    if(h[i].id!==A.currentHistoryId)continue;
+    updateCurrentHistory({copyType:normalizeReportCopyType(A.reportCopyType),copyLabel:reportCopyLabel()});
+    return;
+  }
+}
 function markReportCopyChanged(){
   // A different copy name means a different PDF/WorkDrive/attachment filename,
   // so the previous copy stays in place and this one uploads fresh.
@@ -7609,7 +7651,7 @@ function pickReportCopyType(key){
   renderReportSaveChecklist();
   refreshReportForCopyChange(wasCustomer);
   checkGen();
-  scheduleCaptureDraftSave();
+  persistReportCopyToHistory();
   if(key===REPORT_COPY_CUSTOM_KEY)focusReportCopyCustomInput();
 }
 function onReportCopyCustomInput(input){
@@ -7623,7 +7665,7 @@ function onReportCopyCustomInput(input){
   renderReportSaveChecklist();
   refreshReportForCopyChange(wasCustomer);
   checkGen();
-  scheduleCaptureDraftSave();
+  persistReportCopyToHistory();
 }
 function applyReportCopyFromRecord(r){
   var label=reportCopyLabelFromRecord(r);
