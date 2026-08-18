@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "289";
+var PROXY_BUILD = "290";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -793,6 +793,23 @@ exports.handler = async function(event) {
       }, attachBody);
       return { statusCode: attachResult.status, headers: h, body: attachResult.body };
     }
+    // Regenerating a report copy replaces its Deal PDF instead of stacking a new
+    // attachment next to the stale one, so CapStone deletes the copy it supersedes.
+    if (data.action === "delete_deal_attachment") {
+      var attachDealId = String(data.deal_id || "").trim();
+      var attachmentId = String(data.attachment_id || "").trim();
+      if (!attachDealId || !attachmentId) {
+        return { statusCode: 400, headers: h, body: JSON.stringify({ error: "deal_id and attachment_id required" }) };
+      }
+      var attachDeleteResult = await req({
+        hostname: "www.zohoapis.com",
+        path: "/crm/v3/Deals/" + encodeURIComponent(attachDealId) + "/Attachments/" + encodeURIComponent(attachmentId),
+        method: "DELETE",
+        headers: { "Authorization": "Zoho-oauthtoken " + token }
+      });
+      return { statusCode: attachDeleteResult.status, headers: h, body: attachDeleteResult.body };
+    }
+
     function equipmentAccountId(rec) {
       var a = rec && rec.Account;
       if (!a) return "";
