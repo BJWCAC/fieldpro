@@ -18,6 +18,9 @@ All local-first features work offline: technician prompt (dismiss with **Later**
 
 As of v357, Netlify `zoho-proxy` also requires `CAPSTONE_APP_SECRET` (must match `PROXY_APP_SECRET` in `src/app.js` or device `fp_proxy_secret`). Zoho access tokens never leave the proxy.
 
+### Customer copy content rule
+Reports are issued as named copies (**Customer Copy** / **Internal Copy** / **Other**, chosen on Capture and Report). A **Customer Copy never contains equipment part numbers, serial numbers, or pricing** — not in the report body, the technician's photo description, the AI Observation, or the AI Synthesis; internal and other copies keep everything. Filtering happens at render time (`isCustomerCopyLabel()` + `redactCustomerCopyText()` in `buildPDF()` and `buildReportExportText()`), never by dropping captured data, and calibration readings/units/dates must survive it. Any new AI or free-text field that reaches a report must be routed through the filter in the same PR. Full rules in `docs/CAPSTONE_DEVELOPMENT_RULES.md` under "Customer copy content rule".
+
 ### Calibration domain rules
 `docs/CALIBRATION_SPEC_RULES.md` is the shared source of truth for how the `Model_AI_Specs` field (on the `Equipments` module) should be written — accuracy-basis table, family-specific traps, metal-detector paradigm, sensor-model gap, output format. It applies equally to Claude/Cursor doing this by hand and to CapStone's own automatic generation (`MODEL_AI_SPECS_SYSTEM_PROMPT` used by `generateModelAiSpecsIfNeeded()` on new asset save — Gemini is the primary source, Claude a fallback, no merge). If you change the rules, update both places.
 
