@@ -9321,7 +9321,10 @@ async function regenerateReport(){
     var rec=historyRecordById(A.currentHistoryId);
     if(rec&&await loadHistoryRecordIntoCapture(rec)){
       updateCaptureModeStatus();
-      showToast("Loaded this report's saved capture — regenerating from the full field data",5000);
+      // A toast alone is missed here: generate() can put an alert up before the
+      // toast ever paints, so leave a persistent line on Capture as well.
+      setCaptureDraftStatus("Reloaded this report's saved capture (photos, notes, sections) so Regenerate uses the full field data.");
+      showToast("Loaded this report's saved capture — regenerating from the full field data",6000);
     }
   }
   await generate();
