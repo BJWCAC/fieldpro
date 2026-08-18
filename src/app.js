@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="380";
+var FP_VERSION="381";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7308,7 +7308,7 @@ function checkGen(){
     var assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
     var copyName=reportCopyLabel();
     var rows=[
-      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
+      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."+(reportCopyIsCustomer()?" Part numbers, serial numbers, and pricing are withheld from this copy.":"")):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
       [!!A.sel,"Deal selected",A.sel?dealHeaderText(A.sel):"Pick the correct Deal before generating if this report goes to Zoho."],
       [!!currentTechnicianName(),"Technician selected",currentTechnicianName()||"Select technician so the report identifies who performed the work."],
       [!!A.location,"GPS captured",A.location?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Tap Get Location if site/GPS should be included."],
@@ -7532,7 +7532,8 @@ function saveReportCopyPref(){
 }
 function reportCopyStatusHtml(){
   if(reportCopyMissingCustom())return "Type a copy name to use Other — or pick Customer Copy / Internal Copy.";
-  return "This copy will be named <strong>"+esc(reportCopyLabel())+"</strong> in the PDF header, PDF file, WorkDrive file, and Zoho note.";
+  return "This copy will be named <strong>"+esc(reportCopyLabel())+"</strong> in the PDF header, PDF file, WorkDrive file, and Zoho note."+
+    (reportCopyIsCustomer()?" Equipment part numbers, serial numbers, and pricing are left off this copy — use Internal Copy or Other for the full detail.":"");
 }
 function reportCopyPickerHtml(scope){
   var active=normalizeReportCopyType(A.reportCopyType);
@@ -7590,19 +7591,29 @@ function markReportCopyChanged(){
   A.dealPdfStale=true;
   A.workdrivePdfUrl=null;
 }
+// A copy change only needs the full report re-render when it crosses the
+// customer/internal line, so typing a name does not rebuild the photo grid on
+// every keystroke.
+function refreshReportForCopyChange(wasCustomer){
+  if(!A.report)return;
+  if(wasCustomer!==reportCopyIsCustomer())renderReport();
+  else{renderReportHeaderRows();renderCustomerCopyNotice();}
+}
 function pickReportCopyType(key){
+  var wasCustomer=reportCopyIsCustomer();
   key=normalizeReportCopyType(key);
   if(A.reportCopyType!==key){A.reportCopyType=key;markReportCopyChanged();}
   saveReportCopyPref();
   renderReportCopyPickers();
   updateReportCopyStatus();
   renderReportSaveChecklist();
-  renderReportHeaderRows();
+  refreshReportForCopyChange(wasCustomer);
   checkGen();
   scheduleCaptureDraftSave();
   if(key===REPORT_COPY_CUSTOM_KEY)focusReportCopyCustomInput();
 }
 function onReportCopyCustomInput(input){
+  var wasCustomer=reportCopyIsCustomer();
   var next=String(input&&input.value||"").slice(0,REPORT_COPY_MAX_LEN);
   if(next.trim()!==reportCopyCustomText())markReportCopyChanged();
   A.reportCopyCustom=next;
@@ -7610,7 +7621,7 @@ function onReportCopyCustomInput(input){
   syncReportCopyCustomInputs(input&&input.id);
   updateReportCopyStatus();
   renderReportSaveChecklist();
-  renderReportHeaderRows();
+  refreshReportForCopyChange(wasCustomer);
   checkGen();
   scheduleCaptureDraftSave();
 }
@@ -7624,6 +7635,77 @@ function applyReportCopyFromRecord(r){
   }else A.reportCopyType=type;
   renderReportCopyPickers();
   updateReportCopyStatus();
+}
+// CUSTOMER COPY CONTENT RULE
+// A customer copy never carries equipment part numbers, serial numbers, or
+// pricing — not in the report text, not in a photo description, and not in the
+// AI observation or synthesis. Internal and other copies keep everything.
+// The report is generated once and any copy can be rendered from it later, so
+// the filtering happens at render time (PDF + share text), never by weakening
+// what was captured.
+var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part numbers, serial numbers, and pricing are not included.";
+var CUSTOMER_COPY_REDACT_ID="[not shown on customer copy]";
+var CUSTOMER_COPY_REDACT_PRICE="[pricing not shown on customer copy]";
+// Labeled identifiers: the label stays so the reader sees what was withheld.
+// The value must contain a digit, so prose ("parts used", "part of the line")
+// is left alone.
+var CUSTOMER_COPY_ID_RE=/\b(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|catalog|cat)\b(\s*(?:numbers?|nos?\.?|#))?\s*[:=#-]?\s*((?=[A-Za-z0-9._\-\/]*\d)[A-Za-z0-9][A-Za-z0-9._\-\/]{2,})/gi;
+var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
+// Money written without a symbol only reads as money next to a pricing word.
+var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
+function isCustomerCopyLabel(label){
+  // Matches the Customer Copy preset and any typed name that reads as a
+  // customer copy, so a hand-typed "Customer Walkthrough" is filtered too.
+  return /customer/i.test(String(label||""));
+}
+function reportCopyIsCustomer(){return isCustomerCopyLabel(reportCopyLabel());}
+function redactCustomerCopyText(text){
+  var s=String(text||"");
+  if(!s)return{text:"",count:0};
+  var count=0;
+  CUSTOMER_COPY_MONEY_RES.forEach(function(re){
+    s=s.replace(re,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
+  });
+  s=s.replace(CUSTOMER_COPY_ID_RE,function(m,label,word,value){
+    count++;
+    // Keep sentence punctuation the identifier pattern swallowed.
+    var tail=String(value||"").match(/[.,;:]+$/);
+    return label+(word||"")+": "+CUSTOMER_COPY_REDACT_ID+(tail?tail[0]:"");
+  });
+  s=s.split("\n").map(function(line){
+    if(!CUSTOMER_COPY_PRICE_WORD_RE.test(line))return line;
+    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b/g,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
+  }).join("\n");
+  return{text:s,count:count};
+}
+function customerSafeText(text){return redactCustomerCopyText(text).text;}
+// Copies the photos so the captured description/observation/synthesis stay
+// intact for the internal copy.
+function customerSafePhotos(photos){
+  return (photos||[]).map(function(p){
+    var c=Object.assign({},p);
+    c.desc=customerSafeText(p&&p.desc);
+    c.aiDesc=customerSafeText(p&&p.aiDesc);
+    c.synthesis=customerSafeText(p&&p.synthesis);
+    return c;
+  });
+}
+function customerCopyRedactionCount(){
+  var n=redactCustomerCopyText(A.report).count;
+  (A.reportPhotos||[]).forEach(function(p){
+    n+=redactCustomerCopyText(p&&p.desc).count+redactCustomerCopyText(p&&p.aiDesc).count+redactCustomerCopyText(p&&p.synthesis).count;
+  });
+  return n;
+}
+function renderCustomerCopyNotice(){
+  var box=el("report-customer-notice");if(!box)return;
+  if(!reportCopyIsCustomer()){box.style.display="none";box.innerHTML="";return;}
+  var n=A.report?customerCopyRedactionCount():0;
+  box.style.display="block";
+  box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
+    "<div>Equipment part numbers, serial numbers, and pricing are removed from the PDF and the shared text — report body, your photo descriptions, AI Observations, and AI Synthesis. "+
+    (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
+    " Switch to Internal Copy (or Other) for the full detail.</div>";
 }
 function requireReportCopyName(){
   if(!reportCopyMissingCustom())return true;
@@ -7652,7 +7734,7 @@ async function generate(){
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part number or serial number where it appears (for example \"Serial: 12345\" or \"Part number: 4X-9921\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -7664,7 +7746,7 @@ async function generate(){
       for(var bi=0;bi<savedPhotos.length;bi+=4){
         var batch=savedPhotos.slice(bi,bi+4);var cc=[];
         for(var ci=0;ci<batch.length;ci++){var cb=await compressPhoto(batch[ci].display,500,0.3);if(cb)cc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:cb}});cc.push({type:"text",text:"[Photo "+(bi+ci+1)+": technician said: "+(batch[ci].desc||"nothing")+"]"});}
-        cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
+        cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part or serial number you can read (for example \"Serial: 12345\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
         var cd=await callAPI({content:cc,maxTok:800,ms:45000});var ct=getText(cd);
         var m=ct.match(/\[[\s\S]*?\]/);if(m){var caps=JSON.parse(m[0]);caps.forEach(function(cap,i){if(batch[i])batch[i].aiDesc=cap;});}
       }
@@ -7673,7 +7755,7 @@ async function generate(){
         var sp=savedPhotos[si];if(!(sp.desc||sp.aiDesc))continue;
         try{
           var sc=[];var scb=await compressPhoto(sp.display,400,0.3);if(scb)sc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:scb}});
-          sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Start each with -. Return only bullets."});
+          sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part or serial number (for example \"Serial: 12345\") so customer copies can withhold it. Start each with -. Return only bullets."});
           var sd2=await callAPI({content:sc,maxTok:200,ms:20000});sp.synthesis=getText(sd2).trim();
         }catch(e){}
       }
@@ -7732,7 +7814,7 @@ function renderReportSaveChecklist(){
   var hasDeal=!!A.sel,hasTech=!!currentTechnicianName(),hasGps=!!A.location,photoCount=A.reportPhotos&&A.reportPhotos.length||0,assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
   var copyName=reportCopyLabel();
   box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Before Saving Report to Zoho</div>"+
-    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
+    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."+(reportCopyIsCustomer()?" Part numbers, serial numbers, and pricing are withheld from this copy.":"")):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
     reportChecklistItem(hasDeal,"Deal selected",hasDeal?dealHeaderText(A.sel):"Pick the correct Deal before saving.")+
     reportChecklistItem(hasTech,"Technician selected",hasTech?technicianDisplayName():"Select technician in Settings or the startup prompt.")+
     reportChecklistItem(hasGps,"GPS captured",hasGps?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Capture GPS if location should appear in the report.")+
@@ -7778,11 +7860,16 @@ function renderReport(){
   renderReportSaveChecklist();
   renderReportSaveConfirmation();
   renderReportRetryActions();
-  var rb=el("rpt-body");if(rb)rb.textContent=A.report;
+  // The Report tab shows exactly what this copy will contain, so a customer
+  // copy on screen matches the PDF the customer receives. One tap on Internal
+  // Copy brings the full detail back.
+  var customerSafe=reportCopyIsCustomer();
+  var rb=el("rpt-body");if(rb)rb.textContent=customerSafe?customerSafeText(A.report):A.report;
+  renderCustomerCopyNotice();
   renderReportHeaderRows();
   var ndl=el("no-deal-rpt");if(ndl)ndl.style.display=A.sel?"none":"flex";
   var sb=el("save-btn");if(sb)sb.disabled=!A.sel;
-  var photos=A.reportPhotos;var rp=el("rpt-photos"),rg=el("rpt-photo-grid");
+  var photos=customerSafe?customerSafePhotos(A.reportPhotos):A.reportPhotos;var rp=el("rpt-photos"),rg=el("rpt-photo-grid");
   if(photos.length>0&&rp&&rg){
     rp.style.display="block";
     rg.innerHTML=photos.map(function(p,i){
@@ -7835,13 +7922,15 @@ function buildZohoNote(){
   return lines.join("\n");
 }
 function buildReportExportText(){
+  var customerSafe=reportCopyIsCustomer();
   var lines=["CapStone FIELD SERVICE REPORT","=============================="];
   if(reportCopyLabel())lines.push("Report Copy: "+reportCopyLabel());
+  if(customerSafe)lines.push(CUSTOMER_COPY_PDF_NOTE);
   lines.push("Technician: "+technicianDisplayName());
   lines.push("Report Date: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
   if(A.sel){lines.push("Account: "+(A.sel.Account_Name||""));if(A.sel.Deal_Name)lines.push("Deal: "+A.sel.Deal_Name);if(A.sel.Stage)lines.push("Stage: "+A.sel.Stage);}
   if(A.location){if(A.location.address)lines.push("Site: "+A.location.address);lines.push("GPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6));}
-  lines.push("");lines.push(A.report||"");
+  lines.push("");lines.push(customerSafe?customerSafeText(A.report||""):(A.report||""));
   return lines.join("\n");
 }
 async function zohoSave(){
@@ -9286,6 +9375,10 @@ async function dlPDF(){
 
 
 function buildPDF(report,deal,photos,location,technician,copyLabel){
+  // Customer copies are filtered here, so every path that builds a PDF (local
+  // download, WorkDrive, Deal attachment, History export) is covered at once.
+  var customerSafe=isCustomerCopyLabel(copyLabel);
+  if(customerSafe){report=customerSafeText(report);photos=customerSafePhotos(photos);}
   var jsPDF=window.jspdf.jsPDF;
   var doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
   var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),ML=14,MR=14,CW=pw-ML-MR,y=0;
@@ -9306,7 +9399,14 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   doc.setFontSize(7.5);doc.text("Technician: "+((technician||"").trim()||"Not selected"),pw-MR,27.5,{align:"right"});
   y=34;
   var copyName=String(copyLabel||"").trim();
-  if(copyName){doc.setFillColor(230,250,246);doc.setDrawColor(0,192,160);doc.roundedRect(ML,y,CW,9,2,2,"FD");doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(0,120,105);doc.text("REPORT COPY: "+copyName.toUpperCase().substring(0,60),ML+4,y+6);y+=13;}
+  if(copyName){
+    doc.setFillColor(230,250,246);doc.setDrawColor(0,192,160);doc.roundedRect(ML,y,CW,9,2,2,"FD");
+    doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(0,120,105);
+    doc.text("REPORT COPY: "+copyName.toUpperCase().substring(0,60),ML+4,y+6);
+    y+=12;
+    if(customerSafe){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text(CUSTOMER_COPY_PDF_NOTE,ML+1,y+2);y+=6;}
+    else y+=1;
+  }
   if(location){var ha=!!location.address,bh=ha?22:14;doc.setFillColor(245,247,252);doc.setDrawColor(210,215,228);doc.roundedRect(ML,y,CW,bh,2,2,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text("SITE LOCATION",ML+3,y+5.5);if(ha){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(15,23,42);doc.splitTextToSize(location.address,CW-52).slice(0,2).forEach(function(l,i){doc.text(l,ML+3,y+11+i*4.5);});}doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(0,150,130);doc.text(location.lat.toFixed(6)+",",pw-MR-2,y+9,{align:"right"});doc.text(location.lng.toFixed(6),pw-MR-2,y+14,{align:"right"});y+=bh+5;}
   // Deal header intentionally carries no dollar amount — reports go to customers.
   if(deal){doc.setFillColor(245,247,252);doc.setDrawColor(210,215,228);doc.roundedRect(ML,y,CW,28,2,2,"FD");var c2=ML+CW*0.52;[[ML+4,y+8,"ACCOUNT",deal.Account_Name],[ML+4,y+20,"DEAL NAME",deal.Deal_Name],[c2,y+8,"STAGE",deal.Stage],[c2,y+20,"DATE",deal.Closing_Date]].forEach(function(r){doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text(r[2],r[0],r[1]-3);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(15,23,42);doc.text((r[3]||"---").substring(0,36),r[0],r[1]+3);});y+=33;}

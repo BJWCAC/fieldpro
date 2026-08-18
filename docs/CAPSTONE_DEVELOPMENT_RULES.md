@@ -351,9 +351,19 @@ A visit can be issued as more than one report copy (customer, internal, or a nam
 - Same copy name = replace (WorkDrive overrides by name; the Deal PDF is deleted through `delete_deal_attachment` then re-attached). Different copy name = file alongside. Never stack copies of the same name.
 - Store `copyType`, `copyLabel`, and `dealPdfAttachments` on the History record and Capture draft so reopening a project keeps replace-instead-of-duplicate behavior. Records saved before copy names existed keep their unlabeled filenames.
 
-## Report pricing rule
+## Customer copy content rule (applies to every capture, now and in future)
 
-The field service report is a customer-facing document: keep deal money out of it. The PDF header, on-screen Report header, Zoho note header, and the AI generation prompt must not carry `Amount` (or any pricing). Deal amount stays on the Deals tab, where it helps pick the right deal.
+**A customer copy never contains equipment part numbers, serial numbers, or pricing of any kind.** This holds for every field the copy renders — the report body, the technician's photo description, the AI Observation, and the AI Synthesis. Internal Copy and Other copies carry the full detail.
+
+- The deal amount is out of the report entirely: the PDF header, on-screen Report header, Zoho note header, and the AI generation prompt must not carry `Amount` or any pricing. Deal amount stays on the Deals tab, where it helps pick the right deal.
+- **Filter at render, never at capture.** One report is generated per visit and any copy can be rendered from it afterwards (including months later from History), so the technician must never lose captured detail to satisfy a customer copy. `buildPDF()` filters when `isCustomerCopyLabel(copyLabel)` is true, which covers every PDF path at once — local download, WorkDrive, Deal attachment, History export — and `buildReportExportText()` does the same for share/email/clipboard.
+- **Keep the label, drop the value.** `redactCustomerCopyText()` replaces a labeled identifier's value with `[not shown on customer copy]` and money with `[pricing not shown on customer copy]`, so the reader can see something was withheld rather than reading a doctored sentence.
+- **Never redact readings.** Calibration values, engineering units, percentages, dates, and durations must survive — they are the point of the report. When extending the rules, add a "must not redact" case alongside every "must redact" case.
+- **Any new AI or free-text field that lands in a report must be routed through the filter** before it reaches a customer copy. Add it to `customerSafePhotos()` (or the equivalent) in the same PR that introduces it.
+- **Generation prompts must require labeled numbers.** The report, photo-caption, and synthesis prompts instruct the model to write `Serial: …` / `Part number: …` rather than a bare number, which is what makes the value detectable later. Keep that instruction in any new prompt that can mention equipment.
+- **A typed `Other` name containing "customer" is treated as a customer copy** (`isCustomerCopyLabel()` matches `/customer/i`), so a hand-typed "Customer Walkthrough" is filtered too.
+- **Show the technician what is withheld.** The Report tab renders exactly what the active copy will contain and shows a count of withheld items, so a customer copy is verifiable on screen before it is sent.
+- The Zoho Deal note keeps the unfiltered report: it is the internal CRM record, never handed to a customer, and redacting it would permanently lose captured detail.
 
 ## Documentation rules
 
