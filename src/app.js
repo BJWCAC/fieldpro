@@ -1913,7 +1913,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -6551,22 +6551,7 @@ async function runFieldPolishAi(targetId,opts){
 }
 async function retryQueuedReportGenerate(item){
   if(item.historyId&&A.currentHistoryId!==item.historyId){
-    var h=getHistory(),r=null;
-    for(var hi=0;hi<h.length;hi++){if(h[hi].id===item.historyId){r=h[hi];break;}}
-    if(r){
-      var rpd=await fpHydratePhotoData(r.photoData||[]);
-      A.reportPhotos=rpd;
-      A.photos=rpd.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
-      fpIdbPutPhotos(rpd);
-      await applyVideosAndTranscript(r);
-      A.report=r.report||"";
-      setReportTechnician(r.technician||"");
-      A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);
-      updateDealUI();updateLocationUI();
-      if(r.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});
-      if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;if(el("tx2"))el("tx2").value=r.voiceNotes;}
-      renderPhotoCards();checkGen();
-    }
+    await loadHistoryRecordIntoCapture(historyRecordById(item.historyId));
   }
   await generate();
 }
@@ -9291,19 +9276,61 @@ function captureHistorySavedLabel(r){
   if(!t)return"";
   try{return new Date(t).toLocaleString();}catch(e){return String(t);}
 }
-async function continueHist(i){
-  var h=getHistory();var r=h[i];if(!r)return;
-  if(!confirm("Open this project to continue?"))return;
+// Load a saved History record back into live capture state — photos, notes,
+// sections, video/transcript, deal, location, copy name. Continue, Regenerate,
+// and the queued-AI retry all go through here so each works on the full capture
+// instead of whatever happens to be on the Capture tab.
+async function loadHistoryRecordIntoCapture(r){
+  if(!r)return false;
   var pd=await fpHydratePhotoData(r.photoData||[]);
   A.reportPhotos=pd;A.photos=pd.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
   fpIdbPutPhotos(pd);
   A.report=r.report||"";
   setReportTechnician(r.technician||"");
   A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
-  if(r.sections){SEC_IDS.forEach(function(id){var e=el(id);if(e&&r.sections[id])e.value=r.sections[id];});}
-  if(r.voiceNotes){var ta=el("tx");if(ta)ta.value=r.voiceNotes;if(el("tx2"))el("tx2").value=r.voiceNotes;}
+  if(r.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value=r.sections[id]||"";});
+  var ta=el("tx");if(ta)ta.value=r.voiceNotes||"";if(el("tx2"))el("tx2").value=r.voiceNotes||"";
   await applyVideosAndTranscript(r);
-  renderPhotoCards();checkGen();updateCaptureModeStatus();
+  renderPhotoCards();checkGen();
+  badge("tb-photos",A.photos.length||"");
+  return true;
+}
+function historyRecordById(id){
+  if(!id)return null;
+  var h=getHistory();
+  for(var i=0;i<h.length;i++){if(h[i].id===id)return h[i];}
+  return null;
+}
+// Is there live capture work on screen? Used to decide whether Regenerate needs
+// to pull the saved capture back in first.
+function captureInputsHaveContent(){
+  if(A.photos&&A.photos.length)return true;
+  var tx=el("tx"),t2=el("tx2");
+  if((tx&&tx.value.trim())||(t2&&t2.value.trim()))return true;
+  if(SEC_IDS.some(function(id){var e=el(id);return e&&e.value.trim();}))return true;
+  var vt=el("video-transcript");if(vt&&vt.value.trim())return true;
+  if(A.videos&&A.videos.length)return true;
+  return false;
+}
+// Report tab Regenerate. Opening a report with View leaves the Capture tab
+// empty, so regenerate first reloads that report's saved capture — otherwise it
+// would rebuild the report from nothing. Live capture work on screen wins, so
+// unsaved edits are never overwritten.
+async function regenerateReport(){
+  if(!captureInputsHaveContent()){
+    var rec=historyRecordById(A.currentHistoryId);
+    if(rec&&await loadHistoryRecordIntoCapture(rec)){
+      updateCaptureModeStatus();
+      showToast("Loaded this report's saved capture — regenerating from the full field data",5000);
+    }
+  }
+  await generate();
+}
+async function continueHist(i){
+  var h=getHistory();var r=h[i];if(!r)return;
+  if(!confirm("Open this project to continue?"))return;
+  await loadHistoryRecordIntoCapture(r);
+  updateCaptureModeStatus();
   var savedLabel=captureHistorySavedLabel(r);
   if(r.captureInProgress||!r.report){
     setCaptureDraftStatus("Opened from History"+(savedLabel?" — last saved locally "+savedLabel:"")+" — edits autosave to History");
