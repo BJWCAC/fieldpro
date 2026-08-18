@@ -355,8 +355,8 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="382";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="383";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -632,6 +632,24 @@ function fpIdbGetPhotos(ids){
     });
   }).catch(function(){return{};});
 }
+// Read every key already in the photo store so fpIdbIsPersisted() is accurate
+// from the first render of a new session instead of only for photos this
+// session happened to write. History trimming and the "photo not on this
+// device" warnings both depend on knowing which bytes IndexedDB really holds.
+function fpIdbLoadPersistedIds(){
+  return fpIdbOpen().then(function(db){
+    if(!db||!fpIdbPersistedIds)return false;
+    return new Promise(function(resolve){
+      try{
+        var tx=db.transaction(FP_IDB_STORE,"readonly"),store=tx.objectStore(FP_IDB_STORE);
+        if(typeof store.getAllKeys!=="function"){resolve(false);return;}
+        var req=store.getAllKeys();
+        req.onsuccess=function(){(req.result||[]).forEach(fpIdbMarkPersisted);resolve(true);};
+        req.onerror=function(){resolve(false);};
+      }catch(e){resolve(false);}
+    });
+  }).catch(function(){return false;});
+}
 function fpIdbDeletePhotos(ids){
   ids=(ids||[]).filter(Boolean);
   if(!ids.length)return Promise.resolve(false);
@@ -641,7 +659,7 @@ function fpIdbDeletePhotos(ids){
       try{
         var tx=db.transaction(FP_IDB_STORE,"readwrite"),store=tx.objectStore(FP_IDB_STORE);
         ids.forEach(function(id){try{store.delete(id);}catch(e){}});
-        tx.oncomplete=function(){resolve(true);};
+        tx.oncomplete=function(){if(fpIdbPersistedIds)ids.forEach(function(id){fpIdbPersistedIds.delete(id);});resolve(true);};
         tx.onerror=function(){resolve(false);};
         tx.onabort=function(){resolve(false);};
       }catch(e){resolve(false);}
@@ -1003,7 +1021,10 @@ function hydrateAssetPhotos(arr){
 async function initPhotoStore(){
   var db=await fpIdbOpen();
   A.idbAvailable=!!db;
-  if(db){try{await migrateHistoryPhotosToIdb();}catch(e){console.log("photo migration:",e);}}
+  if(db){
+    try{await fpIdbLoadPersistedIds();}catch(e){console.log("photo key scan:",e);}
+    try{await migrateHistoryPhotosToIdb();}catch(e){console.log("photo migration:",e);}
+  }
 }
 // One-time move of existing inline History photos into IndexedDB so returning
 // users reclaim localStorage space and stop losing photos.
@@ -1346,58 +1367,98 @@ function currentHistoryIndex(){
   for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId)return i;}
   return -1;
 }
-function stripHistoryPhotoDisplay(photo){
-  return{id:photo.id,display:"",label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||"",savedToPhone:!!photo.savedToPhone,phoneFileName:photo.phoneFileName||"",phoneSource:photo.phoneSource||""};
+// Can this photo's image still be shown? Either the bytes are inline in the
+// History record or IndexedDB is confirmed to hold them under this photo id.
+function fpPhotoBytesRecoverable(photo){
+  if(!photo)return false;
+  if(fpHasPhotoDisplay(photo.display))return true;
+  return !!(photo.id&&fpIdbIsPersisted(photo.id));
 }
-function isStoragePressure(){
-  var totalMB=parseFloat(getStorageSize())||0;
-  // With IndexedDB storing photo bytes, photo count/size no longer strains the
-  // localStorage quota, so only real localStorage usage matters.
-  if(A.idbAvailable)return totalMB>=CAPTURE_STORAGE_WARN_MB;
-  return A.photos.length>=CAPTURE_STORAGE_WARN_PHOTOS||estimateCapturePhotoStorageMB()>=2.5||totalMB>=CAPTURE_STORAGE_WARN_MB;
+function historyRecordMissingPhotoCount(r){
+  var pd=(r&&Array.isArray(r.photoData))?r.photoData:[];
+  var n=0;
+  for(var i=0;i<pd.length;i++){if(!fpPhotoBytesRecoverable(pd[i]))n++;}
+  return n;
+}
+// Freeing localStorage must never destroy the only copy of a photo. Inline
+// bytes are dropped only once IndexedDB is confirmed to hold them; otherwise
+// they stay in the record. `force` is the last-resort path where History would
+// not save at all, so losing image bytes beats losing the whole report.
+function stripHistoryPhotoDisplay(photo,force){
+  var keep=!force&&fpHasPhotoDisplay(photo.display)&&!(photo.id&&fpIdbIsPersisted(photo.id));
+  return{id:photo.id,display:keep?photo.display:"",idb:(photo.id&&fpIdbIsPersisted(photo.id))?1:0,label:photo.label||"",desc:photo.desc||"",time:photo.time,w:photo.w||0,h:photo.h||0,aiDesc:photo.aiDesc||"",synthesis:photo.synthesis||"",syncStatus:photo.syncStatus||"not_synced",syncMessage:photo.syncMessage||"",savedToPhone:!!photo.savedToPhone,phoneFileName:photo.phoneFileName||"",phoneSource:photo.phoneSource||""};
 }
 function clearCaptureDraftStorage(){
   try{localStorage.removeItem("fp_capture_draft");}catch(e){}
 }
-function trimHistoryPhotoData(h,keepPhotosIndex){
+function trimHistoryPhotoData(h,keepPhotosIndex,force){
   return h.map(function(r,i){
     if(typeof keepPhotosIndex==="number"&&i===keepPhotosIndex)return r;
     var s=Object.assign({},r);
-    if(s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
+    if(s.photoData)s.photoData=s.photoData.map(function(p){return stripHistoryPhotoDisplay(p,force);});
     return s;
   });
 }
-function prepareStorageForHistorySave(h,keepPhotosIndex){
-  clearCaptureDraftStorage();
-  h=Array.isArray(h)?h.slice():getHistory();
-  if(!h.length)return h;
-  var trimmed=trimHistoryPhotoData(h,keepPhotosIndex);
-  if(trimmed.length>12)trimmed=trimHistoryPhotoData(trimmed.slice(0,12),keepPhotosIndex);
-  return trimmed;
-}
+// Escalating attempts to fit History into localStorage. The record set is
+// written untouched first: every later step gives something up, so none of them
+// runs until localStorage has actually refused the write. Dropping older
+// reports comes last because that loses whole visits, not just image bytes.
 function persistHistoryRecords(h,keepPhotosIndex){
-  if(isStoragePressure())h=prepareStorageForHistorySave(h,keepPhotosIndex);
-  var saved=false,out=h;
-  try{localStorage.setItem("fp_history",JSON.stringify(h));saved=true;}catch(e){}
-  if(!saved){
-    clearCaptureDraftStorage();
-    var trimmed=trimHistoryPhotoData(h,keepPhotosIndex);
-    try{localStorage.setItem("fp_history",JSON.stringify(trimmed));saved=true;out=trimmed;}catch(e){}
+  var out=h,result={saved:false,records:h};
+  function attempt(records,keepIdx){
+    try{localStorage.setItem("fp_history",JSON.stringify(records));}catch(e){return false;}
+    out=records;result={saved:true,records:records,keepIndex:keepIdx};
+    scheduleHistoryPhotoOffload();
+    return true;
   }
-  if(!saved){
-    var minimal=h.slice(0,5).map(function(r,i){
-      var s=Object.assign({},r);
-      if(i!==keepPhotosIndex&&s.photoData)s.photoData=s.photoData.map(stripHistoryPhotoDisplay);
-      return s;
-    });
-    try{localStorage.setItem("fp_history",JSON.stringify(minimal));saved=true;out=minimal;}catch(e){}
+  if(attempt(h,keepPhotosIndex))return result;
+  clearCaptureDraftStorage();
+  // Offloadable bytes only: photos IndexedDB already holds are dropped from
+  // localStorage, photos it does not hold stay inline.
+  if(attempt(trimHistoryPhotoData(h,keepPhotosIndex),keepPhotosIndex))return result;
+  // Still too big, so the remaining inline bytes have to go. The report being
+  // saved keeps its photos.
+  if(attempt(trimHistoryPhotoData(h,keepPhotosIndex,true),keepPhotosIndex))return result;
+  // Last resort: drop the oldest visits. The record being saved always stays.
+  var limits=[12,5,3];
+  for(var i=0;i<limits.length;i++){
+    var cut=truncateHistoryKeeping(h,limits[i],keepPhotosIndex);
+    if(attempt(trimHistoryPhotoData(cut.records,cut.keepIndex,true),cut.keepIndex)){
+      warnHistoryRecordsDropped(h.length-cut.records.length);
+      return result;
+    }
   }
-  if(!saved){
-    clearCaptureDraftStorage();
-    var textOnly=trimHistoryPhotoData(h.slice(0,3),typeof keepPhotosIndex==="number"?Math.min(keepPhotosIndex,2):0);
-    try{localStorage.setItem("fp_history",JSON.stringify(textOnly));saved=true;out=textOnly;}catch(e){}
+  return result;
+}
+// Keep the newest `limit` reports, but never drop the one being written.
+function truncateHistoryKeeping(h,limit,keepPhotosIndex){
+  if(h.length<=limit)return{records:h,keepIndex:keepPhotosIndex};
+  var records=h.slice(0,limit),keepIndex=keepPhotosIndex;
+  if(typeof keepPhotosIndex==="number"&&keepPhotosIndex>=limit){
+    records=[h[keepPhotosIndex]].concat(h.slice(0,limit-1));
+    keepIndex=0;
   }
-  return{saved:saved,records:out};
+  return{records:records,keepIndex:keepIndex};
+}
+// Reaching the record-dropping steps means older visits just left this device.
+// Say so instead of letting History quietly shrink.
+var lastStorageFullWarning=0;
+function warnHistoryRecordsDropped(count){
+  if(count<=0)return;
+  var now=Date.now();
+  if(now-lastStorageFullWarning<60000)return;
+  lastStorageFullWarning=now;
+  if(typeof showToast==="function")showToast("Device storage is full — "+count+" older History report"+(count!==1?"s":"")+" had to be dropped. Save photos to the phone, then use Settings → Free Up Space.",9000);
+}
+// Move any History photo bytes still sitting in localStorage into IndexedDB.
+// Running this after a save keeps localStorage small without the trimming
+// steps ever having to throw image bytes away.
+function scheduleHistoryPhotoOffload(){
+  if(!A.idbAvailable||A.historyOffloadTimer)return;
+  A.historyOffloadTimer=setTimeout(function(){
+    A.historyOffloadTimer=null;
+    migrateHistoryPhotosToIdb().catch(function(e){console.log("photo offload:",e);});
+  },1500);
 }
 // Content fields a background autosave must never blank. The Capture DOM is
 // empty when a report was opened from History with View, so an incidental save
@@ -1432,7 +1493,7 @@ function saveOrUpdateHistory(meta,opts){
       if(!pr.saved)return null;
       badge("tb-hist",pr.records.filter(function(r){return!r.archived;}).length||"");
       renderHistory();
-      return pr.records[idx]||h[idx];
+      return pr.records[typeof pr.keepIndex==="number"?pr.keepIndex:idx]||h[idx];
     }
   }
   A.currentHistoryId=meta.id;
@@ -2078,20 +2139,10 @@ function saveCaptureWorkLocally(opts){
   var meta=buildCaptureHistoryMeta();
   // A silent autosave can add or update, never blank what the record already
   // holds; a deliberate save reflects exactly what is on screen.
+  // persistHistoryRecords() already escalates from an untouched save through
+  // photo trimming to dropping old records, so a null result here means the
+  // device is genuinely out of localStorage.
   var result=saveOrUpdateHistory(meta,{preserveExisting:!!opts.silent});
-  if(!result&&isStoragePressure()){
-    clearCaptureDraftStorage();
-    var h=getHistory(),keepIdx=0;
-    if(A.currentHistoryId){for(var i=0;i<h.length;i++){if(h[i].id===A.currentHistoryId){keepIdx=i;break;}}}
-    if(A.currentHistoryId){
-      var found=false;
-      for(var u=0;u<h.length;u++){if(h[u].id===A.currentHistoryId){h[u]=Object.assign(mergeHistoryRecord(h[u],meta,!!opts.silent),{id:A.currentHistoryId});found=true;keepIdx=u;break;}}
-      if(!found){h.unshift(meta);keepIdx=0;}
-    }else{h.unshift(meta);keepIdx=0;}
-    var pr=persistHistoryRecords(prepareStorageForHistorySave(h,keepIdx),keepIdx);
-    result=pr.saved?(pr.records[keepIdx]||meta):null;
-    if(pr.saved)renderHistory();
-  }
   if(result){
     var savedId=(result.id||meta.id||A.currentHistoryId);
     if(!getHistory().some(function(r){return r.id===savedId;}))result=null;
@@ -2100,7 +2151,7 @@ function saveCaptureWorkLocally(opts){
     clearCaptureDraftStorage();
     var t=new Date().toLocaleTimeString();
     setCaptureDraftStatus("Saved locally to History "+t+" — Zoho can wait for better signal");
-    if(!opts.silent)showToast(isStoragePressure()?"Capture saved locally (older History photos trimmed to free space)":"Capture saved locally to History",3500);
+    if(!opts.silent)showToast("Capture saved locally to History",3500);
     updateStorageInfo();
   }else{
     setCaptureDraftStatus("Local History save failed — tap Save All Photos to Phone, then Settings → Free Up Space, and try again.",true);
@@ -7268,7 +7319,12 @@ function renderPhotoCards(){
   var c=el("photo-cards");if(!c)return;c.innerHTML="";
   A.photos.forEach(function(p,i){
     var div=document.createElement("div");div.className="pcard";div.setAttribute("data-photo-id",p.id);
-    var img=document.createElement("img");img.src=p.display;img.alt="Photo "+(i+1);
+    // The image bytes can be gone while the label/description survive (a report
+    // reopened after the photo was cleared off this device). Show that plainly
+    // instead of a broken image the technician cannot interpret.
+    var hasBytes=fpHasPhotoDisplay(p.display),img;
+    if(hasBytes){img=document.createElement("img");img.src=p.display;img.alt="Photo "+(i+1);}
+    else{img=document.createElement("div");img.className="pc-missing";img.textContent="Image not on this device";}
     var body=document.createElement("div");body.className="pc-body";
     var tm=document.createElement("div");tm.className="pc-time";tm.textContent="Photo "+(i+1)+" — "+p.time;
     var label=document.createElement("input");label.className="pc-label";label.setAttribute("inputmode","text");label.placeholder="Photo label (overview, issue, wiring, reading)";label.value=p.label||"";
@@ -7738,6 +7794,17 @@ function renderCustomerCopyNotice(){
     (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
     " Switch to Internal Copy (or Other) for the full detail.</div>";
 }
+// Photos whose image bytes are no longer on this device: the report still knows
+// they existed (labels, descriptions, AI text), so say what is missing and why
+// rather than showing an empty photo section.
+function renderMissingPhotoNotice(count){
+  var box=el("rpt-photo-missing");if(!box)return;
+  if(!count){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";
+  box.innerHTML="<div class='stitle' style='margin-bottom:6px;color:#991b1b'>"+count+" Photo"+(count!==1?"s":"")+" Not On This Device</div>"+
+    "<div>The image"+(count!==1?"s are":" is")+" no longer stored on this phone, so "+(count!==1?"they":"it")+" cannot be shown, exported to PDF, or uploaded to WorkDrive. "+
+    "Descriptions and AI notes for "+(count!==1?"those photos":"that photo")+" are still in the report. Photos already uploaded remain in the deal's WorkDrive folder.</div>";
+}
 function requireReportCopyName(){
   if(!reportCopyMissingCustom())return true;
   renderReportCopyPickers();
@@ -7900,8 +7967,13 @@ function renderReport(){
   renderReportHeaderRows();
   var ndl=el("no-deal-rpt");if(ndl)ndl.style.display=A.sel?"none":"flex";
   var sb=el("save-btn");if(sb)sb.disabled=!A.sel;
-  var photos=customerSafe?customerSafePhotos(A.reportPhotos):A.reportPhotos;var rp=el("rpt-photos"),rg=el("rpt-photo-grid");
-  if(photos.length>0&&rp&&rg){
+  var allPhotos=customerSafe?customerSafePhotos(A.reportPhotos):A.reportPhotos;
+  // A photo whose bytes are gone from this device would render as a broken
+  // image with no explanation, so leave it out and say what happened instead.
+  var photos=allPhotos.filter(function(p){return fpHasPhotoDisplay(p&&p.display);});
+  renderMissingPhotoNotice(allPhotos.length-photos.length);
+  var rp=el("rpt-photos"),rg=el("rpt-photo-grid");
+  if(allPhotos.length>0&&rp&&rg){
     rp.style.display="block";
     rg.innerHTML=photos.map(function(p,i){
       return "<div class='pgcard'><img src='"+p.display+"' alt='Photo "+(i+1)+"'/><div class='pgbody'><div class='pgblk'><div style='font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>Photo "+(i+1)+" — "+p.time+"</div></div>"+
@@ -8218,7 +8290,8 @@ async function uploadToWorkDriveAll(){
     var total=A.reportPhotos.length;
     if(total>0)showToast("Uploading "+total+" photos to WorkDrive...",5000);
     for(var i=0;i<A.reportPhotos.length;i++){
-      var p=A.reportPhotos[i];if(!p.display){skipped++;continue;}
+      var p=A.reportPhotos[i];
+      if(!fpHasPhotoDisplay(p.display)){skipped++;showToast("Photo "+(i+1)+" skipped — the image is no longer stored on this device",6000);continue;}
       try{
         setPhotoSyncStatus(p,"uploading","");
         var b64=await compressPhoto(p.display,1200,0.8);
@@ -9239,6 +9312,8 @@ function historyStatusHtml(r){
   chips.push(historyChip(r.dealPdfAttached||r.pdfSaved?"PDF Attached":"PDF Pending",!!(r.dealPdfAttached||r.pdfSaved)));
   var pending=historyPendingCountForRecord(r);
   if(pending)chips.push(historyChip(pending+" Pending Sync",false));
+  var missing=historyRecordMissingPhotoCount(r);
+  if(missing)chips.push(historyChip(missing+" Photo"+(missing!==1?"s":"")+" Not On This Device",false));
   var copyName=reportCopyLabelFromRecord(r);
   if(copyName)chips.push("<span class='h-chip'>"+esc(copyName)+"</span>");
   if(r.technician)chips.push("<span class='h-chip'>Tech: "+esc(r.technician)+"</span>");
@@ -9269,7 +9344,15 @@ function renderHistory(){
   }
   var hl=el("hist-list");if(hl)hl.innerHTML=html;
 }
-async function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.report=r.report;A.reportPhotos=await fpHydratePhotoData(r.photoData||[]);fpIdbPutPhotos(A.reportPhotos);await hydrateCaptureVideoFromRecord(r);A.lastSaveResult=r.zohoSaved?{note:true,dealPdf:!!(r.dealPdfAttached||r.pdfSaved),workdrive:!!r.pdfSaved,assets:0,warning:""}:null;setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();updateCaptureModeStatus();go("report");}
+// Reopening a report should never look like the photos were simply forgotten,
+// so count the ones whose bytes could not be restored and say so out loud.
+function warnRestoredPhotosMissing(photos,expected){
+  var got=(photos||[]).filter(function(p){return fpHasPhotoDisplay(p&&p.display);}).length;
+  var missing=(expected||0)-got;
+  if(missing>0)showToast(missing+" photo"+(missing!==1?"s":"")+" from this report "+(missing!==1?"are":"is")+" no longer stored on this device — descriptions and AI notes are still here.",8000);
+  return missing;
+}
+async function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.report=r.report;A.reportPhotos=await fpHydratePhotoData(r.photoData||[]);warnRestoredPhotosMissing(A.reportPhotos,(r.photoData||[]).length);fpIdbPutPhotos(A.reportPhotos);await hydrateCaptureVideoFromRecord(r);A.lastSaveResult=r.zohoSaved?{note:true,dealPdf:!!(r.dealPdfAttached||r.pdfSaved),workdrive:!!r.pdfSaved,assets:0,warning:""}:null;setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();updateCaptureModeStatus();go("report");}
 function captureHistorySavedLabel(r){
   if(!r)return"";
   var t=r.localSavedAt||r.date;
@@ -9283,6 +9366,7 @@ function captureHistorySavedLabel(r){
 async function loadHistoryRecordIntoCapture(r){
   if(!r)return false;
   var pd=await fpHydratePhotoData(r.photoData||[]);
+  warnRestoredPhotosMissing(pd,(r.photoData||[]).length);
   A.reportPhotos=pd;A.photos=pd.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
   fpIdbPutPhotos(pd);
   A.report=r.report||"";
@@ -9455,6 +9539,9 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   // download, WorkDrive, Deal attachment, History export) is covered at once.
   var customerSafe=isCustomerCopyLabel(copyLabel);
   if(customerSafe){report=customerSafeText(report);photos=customerSafePhotos(photos);}
+  // A photo whose bytes are gone would print as an empty framed box with a
+  // caption, which reads like a rendering fault to whoever receives the PDF.
+  photos=(photos||[]).filter(function(p){return fpHasPhotoDisplay(p&&p.display);});
   var jsPDF=window.jspdf.jsPDF;
   var doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
   var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),ML=14,MR=14,CW=pw-ML-MR,y=0;

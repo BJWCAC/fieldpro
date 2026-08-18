@@ -82,6 +82,29 @@ Feature branch naming pattern:
 cursor/<description>-7ea5
 ```
 
+## Local storage rules (History and captured media)
+
+History is the technician's only copy of a visit until Zoho and WorkDrive have
+it, so freeing space must never be the thing that loses it.
+
+- **Never discard data before a write has failed.** Trimming, stripping, and
+  truncation run only after `localStorage.setItem` actually throws — not because
+  a usage estimate crossed a threshold. `getStorageSize()` counts every
+  `fp_*` key (the cached deal list is usually the largest), so a "storage is
+  getting full" reading says nothing about whether this particular write fits.
+- **Never drop bytes that exist in only one place.** Photo/video bytes may be
+  removed from a History record only once IndexedDB is confirmed to hold that
+  id (`fpIdbIsPersisted()`); otherwise they stay inline. `initPhotoStore()`
+  loads the store's existing keys so this check is accurate at boot.
+- **Give up the least valuable thing first.** Escalate in order: bytes already
+  duplicated in IndexedDB, then remaining image bytes, then whole reports. The
+  record currently being written keeps its own photos at every step.
+- **Say what was lost.** Dropping reports or failing to restore photos gets a
+  visible message. Blank images, silently shorter History lists, and photo
+  counts that do not match what opens are all bugs.
+- Prefer moving bytes into IndexedDB (`migrateHistoryPhotosToIdb()`) over
+  deleting them.
+
 ## Naming rules
 
 The program should be called:
