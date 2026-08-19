@@ -7755,6 +7755,10 @@ var CUSTOMER_COPY_UNITS=("ma a amp amps v vac vdc kv mv w kw mw hp hz khz mhz rp
   "c f k degc degf deg degrees pct percent ppm ppb ntu su ph ohm ohms kohm mohm db va kva kwh btu awg ga x "+
   "mg/l ug/l us/cm ms/cm m3/h m3/hr l/min l/s ft/s in/hr in/min btu/hr gal/min hours minutes seconds "+
   "month months week weeks year years").split(" ");
+// Units that are also ordinary words. A unit after a number normally means the
+// number was a reading, but "MRC 7000 in panel LCP-3" is a model number followed
+// by the word "in", so these do not count as a following unit.
+var CUSTOMER_COPY_AMBIGUOUS_UNITS=("in a x m s h c f k l g mo ea da at no").split(" ");
 // Counted things are not prices either, so "quoted 4 rolls" keeps the 4.
 var CUSTOMER_COPY_COUNT_WORDS=("each ea pc pcs piece pieces unit units roll rolls set sets kit kits spare spares item items "+
   "pen pens sensor sensors valve valves meter meters recorder recorders transmitter transmitters").split(" ");
@@ -7773,6 +7777,8 @@ var CUSTOMER_COPY_KEEP_PREFIXES=("ip nema iso iec ieee ansi asme astm nfpa nsf u
   // part: LCP-3, MCC-2, VFD-1, PNL-4, RAS-2.
   "lcp mcp rcp cp cpnl pnl panel cab encl mcc vfd plc hmi rtu dcs ups ats scada bl blw pmp pump mtr motor fan valve tank basin "+
   "clarifier well pit rack slot ch chan area line hdr skid train bay room rm floor lvl "+
+  // Words that introduce a reading rather than a code: "SPAN 1500 in H2O".
+  "span range flow level max min avg total zero full cal out net qty "+
   "tds tss mlss bod cod toc orp do ec ras was sp pv mv cv sg fog vss tkn tp tn alk hrt srt svi dp id od npsh tdh gpd adf "+
   "mfr eff inf ph psi gpm mgd ntu rpm cfm kwh scfm temp").split(" ");
 // A spaced number is also how job references, addresses, and ZIP codes are
@@ -7811,6 +7817,13 @@ function customerCopyIsUnitReading(tok){
   // way (24V, 72F, 100A, 5L) — not the S in a model number like 3051S.
   if(unit.length===1&&unit!==unit.toLowerCase()&&"AVWCFKL".indexOf(unit)<0)return false;
   return true;
+}
+// Is the word after a number a unit, in the sense that it makes the number a
+// reading? Ordinary words that double as units do not count.
+function customerCopyFollowingWordIsUnit(word){
+  var w=String(word||"").toLowerCase();
+  if(!w||CUSTOMER_COPY_AMBIGUOUS_UNITS.indexOf(w)>=0)return false;
+  return CUSTOMER_COPY_UNITS.indexOf(w)>=0;
 }
 function customerCopyIsPlantLoopTag(tok){
   var m=/^([A-Za-z]{1,4})(-?)(\d{1,5})([A-Za-z])?$/.exec(String(tok||""));
@@ -7898,7 +7911,7 @@ function redactCustomerCopySpacedCodes(line){
     if(customerCopyIsUnitReading(code))return m;
     if(/^(?:19|20)\d\d$/.test(code))return m;
     var rest=/^\s*([A-Za-z][A-Za-z0-9\/]*)/.exec(line.slice(offset+m.length));
-    if(rest&&CUSTOMER_COPY_UNITS.indexOf(rest[1].toLowerCase())>=0)return m;
+    if(rest&&customerCopyFollowingWordIsUnit(rest[1]))return m;
     count++;
     return CUSTOMER_COPY_REDACT_CODE;
   });
@@ -7947,7 +7960,7 @@ function redactCustomerCopyText(text){
     if(!CUSTOMER_COPY_PRICE_WORD_RE.test(line))return line;
     return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail){
       var next=String(tail||"").trim().toLowerCase();
-      if(next==="%"||CUSTOMER_COPY_UNITS.indexOf(next)>=0||CUSTOMER_COPY_COUNT_WORDS.indexOf(next)>=0)return m;
+      if(next==="%"||customerCopyFollowingWordIsUnit(next)||CUSTOMER_COPY_COUNT_WORDS.indexOf(next)>=0)return m;
       count++;
       return CUSTOMER_COPY_REDACT_PRICE+(tail||"");
     });

@@ -80,6 +80,13 @@ withholds("Replaced chart paper, 24001660-001, on the recorder.","24001660-001")
 withholds("Installed a Rosemount 3051S transmitter.","3051S");
 withholds("Honeywell ST3000 transmitter re-ranged.","ST3000");
 withholds("Recorder is a DR-4500 unit.","DR-4500");
+// "in" after a spaced code is the word, not inches — this one reached a customer
+// copy through the AI Synthesis.
+withholds("- Backup unit is a Partlow MRC 7000 in panel LCP-3","MRC 7000");
+keeps("- Backup unit is a Partlow MRC 7000 in panel LCP-3","panel LCP-3");
+withholds("Replaced the DR 4500 in panel 3.","DR 4500");
+unchanged("SPAN 1500 in H2O verified; RANGE 0-1500 GPM confirmed.");
+unchanged("MLSS 3200 mg/L and TSS 250 mg/L sampled in the aeration basin.");
 withholds("Chart recorder (DR4500AY-1000-0-0-0) verified.","DR4500AY-1000-0-0-0");
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","Honeywell");
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","chart recorder in panel 3.");
@@ -176,6 +183,57 @@ var dealName=customerSafeDealName("4641 — DR4500A chart recorder swap");
 check("deal name withholds its code",dealName.indexOf("DR4500A")<0,dealName);
 check("deal name stays readable",dealName.indexOf("[withheld]")>=0&&dealName.indexOf("4641")>=0&&dealName.indexOf("chart recorder")>=0,dealName);
 check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual calibration")==="Rogers WWTP annual calibration");
+
+// --- generated sweeps -------------------------------------------------------
+// The same code in different sentence positions, because a neighbouring word is
+// what let "Partlow MRC 7000 in panel LCP-3" through once.
+var sweepCodes=["MRC 7000","DR 4500","DPR 250","MRC7000","DR4500A","3051S","51404671-501"];
+var sweepAfter=["in","at","on","a","x","m","s","h","c","f","k","l","g","mo","and","with","was","replaced","unit","recorder,","recorder.","(spare)","panel"];
+var sweepBefore=["a","the","one","spare","new","existing","Partlow","PARTLOW","model","with","to","and"];
+var sweepLeaks=[],sweepCount=0;
+sweepCodes.forEach(function(code){
+  sweepAfter.forEach(function(word){
+    var t="Replaced the Partlow "+code+" "+word+" the influent panel.";sweepCount++;
+    if(redactCustomerCopyText(t).text.indexOf(code)>=0)sweepLeaks.push(t);
+  });
+  sweepBefore.forEach(function(word){
+    var t="Verified "+word+" "+code+" today.";sweepCount++;
+    if(redactCustomerCopyText(t).text.indexOf(code)>=0)sweepLeaks.push(t);
+  });
+});
+["Part number","Part No.","P/N","PN","Serial","Serial number","S/N","Model","Model number","Model No.","Mdl","Order code",
+ "Order number","Catalog number","Item #","SKU","MPN","Assembly number","Product number","Type"].forEach(function(label){
+  ["DR4500A","Honeywell DR4500A","Partlow MRC 7000","51404671-501","Honeywell 51404671-501","FMU90-R11CA111AA3A","6M-4471"].forEach(function(value){
+    [": "," "].forEach(function(sep){
+      var t="Recorder "+label+sep+value+" was verified onsite.";sweepCount++;
+      if(redactCustomerCopyText(t).text.indexOf(value.split(" ").pop())>=0)sweepLeaks.push(t);
+    });
+  });
+});
+check(sweepCount+" generated code sentences all withhold their code",!sweepLeaks.length,sweepLeaks.slice(0,5).join("\n    "));
+
+var sweepReadings=["4-20 mA","4-20mA","0-150 in H2O","0-1500 GPM","24 VDC","24VDC","120VAC/24VDC","480 V","0.5%","1.8% of span",
+ "pH 7.01","0.8 ppm","0.12 NTU","250 mV","3200 mg/L","72 F","23.9 VDC","1 in/hr","3/4in","1-1/2 in","18 AWG","10-32 screws",
+ "1/4-20 bolts","2 hr 30 min","30 min","12 months","1284567 gal","1200-1500 GPM","0.010 in","0.15 in/s","60 Hz","1750 RPM",
+ "25 ft-lb","2026-08-19","08/19/2026","10:42:15","Q3 2026","v2.1","Rev 3","H2SO4","NaOCl","CL2","SS316","316L","Sch 40",
+ "NEMA 4X","IP65","SIL2","CAT5e","ISO 17025","FIT-101","LT-200","AIT-2301","FIT101","LCP-3","MCC-2","VFD-1","MN 55374",
+ "WO 44821","Work order 44821","Purchase order 7781","PO 7781","Room 101","Panel 3A","Building 2B","Zone 4","Class I Div 2"];
+var sweepFrames=[
+  function(v){return "Verified "+v+" during the visit.";},
+  function(v){return "Recorded "+v+" at the panel.";},
+  function(v){return v+" confirmed by the technician.";},
+  function(v){return "Loop reads "+v+" as found.";},
+  function(v){return "- "+v;},
+  function(v){return "Setpoint "+v+" and alarm cleared.";}
+];
+var sweepLosses=[],readingCount=0;
+sweepReadings.forEach(function(value){
+  sweepFrames.forEach(function(frame){
+    var t=frame(value);readingCount++;
+    if(redactCustomerCopyText(t).text!==t)sweepLosses.push(t+" -> "+redactCustomerCopyText(t).text);
+  });
+});
+check(readingCount+" generated reading sentences are left alone",!sweepLosses.length,sweepLosses.slice(0,5).join("\n    "));
 
 var total=failures.length;
 if(total){
