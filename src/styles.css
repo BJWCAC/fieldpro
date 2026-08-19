@@ -101,6 +101,7 @@ body.light .deal-card.sel{background:#d0f0ea}
 .err-box{background:#1a0a0a;border:1px solid var(--red);border-radius:8px;padding:10px 12px;font-size:12px;color:#fca5a5;margin-bottom:8px;line-height:1.5}
 .pcard{background:#0a1a18;border:1px solid var(--bdr);border-radius:8px;margin-bottom:10px;overflow:hidden}
 .pcard img{width:100%;display:block;max-height:200px;object-fit:cover}
+.pc-missing{width:100%;display:flex;align-items:center;justify-content:center;height:96px;background:#fef2f2;border-bottom:1px solid #fca5a5;color:#991b1b;font-family:"Barlow Condensed",sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .pc-body{padding:10px}
 .pc-time{font-size:10px;color:var(--dim);margin-bottom:6px}
 .pc-desc{width:100%;margin-bottom:8px;font-size:12px;min-height:56px}
@@ -160,6 +161,7 @@ body.light .hist-card{background:#fff}
 .report-copy-status{font-size:11px;color:var(--sub);line-height:1.5}
 .report-customer-notice{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#92400e;line-height:1.55}
 .report-customer-notice .stitle{color:#92400e}
+.report-photo-missing{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#991b1b;line-height:1.55}
 .asset-picklist-request-panel{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.55}
 .asset-picklist-request-panel .stitle{margin-bottom:6px;color:#92400e}
 .asset-picklist-request-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid #fde68a}
