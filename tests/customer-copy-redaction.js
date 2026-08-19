@@ -18,8 +18,9 @@ var start=src.indexOf(START),end=src.indexOf(END);
 if(start<0||end<0){console.error("Could not find the customer copy block in src/app.js");process.exit(1);}
 eval(src.slice(start,end));
 
-var failures=[];
+var failures=[],checks=0;
 function check(name,ok,detail){
+  checks++;
   if(ok)return;
   failures.push(name+(detail?"\n    "+detail:""));
 }
@@ -182,4 +183,4 @@ if(total){
   failures.forEach(function(f,i){console.error("  "+(i+1)+". "+f);});
   process.exit(1);
 }
-console.log("All customer copy redaction checks passed.");
+console.log("All "+checks+" customer copy redaction checks passed.");
