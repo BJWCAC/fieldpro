@@ -156,14 +156,28 @@ Standard button classes (always pair with `.bsm` or `-lg` size as needed):
 | Class | Use |
 |-------|-----|
 | `.bp` / `.bp-lg` | Amber — primary emphasis (Save to Zoho, View, Link to Deal) |
-| `.bb` / `.bb-lg` | Teal — primary workflow (Upload, Snap, Search, Use Active Deal) |
+| `.bb` / `.bb-lg` | Teal — primary workflow (Add Photos, Snap, Search, Use Active Deal, Update Photos on This Report) |
 | `.bs` / `.bs-lg` | Green — success / generate / save actions |
-| `.bg` / `.bg-lg` | Secondary — neutral actions (Edit, PDF, Cancel, PICK DEAL in bars) |
+| `.bg` / `.bg-lg` | Secondary — neutral actions on a **dark** surface (Edit, Cancel, PICK DEAL in bars, → AI on Capture) |
+| `.bw` / `.bw-lg` | Secondary — the same neutral actions on a **white or light card** (Download PDF, Regenerate Report, the Report Copy Name choices on Report, Retry File Sync, Refresh deals / Change deal, Inbox CHANGE) |
 | `.bd` / `.bd-lg` | Red — remove / delete |
 | `.bsm` | Small padding modifier |
 | `.bfull` | Full width |
 
 Do not use undefined classes (e.g. `.bb` without a matching rule) or `.bg-lg` for primary tab entry actions — use `.bb-lg` or `.bs-lg` instead.
+
+**A neutral secondary button must match the surface it sits on.** `.bg` / `.bg-lg` are dark
+(`var(--card)` / `#1a2a3a`), so on a white card — the whole Report tab, `.pdf-opts`,
+`.workflow-card`, `.report-save-checklist`, `.report-retry-actions`, `.asset-setup-card`,
+`.asset-setup-context`, the Inbox deal bar — they read as **black boxes**. Use `.bw` / `.bw-lg`
+there rather than a one-off id override. A dark full-width `.bg-lg` is right for a utility action
+on a dark pane (Pause, Save Video to Downloads, Save All Photos to Phone), but a step in the
+report workflow needs a colour that says so — **Update Photos on This Report** is `.bb-lg` teal
+like **Add Photos**, the action that leads into it, rather than a dark slab between the amber and
+green actions around it. When one control renders on both a dark and a white surface — the Report
+Copy Name picker appears on Capture and on Report — choose the neutral class from the scope being
+rendered instead of restyling the shared component class. Anything that rewrites a button's
+`className` at runtime (`dlPDF()` restoring **Download PDF**) has to restore the same class.
 
 ## Button processing feedback rules
 
@@ -392,6 +406,31 @@ A visit can be issued as more than one report copy (customer, internal, or a nam
 - Same copy name = replace (WorkDrive overrides by name; the Deal PDF is deleted through `delete_deal_attachment` then re-attached). Different copy name = file alongside. Never stack copies of the same name.
 - Store `copyType`, `copyLabel`, and `dealPdfAttachments` on the History record and Capture draft so reopening a project keeps replace-instead-of-duplicate behavior. Records saved before copy names existed keep their unlabeled filenames.
 
+## Report generation input rules
+
+**Everything the technician typed on site has to reach the report body.** `generate()` builds one
+prompt, and any capture field left out of it silently disappears from the report even though it is
+still stored and still shown beside the photos:
+
+- Voice notes, the video transcript, the nine report sections, **and the technician's per-photo
+  descriptions** all go into the prompt. A photo description is field data, not a caption — the AI
+  Observation and AI Synthesis are the model's own text and are not a substitute for what the
+  technician wrote.
+- Only the first four photos are sent as images, so photo notes go in as text for **every** photo,
+  independent of that image budget.
+- The report body still must not describe photos or cite photo numbers. Fold the facts into the
+  section they belong to instead.
+- Any new capture field a technician can type into must be added to this prompt in the same PR —
+  and, per the customer copy content rule, to the render-time filter.
+
+**AI photo text belongs to the report photos, and Capture holds its own copy of each photo.**
+`A.photos` (Capture) and `A.reportPhotos` (Report) are separate objects for the same photo, so
+after `addAiPhotoNotes()` the observation and synthesis have to be handed back to `A.photos`.
+Otherwise the next background History save — which describes the Capture tab — writes a leaner
+copy of the same photo over the stored record and both AI blocks are gone. `mergeHistoryRecord()`
+is the second line of defence: on a silent autosave it merges `photoData` per photo id and keeps
+each photo's existing `desc`, `label`, `aiDesc`, and `synthesis` when the incoming copy has none.
+
 ## Customer copy content rule (applies to every capture, now and in future)
 
 **A customer copy never contains equipment part numbers, model numbers, order numbers/order codes, serial numbers, or pricing of any kind.** A model number counts as a part number, and Endress+Hauser prints the same identifier as an order number / order code. This holds for every field the copy renders — the report body, the deal name in the header, the technician's photo description, the AI Observation, and the AI Synthesis. Internal Copy and Other copies carry the full detail.
@@ -407,7 +446,7 @@ A visit can be issued as more than one report copy (customer, internal, or a nam
 - **Any new AI or free-text field that lands in a report must be routed through the filter** before it reaches a customer copy. Add it to `customerSafePhotos()` (or the equivalent) in the same PR that introduces it.
 - **Generation prompts must require labeled numbers.** The report, photo-caption, and synthesis prompts instruct the model to write `Serial: …` / `Part number: …` rather than a bare number, which is what makes the value detectable later. Keep that instruction in any new prompt that can mention equipment.
 - **A typed `Other` name containing "customer" is treated as a customer copy** (`isCustomerCopyLabel()` matches `/customer/i`), so a hand-typed "Customer Walkthrough" is filtered too.
-- **History always keeps the full capture.** Rendering a customer copy must never change stored state: `redactCustomerCopyText()` returns new strings and `customerSafePhotos()` copies the photos, so any copy type can still be rebuilt from History later. A background autosave (`saveCaptureWorkLocally({silent:true})`) can add or update but never blank content — `mergeHistoryRecord()` keeps the existing `report`, `voiceNotes`, `sections`, `photoData`, `videos`, and transcript when the incoming meta is empty, because the Capture DOM is empty whenever a report was opened from History with **View**. Only a deliberate save writes exactly what is on screen.
+- **History always keeps the full capture.** Rendering a customer copy must never change stored state: `redactCustomerCopyText()` returns new strings and `customerSafePhotos()` copies the photos, so any copy type can still be rebuilt from History later. A background autosave (`saveCaptureWorkLocally({silent:true})`) can add or update but never blank content — `mergeHistoryRecord()` keeps the existing `report`, `voiceNotes`, `sections`, `photoData`, `videos`, and transcript when the incoming meta is empty, because the Capture DOM is empty whenever a report was opened from History with **View**. The same merge also runs **per photo**: an autosave that describes the same photo with less text keeps that photo's stored `desc`, `label`, `aiDesc`, and `synthesis`. Only a deliberate save writes exactly what is on screen.
 - **Regenerate and Continue must work on the stored capture.** `View` loads a report for review only; anything that rebuilds or edits a report goes through `loadHistoryRecordIntoCapture()` first so it operates on the full record rather than an empty Capture tab. Live capture work on screen always wins, so unsaved edits are never overwritten.
 - **Show the technician what is withheld.** The Report tab renders exactly what the active copy will contain and shows a count of withheld items, so a customer copy is verifiable on screen before it is sent.
 - **Every change to the filter runs `node tests/customer-copy-redaction.js`.** The checks lift the redaction block straight out of `src/app.js` and cover both directions — codes that must go, readings/tags/job references that must stay — including a whole report the way the AI writes one.

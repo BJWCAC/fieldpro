@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=385"/>
+<link rel="stylesheet" href="src/styles.css?v=386"/>
 
 </head>
 <body autocomplete="off">
@@ -296,7 +296,7 @@
   <button class="bs-lg" id="gen-btn" onclick="generate()" style="display:none;margin-bottom:8px">Generate AI Report</button>
   <div id="photos-only-box" style="display:none;margin-bottom:20px">
     <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:6px">Only the photos changed? This report already has text. Update Photos replaces its photo gallery with the photos above and leaves every word of the report as written — no new AI report, no retyping.</div>
-    <button class="bg-lg" id="photos-only-btn" onclick="updateReportPhotos()">Update Photos on This Report</button>
+    <button class="bb-lg" id="photos-only-btn" onclick="updateReportPhotos()">Update Photos on This Report</button>
   </div>
 </div>
 
@@ -523,9 +523,9 @@
         <div class="tog on" id="tog-photos"><div class="tog-thumb"></div></div>
         <div style="font-size:13px">Include photos in PDF</div>
       </div>
-      <button id="pdf-btn" class="bg-lg" onclick="dlPDF()" style="margin-top:10px">Download PDF</button>
+      <button id="pdf-btn" class="bw-lg" onclick="dlPDF()" style="margin-top:10px">Download PDF</button>
     </div>
-    <button class="bg-lg" id="regen-btn" onclick="regenerateReport()" style="margin-bottom:6px">Regenerate Report</button>
+    <button class="bw-lg" id="regen-btn" onclick="regenerateReport()" style="margin-bottom:6px">Regenerate Report</button>
     <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:12px">Regenerate rewrites the report text from your field data. To change only the photos and keep this wording, open this report from History with <strong>Open + Continue</strong>, add or remove photos on Capture, then tap <strong>Update Photos on This Report</strong>.</div>
     <div id="upload-status" class="err-box" style="display:none;background:#051a18;border-color:#006050;color:var(--amber);font-size:12px;line-height:1.5"></div>
     <div id="report-retry-actions" class="report-retry-actions" style="display:none">
@@ -533,7 +533,7 @@
       <div id="report-retry-message" style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px"></div>
       <div class="g2">
         <button type="button" class="bs" onclick="retryReportSave()">Retry Report Save</button>
-        <button type="button" class="bg" onclick="retryReportUploads()">Retry File Sync</button>
+        <button type="button" class="bw" onclick="retryReportUploads()">Retry File Sync</button>
       </div>
     </div>
     <div id="report-save-confirmation" class="report-save-confirmation" style="display:none"></div>
@@ -568,7 +568,7 @@
         <div id="idb-acct" style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:800;color:#0f2420"></div>
         <div id="idb-info" style="font-size:12px;color:#2d6b60"></div>
       </div>
-      <button type="button" class="bg bsm" onclick="openInboxDealPicker()" style="flex-shrink:0;margin-top:2px">CHANGE</button>
+      <button type="button" class="bw bsm" onclick="openInboxDealPicker()" style="flex-shrink:0;margin-top:2px">CHANGE</button>
     </div>
   </div>
   <div class="workflow-card">
@@ -1074,8 +1074,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=385"></script>
-<script src="src/app.js?v=385"></script>
+<script src="src/accounts-map.js?v=386"></script>
+<script src="src/app.js?v=386"></script>
 
 </body>
 </html>
