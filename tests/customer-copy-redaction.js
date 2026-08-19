@@ -126,6 +126,9 @@ keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","chart recorde
  // A determiner with nothing noun-like after it goes with the value.
  ["- Replace the MRC 7000 within 12 months.","- Replace within 12 months."],
  ["Pen arm P/N 51404671-501 was replaced.","Pen arm was replaced."],
+ // A value at the end of a clause can leave a preposition hanging too.
+ ["- Pen arm P/N 51404671-501 replaced on the DR4500A","- Pen arm replaced"],
+ ["- Backup unit is a Partlow MRC 7000 in panel LCP-3","- Backup unit is a Partlow in panel LCP-3"],
  // Codes listed together close as one gap rather than as a row of holes.
  ["Spares on hand: DR4500A, MRC7000 and 51404671-501.","Spares on hand."],
  // A heading keeps its line even when the only thing on it was withheld.

@@ -7766,6 +7766,10 @@ var CUSTOMER_COPY_GAP="\u0001";
 // "Replace the MRC 7000 within 12 months" must not become "Replace the within
 // 12 months". The article goes too when nothing noun-like follows the gap.
 var CUSTOMER_COPY_GAP_ARTICLE_RE=/(^|[\s(\[])(?:a|an|the|this|that|these|those|our|its|their)$/i;
+// When the value ended the clause it can also leave a preposition hanging:
+// "Pen arm P/N 51404671-501 replaced on the DR4500A" must not end "replaced on".
+// Stripped a word at a time, so "on the" goes together.
+var CUSTOMER_COPY_GAP_TRAILING_RE=/(^|[\s(\[])(?:a|an|the|this|that|these|those|our|its|their|in|on|at|to|for|from|with|within|of|by|per|into|onto|over|under|and|or|plus)$/i;
 var CUSTOMER_COPY_GAP_FUNCTION_WORDS=("in on at to for from with within of by per and or nor but as into onto over under after before during "+
   "is are was were be been being has have had do does did will would can could should may might must not").split(" ");
 // Labeled equipment identifiers: the label goes with the value, because a bare
@@ -8090,6 +8094,11 @@ function closeCustomerCopyGaps(text){
         // paper, 24001660-001, on the recorder" reads "Replaced chart paper on
         // the recorder".
         var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right);
+        for(var w=0;w<3;w++){
+          var trimmed=left.replace(CUSTOMER_COPY_GAP_TRAILING_RE,"$1").replace(/[ \t]+$/,"");
+          if(trimmed===left)break;
+          left=trimmed;
+        }
         left=left.replace(/[ \t]*[,;:\-–—]+$/,"").replace(/[ \t]+$/,"");
         if(paired){right=right.slice(1).replace(/^[ \t]+/,"");spaced=true;}
       }
