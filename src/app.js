@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="388";
+var FP_VERSION="389";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7781,6 +7781,34 @@ var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\
 // "Type" and "Cat" only read as equipment identifiers when the value looks like
 // a real code, so "NEMA Type 4X" and "Cat 5e cable" keep their values.
 var CUSTOMER_COPY_WEAK_LABEL_RE=/^(?:types?|cat)$/i;
+// Wording that announces a removal is itself removed. The filter never writes
+// such wording, but the text it filters can arrive already carrying it: a model
+// told a customer copy withholds numbers sometimes writes the withholding in
+// place of the number ("Serial: [redacted]", "model number not shown on
+// customer copy"), and a technician can type the same. It goes the way a value
+// goes — the label, the wording, and the punctuation holding it together — so
+// the copy reads as a finished report rather than a censored one.
+// "Redacted" and "withheld" never mean anything else, so they go wherever they
+// appear. "Removed", "omitted", and "N/A" are ordinary field words ("pen arm
+// removed and replaced"), so they only read as a placeholder when they are
+// bracketed or sit in the value slot after an identifier label.
+var CUSTOMER_COPY_PLACEHOLDER_LABEL="(?:\\b(?:serials?|parts?|models?|mdl|orders?|catalogs?|items?|skus?|mpn|pn|sn|assembly|asm|products?|prices?|pricing)\\b|[psm]\\s*\\/\\s*n\\b)\\s*(?:numbers?|nos?\\.?|codes?|ids?)?\\s*";
+var CUSTOMER_COPY_PLACEHOLDER_LEAD="(?:\\b(?:has|have|had|is|are|was|were|be|been|being|intentionally|deliberately|purposely|not)\\b\\s+)*";
+var CUSTOMER_COPY_PLACEHOLDER_ALWAYS="\\b(?:redact(?:ed|ion|ions|s)?|withheld|withhold|undisclosed|not\\s+shown|not\\s+disclosed|confidential)\\b";
+var CUSTOMER_COPY_PLACEHOLDER_LABELED="(?:\\b(?:removed|deleted|omitted|masked|hidden|excluded|suppressed|not\\s+included|not\\s+available|not\\s+provided|not\\s+applicable|unavailable|n\\s*\\/\\s*a|tbd|x{3,})\\b|\\*{2,}|-{3,}|_{2,}|\\?{2,}|#{3,})";
+// What can trail the wording: "not shown on the customer copy", "withheld here".
+var CUSTOMER_COPY_PLACEHOLDER_TAIL="(?:\\s+(?:for|from|on|in)\\s+(?:the\\s+)?(?:customer|client|external|this|these)(?:\\s+cop(?:y|ies)|\\s+report|\\s+version)?|\\s+cop(?:y|ies)|\\s+here)*";
+// Inside brackets any of it reads as a placeholder: "[redacted]", "(N/A)",
+// "[part number not shown on customer copy]", "[***]".
+var CUSTOMER_COPY_PLACEHOLDER_BRACKET_RE=new RegExp("(?:"+CUSTOMER_COPY_PLACEHOLDER_LABEL+"[:=#-]?[ \\t]*)?[\\[({][^\\[\\](){}\\n]{0,60}[\\])}]","gi");
+var CUSTOMER_COPY_PLACEHOLDER_INNER_RE=new RegExp("^[^A-Za-z0-9*?#_-]*(?:"+CUSTOMER_COPY_PLACEHOLDER_LABEL+"[:=#-]?\\s*)?"+
+  CUSTOMER_COPY_PLACEHOLDER_LEAD+"(?:"+CUSTOMER_COPY_PLACEHOLDER_ALWAYS+"|"+CUSTOMER_COPY_PLACEHOLDER_LABELED+")","i");
+// The value slot after a label, which needs the separator the label was written
+// with — that is what keeps prose such as "pen arm part removed" out of it.
+var CUSTOMER_COPY_PLACEHOLDER_LABELED_RE=new RegExp(CUSTOMER_COPY_PLACEHOLDER_LABEL+"[:=#]\\s*"+CUSTOMER_COPY_PLACEHOLDER_LEAD+
+  "(?:"+CUSTOMER_COPY_PLACEHOLDER_ALWAYS+"|"+CUSTOMER_COPY_PLACEHOLDER_LABELED+")"+CUSTOMER_COPY_PLACEHOLDER_TAIL,"gi");
+var CUSTOMER_COPY_PLACEHOLDER_ALWAYS_RE=new RegExp("(?:"+CUSTOMER_COPY_PLACEHOLDER_LABEL+"[:=#-]?\\s*)?"+CUSTOMER_COPY_PLACEHOLDER_LEAD+
+  CUSTOMER_COPY_PLACEHOLDER_ALWAYS+CUSTOMER_COPY_PLACEHOLDER_TAIL,"gi");
 var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
 // Money written without a symbol only reads as money next to a pricing word.
 var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
@@ -8033,6 +8061,24 @@ function redactCustomerCopyBareCodes(s,opts){
   }).join("\n");
   return{text:text,count:count,codes:codes};
 }
+// Wording that announces a removal, marked as a gap so it closes like a value.
+// The label in front of it goes too: "Model number: [redacted]" leaves neither
+// the label nor the brackets behind.
+function redactCustomerCopyPlaceholders(s){
+  s=String(s||"");
+  var count=0,removed=[];
+  function note(v){v=String(v||"").replace(/\s+/g," ").trim();if(v&&removed.indexOf(v)<0)removed.push(v);}
+  s=s.replace(CUSTOMER_COPY_PLACEHOLDER_BRACKET_RE,function(m){
+    var open=m.search(/[\[({]/);
+    if(!CUSTOMER_COPY_PLACEHOLDER_INNER_RE.test(m.slice(open+1,m.length-1)))return m;
+    count++;note(m);return CUSTOMER_COPY_GAP;
+  });
+  [CUSTOMER_COPY_PLACEHOLDER_LABELED_RE,CUSTOMER_COPY_PLACEHOLDER_ALWAYS_RE].forEach(function(re){
+    re.lastIndex=0;
+    s=s.replace(re,function(m){count++;note(m);return CUSTOMER_COPY_GAP;});
+  });
+  return{text:s,count:count,removed:removed};
+}
 function redactCustomerCopyText(text,opts){
   var s=String(text||"");
   if(!s)return{text:"",count:0,codes:[],removed:[]};
@@ -8040,6 +8086,8 @@ function redactCustomerCopyText(text,opts){
   if(!opts.keep)opts={keep:customerCopyKeepTokens(),known:opts.known,jobNumbersStay:opts.jobNumbersStay};
   var count=0,removed=[];
   function note(v){v=String(v||"").trim();if(v&&removed.indexOf(v)<0)removed.push(v);}
+  var placeholders=redactCustomerCopyPlaceholders(s);s=placeholders.text;count+=placeholders.count;
+  placeholders.removed.forEach(note);
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
     s=s.replace(re,function(m){count++;note(m);return CUSTOMER_COPY_GAP;});
   });
@@ -8162,11 +8210,18 @@ function customerSafeDealName(name,reportText){
 }
 // Copies the photos so the captured description/observation/synthesis stay
 // intact for the internal copy.
+// A customer copy carries one AI block per photo, not two: the AI Synthesis is
+// already the technician's note and the AI Observation merged, so printing both
+// says the same thing twice and the raw observation is the wordier, more
+// speculative of the two. The observation is dropped from the copy whole rather
+// than filtered — every render path reads these objects, so the block simply has
+// no content to print. The captured observation is untouched on the record and
+// an Internal Copy still prints it.
 function customerSafePhotos(photos,keep){
   return (photos||[]).map(function(p){
     var c=Object.assign({},p);
     c.desc=customerSafeText(p&&p.desc,keep);
-    c.aiDesc=customerSafeText(p&&p.aiDesc,keep);
+    c.aiDesc="";
     c.synthesis=customerSafeText(p&&p.synthesis,keep);
     return c;
   });
@@ -8202,7 +8257,7 @@ function renderCustomerCopyNotice(){
     (summary.items.length>shownItems.length?" and "+(summary.items.length-shownItems.length)+" more":"")+".</div>"):"";
   box.style.display="block";
   box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
-    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. They are removed without a trace: the copy carries no placeholder where a value was, so it reads as a finished report. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and job numbers stay — including this deal's own number in the deal name. "+
+    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, and AI Synthesis. They are removed without a trace: the copy carries no placeholder where a value was, and any wording that announces a removal (\"redacted\", \"withheld\", \"N/A\") goes with it, so the copy reads as a finished report. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and job numbers stay — including this deal's own number in the deal name. Each photo carries its AI Synthesis only; the AI Observation is left off a customer copy because the synthesis already covers it. "+
     (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
     " Switch to Internal Copy (or Other) for the full detail.</div>"+itemList;
 }
@@ -8243,7 +8298,7 @@ async function addAiPhotoNotes(photos,opts){
     for(var bi=0;bi<targets.length;bi+=4){
       var batch=targets.slice(bi,bi+4);var cc=[];
       for(var ci=0;ci<batch.length;ci++){var cb=await compressPhoto(batch[ci].display,500,0.3);if(cb)cc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:cb}});cc.push({type:"text",text:"[Photo "+photoNumber(batch[ci])+": technician said: "+(batch[ci].desc||"nothing")+"]"});}
-      cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part, model, order, or serial number you can read (for example \"Serial: 12345\", \"Model number: FMU90\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
+      cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part, model, order, or serial number you can read (for example \"Serial: 12345\", \"Model number: FMU90\", \"Order code: R11CA111AA3A\") so a customer copy can remove the number and its label together. Always write the number you can read — never a placeholder such as \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
       var cd=await callAPI({content:cc,maxTok:800,ms:45000});var ct=getText(cd);
       var m=ct.match(/\[[\s\S]*?\]/);if(m){var caps=JSON.parse(m[0]);caps.forEach(function(cap,i){if(batch[i]){batch[i].aiDesc=cap;captioned++;}});}
     }
@@ -8252,7 +8307,7 @@ async function addAiPhotoNotes(photos,opts){
       if(opts.onlyMissing&&sp.synthesis)continue;
       try{
         var sc=[];var scb=await compressPhoto(sp.display,400,0.3);if(scb)sc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:scb}});
-        sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part, model, order, or serial number (for example \"Serial: 12345\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Start each with -. Return only bullets."});
+        sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. This synthesis is the only AI text a customer copy prints for this photo, so it must stand on its own. Label any part, model, order, or serial number (for example \"Serial: 12345\", \"Order code: R11CA111AA3A\") so a customer copy can remove the number and its label together. Always write the number itself — never a placeholder such as \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Start each with -. Return only bullets."});
         var sd2=await callAPI({content:sc,maxTok:200,ms:20000});sp.synthesis=getText(sd2).trim();
       }catch(e){}
     }
@@ -8282,7 +8337,7 @@ async function generate(){
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n7. Write every number you were given and never a placeholder in its place — no \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Removing values is handled when the copy is rendered.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -8419,7 +8474,9 @@ function renderReport(){
     rg.innerHTML=photos.map(function(p,i){
       return "<div class='pgcard'><img src='"+p.display+"' alt='Photo "+(i+1)+"'/><div class='pgbody'><div class='pgblk'><div style='font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>Photo "+(i+1)+" — "+p.time+"</div></div>"+
       "<div class='pgblk'><div style='font-size:10px;color:var(--amber);font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>Your Description</div>"+(p.desc?"<div style='font-size:13px;color:var(--amber);line-height:1.6'>"+esc(p.desc)+"</div>":"<div style='font-size:11px;color:var(--dim);font-style:italic'>No description</div>")+"</div>"+
-      "<div class='pgblk pgdiv'><div style='font-size:10px;color:#60a5fa;font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>AI Observation</div>"+(p.aiDesc?"<div style='font-size:13px;color:#93c5fd;line-height:1.6'>"+esc(p.aiDesc)+"</div>":"<div style='font-size:11px;color:var(--dim);font-style:italic'>Generates with report</div>")+"</div>"+
+      // The AI Observation block is left off a customer copy on screen because it
+      // is left off the PDF, so what the technician reviews is what is sent.
+      (customerSafe?"":"<div class='pgblk pgdiv'><div style='font-size:10px;color:#60a5fa;font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>AI Observation</div>"+(p.aiDesc?"<div style='font-size:13px;color:#93c5fd;line-height:1.6'>"+esc(p.aiDesc)+"</div>":"<div style='font-size:11px;color:var(--dim);font-style:italic'>Generates with report</div>")+"</div>")+
       "<div class='pgblk pgdiv'><div style='font-size:10px;color:var(--green);font-weight:700;letter-spacing:.08em;margin-bottom:5px;text-transform:uppercase'>AI Synthesis</div>"+(p.synthesis?"<div style='font-size:13px;color:var(--green);line-height:1.8;white-space:pre-line'>"+esc(p.synthesis)+"</div>":"<div style='font-size:11px;color:var(--dim);font-style:italic'>Generates with report</div>")+"</div>"+
       "</div></div>";
     }).join("");

@@ -35,7 +35,15 @@ function withholds(text,value){
 // Wording the copy must never carry, plus the control character the passes use
 // to mark a removal, which has to be gone by the time the text is returned.
 function marksWithheld(text){
-  return /not shown|withheld|redact|\[|\]|\u0001/i.test(String(text||""));
+  return /not shown|withheld|redact|omitted|\bn\/a\b|\[|\]|\u0001/i.test(String(text||""));
+}
+// Wording that announces a removal has to go the way a value goes: gone, counted,
+// and with nothing left in its place.
+function scrubs(text,expected){
+  var r=redactCustomerCopyText(text);
+  check("scrubs the placeholder in "+JSON.stringify(text),!marksWithheld(r.text)&&r.count>0,"got: "+JSON.stringify(r.text));
+  if(expected!==undefined)
+    check("placeholder line reads "+JSON.stringify(expected),r.text===expected,"got: "+JSON.stringify(r.text));
 }
 // Reads like prose: no double spaces, no space before a comma or period, no
 // dangling separator at either end, and nothing left of an empty bullet.
@@ -151,6 +159,48 @@ var listed=redactCustomerCopyText("Recorder model: Honeywell DR4500A, serial 6M-
 check("what went is listed",listed.removed.indexOf("model Honeywell DR4500A")>=0&&listed.removed.indexOf("$412.00")>=0,
   JSON.stringify(listed.removed));
 
+// --- wording that announces a removal goes with the value -------------------
+// The AI is told a customer copy withholds numbers, so it sometimes writes the
+// withholding instead of the number. A customer copy must show neither.
+scrubs("Serial: [redacted]","");
+scrubs("- Serial number: REDACTED","");
+scrubs("Order code: [not shown on customer copy]","");
+scrubs("Part number: ***","");
+scrubs("Serial: N/A","");
+scrubs("Model: removed","");
+scrubs("Model number: [redacted] on the chart recorder.","On the chart recorder.");
+scrubs("The nameplate shows Model number: [redacted] and Serial: [redacted].","The nameplate shows.");
+scrubs("Serial number redacted for the customer copy.","");
+scrubs("Part number withheld.","");
+scrubs("Chart recorder installed; model number not shown on customer copy.","Chart recorder installed.");
+scrubs("Pen arm replaced (part number redacted).","Pen arm replaced.");
+scrubs("Recorder [redacted] verified.","Recorder verified.");
+scrubs("Pricing withheld from this copy.","");
+scrubs("- Pen arm replaced; serial number withheld on the customer copy","- Pen arm replaced");
+// Ordinary field wording that happens to use the same words has to survive: a
+// part really is removed on a service call.
+unchanged("Pen arm was removed and replaced.");
+unchanged("Pen arm part removed and replaced.");
+unchanged("The bypass step was omitted at the customer's request.");
+unchanged("Removed the recorder door and cleaned the pen well.");
+unchanged("Chart recorder (spare) verified.");
+unchanged("Amount removed: 5 gallons of NaOCl.");
+unchanged("Parts used were on hand; part of the line was isolated in order to test 2 meters.");
+unchanged("Nameplate was not legible (model number not readable in the field).");
+// The AI Synthesis as it came back from the field, placeholders and all.
+var placeholderSynthesis=[
+  "- Chart recorder calibrated; Model number: [redacted], Serial: [redacted]",
+  "- As-found error 1.8% of span, as-left 0.2% at 1 in/hr chart speed",
+  "- Pen arm replaced (part number withheld on customer copy)",
+  "- Recorder verified in panel LCP-3 on work order 44821"
+].join("\n");
+var scrubbed=redactCustomerCopyText(placeholderSynthesis);
+check("the synthesis carries no redaction wording",!marksWithheld(scrubbed.text),"got:\n"+scrubbed.text);
+["1.8% of span","0.2%","1 in/hr","LCP-3","work order 44821","Pen arm replaced","Chart recorder calibrated"].forEach(function(v){
+  check("the scrubbed synthesis keeps "+v,scrubbed.text.indexOf(v)>=0,"got:\n"+scrubbed.text);
+});
+readsClean(scrubbed.text,"synthesis with placeholders");
+
 // --- readings, units, and dates must survive --------------------------------
 unchanged("Loop calibrated 4-20 mA at 0-150 in H2O, 0.5% span, pH 7.01");
 unchanged("Flow verified at 1200 GPM with 24 VDC supply.");
@@ -238,13 +288,18 @@ check("headings and blank lines survive",out.text.indexOf("## FINDINGS")>=0&&/\n
 
 // --- rendering guarantees ---------------------------------------------------
 check("customer copy label matches a typed name",isCustomerCopyLabel("Customer Walkthrough")&&!isCustomerCopyLabel("Internal Copy"));
-var photos=[{desc:"Recorder DR4500A",aiDesc:"Serial: 6M-4471",synthesis:"- Model: Partlow MRC 7000"}];
+var photos=[{desc:"Recorder DR4500A",aiDesc:"Serial: 6M-4471",synthesis:"- Model: Partlow MRC 7000 calibrated at 4-20 mA"}];
 var safe=customerSafePhotos(photos);
 check("photo fields are filtered",
-  safe[0].desc.indexOf("DR4500A")<0&&safe[0].aiDesc.indexOf("6M-4471")<0&&safe[0].synthesis.indexOf("MRC 7000")<0,
+  safe[0].desc.indexOf("DR4500A")<0&&safe[0].synthesis.indexOf("MRC 7000")<0,
   JSON.stringify(safe[0]));
+// A customer copy prints one AI block per photo: the synthesis, which already
+// merges the technician's note with the observation.
+check("the AI Observation is left off a customer copy",safe[0].aiDesc==="",JSON.stringify(safe[0].aiDesc));
+check("the AI Synthesis stays on a customer copy",safe[0].synthesis.indexOf("4-20 mA")>=0,JSON.stringify(safe[0].synthesis));
 check("captured photo text is never mutated",
-  photos[0].desc==="Recorder DR4500A"&&photos[0].aiDesc==="Serial: 6M-4471"&&photos[0].synthesis==="- Model: Partlow MRC 7000");
+  photos[0].desc==="Recorder DR4500A"&&photos[0].aiDesc==="Serial: 6M-4471"&&
+  photos[0].synthesis==="- Model: Partlow MRC 7000 calibrated at 4-20 mA");
 check("empty text is safe",customerSafeText("")===""&&customerSafeText(null)==="");
 // The code comes out of the deal name, which is also what keeps the name inside
 // the 36-character header cell.
