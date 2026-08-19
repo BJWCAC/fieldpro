@@ -7922,25 +7922,57 @@ function redactCustomerCopyLabeledIds(s){
   }
   return{text:out+s.slice(last),count:count};
 }
+// The shape of a job number: the deal number this shop puts in a deal name
+// ("4641 chart recorder calibration", "CAC-4641", "P4641", "4641-2"). A job
+// number is the customer's own reference, like a work order number, so it is
+// never withheld. A model number is written with the letters fused to the digits
+// and usually a letter after them (DR4500A, MRC7000), which is what keeps the
+// two apart.
+function customerCopyLooksLikeJobNumber(tok){
+  tok=String(tok||"");
+  if(/^#?\d{3,6}(?:[-\/]\d{1,3})?$/.test(tok))return true;
+  if(/^[A-Za-z]{1,4}[-\/]\d{2,6}(?:[-\/]\d{1,3})?$/.test(tok))return true;
+  return /^[A-Za-z]{1,2}\d{3,6}$/.test(tok);
+}
+// The deal's own job number, read from the deal name where this shop writes it,
+// so it survives everywhere the copy prints it — deal name, report body, photo
+// notes. A History export renders a record's own deal rather than the one open
+// on screen, so the name can be passed in.
+function customerCopyJobRefTokens(dealName){
+  var out=[];
+  try{
+    var name=dealName===undefined?((typeof A!=="undefined"&&A&&A.sel)?String(A.sel.Deal_Name||""):""):String(dealName||"");
+    (name.match(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g)||[]).forEach(function(raw){
+      var tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
+      if(tok&&customerCopyLooksLikeJobNumber(tok)&&out.indexOf(tok)<0)out.push(tok);
+    });
+  }catch(e){}
+  return out;
+}
 // A spaced model number is still a model number ("Partlow MRC 7000"). Only an
 // all-caps 2-4 letter prefix plus a 3-5 digit code counts, the number cannot be
 // a year, the prefix cannot be a rating or lab abbreviation, and an engineering
 // unit after it means it was a reading all along ("MLSS 3200 mg/L").
-function redactCustomerCopySpacedCodes(line){
-  var count=0;
-  if(customerCopyLineIsShouting(line))return{text:line,count:0};
+function redactCustomerCopySpacedCodes(line,opts){
+  opts=opts||{};
+  var count=0,codes=[];
+  if(customerCopyLineIsShouting(line))return{text:line,count:0,codes:codes};
   var text=line.replace(/\b([A-Z]{2,4}) (\d{3,5}(?:[A-Z]{1,3})?(?:-[A-Z0-9]{1,8})?)\b/g,function(m,prefix,code,offset){
     var lead=prefix.toLowerCase();
     if(CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead)>=0||CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(lead)>=0)return m;
     if(customerCopyIsPlantLoopTag(prefix+"-"+code))return m;
     if(customerCopyIsUnitReading(code))return m;
     if(/^(?:19|20)\d\d$/.test(code))return m;
+    if((opts.keep||[]).indexOf(code)>=0)return m;
+    // In a deal name this shape is how the job number is written ("Rogers WWTP
+    // 4641"), so it only goes if the report itself withheld the same code.
+    if(opts.jobNumbersStay&&(opts.known||[]).indexOf(m)<0&&(opts.known||[]).indexOf(code)<0)return m;
     var rest=/^\s*([A-Za-z][A-Za-z0-9\/]*)/.exec(line.slice(offset+m.length));
     if(rest&&customerCopyFollowingWordIsUnit(rest[1]))return m;
-    count++;
+    count++;codes.push(m);
     return CUSTOMER_COPY_REDACT_CODE;
   });
-  return{text:text,count:count};
+  return{text:text,count:count,codes:codes};
 }
 // All-caps text (a shouted voice note, a report heading) makes every word look
 // like a code prefix, so the spaced-code pass sits it out.
@@ -7951,16 +7983,25 @@ function customerCopyLineIsShouting(line){
 }
 // Unlabeled codes, one line at a time. Links are skipped whole — a WorkDrive or
 // share URL is full of code-shaped fragments and none of them are part numbers.
-function redactCustomerCopyBareCodes(s){
-  var count=0;
+// opts.keep lists tokens that stay whatever their shape (the deal's job number).
+// opts.jobNumbersStay keeps every job-number shape, for the deal name, where a
+// code of that shape is only withheld when opts.known shows the report withheld
+// the same one.
+function redactCustomerCopyBareCodes(s,opts){
+  opts=opts||{};
+  var keep=opts.keep||[],known=opts.known||[],count=0,codes=[];
   var text=String(s).split("\n").map(function(line){
     if(/https?:\/\/|www\./i.test(line))return line;
-    var spaced=redactCustomerCopySpacedCodes(line);
+    var spaced=redactCustomerCopySpacedCodes(line,opts);
     count+=spaced.count;
+    spaced.codes.forEach(function(c){if(codes.indexOf(c)<0)codes.push(c);});
     return spaced.text.replace(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,function(raw){
       var tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
       if(!tok||!customerCopyIsEquipmentCode(tok))return raw;
+      if(keep.indexOf(tok)>=0)return raw;
+      if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(tok)&&known.indexOf(tok)<0)return raw;
       count++;
+      if(codes.indexOf(tok)<0)codes.push(tok);
       return CUSTOMER_COPY_REDACT_CODE+raw.slice(tok.length);
     });
   }).join("\n");
@@ -7968,17 +8009,19 @@ function redactCustomerCopyBareCodes(s){
   // identical placeholders.
   var placeholder=CUSTOMER_COPY_REDACT_CODE.replace(/[\[\]]/g,"\\$&");
   text=text.replace(new RegExp("("+placeholder+")(?:[ ,]+\\1)+","g"),"$1");
-  return{text:text,count:count};
+  return{text:text,count:count,codes:codes};
 }
-function redactCustomerCopyText(text){
+function redactCustomerCopyText(text,opts){
   var s=String(text||"");
-  if(!s)return{text:"",count:0};
+  if(!s)return{text:"",count:0,codes:[]};
+  opts=opts||{};
+  if(!opts.keep)opts={keep:customerCopyKeepTokens(),known:opts.known,jobNumbersStay:opts.jobNumbersStay};
   var count=0;
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
     s=s.replace(re,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
   });
   var labeled=redactCustomerCopyLabeledIds(s);s=labeled.text;count+=labeled.count;
-  var bare=redactCustomerCopyBareCodes(s);s=bare.text;count+=bare.count;
+  var bare=redactCustomerCopyBareCodes(s,opts);s=bare.text;count+=bare.count;
   // Money written without a symbol reads as money next to a pricing word, but a
   // reading, a duration, or a count on that same line is still not a price.
   s=s.split("\n").map(function(line){
@@ -7990,23 +8033,43 @@ function redactCustomerCopyText(text){
       return CUSTOMER_COPY_REDACT_PRICE+(tail||"");
     });
   }).join("\n");
-  return{text:s,count:count};
+  return{text:s,count:count,codes:bare.codes};
 }
-function customerSafeText(text){return redactCustomerCopyText(text).text;}
+// What the report body and photo notes are allowed to keep: whatever survives in
+// the deal name. Anything the header withheld is withheld everywhere, so the two
+// can never disagree about the same number.
+function customerCopyKeepTokens(dealName,reportText){
+  var name=dealName===undefined?((typeof A!=="undefined"&&A&&A.sel)?String(A.sel.Deal_Name||""):""):String(dealName||"");
+  if(!name)return[];
+  var shown=customerSafeDealName(name,reportText);
+  return customerCopyJobRefTokens(name).filter(function(tok){return shown.indexOf(tok)>=0;});
+}
+function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{keep:keep}:null).text;}
 // A deal is often named after the equipment ("4641 — DR4500A recorder swap"), so
-// the name is filtered wherever a customer copy prints it. The PDF header cell
-// only fits 36 characters, so the withheld marker is kept short there.
-function customerSafeDealName(name){
-  return customerSafeText(name).split(CUSTOMER_COPY_REDACT_CODE).join("[withheld]").split(CUSTOMER_COPY_REDACT_ID).join("[withheld]");
+// the name is filtered wherever a customer copy prints it. Two things make the
+// deal name different from report text. The job number in it is the customer's
+// own reference — it is how they and we both name the visit — so every
+// job-number shape stays, and a code of that shape is only withheld when the
+// report itself withheld the same one. The PDF header cell also fits only 36
+// characters, so the withheld marker is kept short here.
+function customerSafeDealName(name,reportText){
+  var report=reportText===undefined?((typeof A!=="undefined"&&A)?A.report:""):reportText;
+  // Judged on evidence: a code shaped like a job number goes only if the report
+  // withheld the same one. The keep list is deliberately empty here — it exists to
+  // protect this deal's number in other text, and using it on the name itself
+  // would shield every number in the name, including a model number.
+  var known=redactCustomerCopyBareCodes(report||"").codes;
+  var out=redactCustomerCopyText(name,{keep:[],known:known,jobNumbersStay:true}).text;
+  return out.split(CUSTOMER_COPY_REDACT_CODE).join("[withheld]").split(CUSTOMER_COPY_REDACT_ID).join("[withheld]");
 }
 // Copies the photos so the captured description/observation/synthesis stay
 // intact for the internal copy.
-function customerSafePhotos(photos){
+function customerSafePhotos(photos,keep){
   return (photos||[]).map(function(p){
     var c=Object.assign({},p);
-    c.desc=customerSafeText(p&&p.desc);
-    c.aiDesc=customerSafeText(p&&p.aiDesc);
-    c.synthesis=customerSafeText(p&&p.synthesis);
+    c.desc=customerSafeText(p&&p.desc,keep);
+    c.aiDesc=customerSafeText(p&&p.aiDesc,keep);
+    c.synthesis=customerSafeText(p&&p.synthesis,keep);
     return c;
   });
 }
@@ -8016,8 +8079,9 @@ function customerCopyRedactionCount(){
     n+=redactCustomerCopyText(p&&p.desc).count+redactCustomerCopyText(p&&p.aiDesc).count+redactCustomerCopyText(p&&p.synthesis).count;
   });
   // The deal name is printed in the report header, so a model number sitting in
-  // it is withheld and counted like any other.
-  if(A.sel)n+=redactCustomerCopyText(A.sel.Deal_Name).count;
+  // it is withheld and counted like any other — counted the way the header
+  // renders it, which keeps the job number.
+  if(A.sel&&A.sel.Deal_Name&&customerSafeDealName(A.sel.Deal_Name)!==String(A.sel.Deal_Name))n++;
   return n;
 }
 function renderCustomerCopyNotice(){
@@ -8026,7 +8090,7 @@ function renderCustomerCopyNotice(){
   var n=A.report?customerCopyRedactionCount():0;
   box.style.display="block";
   box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
-    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and work order numbers stay. "+
+    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and job numbers stay — including this deal's own number in the deal name. "+
     (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
     " Switch to Internal Copy (or Other) for the full detail.</div>";
 }
@@ -9876,11 +9940,16 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   // download, WorkDrive, Deal attachment, History export) is covered at once.
   var customerSafe=isCustomerCopyLabel(copyLabel);
   if(customerSafe){
-    report=customerSafeText(report);
-    photos=customerSafePhotos(photos);
+    // The job number belongs to this deal, and a History export renders the
+    // record's deal rather than whatever is open on screen, so the number is read
+    // from the deal being printed.
+    var fullReport=report;
+    var jobRefs=customerCopyKeepTokens(deal&&deal.Deal_Name,fullReport);
+    report=customerSafeText(report,jobRefs);
+    photos=customerSafePhotos(photos,jobRefs);
     // A deal is often named after the equipment, so the header name is filtered
     // too. The deal object itself is left untouched.
-    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name)});
+    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name,fullReport)});
   }
   // A photo whose bytes are gone would print as an empty framed box with a
   // caption, which reads like a rendering fault to whoever receives the PDF.
