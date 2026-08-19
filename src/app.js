@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="383";
+var FP_VERSION="384";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1974,7 +1974,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -7371,6 +7371,8 @@ function checkGen(){
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
   var lsb=el("local-save-btn");if(lsb)lsb.style.display=show?"flex":"none";
   var psb=el("phone-save-all-btn");if(psb)psb.style.display=hasP?"flex":"none";
+  // Only offered once this capture has a finished report to update.
+  var pob=el("photos-only-box");if(pob)pob.style.display=(hasP&&A.report)?"block":"none";
   var gs=el("gen-summary"),gt=el("gen-summary-txt");
   if(show&&gs&&gt){
     gs.style.display="block";
@@ -7814,6 +7816,39 @@ function requireReportCopyName(){
   return false;
 }
 
+// Per-photo AI notes: an Observation for each photo, then a Synthesis combining
+// the technician's own description with that observation. Generate recaptions
+// everything because the report is being written fresh; Update Photos passes
+// onlyMissing so photos that already carry notes keep their existing wording.
+// Best effort throughout — a weak signal leaves the photos without notes rather
+// than failing the whole action.
+async function addAiPhotoNotes(photos,opts){
+  opts=opts||{};
+  photos=photos||[];
+  var targets=opts.onlyMissing?photos.filter(function(p){return !p.aiDesc;}):photos;
+  if(!targets.length)return 0;
+  var captioned=0;
+  function photoNumber(p){return photos.indexOf(p)+1;}
+  try{
+    for(var bi=0;bi<targets.length;bi+=4){
+      var batch=targets.slice(bi,bi+4);var cc=[];
+      for(var ci=0;ci<batch.length;ci++){var cb=await compressPhoto(batch[ci].display,500,0.3);if(cb)cc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:cb}});cc.push({type:"text",text:"[Photo "+photoNumber(batch[ci])+": technician said: "+(batch[ci].desc||"nothing")+"]"});}
+      cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part, model, order, or serial number you can read (for example \"Serial: 12345\", \"Model number: FMU90\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
+      var cd=await callAPI({content:cc,maxTok:800,ms:45000});var ct=getText(cd);
+      var m=ct.match(/\[[\s\S]*?\]/);if(m){var caps=JSON.parse(m[0]);caps.forEach(function(cap,i){if(batch[i]){batch[i].aiDesc=cap;captioned++;}});}
+    }
+    for(var si=0;si<targets.length;si++){
+      var sp=targets[si];if(!(sp.desc||sp.aiDesc))continue;
+      if(opts.onlyMissing&&sp.synthesis)continue;
+      try{
+        var sc=[];var scb=await compressPhoto(sp.display,400,0.3);if(scb)sc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:scb}});
+        sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part, model, order, or serial number (for example \"Serial: 12345\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Start each with -. Return only bullets."});
+        var sd2=await callAPI({content:sc,maxTok:200,ms:20000});sp.synthesis=getText(sd2).trim();
+      }catch(e){}
+    }
+  }catch(e){}
+  return captioned;
+}
 // GENERATE
 async function generate(){
   if(!requireReportCopyName())return;
@@ -7839,25 +7874,7 @@ async function generate(){
     // instead of leaving the previously attached copy in place.
     A.dealPdfStale=true;
     var savedPhotos=photoSrc.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
-    // AI captions in batches
-    try{
-      for(var bi=0;bi<savedPhotos.length;bi+=4){
-        var batch=savedPhotos.slice(bi,bi+4);var cc=[];
-        for(var ci=0;ci<batch.length;ci++){var cb=await compressPhoto(batch[ci].display,500,0.3);if(cb)cc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:cb}});cc.push({type:"text",text:"[Photo "+(bi+ci+1)+": technician said: "+(batch[ci].desc||"nothing")+"]"});}
-        cc.push({type:"text",text:"Write a 1-2 sentence technical field service observation for each of the "+batch.length+" photos. Label any part, model, order, or serial number you can read (for example \"Serial: 12345\", \"Model number: FMU90\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Return ONLY a JSON array of "+batch.length+" strings, no markdown."});
-        var cd=await callAPI({content:cc,maxTok:800,ms:45000});var ct=getText(cd);
-        var m=ct.match(/\[[\s\S]*?\]/);if(m){var caps=JSON.parse(m[0]);caps.forEach(function(cap,i){if(batch[i])batch[i].aiDesc=cap;});}
-      }
-      // AI synthesis per photo
-      for(var si=0;si<savedPhotos.length;si++){
-        var sp=savedPhotos[si];if(!(sp.desc||sp.aiDesc))continue;
-        try{
-          var sc=[];var scb=await compressPhoto(sp.display,400,0.3);if(scb)sc.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:scb}});
-          sc.push({type:"text",text:"Technician note: "+(sp.desc||"none")+"\\nAI observation: "+(sp.aiDesc||"none")+"\\n\\nCreate 2-4 concise bullet points synthesizing both into a clear field service summary. Label any part, model, order, or serial number (for example \"Serial: 12345\", \"Order code: R11CA111AA3A\") so customer copies can withhold it. Start each with -. Return only bullets."});
-          var sd2=await callAPI({content:sc,maxTok:200,ms:20000});sp.synthesis=getText(sd2).trim();
-        }catch(e){}
-      }
-    }catch(e){}
+    await addAiPhotoNotes(savedPhotos,{});
     A.reportPhotos=savedPhotos;
     await fpIdbPutPhotos(savedPhotos);
     var meta=buildCaptureHistoryMeta();
@@ -9412,6 +9429,75 @@ async function regenerateReport(){
     }
   }
   await generate();
+}
+// Replace a finished report's photos without touching its text. Generate is the
+// only other way to change which photos a report carries, and it rewrites every
+// word with a fresh AI call — so a technician who only needed to re-add photos
+// (or swap one out) had to accept a different report. This keeps A.report byte
+// for byte and refreshes A.reportPhotos from whatever is on Capture.
+async function updateReportPhotos(){
+  if(!A.report){showToast("Generate the report first — Update Photos only changes the photos on a finished report.",6000);return;}
+  if(!requireReportCopyName())return;
+  if(!A.photos.length){
+    showToast("No photos on Capture. Open this report from History with Open + Continue, add or remove photos on Capture, then tap Update Photos.",9000);
+    return;
+  }
+  var current=A.reportPhotos||[];
+  var before=current.length,after=A.photos.length;
+  // A swap keeps the count identical, so describe what actually changed rather
+  // than showing "3 → 3" and looking like a no-op.
+  var currentIds={};current.forEach(function(p){if(p&&p.id)currentIds[p.id]=1;});
+  var captureIds={};A.photos.forEach(function(p){if(p&&p.id)captureIds[p.id]=1;});
+  var addedCount=A.photos.filter(function(p){return p&&p.id&&!currentIds[p.id];}).length;
+  var removedCount=current.filter(function(p){return p&&p.id&&!captureIds[p.id];}).length;
+  if(!addedCount&&!removedCount&&before===after){showToast("The photos on Capture already match this report — nothing to update.",5000);return;}
+  var change=[];
+  if(addedCount)change.push(addedCount+" added");
+  if(removedCount)change.push(removedCount+" removed");
+  if(!confirm("Update this report's photos from Capture?\n\nPhotos: "+before+" → "+after+(change.length?" ("+change.join(", ")+")":"")+"\n\nThe report text stays exactly as written."))return;
+  var btn=el("photos-only-btn");
+  var original=btn?btn.textContent:"";
+  if(btn){btn.disabled=true;btn.textContent="Updating photos...";}
+  try{
+    // Carry over notes already written for a photo so re-adding it does not
+    // silently reword the Observation and Synthesis under it.
+    var prev={};
+    (A.reportPhotos||[]).forEach(function(p){if(p&&p.id)prev[p.id]=p;});
+    var savedPhotos=A.photos.map(function(p){
+      var old=prev[p.id]||{};
+      return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||old.aiDesc||"",synthesis:p.synthesis||old.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};
+    });
+    var added=await addAiPhotoNotes(savedPhotos,{onlyMissing:true});
+    A.reportPhotos=savedPhotos;
+    A.photos=savedPhotos.map(function(p){return Object.assign({},p);});
+    // Different photos means the copy already attached to the Deal is out of
+    // date, so the next save replaces it instead of leaving the old PDF.
+    A.dealPdfStale=true;A.workdrivePdfUrl=null;A.lastSaveResult=null;A.lastSaveIssue=null;
+    await fpIdbPutPhotos(savedPhotos);
+    var photoFields={photos:savedPhotos.length,photoData:savedPhotos.map(fpPhotoForStorage),captureInProgress:false,localSavedAt:new Date().toISOString()};
+    if(historyRecordById(A.currentHistoryId))updateCurrentHistory(photoFields);
+    else saveCaptureWorkLocally({silent:true});
+    saveCaptureDraftNow();
+    renderPhotoCards();renderReport();updateCaptureModeStatus();go("report");
+    showToast("Report photos updated — "+after+" photo"+(after!==1?"s":"")+(change.length?" ("+change.join(", ")+")":"")+(added?", "+added+" new AI observation"+(added!==1?"s":""):"")+". Report text unchanged.",7000);
+    if(A.sel){
+      A.uploadPromise=uploadToWorkDriveAll();
+      if(A.autoSaveZoho){
+        try{
+          await saveNoteToZoho({});
+          showToast("Updated photos saved to Zoho — WorkDrive files and the Deal PDF now match this report",6000);
+        }catch(se){
+          A.lastSaveIssue="Photo update saved locally, but the Zoho save failed: "+se.message+". Use Retry Report Save.";
+          renderReportRetryActions();
+          showToast("Photos updated locally — tap Save Report to Zoho when you have signal",8000);
+        }
+      }else showToast("Tap Save Report to Zoho to push the updated photos to the deal",6000);
+    }
+    updateCaptureModeStatus();
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=original||"Update Photos on This Report";}
+    checkGen();
+  }
 }
 async function continueHist(i){
   var h=getHistory();var r=h[i];if(!r)return;

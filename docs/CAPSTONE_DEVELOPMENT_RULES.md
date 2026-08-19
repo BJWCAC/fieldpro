@@ -255,6 +255,24 @@ For any save to Zoho:
 - preserve user-entered context
 - show success/failure status
 
+### Changing one part of a finished report
+
+A report is reviewed before it is issued, so its wording is user-approved
+content even though an AI wrote it. Changing something else about the report
+must not silently rewrite it.
+
+- If only attachments changed (photos, videos), offer an action that updates
+  those and leaves `A.report` untouched. `updateReportPhotos()` is the pattern.
+- Regeneration is opt-in and clearly labelled as rewriting the text.
+- Existing per-item AI text (photo Observation, Synthesis) is kept when that
+  item is unchanged; only new items get fresh AI notes (`addAiPhotoNotes()`
+  with `onlyMissing`).
+- Say what will change before doing it. Describe the actual delta ("3 → 3
+  (1 added, 1 removed)"), not just a count, so a swap does not read as a no-op.
+- Anything that changes what the report contains marks `A.dealPdfStale` so the
+  next save replaces the copy attached to the Deal rather than leaving a stale
+  PDF behind.
+
 ## Pending Sync rules
 
 Any operation that writes to Zoho, WorkDrive, or another external service should be evaluated for Pending Sync.
