@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="384";
+var FP_VERSION="385";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1471,6 +1471,24 @@ function historyValueIsEmpty(v){
   if(typeof v==="object")return !Object.keys(v).some(function(k){return String(v[k]===null||v[k]===undefined?"":v[k]).trim();});
   return false;
 }
+// Text a photo carries in History. The Capture tab's photo objects hold the
+// technician's own description but not always the AI observation and synthesis,
+// so a background save from there can describe the same photo with less text.
+var HISTORY_PHOTO_TEXT_KEYS=["desc","label","aiDesc","synthesis"];
+function mergeHistoryPhotoData(existing,incoming){
+  if(!Array.isArray(incoming))return incoming;
+  var byId={};
+  (Array.isArray(existing)?existing:[]).forEach(function(p){if(p&&p.id)byId[p.id]=p;});
+  return incoming.map(function(p){
+    var old=p&&p.id?byId[p.id]:null;
+    if(!old)return p;
+    var out=Object.assign({},p);
+    HISTORY_PHOTO_TEXT_KEYS.forEach(function(k){
+      if(historyValueIsEmpty(out[k])&&!historyValueIsEmpty(old[k]))out[k]=old[k];
+    });
+    return out;
+  });
+}
 function mergeHistoryRecord(existing,meta,preserveExisting){
   var out=Object.assign({},existing,meta);
   if(!preserveExisting)return out;
@@ -1480,6 +1498,10 @@ function mergeHistoryRecord(existing,meta,preserveExisting){
   // Photo/video counts have to follow whatever data survived the merge.
   if(out.photoData!==meta.photoData)out.photos=existing.photos;
   if(out.videos!==meta.videos)out.hasVideo=existing.hasVideo;
+  // Same photo list, leaner copy: keep the text each photo already had instead
+  // of blanking it. The counts above stay as they are — the photos themselves
+  // match, only their text differs.
+  if(out.photoData===meta.photoData)out.photoData=mergeHistoryPhotoData(existing.photoData,meta.photoData);
   return out;
 }
 function saveOrUpdateHistory(meta,opts){
@@ -3671,9 +3693,9 @@ function renderAssetSubformSection(sec){
       }
       html+="</td>";
     });
-    html+="<td><button type='button' class='bg bsm' onclick='removeAssetSubformRow("+ri+")'>Remove</button></td></tr>";
+    html+="<td><button type='button' class='bw bsm' onclick='removeAssetSubformRow("+ri+")'>Remove</button></td></tr>";
   });
-  html+="</tbody></table></div><button type='button' class='bg bsm' onclick='addAssetSubformRow()' style='margin-bottom:8px'>+ Add row</button></div>";
+  html+="</tbody></table></div><button type='button' class='bw bsm' onclick='addAssetSubformRow()' style='margin-bottom:8px'>+ Add row</button></div>";
   return html;
 }
 function syncSubformRowsFromDom(){
@@ -4159,8 +4181,8 @@ function renderAssetSetupUi(){
   if(dealCtx){
     if(setup==="deal_add"&&A.sel){
       dealCtx.style.display="block";
-      var pickDeal=!A.sel.Account_Id?"<div class='asset-setup-pick-deal'><button type='button' class='bg bsm' onclick='loadDeals()'>Refresh deals</button> <span style='font-size:11px;color:#92400e'>Account ID missing — refresh deals from Zoho.</span></div>":"";
-      dealCtx.innerHTML="<strong>Deal:</strong> "+esc(A.sel.Deal_Name||"—")+"<br><strong>Account:</strong> "+esc(A.sel.Account_Name||"—")+pickDeal+"<div style='margin-top:8px'><button type='button' class='bg bsm' onclick='startAssetDealAdd()'>Change deal</button></div>";
+      var pickDeal=!A.sel.Account_Id?"<div class='asset-setup-pick-deal'><button type='button' class='bw bsm' onclick='loadDeals()'>Refresh deals</button> <span style='font-size:11px;color:#92400e'>Account ID missing — refresh deals from Zoho.</span></div>":"";
+      dealCtx.innerHTML="<strong>Deal:</strong> "+esc(A.sel.Deal_Name||"—")+"<br><strong>Account:</strong> "+esc(A.sel.Account_Name||"—")+pickDeal+"<div style='margin-top:8px'><button type='button' class='bw bsm' onclick='startAssetDealAdd()'>Change deal</button></div>";
     }else dealCtx.style.display="none";
   }
   var needsAccountPick=setup==="account_add"&&!assetSaveAccountId();
@@ -4429,7 +4451,7 @@ function renderAssetSearchResults(){
     var title=esc(r[idField]||r.CAC_Asset_ID||r.Name||"Asset");
     var acct=esc(assetLookupName(r.Account)||"");
     var meta=[acct?"Account: "+acct:"",r.Asset_Brand,r.Asset_Type,r.Asset_Series,r.Name,r.Asset_Model_Number,r.Serial_Number,r.Customer_Asset_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
-    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
+    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bw bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
   }).join("");
 }
 async function searchExistingAssets(){
@@ -4859,7 +4881,7 @@ function renderAssetPicklistRequestPanel(){
     var key=picklistRequestKey(m.fieldApi,m.proposedValue);
     var sent=isPicklistRequestSent(key);
     var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center'><span style='font-size:11px;color:#92400e'>Similar in Zoho:</span><button type='button' class='bb bsm' data-picklist-use='1' data-field-api='"+esc(m.fieldApi)+"' data-near-value='"+esc(m.nearMatch)+"'>Use "+esc(m.nearMatch)+"</button></div>"):"";
-    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' data-picklist-request='1' data-field-api='"+esc(m.fieldApi)+"'>Request addition</button>";
+    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bw bsm' data-picklist-request='1' data-field-api='"+esc(m.fieldApi)+"'>Request addition</button>";
     return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Tap Use if the Zoho value matches, or Request addition for a new picklist value.</div></div><div style='flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end'>"+action+"</div></div>";
   }).join("");
   panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
@@ -7611,8 +7633,11 @@ function reportCopyPickerHtml(scope){
   var active=normalizeReportCopyType(A.reportCopyType);
   var custom=active===REPORT_COPY_CUSTOM_KEY;
   var missing=reportCopyMissingCustom();
+  // Capture holds this picker in a dark card, Report in a white one, so the
+  // unselected buttons follow their own surface instead of showing as black.
+  var neutral=scope==="report"?"bw":"bg";
   var btns=REPORT_COPY_TYPES.map(function(t){
-    return "<button type=\"button\" id=\"report-copy-btn-"+t.key+"-"+scope+"\" class=\"bg bfull report-copy-btn"+(t.key===active?" on":"")+"\" data-no-busy onclick=\"pickReportCopyType('"+t.key+"')\">"+esc(t.label)+"</button>";
+    return "<button type=\"button\" id=\"report-copy-btn-"+t.key+"-"+scope+"\" class=\""+neutral+" bfull report-copy-btn"+(t.key===active?" on":"")+"\" data-no-busy onclick=\"pickReportCopyType('"+t.key+"')\">"+esc(t.label)+"</button>";
   }).join("");
   return "<div class=\"report-copy-row\">"+btns+"</div>"+
     "<div class=\"report-copy-custom\" style=\"display:"+(custom?"block":"none")+"\">"+
@@ -7864,10 +7889,15 @@ async function generate(){
     var photoSrc=A.photos.length>0?A.photos:A.reportPhotos;
     for(var i=0;i<Math.min(4,photoSrc.length);i++){var b64=await compressPhoto(photoSrc[i].display,768,0.45);if(b64)content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});}
     var sectionText="";SEC_IDS.forEach(function(id,idx){var e=el(id);if(e&&e.value.trim())sectionText+=SEC_LABELS[idx]+": "+e.value.trim()+"\n";});
+    // What the technician typed on each photo is field data, so it has to reach
+    // the report body too. Only the first four photos are sent as images, and
+    // the AI Observation/Synthesis blocks sit beside the photos rather than in
+    // the report, so without this the notes never make it into the report.
+    var photoNotes=photoSrc.map(function(p){return String(p&&p.desc||"").trim();}).filter(Boolean).map(function(t){return "- "+t;}).join("\n");
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Do NOT describe or mention photos in the report text.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -7875,6 +7905,13 @@ async function generate(){
     A.dealPdfStale=true;
     var savedPhotos=photoSrc.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc||"",time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
     await addAiPhotoNotes(savedPhotos,{});
+    // Capture keeps its own objects for the same photos, so hand the notes back
+    // the way Update Photos does. Otherwise the next background History save,
+    // which describes A.photos, writes both AI blocks off the record.
+    savedPhotos.forEach(function(sp){
+      var live=(A.photos||[]).find(function(p){return p.id===sp.id;});
+      if(live){live.aiDesc=sp.aiDesc||"";live.synthesis=sp.synthesis||"";}
+    });
     A.reportPhotos=savedPhotos;
     await fpIdbPutPhotos(savedPhotos);
     var meta=buildCaptureHistoryMeta();
@@ -9615,7 +9652,7 @@ async function dlPDF(){
     if(A.inclPhotos&&pdfPhotos.length>0){await Promise.all(pdfPhotos.map(function(p){return new Promise(function(res){var img=new Image();img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};img.onerror=res;img.src=p.display;});}));}
     var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location,currentTechnicianName(),reportCopyLabel());
     doc.save(reportPdfFileName(A.sel?A.sel.Account_Name:"",new Date(),reportCopyLabel()));
-    if(btn){btn.textContent="PDF Saved!";btn.className="bs-lg";setTimeout(function(){btn.textContent="Download PDF";btn.className="bg-lg";btn.disabled=false;},3000);}
+    if(btn){btn.textContent="PDF Saved!";btn.className="bs-lg";setTimeout(function(){btn.textContent="Download PDF";btn.className="bw-lg";btn.disabled=false;},3000);}
   }catch(e){if(btn){btn.disabled=false;btn.textContent="Download PDF";}}
 }
 

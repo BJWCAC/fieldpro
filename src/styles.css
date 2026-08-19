@@ -59,6 +59,9 @@ body.light .card{background:#fff}
 #asset-save-btn.blocked:not(.saved){opacity:.55}
 .bg{background:var(--card);color:var(--text);padding:9px 16px;font-size:13px;border:1px solid var(--bdr)}
 .bg-lg{background:#1a2a3a;color:var(--text);padding:13px 20px;font-size:15px;width:100%;border:1px solid var(--bdr)}
+/* Neutral secondary on a white card — .bg/.bg-lg read as black boxes there. */
+.bw{background:#fff;color:#2d6b60;padding:9px 16px;font-size:13px;border:1px solid #b2ddd6}
+.bw-lg{background:#fff;color:#2d6b60;padding:13px 20px;font-size:15px;width:100%;border:1px solid #b2ddd6}
 .bb{background:#007a6a;color:#fff;padding:9px 16px;font-size:13px}
 .bb-lg{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%}
 .asset-path-btn{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%;min-height:58px;border:1px solid #006050;text-align:center;white-space:normal;line-height:1.2}
@@ -120,7 +123,6 @@ body.light .hist-card{background:#fff}
 .rsc-dot{font-family:"Barlow Condensed",sans-serif;font-weight:800;width:18px;flex:0 0 18px;text-align:center}
 .rsc-ok .rsc-dot{color:var(--green)}.rsc-warn .rsc-dot{color:#d97706}.rsc-note{font-size:11px;color:#64748b;margin-top:8px;line-height:1.5}
 .pdf-opts{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:12px;margin-bottom:8px;color:#0f2420}
-#pdf-btn{background:#fff;color:#2d6b60;border:1px solid #b2ddd6}
 .tog-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer}
 .tog{width:36px;height:20px;border-radius:10px;background:var(--bdr);transition:background .2s;flex-shrink:0;position:relative;margin-top:2px}
 .tog.on{background:var(--amber)}
