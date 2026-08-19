@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="385";
+var FP_VERSION="386";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7756,20 +7756,220 @@ function applyReportCopyFromRecord(r){
 var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part, model, order, and serial numbers and pricing are not included.";
 var CUSTOMER_COPY_REDACT_ID="[not shown on customer copy]";
 var CUSTOMER_COPY_REDACT_PRICE="[pricing not shown on customer copy]";
+// An unlabeled code is replaced on its own, so the sentence around it still
+// reads: "Replaced the Honeywell [part number not shown on customer copy]".
+var CUSTOMER_COPY_REDACT_CODE="[part number not shown on customer copy]";
 // Labeled equipment identifiers: the label stays so the reader sees what was
 // withheld. A model number counts as a part number, and Endress+Hauser prints
-// the same thing as an order number / order code. The value must contain a
-// digit, so prose ("parts used", "part of the line") is left alone.
-var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|models?|mdl|orders?|ordering|catalog|cat)\b(\s*(?:numbers?|nos?\.?|#|codes?))?\s*[:=#-]?\s*((?=[A-Za-z0-9._+\-\/]*\d)[A-Za-z0-9][A-Za-z0-9._+\-\/]{1,})/gi;
+// the same thing as an order number / order code. The value is scanned by
+// customerCopyIdValueEnd(), which needs a code in it, so prose ("parts used",
+// "part of the line") is left alone.
+var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|m\s*\/\s*n|mpn|models?|mdl|orders?|ordering|catalogs?|cat|items?|skus?|assembly|asm|products?|types?)\b(\s*(?:numbers?|nos?\.?|#|codes?|ids?))?\s*[:=#-]?[ \t]*/gi;
+// "Type" and "Cat" only read as equipment identifiers when the value looks like
+// a real code, so "NEMA Type 4X" and "Cat 5e cable" keep their values.
+var CUSTOMER_COPY_WEAK_LABEL_RE=/^(?:types?|cat)$/i;
 var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
 // Money written without a symbol only reads as money next to a pricing word.
 var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
+// Readings are the point of the report, so anything carrying an engineering
+// unit is never treated as a code: 24VDC, 4-20mA, 0-150inH2O, 3/4in, 100psig,
+// 3200mg/L.
+var CUSTOMER_COPY_UNITS=("ma a amp amps v vac vdc kv mv w kw mw hp hz khz mhz rpm psi psig psia bar mbar kpa mpa pa "+
+  "inh2o inwc inhg in ft yd mm cm m km mil mils gal gals gallon gallons liter liters gpm gph gpd mgd cfm cfh scfm scfh acfm lpm lps "+
+  "l ml oz lb lbs kg g mg s sec secs min mins hr hrs h ms us ns day days wk wks mo yr yrs feet inches pounds "+
+  "c f k degc degf deg degrees pct percent ppm ppb ntu su ph ohm ohms kohm mohm db va kva kwh btu awg ga x "+
+  "mg/l ug/l us/cm ms/cm m3/h m3/hr l/min l/s ft/s in/hr in/min btu/hr gal/min hours minutes seconds "+
+  "month months week weeks year years").split(" ");
+// Units that are also ordinary words. A unit after a number normally means the
+// number was a reading, but "MRC 7000 in panel LCP-3" is a model number followed
+// by the word "in", so these do not count as a following unit.
+var CUSTOMER_COPY_AMBIGUOUS_UNITS=("in a x m s h c f k l g mo").split(" ");
+// Counted things are not prices either, so "quoted 4 rolls" keeps the 4.
+var CUSTOMER_COPY_COUNT_WORDS=("each ea pc pcs piece pieces unit units roll rolls set sets kit kits spare spares item items "+
+  "pen pens sensor sensors valve valves meter meters recorder recorders transmitter transmitters").split(" ");
+// Plant loop tags are the customer's own reference, like a work order number,
+// so an ISA-style tag stays on a customer copy. The prefix has to be a real ISA
+// function code, which is what keeps a part number such as GK-4471 or DR-4500
+// from hiding behind the same shape.
+var CUSTOMER_COPY_ISA_PREFIXES=("ae ai ait ar at ce ci cit ct dpi dpit dpt fe fi fic fit fq fqi fqit ft fv fcv fsh fsl hs hv ji ki "+
+  "lc le lg li lic lit ls lsh lsl lt lv lcv me mi oit pe pi pic pit ps psh psl psv pcv prv pt pv qe qi qit re ri "+
+  "sc se si sic st sv te ti tic tit tt tv tcv tsh tsl tw uv ve vi we wi wit wt xv xy ys ze zi zs zsc zso zt").split(" ");
+// Ratings, standards, material grades, and lab abbreviations read like codes but
+// are not equipment identifiers: IP65, SIL2, CAT5e, SS316, TDS 450, MLSS 3200.
+var CUSTOMER_COPY_KEEP_PREFIXES=("ip nema iso iec ieee ansi asme astm nfpa nsf ul csa atex sil sch awg api awwa epa osha din jis sae mil "+
+  "rs cat class div zone hart type grade rev ver revision phase form no num qty ea ss al cu pvc cpvc ptfe epdm fda usda "+
+  // Panel, motor-control, and process-area tags name a place in the plant, not a
+  // part: LCP-3, MCC-2, VFD-1, PNL-4, RAS-2.
+  "lcp mcp rcp cp cpnl pnl panel cab encl mcc vfd plc hmi rtu dcs ups ats scada bl blw pmp pump mtr motor fan valve tank basin "+
+  "clarifier well pit rack slot ch chan area line hdr skid train bay room rm floor lvl "+
+  // Words that introduce a reading rather than a code: "SPAN 1500 in H2O".
+  "span range flow level max min avg total zero full cal out net "+
+  "tds tss mlss bod cod toc orp do ec ras was sp pv mv cv sg fog vss tkn tp tn alk hrt srt svi dp id od npsh tdh gpd adf "+
+  "mfr eff inf ph psi gpm mgd ntu rpm cfm kwh scfm temp").split(" ");
+// A spaced number is also how job references, addresses, and ZIP codes are
+// written ("WO 44821", "Rogers, MN 55374"), so those prefixes are left alone by
+// the spaced-code pass on top of the ratings above.
+var CUSTOMER_COPY_KEEP_PAIR_PREFIXES=("wo po so inv ref job tkt tag loop bldg rm ste apt hwy rt us cr co box lot unit "+
+  "al ak az ar ca ct de fl ga hi ia il ks ky ma md me mi mn ms mo mt nc nd ne nh nj nm nv ny oh ok pa ri sc sd tn tx ut va vt wa wi wv wy dc").split(" ");
+// Dates, times, revisions, ordinals, chemistry, and material grades are not
+// codes. Spelled-out compounds ("4-wire", "24-volt") are not codes either.
+var CUSTOMER_COPY_NOT_CODE_RES=[
+  /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/,
+  /^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/,
+  /^\d{1,2}:\d{2}(?::\d{2})?(?:am|pm)?$/i,
+  /^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[-\/]?\d{1,4}$/i,
+  /^\d+(?:st|nd|rd|th)$/i,
+  /^v(?:er)?\.?\d+(?:\.\d+)*$/i,
+  /^rev\.?-?\d+[a-z]?$/i,
+  /^q[1-4]$/i,
+  /^\d+(?:\.\d+)?-[a-z]+$/,
+  /^[a-z]+-\d+(?:\.\d+)?$/,
+  /^(?:h2o2?|h2so4|h3po4|h2s|hocl|hcl|naocl|naoh|na2co3|nahso3|co2|clo2|cl2|o2|o3|n2|nh3|nh4|no2|no3|po4|so2|so3|so4|caco3|cacl2|caoh2|fecl3|feso4|kmno4|mgoh2|ch4)$/i,
+  /^(?:ss)?\d{3}l?(?:ss)?$/i
+];
 function isCustomerCopyLabel(label){
   // Matches the Customer Copy preset and any typed name that reads as a
   // customer copy, so a hand-typed "Customer Walkthrough" is filtered too.
   return /customer/i.test(String(label||""));
 }
 function reportCopyIsCustomer(){return isCustomerCopyLabel(reportCopyLabel());}
+function customerCopyIsUnitReading(tok){
+  var m=/^(\d+(?:\.\d+)?(?:[-\/x]\d+(?:\.\d+)?)*)([A-Za-z][A-Za-z0-9\/]*)$/.exec(String(tok||""));
+  if(!m)return false;
+  var unit=m[2];
+  if(CUSTOMER_COPY_UNITS.indexOf(unit.toLowerCase())<0)return false;
+  // A trailing capital single letter is a unit only where units are written that
+  // way (24V, 72F, 100A, 5L) — not the S in a model number like 3051S.
+  if(unit.length===1&&unit!==unit.toLowerCase()&&"AVWCFKL".indexOf(unit)<0)return false;
+  return true;
+}
+// Is the word after a number a unit, in the sense that it makes the number a
+// reading? Ordinary words that double as units do not count.
+function customerCopyFollowingWordIsUnit(word){
+  var w=String(word||"").toLowerCase();
+  if(!w||CUSTOMER_COPY_AMBIGUOUS_UNITS.indexOf(w)>=0)return false;
+  return CUSTOMER_COPY_UNITS.indexOf(w)>=0;
+}
+function customerCopyIsPlantLoopTag(tok){
+  var m=/^([A-Za-z]{1,4})(-?)(\d{1,5})([A-Za-z])?$/.exec(String(tok||""));
+  if(!m)return false;
+  // FIT101 is a tag; a hyphenless four-digit code like ST3000 is a model.
+  if(!m[2]&&m[3].length>3)return false;
+  return CUSTOMER_COPY_ISA_PREFIXES.indexOf(m[1].toLowerCase())>=0;
+}
+// A part, model, order, or serial number the writer never labeled. Shape is all
+// there is to go on, so a code must carry a digit, be long enough to be a code,
+// and survive every "this is not a code" check above.
+function customerCopyIsEquipmentCode(tok){
+  tok=String(tok||"");
+  if(!/\d/.test(tok))return false;
+  if(customerCopyIsUnitReading(tok))return false;
+  // Units written together stay readings: 24VDC/120VAC, 3/4in, 0-10V/4-20mA.
+  if(tok.indexOf("/")>=0&&tok.split("/").every(function(part){
+    return !part||/^\d+(?:\.\d+)?$/.test(part)||customerCopyIsUnitReading(part)||CUSTOMER_COPY_UNITS.indexOf(part.toLowerCase())>=0;
+  }))return false;
+  for(var i=0;i<CUSTOMER_COPY_NOT_CODE_RES.length;i++){if(CUSTOMER_COPY_NOT_CODE_RES[i].test(tok))return false;}
+  if(customerCopyIsPlantLoopTag(tok))return false;
+  var lead=(/^[A-Za-z]+/.exec(tok)||[""])[0];
+  if(lead&&CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead.toLowerCase())>=0)return false;
+  // Mixed letters and digits, written the way a nameplate writes a code.
+  if(tok.length>=4&&/[A-Z]/.test(tok))return true;
+  // An all-digit code is only distinguishable from a reading when it is long and
+  // grouped the way part numbers are grouped (51404671-501, 24001660-001).
+  return /^\d{5,}[-.]\d{2,}(?:[-.][A-Za-z0-9]{1,8})*$/.test(tok);
+}
+// The value after an identifier label is not always one token: field reports
+// write "Model: Honeywell DR4500A" and "P/N 900E 01", and all of it is the
+// identifier. Up to two leading brand/series words are taken along with the
+// codes that follow, and the run stops at the first ordinary word or at
+// punctuation, so "Model: DR4500A installed in panel 3" keeps the rest of the
+// sentence. Returns -1 when no code was found, which leaves the text alone.
+function customerCopyIdValueEnd(s,i,weak){
+  var minLen=weak?4:2,pos=i,end=-1,codes=0,lead=0,tokens=0;
+  while(tokens<6){
+    var j=pos;
+    while(j<s.length&&(s.charAt(j)===" "||s.charAt(j)==="\t"))j++;
+    var m=/^[A-Za-z0-9][A-Za-z0-9._+\-\/]*/.exec(s.slice(j));
+    if(!m)break;
+    var raw=m[0],tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
+    if(!tok)break;
+    tokens++;
+    var stops=tok!==raw;
+    if(/\d/.test(tok)&&tok.length>=minLen&&!/^\d+(?:st|nd|rd|th)$/i.test(tok)&&(!weak||customerCopyIsEquipmentCode(tok))){
+      codes++;end=j+tok.length;pos=j+raw.length;
+      if(stops)break;
+      continue;
+    }
+    // A brand or series word ahead of the code ("Honeywell DR4500A").
+    if(codes===0&&lead<2&&/^[A-Z][A-Za-z&+.']*$/.test(tok)&&!stops){lead++;pos=j+raw.length;continue;}
+    break;
+  }
+  return codes?end:-1;
+}
+function redactCustomerCopyLabeledIds(s){
+  var out="",last=0,count=0,m;
+  CUSTOMER_COPY_ID_RE.lastIndex=0;
+  while((m=CUSTOMER_COPY_ID_RE.exec(s))){
+    // A work/purchase/sales order number is a job reference, not equipment
+    // data, so it stays on the customer copy.
+    if(m[1])continue;
+    var label=m[2],word=m[3]||"";
+    var end=customerCopyIdValueEnd(s,m.index+m[0].length,CUSTOMER_COPY_WEAK_LABEL_RE.test(label));
+    if(end<0)continue;
+    out+=s.slice(last,m.index)+label+word+": "+CUSTOMER_COPY_REDACT_ID;
+    last=end;count++;
+    CUSTOMER_COPY_ID_RE.lastIndex=end;
+  }
+  return{text:out+s.slice(last),count:count};
+}
+// A spaced model number is still a model number ("Partlow MRC 7000"). Only an
+// all-caps 2-4 letter prefix plus a 3-5 digit code counts, the number cannot be
+// a year, the prefix cannot be a rating or lab abbreviation, and an engineering
+// unit after it means it was a reading all along ("MLSS 3200 mg/L").
+function redactCustomerCopySpacedCodes(line){
+  var count=0;
+  if(customerCopyLineIsShouting(line))return{text:line,count:0};
+  var text=line.replace(/\b([A-Z]{2,4}) (\d{3,5}(?:[A-Z]{1,3})?(?:-[A-Z0-9]{1,8})?)\b/g,function(m,prefix,code,offset){
+    var lead=prefix.toLowerCase();
+    if(CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead)>=0||CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(lead)>=0)return m;
+    if(customerCopyIsPlantLoopTag(prefix+"-"+code))return m;
+    if(customerCopyIsUnitReading(code))return m;
+    if(/^(?:19|20)\d\d$/.test(code))return m;
+    var rest=/^\s*([A-Za-z][A-Za-z0-9\/]*)/.exec(line.slice(offset+m.length));
+    if(rest&&customerCopyFollowingWordIsUnit(rest[1]))return m;
+    count++;
+    return CUSTOMER_COPY_REDACT_CODE;
+  });
+  return{text:text,count:count};
+}
+// All-caps text (a shouted voice note, a report heading) makes every word look
+// like a code prefix, so the spaced-code pass sits it out.
+function customerCopyLineIsShouting(line){
+  var letters=String(line||"").replace(/[^A-Za-z]/g,"");
+  if(letters.length<9)return false;
+  return letters.replace(/[^A-Z]/g,"").length/letters.length>0.7;
+}
+// Unlabeled codes, one line at a time. Links are skipped whole — a WorkDrive or
+// share URL is full of code-shaped fragments and none of them are part numbers.
+function redactCustomerCopyBareCodes(s){
+  var count=0;
+  var text=String(s).split("\n").map(function(line){
+    if(/https?:\/\/|www\./i.test(line))return line;
+    var spaced=redactCustomerCopySpacedCodes(line);
+    count+=spaced.count;
+    return spaced.text.replace(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,function(raw){
+      var tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
+      if(!tok||!customerCopyIsEquipmentCode(tok))return raw;
+      count++;
+      return CUSTOMER_COPY_REDACT_CODE+raw.slice(tok.length);
+    });
+  }).join("\n");
+  // Codes listed together read better as one withheld item than as a row of
+  // identical placeholders.
+  var placeholder=CUSTOMER_COPY_REDACT_CODE.replace(/[\[\]]/g,"\\$&");
+  text=text.replace(new RegExp("("+placeholder+")(?:[ ,]+\\1)+","g"),"$1");
+  return{text:text,count:count};
+}
 function redactCustomerCopyText(text){
   var s=String(text||"");
   if(!s)return{text:"",count:0};
@@ -7777,22 +7977,28 @@ function redactCustomerCopyText(text){
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
     s=s.replace(re,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
   });
-  s=s.replace(CUSTOMER_COPY_ID_RE,function(m,qualifier,label,word,value){
-    // A work/purchase/sales order number is a job reference, not equipment
-    // data, so it stays on the customer copy.
-    if(qualifier)return m;
-    count++;
-    // Keep sentence punctuation the identifier pattern swallowed.
-    var tail=String(value||"").match(/[.,;:]+$/);
-    return label+(word||"")+": "+CUSTOMER_COPY_REDACT_ID+(tail?tail[0]:"");
-  });
+  var labeled=redactCustomerCopyLabeledIds(s);s=labeled.text;count+=labeled.count;
+  var bare=redactCustomerCopyBareCodes(s);s=bare.text;count+=bare.count;
+  // Money written without a symbol reads as money next to a pricing word, but a
+  // reading, a duration, or a count on that same line is still not a price.
   s=s.split("\n").map(function(line){
     if(!CUSTOMER_COPY_PRICE_WORD_RE.test(line))return line;
-    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b/g,function(){count++;return CUSTOMER_COPY_REDACT_PRICE;});
+    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail){
+      var next=String(tail||"").trim().toLowerCase();
+      if(next==="%"||customerCopyFollowingWordIsUnit(next)||CUSTOMER_COPY_COUNT_WORDS.indexOf(next)>=0)return m;
+      count++;
+      return CUSTOMER_COPY_REDACT_PRICE+(tail||"");
+    });
   }).join("\n");
   return{text:s,count:count};
 }
 function customerSafeText(text){return redactCustomerCopyText(text).text;}
+// A deal is often named after the equipment ("4641 — DR4500A recorder swap"), so
+// the name is filtered wherever a customer copy prints it. The PDF header cell
+// only fits 36 characters, so the withheld marker is kept short there.
+function customerSafeDealName(name){
+  return customerSafeText(name).split(CUSTOMER_COPY_REDACT_CODE).join("[withheld]").split(CUSTOMER_COPY_REDACT_ID).join("[withheld]");
+}
 // Copies the photos so the captured description/observation/synthesis stay
 // intact for the internal copy.
 function customerSafePhotos(photos){
@@ -7809,6 +8015,9 @@ function customerCopyRedactionCount(){
   (A.reportPhotos||[]).forEach(function(p){
     n+=redactCustomerCopyText(p&&p.desc).count+redactCustomerCopyText(p&&p.aiDesc).count+redactCustomerCopyText(p&&p.synthesis).count;
   });
+  // The deal name is printed in the report header, so a model number sitting in
+  // it is withheld and counted like any other.
+  if(A.sel)n+=redactCustomerCopyText(A.sel.Deal_Name).count;
   return n;
 }
 function renderCustomerCopyNotice(){
@@ -7817,7 +8026,7 @@ function renderCustomerCopyNotice(){
   var n=A.report?customerCopyRedactionCount():0;
   box.style.display="block";
   box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
-    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, your photo descriptions, AI Observations, and AI Synthesis. "+
+    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and work order numbers stay. "+
     (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
     " Switch to Internal Copy (or Other) for the full detail.</div>";
 }
@@ -7897,7 +8106,7 @@ async function generate(){
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — customer copies withhold labeled numbers. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy withholds the number either way, and the label is what shows the customer that something was withheld rather than leaving a gap in the sentence. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -8000,7 +8209,9 @@ function renderReportHeaderRows(){
   if(reportCopyLabel())h+="<div class='rh-row'><span class='rh-k'>Report Copy: </span>"+esc(reportCopyLabel())+"</div>";
   h+="<div class='rh-row'><span class='rh-k'>Technician: </span>"+esc(technicianDisplayName())+"</div>";
   // Deal amount is deliberately left out — the report header goes to customers.
-  if(A.sel){h+="<div class='rh-row'><span class='rh-k'>Account: </span>"+esc(A.sel.Account_Name)+"</div>";if(A.sel.Deal_Name)h+="<div class='rh-row'><span class='rh-k'>Deal: </span>"+esc(A.sel.Deal_Name)+"</div>";if(A.sel.Stage)h+="<div class='rh-row'><span class='rh-k'>Stage: </span>"+esc(A.sel.Stage)+"</div>";}
+  // A deal is often named after the equipment, so the name is filtered too.
+  var headerDealName=A.sel?(reportCopyIsCustomer()?customerSafeDealName(A.sel.Deal_Name):A.sel.Deal_Name):"";
+  if(A.sel){h+="<div class='rh-row'><span class='rh-k'>Account: </span>"+esc(A.sel.Account_Name)+"</div>";if(headerDealName)h+="<div class='rh-row'><span class='rh-k'>Deal: </span>"+esc(headerDealName)+"</div>";if(A.sel.Stage)h+="<div class='rh-row'><span class='rh-k'>Stage: </span>"+esc(A.sel.Stage)+"</div>";}
   if(A.location){if(A.location.address)h+="<div class='rh-row'><span class='rh-k'>Site: </span>"+esc(A.location.address)+"</div>";h+="<div class='rh-row'><span class='rh-k'>GPS: </span><span style='font-family:monospace;color:var(--amber)'>"+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)+"</span></div>";}
   h+="<div class='rh-row' style='color:var(--dim);font-size:11px;margin-top:4px'>"+A.reportPhotos.length+" photo"+(A.reportPhotos.length!==1?"s":"")+" — "+new Date().toLocaleDateString()+"</div>";
   rhr.innerHTML=h;
@@ -8085,7 +8296,10 @@ function buildReportExportText(){
   if(customerSafe)lines.push(CUSTOMER_COPY_PDF_NOTE);
   lines.push("Technician: "+technicianDisplayName());
   lines.push("Report Date: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
-  if(A.sel){lines.push("Account: "+(A.sel.Account_Name||""));if(A.sel.Deal_Name)lines.push("Deal: "+A.sel.Deal_Name);if(A.sel.Stage)lines.push("Stage: "+A.sel.Stage);}
+  if(A.sel){
+    var dealName=customerSafe?customerSafeDealName(A.sel.Deal_Name):A.sel.Deal_Name;
+    lines.push("Account: "+(A.sel.Account_Name||""));if(dealName)lines.push("Deal: "+dealName);if(A.sel.Stage)lines.push("Stage: "+A.sel.Stage);
+  }
   if(A.location){if(A.location.address)lines.push("Site: "+A.location.address);lines.push("GPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6));}
   lines.push("");lines.push(customerSafe?customerSafeText(A.report||""):(A.report||""));
   return lines.join("\n");
@@ -9661,7 +9875,13 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   // Customer copies are filtered here, so every path that builds a PDF (local
   // download, WorkDrive, Deal attachment, History export) is covered at once.
   var customerSafe=isCustomerCopyLabel(copyLabel);
-  if(customerSafe){report=customerSafeText(report);photos=customerSafePhotos(photos);}
+  if(customerSafe){
+    report=customerSafeText(report);
+    photos=customerSafePhotos(photos);
+    // A deal is often named after the equipment, so the header name is filtered
+    // too. The deal object itself is left untouched.
+    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name)});
+  }
   // A photo whose bytes are gone would print as an empty framed box with a
   // caption, which reads like a rendering fault to whoever receives the PDF.
   photos=(photos||[]).filter(function(p){return fpHasPhotoDisplay(p&&p.display);});
