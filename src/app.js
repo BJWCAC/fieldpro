@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="389";
+var FP_VERSION="390";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7753,11 +7753,12 @@ function applyReportCopyFromRecord(r){
 // The report is generated once and any copy can be rendered from it later, so
 // the filtering happens at render time (PDF + share text), never by weakening
 // what was captured.
-var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part, model, order, and serial numbers and pricing are not included.";
-// Withheld data leaves no words behind. A customer copy reads as a finished
-// report, not a redacted one, so nothing in it says "not shown on customer
-// copy" — the value, its label, and the punctuation that only held it in place
-// all go. Every pass marks its removal with CUSTOMER_COPY_GAP and
+// Withheld data leaves no words behind, and that includes the document's own
+// front matter: a customer copy carries no note under the copy name and no line
+// in the shared text saying which numbers are not included, because saying so is
+// itself the disclosure. A customer copy reads as a finished report, not a
+// redacted one — the value, its label, and the punctuation that only held it in
+// place all go. Every pass marks its removal with CUSTOMER_COPY_GAP and
 // closeCustomerCopyGaps() closes the gap so the sentence still reads. The
 // technician still sees what went: the Report tab counts and lists it.
 // A control character is used so nothing a technician can type collides with it.
@@ -8126,7 +8127,8 @@ function closeCustomerCopyGaps(text){
   if(s.indexOf(G)<0)return s;
   var runRe=new RegExp(G+"(?:[ \\t]*(?:,|;|\\/|&|\\+|and|or)?[ \\t]*"+G+")+","g");
   var wrapRe=new RegExp("[ \\t]*[\\(\\[\"'][ \\t]*"+G+"[ \\t.,;:]*[\\)\\]\"']","g");
-  return s.split("\n").map(function(line){
+  var dropped=false;
+  var lines=s.split("\n").map(function(line){
     if(line.indexOf(G)<0)return line;
     var indent=(/^[ \t]*/.exec(line)||[""])[0];
     var body=line.slice(indent.length),prev=null,i;
@@ -8172,9 +8174,34 @@ function closeCustomerCopyGaps(text){
     body=body.replace(/[ \t]{2,}/g," ").replace(/([(\[])[ \t]+/g,"$1").replace(/[ \t]+([),;:.!?\]])/g,"$1").replace(/[ \t]+$/,"");
     // A heading keeps its own line even when its only content was withheld; a
     // body line that is down to a bullet or a dash goes with the value.
-    if(!/[A-Za-z0-9]/.test(body))return /^#/.test(body)?indent+body:null;
+    if(!/[A-Za-z0-9]/.test(body)){
+      if(/^#/.test(body))return indent+body;
+      dropped=true;return null;
+    }
     return indent+body;
-  }).filter(function(line){return line!==null;}).join("\n");
+  }).filter(function(line){return line!==null;});
+  return (dropped?closeCustomerCopyEmptySections(lines):lines).join("\n");
+}
+// A section heading with nothing under it is a hole of its own: the customer sees
+// a heading the report clearly had content for. It goes with its last line, and
+// so does the blank space that line left behind. Only runs when a line was
+// actually dropped, so a report that arrived with an empty section keeps it.
+function closeCustomerCopyEmptySections(lines){
+  var kept=lines.filter(function(line,i){
+    if(!/^#{1,3}\s/.test(String(line).trim()))return true;
+    for(var j=i+1;j<lines.length;j++){
+      var next=String(lines[j]).trim();
+      if(/^#{1,3}\s/.test(next))return false;
+      if(/[A-Za-z0-9]/.test(next))return true;
+    }
+    return false;
+  });
+  var out=[];
+  kept.forEach(function(line){
+    if(String(line).trim()||(out.length&&String(out[out.length-1]).trim()))out.push(line);
+  });
+  while(out.length&&!String(out[out.length-1]).trim())out.pop();
+  return out;
 }
 // What the report body and photo notes are allowed to keep: whatever survives in
 // the deal name. Anything the header withheld is withheld everywhere, so the two
@@ -8526,7 +8553,6 @@ function buildReportExportText(){
   var customerSafe=reportCopyIsCustomer();
   var lines=["CapStone FIELD SERVICE REPORT","=============================="];
   if(reportCopyLabel())lines.push("Report Copy: "+reportCopyLabel());
-  if(customerSafe)lines.push(CUSTOMER_COPY_PDF_NOTE);
   lines.push("Technician: "+technicianDisplayName());
   lines.push("Report Date: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
   if(A.sel){
@@ -10147,9 +10173,9 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
     doc.setFillColor(230,250,246);doc.setDrawColor(0,192,160);doc.roundedRect(ML,y,CW,9,2,2,"FD");
     doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(0,120,105);
     doc.text("REPORT COPY: "+copyName.toUpperCase().substring(0,60),ML+4,y+6);
-    y+=12;
-    if(customerSafe){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text(CUSTOMER_COPY_PDF_NOTE,ML+1,y+2);y+=6;}
-    else y+=1;
+    // The copy name is the only thing under this heading: a note about what a
+    // customer copy leaves out would say what the filtering exists to avoid.
+    y+=13;
   }
   if(location){var ha=!!location.address,bh=ha?22:14;doc.setFillColor(245,247,252);doc.setDrawColor(210,215,228);doc.roundedRect(ML,y,CW,bh,2,2,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text("SITE LOCATION",ML+3,y+5.5);if(ha){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(15,23,42);doc.splitTextToSize(location.address,CW-52).slice(0,2).forEach(function(l,i){doc.text(l,ML+3,y+11+i*4.5);});}doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(0,150,130);doc.text(location.lat.toFixed(6)+",",pw-MR-2,y+9,{align:"right"});doc.text(location.lng.toFixed(6),pw-MR-2,y+14,{align:"right"});y+=bh+5;}
   // Deal header intentionally carries no dollar amount — reports go to customers.
