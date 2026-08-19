@@ -7758,7 +7758,7 @@ var CUSTOMER_COPY_UNITS=("ma a amp amps v vac vdc kv mv w kw mw hp hz khz mhz rp
 // Units that are also ordinary words. A unit after a number normally means the
 // number was a reading, but "MRC 7000 in panel LCP-3" is a model number followed
 // by the word "in", so these do not count as a following unit.
-var CUSTOMER_COPY_AMBIGUOUS_UNITS=("in a x m s h c f k l g mo ea da at no").split(" ");
+var CUSTOMER_COPY_AMBIGUOUS_UNITS=("in a x m s h c f k l g mo").split(" ");
 // Counted things are not prices either, so "quoted 4 rolls" keeps the 4.
 var CUSTOMER_COPY_COUNT_WORDS=("each ea pc pcs piece pieces unit units roll rolls set sets kit kits spare spares item items "+
   "pen pens sensor sensors valve valves meter meters recorder recorders transmitter transmitters").split(" ");
@@ -7778,7 +7778,7 @@ var CUSTOMER_COPY_KEEP_PREFIXES=("ip nema iso iec ieee ansi asme astm nfpa nsf u
   "lcp mcp rcp cp cpnl pnl panel cab encl mcc vfd plc hmi rtu dcs ups ats scada bl blw pmp pump mtr motor fan valve tank basin "+
   "clarifier well pit rack slot ch chan area line hdr skid train bay room rm floor lvl "+
   // Words that introduce a reading rather than a code: "SPAN 1500 in H2O".
-  "span range flow level max min avg total zero full cal out net qty "+
+  "span range flow level max min avg total zero full cal out net "+
   "tds tss mlss bod cod toc orp do ec ras was sp pv mv cv sg fog vss tkn tp tn alk hrt srt svi dp id od npsh tdh gpd adf "+
   "mfr eff inf ph psi gpm mgd ntu rpm cfm kwh scfm temp").split(" ");
 // A spaced number is also how job references, addresses, and ZIP codes are
