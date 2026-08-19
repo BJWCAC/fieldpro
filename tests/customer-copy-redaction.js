@@ -179,10 +179,61 @@ check("captured photo text is never mutated",
 check("empty text is safe",customerSafeText("")===""&&customerSafeText(null)==="");
 // The PDF header cell only fits 36 characters, so a withheld deal-name code has
 // to stay short enough to still read as a deal name.
-var dealName=customerSafeDealName("4641 — DR4500A chart recorder swap");
+var dealName=customerSafeDealName("4641 — DR4500A chart recorder swap","");
 check("deal name withholds its code",dealName.indexOf("DR4500A")<0,dealName);
 check("deal name stays readable",dealName.indexOf("[withheld]")>=0&&dealName.indexOf("4641")>=0&&dealName.indexOf("chart recorder")>=0,dealName);
-check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual calibration")==="Rogers WWTP annual calibration");
+check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual calibration","")==="Rogers WWTP annual calibration");
+
+// --- the deal's job number is part of the deal name and always stays ---------
+// Every shape this shop writes a job number in. The number is the customer's own
+// reference for the visit, like a work order number.
+["4641 chart recorder calibration","4641 - Rogers WWTP annual calibration","Rogers WWTP 4641","Rogers WWTP - 4641 chart recorder",
+ "CAC 4641 chart recorder","CAC-4641 chart recorder","IA-4641 recorder swap","WO 4641 recorder swap","Job 4641 - recorder",
+ "4641-2 recorder calibration","#4641 recorder calibration","Deal 4641 recorder","P4641 recorder calibration",
+ "4641 / 4642 recorder calibrations","ROGERS 4641 CHART RECORDER CALIBRATION"].forEach(function(name){
+  check("deal name keeps its job number: "+name,customerSafeDealName(name,"").indexOf("4641")>=0,customerSafeDealName(name,""));
+});
+check("job number survives beside a withheld model",customerSafeDealName("4641 Honeywell DR4500A swap","")==="4641 Honeywell [withheld] swap",
+  customerSafeDealName("4641 Honeywell DR4500A swap",""));
+check("a grouped part number in a deal name still goes",customerSafeDealName("4641 pen kit 51404671-501","").indexOf("51404671")<0);
+// A code in the deal name that shares the job-number shape goes only when the
+// report carried the same one under a label — evidence rather than shape.
+var withEvidence="Recorder replaced. Model: DR-4500. Serial: 6M-4471. Job CAC-4641 closed.";
+check("deal name follows a labeled mention in the report",
+  customerSafeDealName("CAC-4641 DR-4500 swap",withEvidence)==="CAC-4641 [withheld] swap",
+  customerSafeDealName("CAC-4641 DR-4500 swap",withEvidence));
+check("deal name keeps an ambiguous code the report never labeled",
+  customerSafeDealName("CAC-4641 recorder swap",withEvidence)==="CAC-4641 recorder swap");
+check("spaced model in a deal name goes when the report labeled it",
+  customerSafeDealName("4641 MRC 7000 replacement","Model: Partlow MRC 7000 verified.")==="4641 [withheld] replacement",
+  customerSafeDealName("4641 MRC 7000 replacement","Model: Partlow MRC 7000 verified."));
+// Caught in the browser: the report says "job CAC-4641" too, so evidence taken
+// from unlabeled mentions withheld the job number from its own deal name.
+var jobInBody=["Annual calibration of the chart recorder at Rogers WWTP. Work order 44821 on job CAC-4641.",
+  "- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3",
+  "- Chart paper part number 24001660-001 restocked, 12 rolls on hand"].join("\n");
+check("the report mentioning the job number does not cost the deal name its number",
+  customerSafeDealName("CAC-4641 DR4500A chart recorder calibration",jobInBody)==="CAC-4641 [withheld] chart recorder calibration",
+  customerSafeDealName("CAC-4641 DR4500A chart recorder calibration",jobInBody));
+check("and the body keeps it too",
+  customerSafeText(jobInBody,customerCopyKeepTokens("CAC-4641 DR4500A chart recorder calibration",jobInBody)).indexOf("job CAC-4641")>=0,
+  customerSafeText(jobInBody,customerCopyKeepTokens("CAC-4641 DR4500A chart recorder calibration",jobInBody)));
+// The same job number survives in the report body and photo notes.
+var evidence="Recorder replaced. Model: DR-4500. Serial: 6M-4471. Job 4641 closed.";
+var jobRefs=customerCopyKeepTokens("CAC-4641 chart recorder calibration",evidence);
+check("keep tokens come from the deal name",jobRefs.indexOf("CAC-4641")>=0,JSON.stringify(jobRefs));
+var body=customerSafeText("Job CAC-4641 completed. Replaced the Honeywell DR4500A recorder in panel LCP-3.",jobRefs);
+check("report body keeps this deal's job number",body.indexOf("CAC-4641")>=0,body);
+check("report body still withholds the model beside it",body.indexOf("DR4500A")<0,body);
+// The header and the body can never disagree about the same number: what the deal
+// name withholds is withheld everywhere, so a deal named after the model does not
+// license that model in the body.
+var namedAfterModel=customerCopyKeepTokens("4641 DR-4500 recorder swap",evidence);
+check("a model in the deal name is not protected in the body",namedAfterModel.indexOf("DR-4500")<0,JSON.stringify(namedAfterModel));
+check("the job number beside it still is",namedAfterModel.indexOf("4641")>=0,JSON.stringify(namedAfterModel));
+var bothWays=customerSafeText("Job 4641: replaced the DR-4500 recorder.",namedAfterModel);
+check("body follows the header on that model",bothWays.indexOf("DR-4500")<0&&bothWays.indexOf("4641")>=0,bothWays);
+check("no deal name means no keep list",customerCopyKeepTokens("","").length===0);
 
 // --- generated sweeps -------------------------------------------------------
 // The same code in different sentence positions, because a neighbouring word is
