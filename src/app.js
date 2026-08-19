@@ -7907,20 +7907,26 @@ function customerCopyIdValueEnd(s,i,weak){
   return codes?end:-1;
 }
 function redactCustomerCopyLabeledIds(s){
-  var out="",last=0,count=0,m;
+  var out="",last=0,count=0,values=[],m;
   CUSTOMER_COPY_ID_RE.lastIndex=0;
   while((m=CUSTOMER_COPY_ID_RE.exec(s))){
     // A work/purchase/sales order number is a job reference, not equipment
     // data, so it stays on the customer copy.
     if(m[1])continue;
     var label=m[2],word=m[3]||"";
-    var end=customerCopyIdValueEnd(s,m.index+m[0].length,CUSTOMER_COPY_WEAK_LABEL_RE.test(label));
+    var start=m.index+m[0].length;
+    var end=customerCopyIdValueEnd(s,start,CUSTOMER_COPY_WEAK_LABEL_RE.test(label));
     if(end<0)continue;
+    // What was withheld under a label is equipment data on the record, which is
+    // how an ambiguous code in the deal name can be told from a job number.
+    (s.slice(start,end).match(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g)||[]).forEach(function(tok){
+      if(values.indexOf(tok)<0)values.push(tok);
+    });
     out+=s.slice(last,m.index)+label+word+": "+CUSTOMER_COPY_REDACT_ID;
     last=end;count++;
     CUSTOMER_COPY_ID_RE.lastIndex=end;
   }
-  return{text:out+s.slice(last),count:count};
+  return{text:out+s.slice(last),count:count,values:values};
 }
 // The shape of a job number: the deal number this shop puts in a deal name
 // ("4641 chart recorder calibration", "CAC-4641", "P4641", "4641-2"). A job
@@ -8054,11 +8060,15 @@ function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{ke
 // characters, so the withheld marker is kept short here.
 function customerSafeDealName(name,reportText){
   var report=reportText===undefined?((typeof A!=="undefined"&&A)?A.report:""):reportText;
-  // Judged on evidence: a code shaped like a job number goes only if the report
-  // withheld the same one. The keep list is deliberately empty here — it exists to
-  // protect this deal's number in other text, and using it on the name itself
-  // would shield every number in the name, including a model number.
-  var known=redactCustomerCopyBareCodes(report||"").codes;
+  // A code in the deal name that shares the job-number shape (DR-4500) is only
+  // withheld when the report carried the same one under an identifier label
+  // ("Model: DR-4500"), which is what the generation prompts ask for. Every
+  // unlabeled mention is left out of this on purpose: the report says "job
+  // CAC-4641" too, and that is the number the customer uses for the visit.
+  // The keep list is deliberately empty here — it exists to protect this deal's
+  // number in other text, and using it on the name itself would shield every
+  // number in the name, including a model number.
+  var known=redactCustomerCopyLabeledIds(report||"").values;
   var out=redactCustomerCopyText(name,{keep:[],known:known,jobNumbersStay:true}).text;
   return out.split(CUSTOMER_COPY_REDACT_CODE).join("[withheld]").split(CUSTOMER_COPY_REDACT_ID).join("[withheld]");
 }
