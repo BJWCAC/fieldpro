@@ -2,7 +2,8 @@
 //
 // A customer copy must never carry an equipment part, model, order, or serial
 // number, or pricing, and must never lose a reading, unit, date, plant loop tag,
-// or job reference. Both directions are checked here.
+// or job reference. It must also never show that anything was taken out: no
+// placeholder, no empty label, no note. All three directions are checked here.
 //
 //   node tests/customer-copy-redaction.js
 //
@@ -12,7 +13,7 @@ var fs=require("fs");
 var path=require("path");
 
 var src=fs.readFileSync(path.join(__dirname,"..","src","app.js"),"utf8");
-var START="var CUSTOMER_COPY_PDF_NOTE";
+var START="var CUSTOMER_COPY_GAP";
 var END="function customerCopyRedactionCount()";
 var start=src.indexOf(START),end=src.indexOf(END);
 if(start<0||end<0){console.error("Could not find the customer copy block in src/app.js");process.exit(1);}
@@ -24,11 +25,23 @@ function check(name,ok,detail){
   if(ok)return;
   failures.push(name+(detail?"\n    "+detail:""));
 }
-// The value must be gone and the sentence must still say something was withheld.
+// Nothing rendered may hint at a removal: no internal marker, no bracketed
+// placeholder, no label left standing with no value after it.
+var MARKER_RES=[/\u0000/,/\[[^\]\n]*(?:withheld|not shown|redact|removed|hidden)/i,
+  /\b(?:withheld|redacted)\b/i,
+  /\b(?:serial|part|model|order|catalog|item|sku|mpn|assembly|product)\s*(?:numbers?|nos?\.?|#|codes?)?\s*:\s*(?:$|[\r\n])/im,
+  /\bp\s*\/\s*n\s*:\s*(?:$|[\r\n])/im];
+function noMarker(label,text){
+  MARKER_RES.forEach(function(re){
+    check("no sign of a removal in "+label,!re.test(text),"matched "+re+" in: "+JSON.stringify(text));
+  });
+}
+// The value must be gone and the copy must not say so.
 function withholds(text,value){
   var r=redactCustomerCopyText(text);
   check("withholds "+JSON.stringify(value)+" from "+JSON.stringify(text),
     r.text.indexOf(value)<0&&r.count>0,"got: "+r.text);
+  noMarker(JSON.stringify(text),r.text);
 }
 function keeps(text,value){
   var r=redactCustomerCopyText(text);
@@ -38,6 +51,14 @@ function keeps(text,value){
 function unchanged(text){
   var r=redactCustomerCopyText(text);
   check("leaves alone "+JSON.stringify(text),r.text===text&&r.count===0,"got: "+r.text);
+}
+// Exactly how a filtered sentence reads, because closing the sentence over the
+// hole is the whole point.
+function renders(text,expected){
+  var r=redactCustomerCopyText(text);
+  check("renders "+JSON.stringify(text)+" as "+JSON.stringify(expected),
+    r.text===expected,"got: "+JSON.stringify(r.text));
+  noMarker(JSON.stringify(text),r.text);
 }
 
 // --- labeled identifiers -----------------------------------------------------
@@ -67,9 +88,33 @@ withholds("P/N: 900E 01","900E");
 withholds("P/N: 900E 01","01");
 withholds("Serial: 6M-4471, Model: DR4500A","6M-4471");
 withholds("Serial: 6M-4471, Model: DR4500A","DR4500A");
-keeps("Model: DR4500A installed in panel 3.","installed in panel 3.");
-keeps("Serial number ABC1234 noted.","noted.");
-keeps("Chart recorder model: Honeywell DR4500A","Chart recorder model:");
+keeps("Model: DR4500A installed in panel 3.","nstalled in panel 3.");
+// The label goes with the value: a bare "Model:" would say as much as a
+// placeholder, and the sentence that lost its opening keeps its capital.
+renders("Model: DR4500A installed in panel 3.","Installed in panel 3.");
+renders("Serial number ABC1234 noted.","Noted.");
+renders("Chart recorder model: Honeywell DR4500A","Chart recorder");
+renders("Serial: 6M-4471, Model: DR4500A","");
+renders("- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3",
+  "- Chart recorder, Honeywell, panel LCP-3");
+renders("- Backup recorder: Partlow MRC 7000 (Serial number 88-2214)","- Backup recorder: Partlow");
+renders("- Chart paper part number 24001660-001 restocked, 12 rolls on hand",
+  "- Chart paper restocked, 12 rolls on hand");
+renders("- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.",
+  "- Stock two spare pen assemblies, pen kit.");
+renders("Chart recorder (DR4500AY-1000-0-0-0) verified.","Chart recorder verified.");
+renders("Replaced the Honeywell DR4500A chart recorder in panel 3.",
+  "Replaced the Honeywell chart recorder in panel 3.");
+renders("Replace the MRC 7000 within 12 months.","Replace within 12 months.");
+renders("Recorder is a DR-4500 unit.","Recorder is a unit.");
+renders("Part total $412.00 plus tax.","Part total plus tax.");
+// A line whose only content was a number is dropped rather than printed empty.
+renders("- Serial: 6M-4471","");
+renders("Recorder swapped.\n- Model: DR4500A\n- Loop FIT-101 verified.",
+  "Recorder swapped.\n- Loop FIT-101 verified.");
+// And a heading left standing over nothing goes with its last line.
+renders("## EQUIPMENT SERVICED\n- Serial: 6M-4471\n\n## FINDINGS\nLoop verified at 4-20 mA.",
+  "## FINDINGS\nLoop verified at 4-20 mA.");
 
 // --- unlabeled codes (the AI and technicians do not always label) -----------
 withholds("Replaced the Honeywell DR4500A chart recorder in panel 3.","DR4500A");
@@ -177,11 +222,12 @@ check("photo fields are filtered",
 check("captured photo text is never mutated",
   photos[0].desc==="Recorder DR4500A"&&photos[0].aiDesc==="Serial: 6M-4471"&&photos[0].synthesis==="- Model: Partlow MRC 7000");
 check("empty text is safe",customerSafeText("")===""&&customerSafeText(null)==="");
-// The PDF header cell only fits 36 characters, so a withheld deal-name code has
-// to stay short enough to still read as a deal name.
+// The deal name is printed in the PDF header, where an empty label or a
+// placeholder would be the most visible sign of all, so the name simply closes up.
 var dealName=customerSafeDealName("4641 — DR4500A chart recorder swap","");
 check("deal name withholds its code",dealName.indexOf("DR4500A")<0,dealName);
-check("deal name stays readable",dealName.indexOf("[withheld]")>=0&&dealName.indexOf("4641")>=0&&dealName.indexOf("chart recorder")>=0,dealName);
+check("deal name stays readable",dealName==="4641 — chart recorder swap",dealName);
+noMarker("the filtered deal name",dealName);
 check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual calibration","")==="Rogers WWTP annual calibration");
 
 // --- the deal's job number is part of the deal name and always stays ---------
@@ -193,19 +239,19 @@ check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual ca
  "4641 / 4642 recorder calibrations","ROGERS 4641 CHART RECORDER CALIBRATION"].forEach(function(name){
   check("deal name keeps its job number: "+name,customerSafeDealName(name,"").indexOf("4641")>=0,customerSafeDealName(name,""));
 });
-check("job number survives beside a withheld model",customerSafeDealName("4641 Honeywell DR4500A swap","")==="4641 Honeywell [withheld] swap",
+check("job number survives beside a withheld model",customerSafeDealName("4641 Honeywell DR4500A swap","")==="4641 Honeywell swap",
   customerSafeDealName("4641 Honeywell DR4500A swap",""));
 check("a grouped part number in a deal name still goes",customerSafeDealName("4641 pen kit 51404671-501","").indexOf("51404671")<0);
 // A code in the deal name that shares the job-number shape goes only when the
 // report carried the same one under a label — evidence rather than shape.
 var withEvidence="Recorder replaced. Model: DR-4500. Serial: 6M-4471. Job CAC-4641 closed.";
 check("deal name follows a labeled mention in the report",
-  customerSafeDealName("CAC-4641 DR-4500 swap",withEvidence)==="CAC-4641 [withheld] swap",
+  customerSafeDealName("CAC-4641 DR-4500 swap",withEvidence)==="CAC-4641 swap",
   customerSafeDealName("CAC-4641 DR-4500 swap",withEvidence));
 check("deal name keeps an ambiguous code the report never labeled",
   customerSafeDealName("CAC-4641 recorder swap",withEvidence)==="CAC-4641 recorder swap");
 check("spaced model in a deal name goes when the report labeled it",
-  customerSafeDealName("4641 MRC 7000 replacement","Model: Partlow MRC 7000 verified.")==="4641 [withheld] replacement",
+  customerSafeDealName("4641 MRC 7000 replacement","Model: Partlow MRC 7000 verified.")==="4641 replacement",
   customerSafeDealName("4641 MRC 7000 replacement","Model: Partlow MRC 7000 verified."));
 // Caught in the browser: the report says "job CAC-4641" too, so evidence taken
 // from unlabeled mentions withheld the job number from its own deal name.
@@ -213,7 +259,7 @@ var jobInBody=["Annual calibration of the chart recorder at Rogers WWTP. Work or
   "- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3",
   "- Chart paper part number 24001660-001 restocked, 12 rolls on hand"].join("\n");
 check("the report mentioning the job number does not cost the deal name its number",
-  customerSafeDealName("CAC-4641 DR4500A chart recorder calibration",jobInBody)==="CAC-4641 [withheld] chart recorder calibration",
+  customerSafeDealName("CAC-4641 DR4500A chart recorder calibration",jobInBody)==="CAC-4641 chart recorder calibration",
   customerSafeDealName("CAC-4641 DR4500A chart recorder calibration",jobInBody));
 check("and the body keeps it too",
   customerSafeText(jobInBody,customerCopyKeepTokens("CAC-4641 DR4500A chart recorder calibration",jobInBody)).indexOf("job CAC-4641")>=0,
