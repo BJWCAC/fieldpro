@@ -12,7 +12,7 @@ var fs=require("fs");
 var path=require("path");
 
 var src=fs.readFileSync(path.join(__dirname,"..","src","app.js"),"utf8");
-var START="var CUSTOMER_COPY_PDF_NOTE";
+var START="var CUSTOMER_COPY_GAP";
 var END="function customerCopyRedactionCount()";
 var start=src.indexOf(START),end=src.indexOf(END);
 if(start<0||end<0){console.error("Could not find the customer copy block in src/app.js");process.exit(1);}
@@ -235,6 +235,36 @@ readsClean(out.text,"whole report");
 // no empty bullets.
 check("a bullet that was only a value is dropped",out.text.indexOf("- Backup recorder: Partlow")>=0,"got:\n"+out.text);
 check("headings and blank lines survive",out.text.indexOf("## FINDINGS")>=0&&/\n\n## RECOMMENDATIONS/.test(out.text),"got:\n"+out.text);
+
+// --- a section left with nothing in it goes too ------------------------------
+// A heading standing over a blank space says the report had something there, so
+// it goes with its last line — along with the gap the line left behind.
+var emptySection=redactCustomerCopyText(["## SUMMARY OF WORK","Annual calibration completed.","",
+  "## EQUIPMENT SERVICED","- Serial: 6M-4471","- Model: Partlow MRC 7000","",
+  "## FINDINGS","Loop verified at 4-20 mA."].join("\n")).text;
+check("an emptied section takes its heading with it",
+  emptySection==="## SUMMARY OF WORK\nAnnual calibration completed.\n\n## FINDINGS\nLoop verified at 4-20 mA.",
+  "got:\n"+emptySection);
+readsClean(emptySection,"emptied section");
+var lastSection=redactCustomerCopyText(["Recorder calibrated.","","## PARTS USED","- Model: DR4500A"].join("\n")).text;
+check("an emptied last section leaves no trailing blank",lastSection==="Recorder calibrated.","got:\n"+JSON.stringify(lastSection));
+// A section that arrived empty is the report's own formatting, not a removal.
+var alreadyEmpty=redactCustomerCopyText(["## FINDINGS","","## RECOMMENDATIONS","- Replace the pen arm."].join("\n")).text;
+check("a section that was always empty is left alone",
+  alreadyEmpty==="## FINDINGS\n\n## RECOMMENDATIONS\n- Replace the pen arm.","got:\n"+JSON.stringify(alreadyEmpty));
+
+// --- the document itself must not announce the filtering ---------------------
+// The copy carried a note under its name in the PDF and a line in the shared
+// text ("Customer copy — … are not included."), which said what the filtering
+// exists not to say. Nothing may put it back.
+check("no customer-copy note constant remains",src.indexOf("CUSTOMER_COPY_PDF_NOTE")<0);
+["buildReportExportText","buildPDF"].forEach(function(fn){
+  var at=src.indexOf("function "+fn+"(");
+  var body=at<0?"":src.slice(at,src.indexOf("\n}",at));
+  check(fn+"() is in src/app.js",at>=0);
+  check(fn+"() says nothing about what a customer copy leaves out",
+    !/not included|not shown|withheld|redact/i.test(body),"in "+fn+"()");
+});
 
 // --- rendering guarantees ---------------------------------------------------
 check("customer copy label matches a typed name",isCustomerCopyLabel("Customer Walkthrough")&&!isCustomerCopyLabel("Internal Copy"));
