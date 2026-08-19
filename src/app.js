@@ -7784,6 +7784,9 @@ var CUSTOMER_COPY_WEAK_LABEL_RE=/^(?:types?|cat)$/i;
 var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
 // Money written without a symbol only reads as money next to a pricing word.
 var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
+// The number after a job reference is the customer's own reference, never a
+// price, even on a line that also talks about money.
+var CUSTOMER_COPY_JOB_LABEL_RE=/\b(?:(?:work|purchase|sales|change)\s+order|wo|po|so|job|ticket|tkt|ref|reference|quote\s+number)\s*(?:numbers?|nos?\.?|#)?\s*[:=#-]?\s*$/i;
 // Readings are the point of the report, so anything carrying an engineering
 // unit is never treated as a code: 24VDC, 4-20mA, 0-150inH2O, 3/4in, 100psig,
 // 3200mg/L.
@@ -8048,9 +8051,12 @@ function redactCustomerCopyText(text,opts){
   // reading, a duration, or a count on that same line is still not a price.
   s=s.split("\n").map(function(line){
     if(!CUSTOMER_COPY_PRICE_WORD_RE.test(line))return line;
-    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail){
+    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail,offset){
       var next=String(tail||"").trim().toLowerCase();
       if(next==="%"||customerCopyFollowingWordIsUnit(next)||CUSTOMER_COPY_COUNT_WORDS.indexOf(next)>=0)return m;
+      // A job reference on a pricing line is still a job reference: "quoted
+      // 1,850 against work order 44821" keeps the work order number.
+      if(CUSTOMER_COPY_JOB_LABEL_RE.test(line.slice(0,offset)))return m;
       count++;
       note(m.slice(0,m.length-(tail||"").length));
       return CUSTOMER_COPY_GAP+(tail||"");
@@ -8101,6 +8107,15 @@ function closeCustomerCopyGaps(text){
         }
         left=left.replace(/[ \t]*[,;:\-–—]+$/,"").replace(/[ \t]+$/,"");
         if(paired){right=right.slice(1).replace(/^[ \t]+/,"");spaced=true;}
+        // A whole sentence can be what goes: "…in panel LCP-3. Model: DR4500A.
+        // Chart speed…" must not come back with two periods.
+        else if(/[.!?]$/.test(left)&&/^[.!?]/.test(right)){right=right.slice(1).replace(/^[ \t]+/,"");spaced=true;}
+        // Nothing is left for the punctuation to sit against: "Parts: DR4500A.
+        // Also replaced chart paper." starts at "Also".
+        if(!/[A-Za-z0-9]/.test(left)){right=right.replace(/^[.,;:!?]+[ \t]*/,"");spaced=true;}
+        // A dash keeps its space: "Recorder — DR4500A — calibrated." reads
+        // "Recorder — calibrated."
+        else if(/^[\-–—]/.test(right))spaced=true;
       }
       if(right&&/^[a-z]/.test(right)&&(/[.!?]$/.test(left)||!/[A-Za-z0-9]/.test(left)))
         right=right.charAt(0).toUpperCase()+right.slice(1);

@@ -131,6 +131,15 @@ keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","chart recorde
  ["- Backup unit is a Partlow MRC 7000 in panel LCP-3","- Backup unit is a Partlow in panel LCP-3"],
  // Codes listed together close as one gap rather than as a row of holes.
  ["Spares on hand: DR4500A, MRC7000 and 51404671-501.","Spares on hand."],
+ // A whole sentence going does not leave two periods behind (seen in the PDF's
+ // AI Observation block).
+ ["Recorder mounted in panel LCP-3. Model: Honeywell DR4500A, Serial: 6M-4471. Chart speed 1 in/hr.",
+  "Recorder mounted in panel LCP-3. Chart speed 1 in/hr."],
+ // Punctuation with nothing left in front of it goes with the value.
+ ["Parts: DR4500A. Also replaced chart paper.","Also replaced chart paper."],
+ ["Order code R11CA111AA3A; ship to Rogers, MN 55374.","Ship to Rogers, MN 55374."],
+ // A dash keeps its spacing.
+ ["Recorder — DR4500A — calibrated.","Recorder — calibrated."],
  // A heading keeps its line even when the only thing on it was withheld.
  ["## Model: DR4500A","##"]].forEach(function(pair){
   var got=redactCustomerCopyText(pair[0]).text;
@@ -179,6 +188,9 @@ withholds("Part total $412.00 plus tax.","412.00");
 withholds("Quoted 18,750 for the replacement.","18,750");
 withholds("Labor cost 950 for the visit.","950");
 unchanged("Recorded 412 gallons and 950 GPM peak flow.");
+// A job reference is not a price, even on a line that talks about money.
+keeps("Quoted $1,200.00 for the swap; work order 44821 stays.","work order 44821");
+keeps("Labor cost 950 against PO 7781 for the visit.","PO 7781");
 
 // --- a whole report, the way the AI writes one -------------------------------
 var report=[
