@@ -69,7 +69,7 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - Pending Sync badge and retry for failed Zoho/WorkDrive/asset operations
 - AI report generation with optional nine structured fields
 - **Report copy names** — issue the same visit as a Customer Copy, an Internal Copy, or a name you type; the name shows in the PDF header and is used for the PDF, WorkDrive file, Deal attachment, and Zoho note title, so a second copy is filed next to the first instead of duplicating it
-- **Customer copies leave out equipment part, model, order, and serial numbers and pricing** — a model number counts as a part number, and Endress+Hauser prints it as an order number / order code; left out of the report body, the deal name in the header, your photo descriptions, AI Observations, and AI Synthesis, while work/purchase order numbers and all calibration readings stay. Nothing in the copy marks the removal: the sentence closes up, so there is no placeholder, no note, and no empty label for the customer to notice. The Report tab shows exactly what the customer will see and counts what was left out, and one tap on Internal Copy brings the full detail back
+- **Customer copies withhold equipment part, model, order, and serial numbers and pricing** — a model number counts as a part number, and Endress+Hauser prints it as an order number / order code; withheld from the report body, your photo descriptions, AI Observations, and AI Synthesis, while work/purchase order numbers and all calibration readings stay. The Report tab shows exactly what the customer will see, and one tap on Internal Copy brings the full detail back
 - no deal amount anywhere in the report — the PDF header, on-screen report header, and Zoho note carry no pricing
 - Zoho deal note update/recovery behavior
 - direct report PDF attachment to the Zoho deal
@@ -121,7 +121,7 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 8. Add photo labels and descriptions.
 9. Dictate or type field notes.
 10. Optionally fill in any of the nine structured report fields.
-11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing.
+11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place, so the report still reads normally. The Report tab lists what was left out.
 12. Generate the AI report.
 13. Review the report.
 14. Regenerate if details need correction — keep the same copy name to replace that copy, or pick a different name to issue a second copy of the same visit.
@@ -270,7 +270,7 @@ Recommended Android smoke test:
 16. Generate again.
 17. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
 18. Switch **Report Copy Name** to Internal Copy, generate/save again, and confirm the Deal keeps one PDF per copy name.
-19. On a report that mentions a serial number, part number, model number, E+H order code, or price, confirm the Customer Copy withholds them (report body and all three photo text blocks) and Internal Copy shows them.
+19. On a report that mentions a serial number, part number, model number, E+H order code, or price, confirm the Customer Copy withholds them (report body, deal name in the header, and all three photo text blocks) with no placeholder text left behind, that the surrounding sentences still read, and that Internal Copy shows them.
 
 Stress test (poor signal):
 

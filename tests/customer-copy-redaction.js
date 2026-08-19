@@ -2,8 +2,7 @@
 //
 // A customer copy must never carry an equipment part, model, order, or serial
 // number, or pricing, and must never lose a reading, unit, date, plant loop tag,
-// or job reference. It must also never show that anything was taken out: no
-// placeholder, no empty label, no note. All three directions are checked here.
+// or job reference. Both directions are checked here.
 //
 //   node tests/customer-copy-redaction.js
 //
@@ -13,7 +12,7 @@ var fs=require("fs");
 var path=require("path");
 
 var src=fs.readFileSync(path.join(__dirname,"..","src","app.js"),"utf8");
-var START="var CUSTOMER_COPY_GAP";
+var START="var CUSTOMER_COPY_PDF_NOTE";
 var END="function customerCopyRedactionCount()";
 var start=src.indexOf(START),end=src.indexOf(END);
 if(start<0||end<0){console.error("Could not find the customer copy block in src/app.js");process.exit(1);}
@@ -25,23 +24,27 @@ function check(name,ok,detail){
   if(ok)return;
   failures.push(name+(detail?"\n    "+detail:""));
 }
-// Nothing rendered may hint at a removal: no internal marker, no bracketed
-// placeholder, no label left standing with no value after it.
-var MARKER_RES=[/\u0000/,/\[[^\]\n]*(?:withheld|not shown|redact|removed|hidden)/i,
-  /\b(?:withheld|redacted)\b/i,
-  /\b(?:serial|part|model|order|catalog|item|sku|mpn|assembly|product)\s*(?:numbers?|nos?\.?|#|codes?)?\s*:\s*(?:$|[\r\n])/im,
-  /\bp\s*\/\s*n\s*:\s*(?:$|[\r\n])/im];
-function noMarker(label,text){
-  MARKER_RES.forEach(function(re){
-    check("no sign of a removal in "+label,!re.test(text),"matched "+re+" in: "+JSON.stringify(text));
-  });
-}
-// The value must be gone and the copy must not say so.
+// The value must be gone, it must be counted, and nothing may be left in its
+// place: a customer copy never says that something was withheld.
 function withholds(text,value){
   var r=redactCustomerCopyText(text);
   check("withholds "+JSON.stringify(value)+" from "+JSON.stringify(text),
     r.text.indexOf(value)<0&&r.count>0,"got: "+r.text);
-  noMarker(JSON.stringify(text),r.text);
+  check("leaves no placeholder in "+JSON.stringify(text),!marksWithheld(r.text),"got: "+r.text);
+}
+// Wording the copy must never carry, plus the control character the passes use
+// to mark a removal, which has to be gone by the time the text is returned.
+function marksWithheld(text){
+  return /not shown|withheld|redact|\[|\]|\u0001/i.test(String(text||""));
+}
+// Reads like prose: no double spaces, no space before a comma or period, no
+// dangling separator at either end, and nothing left of an empty bullet.
+function readsClean(text,label){
+  String(text||"").split("\n").forEach(function(line){
+    var ok=!/ {2,}/.test(line)&&!/\s[,;:.!?]/.test(line)&&!/[,;:\-–—]$/.test(line)&&
+      !/^\s*[-*]\s*$/.test(line)&&!/[(\[]\s*[)\]]/.test(line)&&line===line.replace(/[ \t]+$/,"");
+    check("reads clean ("+label+"): "+JSON.stringify(line),ok);
+  });
 }
 function keeps(text,value){
   var r=redactCustomerCopyText(text);
@@ -51,14 +54,6 @@ function keeps(text,value){
 function unchanged(text){
   var r=redactCustomerCopyText(text);
   check("leaves alone "+JSON.stringify(text),r.text===text&&r.count===0,"got: "+r.text);
-}
-// Exactly how a filtered sentence reads, because closing the sentence over the
-// hole is the whole point.
-function renders(text,expected){
-  var r=redactCustomerCopyText(text);
-  check("renders "+JSON.stringify(text)+" as "+JSON.stringify(expected),
-    r.text===expected,"got: "+JSON.stringify(r.text));
-  noMarker(JSON.stringify(text),r.text);
 }
 
 // --- labeled identifiers -----------------------------------------------------
@@ -89,32 +84,17 @@ withholds("P/N: 900E 01","01");
 withholds("Serial: 6M-4471, Model: DR4500A","6M-4471");
 withholds("Serial: 6M-4471, Model: DR4500A","DR4500A");
 keeps("Model: DR4500A installed in panel 3.","nstalled in panel 3.");
-// The label goes with the value: a bare "Model:" would say as much as a
-// placeholder, and the sentence that lost its opening keeps its capital.
-renders("Model: DR4500A installed in panel 3.","Installed in panel 3.");
-renders("Serial number ABC1234 noted.","Noted.");
-renders("Chart recorder model: Honeywell DR4500A","Chart recorder");
-renders("Serial: 6M-4471, Model: DR4500A","");
-renders("- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3",
-  "- Chart recorder, Honeywell, panel LCP-3");
-renders("- Backup recorder: Partlow MRC 7000 (Serial number 88-2214)","- Backup recorder: Partlow");
-renders("- Chart paper part number 24001660-001 restocked, 12 rolls on hand",
-  "- Chart paper restocked, 12 rolls on hand");
-renders("- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.",
-  "- Stock two spare pen assemblies, pen kit.");
-renders("Chart recorder (DR4500AY-1000-0-0-0) verified.","Chart recorder verified.");
-renders("Replaced the Honeywell DR4500A chart recorder in panel 3.",
-  "Replaced the Honeywell chart recorder in panel 3.");
-renders("Replace the MRC 7000 within 12 months.","Replace within 12 months.");
-renders("Recorder is a DR-4500 unit.","Recorder is a unit.");
-renders("Part total $412.00 plus tax.","Part total plus tax.");
-// A line whose only content was a number is dropped rather than printed empty.
-renders("- Serial: 6M-4471","");
-renders("Recorder swapped.\n- Model: DR4500A\n- Loop FIT-101 verified.",
-  "Recorder swapped.\n- Loop FIT-101 verified.");
-// And a heading left standing over nothing goes with its last line.
-renders("## EQUIPMENT SERVICED\n- Serial: 6M-4471\n\n## FINDINGS\nLoop verified at 4-20 mA.",
-  "## FINDINGS\nLoop verified at 4-20 mA.");
+keeps("Serial number ABC1234 noted.","oted.");
+// The label goes with the value: a customer copy carries no "Serial:" with
+// nothing after it, and a sentence that lost its opening keeps its capital.
+var labeled=redactCustomerCopyText("Chart recorder model: Honeywell DR4500A").text;
+check("the label goes with the value",labeled==="Chart recorder",labeled);
+check("a sentence that lost its opening is recapitalized",
+  redactCustomerCopyText("Serial number ABC1234 noted.").text==="Noted.",
+  redactCustomerCopyText("Serial number ABC1234 noted.").text);
+check("a line that was only the value is dropped",
+  redactCustomerCopyText("Serial: 6M-4471, Model: DR4500A").text==="",
+  JSON.stringify(redactCustomerCopyText("Serial: 6M-4471, Model: DR4500A").text));
 
 // --- unlabeled codes (the AI and technicians do not always label) -----------
 withholds("Replaced the Honeywell DR4500A chart recorder in panel 3.","DR4500A");
@@ -135,6 +115,41 @@ unchanged("MLSS 3200 mg/L and TSS 250 mg/L sampled in the aeration basin.");
 withholds("Chart recorder (DR4500AY-1000-0-0-0) verified.","DR4500AY-1000-0-0-0");
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","Honeywell");
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","chart recorder in panel 3.");
+
+// --- the gap closes, so the copy reads as a report and not as a redaction ----
+[["The DR4500A pen drive was binding at mid-span.","The pen drive was binding at mid-span."],
+ ["- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
+ ["Chart recorder (DR4500AY-1000-0-0-0) verified.","Chart recorder verified."],
+ ["Replaced chart paper, 24001660-001, on the recorder.","Replaced chart paper on the recorder."],
+ ["- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.","- Stock two spare pen assemblies, pen kit."],
+ ["Existing recorder is a Yokogawa uR1800 unit.","Existing recorder is a Yokogawa unit."],
+ // A determiner with nothing noun-like after it goes with the value.
+ ["- Replace the MRC 7000 within 12 months.","- Replace within 12 months."],
+ ["Pen arm P/N 51404671-501 was replaced.","Pen arm was replaced."],
+ // A value at the end of a clause can leave a preposition hanging too.
+ ["- Pen arm P/N 51404671-501 replaced on the DR4500A","- Pen arm replaced"],
+ ["- Backup unit is a Partlow MRC 7000 in panel LCP-3","- Backup unit is a Partlow in panel LCP-3"],
+ // Codes listed together close as one gap rather than as a row of holes.
+ ["Spares on hand: DR4500A, MRC7000 and 51404671-501.","Spares on hand."],
+ // A whole sentence going does not leave two periods behind (seen in the PDF's
+ // AI Observation block).
+ ["Recorder mounted in panel LCP-3. Model: Honeywell DR4500A, Serial: 6M-4471. Chart speed 1 in/hr.",
+  "Recorder mounted in panel LCP-3. Chart speed 1 in/hr."],
+ // Punctuation with nothing left in front of it goes with the value.
+ ["Parts: DR4500A. Also replaced chart paper.","Also replaced chart paper."],
+ ["Order code R11CA111AA3A; ship to Rogers, MN 55374.","Ship to Rogers, MN 55374."],
+ // A dash keeps its spacing.
+ ["Recorder — DR4500A — calibrated.","Recorder — calibrated."],
+ // A heading keeps its line even when the only thing on it was withheld.
+ ["## Model: DR4500A","##"]].forEach(function(pair){
+  var got=redactCustomerCopyText(pair[0]).text;
+  check("closes the gap in "+JSON.stringify(pair[0]),got===pair[1],"got: "+JSON.stringify(got));
+});
+// Every removal is named for the technician, who has no marker in the copy to
+// go by.
+var listed=redactCustomerCopyText("Recorder model: Honeywell DR4500A, serial 6M-4471. Quoted $412.00.");
+check("what went is listed",listed.removed.indexOf("model Honeywell DR4500A")>=0&&listed.removed.indexOf("$412.00")>=0,
+  JSON.stringify(listed.removed));
 
 // --- readings, units, and dates must survive --------------------------------
 unchanged("Loop calibrated 4-20 mA at 0-150 in H2O, 0.5% span, pH 7.01");
@@ -173,6 +188,9 @@ withholds("Part total $412.00 plus tax.","412.00");
 withholds("Quoted 18,750 for the replacement.","18,750");
 withholds("Labor cost 950 for the visit.","950");
 unchanged("Recorded 412 gallons and 950 GPM peak flow.");
+// A job reference is not a price, even on a line that talks about money.
+keeps("Quoted $1,200.00 for the swap; work order 44821 stays.","work order 44821");
+keeps("Labor cost 950 against PO 7781 for the visit.","PO 7781");
 
 // --- a whole report, the way the AI writes one -------------------------------
 var report=[
@@ -211,6 +229,12 @@ var out=redactCustomerCopyText(report);
   check("report keeps "+v,out.text.indexOf(v)>=0,"got:\n"+out.text);
 });
 check("report counts every withheld item",out.count>=9,"count: "+out.count);
+check("the report never says anything was withheld",!marksWithheld(out.text),"got:\n"+out.text);
+readsClean(out.text,"whole report");
+// The line whose only content was a serial number goes with it, so the copy has
+// no empty bullets.
+check("a bullet that was only a value is dropped",out.text.indexOf("- Backup recorder: Partlow")>=0,"got:\n"+out.text);
+check("headings and blank lines survive",out.text.indexOf("## FINDINGS")>=0&&/\n\n## RECOMMENDATIONS/.test(out.text),"got:\n"+out.text);
 
 // --- rendering guarantees ---------------------------------------------------
 check("customer copy label matches a typed name",isCustomerCopyLabel("Customer Walkthrough")&&!isCustomerCopyLabel("Internal Copy"));
@@ -222,12 +246,12 @@ check("photo fields are filtered",
 check("captured photo text is never mutated",
   photos[0].desc==="Recorder DR4500A"&&photos[0].aiDesc==="Serial: 6M-4471"&&photos[0].synthesis==="- Model: Partlow MRC 7000");
 check("empty text is safe",customerSafeText("")===""&&customerSafeText(null)==="");
-// The deal name is printed in the PDF header, where an empty label or a
-// placeholder would be the most visible sign of all, so the name simply closes up.
+// The code comes out of the deal name, which is also what keeps the name inside
+// the 36-character header cell.
 var dealName=customerSafeDealName("4641 — DR4500A chart recorder swap","");
 check("deal name withholds its code",dealName.indexOf("DR4500A")<0,dealName);
 check("deal name stays readable",dealName==="4641 — chart recorder swap",dealName);
-noMarker("the filtered deal name",dealName);
+check("deal name carries no placeholder",!marksWithheld(dealName),dealName);
 check("clean deal name is untouched",customerSafeDealName("Rogers WWTP annual calibration","")==="Rogers WWTP annual calibration");
 
 // --- the deal's job number is part of the deal name and always stays ---------
@@ -288,14 +312,18 @@ var sweepCodes=["MRC 7000","DR 4500","DPR 250","MRC7000","DR4500A","3051S","5140
 var sweepAfter=["in","at","on","a","x","m","s","h","c","f","k","l","g","mo","and","with","was","replaced","unit","recorder,","recorder.","(spare)","panel"];
 var sweepBefore=["a","the","one","spare","new","existing","Partlow","PARTLOW","model","with","to","and"];
 var sweepLeaks=[],sweepCount=0;
+function sweepFails(text,code){
+  var got=redactCustomerCopyText(text).text;
+  return got.indexOf(code)>=0||marksWithheld(got)?text+" -> "+got:"";
+}
 sweepCodes.forEach(function(code){
   sweepAfter.forEach(function(word){
     var t="Replaced the Partlow "+code+" "+word+" the influent panel.";sweepCount++;
-    if(redactCustomerCopyText(t).text.indexOf(code)>=0)sweepLeaks.push(t);
+    var bad=sweepFails(t,code);if(bad)sweepLeaks.push(bad);
   });
   sweepBefore.forEach(function(word){
     var t="Verified "+word+" "+code+" today.";sweepCount++;
-    if(redactCustomerCopyText(t).text.indexOf(code)>=0)sweepLeaks.push(t);
+    var bad=sweepFails(t,code);if(bad)sweepLeaks.push(bad);
   });
 });
 ["Part number","Part No.","P/N","PN","Serial","Serial number","S/N","Model","Model number","Model No.","Mdl","Order code",
@@ -303,7 +331,7 @@ sweepCodes.forEach(function(code){
   ["DR4500A","Honeywell DR4500A","Partlow MRC 7000","51404671-501","Honeywell 51404671-501","FMU90-R11CA111AA3A","6M-4471"].forEach(function(value){
     [": "," "].forEach(function(sep){
       var t="Recorder "+label+sep+value+" was verified onsite.";sweepCount++;
-      if(redactCustomerCopyText(t).text.indexOf(value.split(" ").pop())>=0)sweepLeaks.push(t);
+      var bad=sweepFails(t,value.split(" ").pop());if(bad)sweepLeaks.push(bad);
     });
   });
 });

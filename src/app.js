@@ -7402,7 +7402,7 @@ function checkGen(){
     var assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
     var copyName=reportCopyLabel();
     var rows=[
-      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are left out of this copy, with nothing marking the removal.":"")):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
+      [!!copyName,"Report copy name",copyName?(copyName+" — shown in the PDF header and used in the PDF, WorkDrive, and Zoho names."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are withheld from this copy.":"")):"Type a copy name for Other, or pick Customer Copy / Internal Copy."],
       [!!A.sel,"Deal selected",A.sel?dealHeaderText(A.sel):"Pick the correct Deal before generating if this report goes to Zoho."],
       [!!currentTechnicianName(),"Technician selected",currentTechnicianName()||"Select technician so the report identifies who performed the work."],
       [!!A.location,"GPS captured",A.location?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Tap Get Location if site/GPS should be included."],
@@ -7753,17 +7753,27 @@ function applyReportCopyFromRecord(r){
 // The report is generated once and any copy can be rendered from it later, so
 // the filtering happens at render time (PDF + share text), never by weakening
 // what was captured.
-// A customer copy must not hint that anything was left out: no placeholder, no
-// note, no empty label. Every pass below marks a removal with this character
-// instead of a marker, and closeCustomerCopyGaps() then closes the sentence over
-// it, so the copy reads like a report written without those numbers. The
-// character never survives into rendered text.
-var CUSTOMER_COPY_GAP="\u0000";
-// Words that show a removed value was the last thing its determiner named, so
-// the determiner goes with it.
-var CUSTOMER_COPY_GAP_TAIL_WORDS=("within in at on for with by to from of per and or").split(" ");
+var CUSTOMER_COPY_PDF_NOTE="Customer copy — equipment part, model, order, and serial numbers and pricing are not included.";
+// Withheld data leaves no words behind. A customer copy reads as a finished
+// report, not a redacted one, so nothing in it says "not shown on customer
+// copy" — the value, its label, and the punctuation that only held it in place
+// all go. Every pass marks its removal with CUSTOMER_COPY_GAP and
+// closeCustomerCopyGaps() closes the gap so the sentence still reads. The
+// technician still sees what went: the Report tab counts and lists it.
+// A control character is used so nothing a technician can type collides with it.
+var CUSTOMER_COPY_GAP="\u0001";
+// Words that can stand in front of a removed value and be left dangling by it:
+// "Replace the MRC 7000 within 12 months" must not become "Replace the within
+// 12 months". The article goes too when nothing noun-like follows the gap.
+var CUSTOMER_COPY_GAP_ARTICLE_RE=/(^|[\s(\[])(?:a|an|the|this|that|these|those|our|its|their)$/i;
+// When the value ended the clause it can also leave a preposition hanging:
+// "Pen arm P/N 51404671-501 replaced on the DR4500A" must not end "replaced on".
+// Stripped a word at a time, so "on the" goes together.
+var CUSTOMER_COPY_GAP_TRAILING_RE=/(^|[\s(\[])(?:a|an|the|this|that|these|those|our|its|their|in|on|at|to|for|from|with|within|of|by|per|into|onto|over|under|and|or|plus)$/i;
+var CUSTOMER_COPY_GAP_FUNCTION_WORDS=("in on at to for from with within of by per and or nor but as into onto over under after before during "+
+  "is are was were be been being has have had do does did will would can could should may might must not").split(" ");
 // Labeled equipment identifiers: the label goes with the value, because a bare
-// "Model:" says as much as a placeholder would. A model number counts as a part
+// "Serial:" reads worse than no mention at all. A model number counts as a part
 // number, and Endress+Hauser prints the same thing as an order number / order
 // code. The value is scanned by customerCopyIdValueEnd(), which needs a code in
 // it, so prose ("parts used", "part of the line") is left alone.
@@ -7774,6 +7784,9 @@ var CUSTOMER_COPY_WEAK_LABEL_RE=/^(?:types?|cat)$/i;
 var CUSTOMER_COPY_MONEY_RES=[/\$\s?\d[\d,]*(?:\.\d+)?/g,/\b\d[\d,]*(?:\.\d{2})?\s*(?:usd|cad|dollars?)\b/gi,/\b(?:usd|cad)\s*\$?\s?\d[\d,]*(?:\.\d+)?/gi];
 // Money written without a symbol only reads as money next to a pricing word.
 var CUSTOMER_COPY_PRICE_WORD_RE=/\b(price[sd]?|pricing|list\s+price|cost[s]?|costed|quote[sd]?|quotation|invoice[sd]?|subtotal|total\s+due|labor\s+cost)\b/i;
+// The number after a job reference is the customer's own reference, never a
+// price, even on a line that also talks about money.
+var CUSTOMER_COPY_JOB_LABEL_RE=/\b(?:(?:work|purchase|sales|change)\s+order|wo|po|so|job|ticket|tkt|ref|reference|quote\s+number)\s*(?:numbers?|nos?\.?|#)?\s*[:=#-]?\s*$/i;
 // Readings are the point of the report, so anything carrying an engineering
 // unit is never treated as a code: 24VDC, 4-20mA, 0-150inH2O, 3/4in, 100psig,
 // 3200mg/L.
@@ -7910,7 +7923,7 @@ function customerCopyIdValueEnd(s,i,weak){
   return codes?end:-1;
 }
 function redactCustomerCopyLabeledIds(s){
-  var out="",last=0,count=0,values=[],m;
+  var out="",last=0,count=0,values=[],removed=[],m;
   CUSTOMER_COPY_ID_RE.lastIndex=0;
   while((m=CUSTOMER_COPY_ID_RE.exec(s))){
     // A work/purchase/sales order number is a job reference, not equipment
@@ -7920,16 +7933,20 @@ function redactCustomerCopyLabeledIds(s){
     var start=m.index+m[0].length;
     var end=customerCopyIdValueEnd(s,start,CUSTOMER_COPY_WEAK_LABEL_RE.test(label));
     if(end<0)continue;
-    // What was removed under a label is equipment data on the record, which is
+    // What was withheld under a label is equipment data on the record, which is
     // how an ambiguous code in the deal name can be told from a job number.
     (s.slice(start,end).match(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g)||[]).forEach(function(tok){
       if(values.indexOf(tok)<0)values.push(tok);
     });
+    // The label is part of what goes, so the copy never carries a "Serial:" with
+    // nothing after it. It is still listed for the technician, label and all.
+    var shown=(label+word+" "+s.slice(start,end)).replace(/\s+/g," ").trim();
+    if(removed.indexOf(shown)<0)removed.push(shown);
     out+=s.slice(last,m.index)+CUSTOMER_COPY_GAP;
     last=end;count++;
     CUSTOMER_COPY_ID_RE.lastIndex=end;
   }
-  return{text:out+s.slice(last),count:count,values:values};
+  return{text:out+s.slice(last),count:count,values:values,removed:removed};
 }
 // The shape of a job number: the deal number this shop puts in a deal name
 // ("4641 chart recorder calibration", "CAC-4641", "P4641", "4641-2"). A job
@@ -8016,90 +8033,103 @@ function redactCustomerCopyBareCodes(s,opts){
   }).join("\n");
   return{text:text,count:count,codes:codes};
 }
-// Once the values are out, the text has to read as if they were never there.
-// The sentence closes over the hole: values removed side by side leave one hole,
-// brackets that held nothing else go with it, an emptied list item takes its
-// separator along, a sentence that lost its opening keeps its capital, and a line
-// with nothing left to say is dropped instead of printed empty.
-function closeCustomerCopyGaps(s){
-  var G=CUSTOMER_COPY_GAP;
-  s=String(s);
-  if(s.indexOf(G)<0)return s;
-  var dropped=false;
-  var out=s.split("\n").map(function(line){
-    if(line.indexOf(G)<0)return line;
-    var t=line.replace(new RegExp(G+"(?:[ \\t]*(?:[,;\\/&+]|-|–|—|and|or|plus|with)?[ \\t]*"+G+")+","g"),G);
-    t=t.replace(new RegExp("[ \\t]*[\\(\\[\\{][ \\t]*"+G+"[ \\t]*[\\)\\]\\}]","g"),"");
-    // A determiner in front of a hole reads as a typo when nothing is left for it
-    // to name: "Replace the MRC 7000 within 12 months" becomes "Replace within 12
-    // months", while "is a DR-4500 unit" keeps the "a" for the noun after it.
-    t=t.replace(new RegExp("\\b(?:the|a|an|its|our)[ \\t]+"+G+"(?=[ \\t]*(?:"+CUSTOMER_COPY_GAP_TAIL_WORDS.join("|")+")\\b|[ \\t]*[,.;:!?)\\]]|[ \\t]*$)","gi"),G);
-    // A word that only reads lowercase because it now opens the sentence gets
-    // the capital the removed value took with it. Written-lowercase terms (pH,
-    // mA) are left alone — the check needs an all-lowercase word.
-    t=t.replace(new RegExp("(^[-*][ \\t]*|^|[.!?][ \\t]+)"+G+"[ \\t]*([a-z]+)\\b","g"),function(m,pre,word){
-      return pre+word.charAt(0).toUpperCase()+word.slice(1);
-    });
-    t=t.split(G).join(" ");
-    t=t.replace(/[ \t]{2,}/g," ");
-    t=t.replace(/[ \t]+([,;:.!?])/g,"$1");
-    t=t.replace(/,(?:[ \t]*,)+/g,",");
-    t=t.replace(/,[ \t]*([.;:!?])/g,"$1");
-    t=t.replace(/\([ \t]*\)|\[[ \t]*\]|\{[ \t]*\}/g,"");
-    t=t.replace(/^([-*][ \t]*)[,;:][ \t]*/,"$1").replace(/^[,;:][ \t]*/,"");
-    t=t.replace(/[ \t]{2,}/g," ").replace(/[ \t]*[,;:][ \t]*$/,"").replace(/[ \t]+$/,"");
-    if(!/[A-Za-z0-9]/.test(t)){dropped=true;return null;}
-    return t;
-  }).filter(function(line){return line!==null;});
-  if(!dropped)return out.join("\n");
-  // A dropped line must not leave a hole of its own: no section heading standing
-  // over nothing, and no blank space where its content used to be.
-  var headed=out.filter(function(line,i){
-    if(!/^#{1,3}\s/.test(String(line)))return true;
-    for(var j=i+1;j<out.length;j++){
-      var next=String(out[j]);
-      if(/^#{1,3}\s/.test(next))return false;
-      if(next.trim())return true;
-    }
-    return false;
-  });
-  var kept=[];
-  headed.forEach(function(line){
-    if(!String(line).trim()){
-      if(!kept.length)return;
-      if(!String(kept[kept.length-1]).trim())return;
-    }
-    kept.push(line);
-  });
-  while(kept.length&&!String(kept[kept.length-1]).trim())kept.pop();
-  return kept.join("\n");
-}
 function redactCustomerCopyText(text,opts){
-  var s=String(text||"").split(CUSTOMER_COPY_GAP).join("");
-  if(!s)return{text:"",count:0,codes:[]};
+  var s=String(text||"");
+  if(!s)return{text:"",count:0,codes:[],removed:[]};
   opts=opts||{};
   if(!opts.keep)opts={keep:customerCopyKeepTokens(),known:opts.known,jobNumbersStay:opts.jobNumbersStay};
-  var count=0;
+  var count=0,removed=[];
+  function note(v){v=String(v||"").trim();if(v&&removed.indexOf(v)<0)removed.push(v);}
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
-    s=s.replace(re,function(){count++;return CUSTOMER_COPY_GAP;});
+    s=s.replace(re,function(m){count++;note(m);return CUSTOMER_COPY_GAP;});
   });
   var labeled=redactCustomerCopyLabeledIds(s);s=labeled.text;count+=labeled.count;
+  labeled.removed.forEach(note);
   var bare=redactCustomerCopyBareCodes(s,opts);s=bare.text;count+=bare.count;
+  bare.codes.forEach(note);
   // Money written without a symbol reads as money next to a pricing word, but a
   // reading, a duration, or a count on that same line is still not a price.
   s=s.split("\n").map(function(line){
     if(!CUSTOMER_COPY_PRICE_WORD_RE.test(line))return line;
-    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail){
+    return line.replace(/\b\d[\d,]*(?:\.\d+)?\b(\s*%|\s*[A-Za-z][A-Za-z0-9\/]*)?/g,function(m,tail,offset){
       var next=String(tail||"").trim().toLowerCase();
       if(next==="%"||customerCopyFollowingWordIsUnit(next)||CUSTOMER_COPY_COUNT_WORDS.indexOf(next)>=0)return m;
+      // A job reference on a pricing line is still a job reference: "quoted
+      // 1,850 against work order 44821" keeps the work order number.
+      if(CUSTOMER_COPY_JOB_LABEL_RE.test(line.slice(0,offset)))return m;
       count++;
+      note(m.slice(0,m.length-(tail||"").length));
       return CUSTOMER_COPY_GAP+(tail||"");
     });
   }).join("\n");
-  return{text:closeCustomerCopyGaps(s),count:count,codes:bare.codes};
+  return{text:closeCustomerCopyGaps(s),count:count,codes:bare.codes,removed:removed};
+}
+// Closes the gap each removal left, one line at a time, so the copy reads as
+// prose rather than as a redacted document: "Chart recorder, Honeywell DR4500A,
+// Serial: 6M-4471, panel LCP-3" becomes "Chart recorder, Honeywell, panel
+// LCP-3". Values listed together close as one gap, brackets and quotes that only
+// held a value go with it, a separator that only attached the value goes when
+// nothing follows the gap, a sentence that lost its opening keeps its capital,
+// and a line that was nothing but the withheld value is dropped rather than
+// left as an empty bullet.
+function closeCustomerCopyGaps(text){
+  var s=String(text||"");
+  var G=CUSTOMER_COPY_GAP;
+  if(s.indexOf(G)<0)return s;
+  var runRe=new RegExp(G+"(?:[ \\t]*(?:,|;|\\/|&|\\+|and|or)?[ \\t]*"+G+")+","g");
+  var wrapRe=new RegExp("[ \\t]*[\\(\\[\"'][ \\t]*"+G+"[ \\t.,;:]*[\\)\\]\"']","g");
+  return s.split("\n").map(function(line){
+    if(line.indexOf(G)<0)return line;
+    var indent=(/^[ \t]*/.exec(line)||[""])[0];
+    var body=line.slice(indent.length),prev=null,i;
+    while(prev!==body){prev=body;body=body.replace(runRe,G);}
+    body=body.replace(wrapRe,"");
+    while((i=body.indexOf(G))>=0){
+      var left=body.slice(0,i).replace(/[ \t]+$/,"");
+      var right=body.slice(i+G.length).replace(/^[ \t]+/,"");
+      var next=(/^[A-Za-z][A-Za-z0-9'\-]*/.exec(right)||[""])[0];
+      // Does anything follow the gap in this clause, or did the value end it?
+      var closes=!right||/^[,;:.!?)\]}\-–—]/.test(right);
+      // A determiner in front of the gap needs something noun-like after it, so
+      // "Replace the MRC 7000 within 12 months" loses the "the" as well.
+      if(closes||!next||CUSTOMER_COPY_GAP_FUNCTION_WORDS.indexOf(next.toLowerCase())>=0)
+        left=left.replace(CUSTOMER_COPY_GAP_ARTICLE_RE,"$1").replace(/[ \t]+$/,"");
+      var spaced=!closes;
+      if(closes){
+        // A value set off by commas takes both of them with it: "Replaced chart
+        // paper, 24001660-001, on the recorder" reads "Replaced chart paper on
+        // the recorder".
+        var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right);
+        for(var w=0;w<3;w++){
+          var trimmed=left.replace(CUSTOMER_COPY_GAP_TRAILING_RE,"$1").replace(/[ \t]+$/,"");
+          if(trimmed===left)break;
+          left=trimmed;
+        }
+        left=left.replace(/[ \t]*[,;:\-–—]+$/,"").replace(/[ \t]+$/,"");
+        if(paired){right=right.slice(1).replace(/^[ \t]+/,"");spaced=true;}
+        // A whole sentence can be what goes: "…in panel LCP-3. Model: DR4500A.
+        // Chart speed…" must not come back with two periods.
+        else if(/[.!?]$/.test(left)&&/^[.!?]/.test(right)){right=right.slice(1).replace(/^[ \t]+/,"");spaced=true;}
+        // Nothing is left for the punctuation to sit against: "Parts: DR4500A.
+        // Also replaced chart paper." starts at "Also".
+        if(!/[A-Za-z0-9]/.test(left)){right=right.replace(/^[.,;:!?]+[ \t]*/,"");spaced=true;}
+        // A dash keeps its space: "Recorder — DR4500A — calibrated." reads
+        // "Recorder — calibrated."
+        else if(/^[\-–—]/.test(right))spaced=true;
+      }
+      if(right&&/^[a-z]/.test(right)&&(/[.!?]$/.test(left)||!/[A-Za-z0-9]/.test(left)))
+        right=right.charAt(0).toUpperCase()+right.slice(1);
+      body=left+(spaced&&left&&right?" ":"")+right;
+    }
+    body=body.replace(/[ \t]{2,}/g," ").replace(/([(\[])[ \t]+/g,"$1").replace(/[ \t]+([),;:.!?\]])/g,"$1").replace(/[ \t]+$/,"");
+    // A heading keeps its own line even when its only content was withheld; a
+    // body line that is down to a bullet or a dash goes with the value.
+    if(!/[A-Za-z0-9]/.test(body))return /^#/.test(body)?indent+body:null;
+    return indent+body;
+  }).filter(function(line){return line!==null;}).join("\n");
 }
 // What the report body and photo notes are allowed to keep: whatever survives in
-// the deal name. Anything the header removed is removed everywhere, so the two
+// the deal name. Anything the header withheld is withheld everywhere, so the two
 // can never disagree about the same number.
 function customerCopyKeepTokens(dealName,reportText){
   var name=dealName===undefined?((typeof A!=="undefined"&&A&&A.sel)?String(A.sel.Deal_Name||""):""):String(dealName||"");
@@ -8109,14 +8139,18 @@ function customerCopyKeepTokens(dealName,reportText){
 }
 function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{keep:keep}:null).text;}
 // A deal is often named after the equipment ("4641 — DR4500A recorder swap"), so
-// the name is filtered wherever a customer copy prints it. The job number in it
-// is the customer's own reference — it is how they and we both name the visit —
-// so every job-number shape stays, and a code of that shape is only removed when
-// the report itself removed the same one.
+// the name is filtered wherever a customer copy prints it. Two things make the
+// deal name different from report text. The job number in it is the customer's
+// own reference — it is how they and we both name the visit — so every
+// job-number shape stays, and a code of that shape is only withheld when the
+// report itself withheld the same one. The code simply comes out of the name
+// ("CAC-4641 DR4500A chart recorder calibration" prints as "CAC-4641 chart
+// recorder calibration"), which is also what keeps the name inside the header
+// cell.
 function customerSafeDealName(name,reportText){
   var report=reportText===undefined?((typeof A!=="undefined"&&A)?A.report:""):reportText;
   // A code in the deal name that shares the job-number shape (DR-4500) is only
-  // removed when the report carried the same one under an identifier label
+  // withheld when the report carried the same one under an identifier label
   // ("Model: DR-4500"), which is what the generation prompts ask for. Every
   // unlabeled mention is left out of this on purpose: the report says "job
   // CAC-4641" too, and that is the number the customer uses for the visit.
@@ -8137,26 +8171,40 @@ function customerSafePhotos(photos,keep){
     return c;
   });
 }
-function customerCopyRedactionCount(){
-  var n=redactCustomerCopyText(A.report).count;
-  (A.reportPhotos||[]).forEach(function(p){
-    n+=redactCustomerCopyText(p&&p.desc).count+redactCustomerCopyText(p&&p.aiDesc).count+redactCustomerCopyText(p&&p.synthesis).count;
-  });
+// What this copy takes out, counted and named. The customer copy itself says
+// nothing about it, so this is the only place the technician can check what went
+// — it is shown on the Report tab beside the copy it describes.
+function customerCopyWithheldSummary(){
+  var n=0,items=[];
+  function add(text){
+    var r=redactCustomerCopyText(text);
+    n+=r.count;
+    (r.removed||[]).forEach(function(v){if(items.indexOf(v)<0)items.push(v);});
+  }
+  add(A.report);
+  (A.reportPhotos||[]).forEach(function(p){add(p&&p.desc);add(p&&p.aiDesc);add(p&&p.synthesis);});
   // The deal name is printed in the report header, so a model number sitting in
-  // it is removed and counted like any other — counted the way the header
+  // it is withheld and counted like any other — counted the way the header
   // renders it, which keeps the job number.
   if(A.sel&&A.sel.Deal_Name&&customerSafeDealName(A.sel.Deal_Name)!==String(A.sel.Deal_Name))n++;
-  return n;
+  return{count:n,items:items};
 }
+function customerCopyRedactionCount(){return customerCopyWithheldSummary().count;}
 function renderCustomerCopyNotice(){
   var box=el("report-customer-notice");if(!box)return;
   if(!reportCopyIsCustomer()){box.style.display="none";box.innerHTML="";return;}
-  var n=A.report?customerCopyRedactionCount():0;
+  var summary=A.report?customerCopyWithheldSummary():{count:0,items:[]};
+  var n=summary.count;
+  // The copy itself carries no note where a value was taken out, so the list of
+  // what went is shown here instead of in the report.
+  var shownItems=summary.items.slice(0,12);
+  var itemList=shownItems.length?("<div style='margin-top:6px'>Taken out of this copy: <strong>"+shownItems.map(esc).join("</strong>, <strong>")+"</strong>"+
+    (summary.items.length>shownItems.length?" and "+(summary.items.length-shownItems.length)+" more":"")+".</div>"):"";
   box.style.display="block";
-  box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — What This Copy Leaves Out</div>"+
-    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. A code goes whether or not it was labeled, while readings, units, dates, plant loop tags, and job numbers stay — including this deal's own number in the deal name. Nothing in the copy marks a removal: the sentence closes up, so the customer sees no placeholder and no note. "+
-    (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be left out of this copy."):"Nothing in this report matched, so nothing is left out.")+
-    " Switch to Internal Copy (or Other) for the full detail.</div>";
+  box.innerHTML="<div class='stitle' style='margin-bottom:6px'>Customer Copy — Withheld Details</div>"+
+    "<div>Equipment part, model, order, and serial numbers (including Endress+Hauser order codes) and pricing are removed from the PDF and the shared text — report body, deal name, your photo descriptions, AI Observations, and AI Synthesis. They are removed without a trace: the copy carries no placeholder where a value was, so it reads as a finished report. A code is withheld whether or not it was labeled, while readings, units, dates, plant loop tags, and job numbers stay — including this deal's own number in the deal name. "+
+    (n?("<strong>"+n+" item"+(n!==1?"s":"")+"</strong> will be withheld in this copy."):"Nothing in this report matched, so nothing is withheld.")+
+    " Switch to Internal Copy (or Other) for the full detail.</div>"+itemList;
 }
 // Photos whose image bytes are no longer on this device: the report still knows
 // they existed (labels, descriptions, AI text), so say what is missing and why
@@ -8234,7 +8282,7 @@ async function generate(){
     var transcriptVal=getVideoTranscriptValue().trim();
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy withholds the number either way, and the label is what shows the customer that something was withheld rather than leaving a gap in the sentence. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced
@@ -8303,7 +8351,7 @@ function renderReportSaveChecklist(){
   var hasDeal=!!A.sel,hasTech=!!currentTechnicianName(),hasGps=!!A.location,photoCount=A.reportPhotos&&A.reportPhotos.length||0,assetCount=A.asset&&ast().savedItems?ast().savedItems.length:0;
   var copyName=reportCopyLabel();
   box.innerHTML="<div class='stitle' style='margin-bottom:8px'>Before Saving Report to Zoho</div>"+
-    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are left out of this copy, with nothing marking the removal.":"")):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
+    reportChecklistItem(!!copyName,"Report copy name",copyName?(copyName+" — used for the PDF, WorkDrive file, Deal attachment, and note title."+(reportCopyIsCustomer()?" Part, model, order, and serial numbers and pricing are withheld from this copy.":"")):"Name this copy (Customer Copy, Internal Copy, or your own) before saving.")+
     reportChecklistItem(hasDeal,"Deal selected",hasDeal?dealHeaderText(A.sel):"Pick the correct Deal before saving.")+
     reportChecklistItem(hasTech,"Technician selected",hasTech?technicianDisplayName():"Select technician in Settings or the startup prompt.")+
     reportChecklistItem(hasGps,"GPS captured",hasGps?(A.location.address||A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6)):"Capture GPS if location should appear in the report.")+
@@ -8421,6 +8469,7 @@ function buildReportExportText(){
   var customerSafe=reportCopyIsCustomer();
   var lines=["CapStone FIELD SERVICE REPORT","=============================="];
   if(reportCopyLabel())lines.push("Report Copy: "+reportCopyLabel());
+  if(customerSafe)lines.push(CUSTOMER_COPY_PDF_NOTE);
   lines.push("Technician: "+technicianDisplayName());
   lines.push("Report Date: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}));
   if(A.sel){
@@ -10041,9 +10090,9 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
     doc.setFillColor(230,250,246);doc.setDrawColor(0,192,160);doc.roundedRect(ML,y,CW,9,2,2,"FD");
     doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(0,120,105);
     doc.text("REPORT COPY: "+copyName.toUpperCase().substring(0,60),ML+4,y+6);
-    // No note about what a customer copy leaves out: the copy must not say
-    // anything was removed.
-    y+=13;
+    y+=12;
+    if(customerSafe){doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text(CUSTOMER_COPY_PDF_NOTE,ML+1,y+2);y+=6;}
+    else y+=1;
   }
   if(location){var ha=!!location.address,bh=ha?22:14;doc.setFillColor(245,247,252);doc.setDrawColor(210,215,228);doc.roundedRect(ML,y,CW,bh,2,2,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text("SITE LOCATION",ML+3,y+5.5);if(ha){doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(15,23,42);doc.splitTextToSize(location.address,CW-52).slice(0,2).forEach(function(l,i){doc.text(l,ML+3,y+11+i*4.5);});}doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.setTextColor(0,150,130);doc.text(location.lat.toFixed(6)+",",pw-MR-2,y+9,{align:"right"});doc.text(location.lng.toFixed(6),pw-MR-2,y+14,{align:"right"});y+=bh+5;}
   // Deal header intentionally carries no dollar amount — reports go to customers.
