@@ -3693,9 +3693,9 @@ function renderAssetSubformSection(sec){
       }
       html+="</td>";
     });
-    html+="<td><button type='button' class='bg bsm' onclick='removeAssetSubformRow("+ri+")'>Remove</button></td></tr>";
+    html+="<td><button type='button' class='bw bsm' onclick='removeAssetSubformRow("+ri+")'>Remove</button></td></tr>";
   });
-  html+="</tbody></table></div><button type='button' class='bg bsm' onclick='addAssetSubformRow()' style='margin-bottom:8px'>+ Add row</button></div>";
+  html+="</tbody></table></div><button type='button' class='bw bsm' onclick='addAssetSubformRow()' style='margin-bottom:8px'>+ Add row</button></div>";
   return html;
 }
 function syncSubformRowsFromDom(){
@@ -4451,7 +4451,7 @@ function renderAssetSearchResults(){
     var title=esc(r[idField]||r.CAC_Asset_ID||r.Name||"Asset");
     var acct=esc(assetLookupName(r.Account)||"");
     var meta=[acct?"Account: "+acct:"",r.Asset_Brand,r.Asset_Type,r.Asset_Series,r.Name,r.Asset_Model_Number,r.Serial_Number,r.Customer_Asset_Number,r.Building,r.Additional_Designator].filter(Boolean).map(esc).join(" — ");
-    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bg bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
+    return "<div style='border-top:1px solid #b2ddd6;padding:8px 0'><div style='font-family:Barlow Condensed,sans-serif;font-weight:700;color:#2d6b60'>"+title+"</div><div style='font-size:12px;color:var(--dim);line-height:1.5'>"+(meta||"No additional details")+"</div><button type='button' class='bw bsm' onclick='loadExistingAssetFromSearch("+i+")' style='margin-top:6px'>Load Existing Asset</button></div>";
   }).join("");
 }
 async function searchExistingAssets(){
@@ -4881,7 +4881,7 @@ function renderAssetPicklistRequestPanel(){
     var key=picklistRequestKey(m.fieldApi,m.proposedValue);
     var sent=isPicklistRequestSent(key);
     var near=m.nearMatch&&m.nearMatch.toLowerCase()!==m.proposedValue.toLowerCase()?("<div style='margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center'><span style='font-size:11px;color:#92400e'>Similar in Zoho:</span><button type='button' class='bb bsm' data-picklist-use='1' data-field-api='"+esc(m.fieldApi)+"' data-near-value='"+esc(m.nearMatch)+"'>Use "+esc(m.nearMatch)+"</button></div>"):"";
-    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bg bsm' data-picklist-request='1' data-field-api='"+esc(m.fieldApi)+"'>Request addition</button>";
+    var action=sent?"<span class='asset-picklist-request-sent'>Request sent</span>":"<button type='button' class='bw bsm' data-picklist-request='1' data-field-api='"+esc(m.fieldApi)+"'>Request addition</button>";
     return"<div class='asset-picklist-request-row'><div><strong>"+esc(m.fieldLabel)+"</strong> isn&rsquo;t in Zoho yet: <strong>"+esc(m.proposedValue)+"</strong>"+near+"<div style='font-size:11px;color:var(--dim);margin-top:4px'>Tap Use if the Zoho value matches, or Request addition for a new picklist value.</div></div><div style='flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:flex-end'>"+action+"</div></div>";
   }).join("");
   panel.innerHTML="<div class='stitle'>Picklist requests</div><div style='font-size:11px;color:var(--dim);margin-bottom:6px'>Email Brad to add new Brand or Type values found by AI or entered as Other.</div>"+rows;
@@ -9652,7 +9652,7 @@ async function dlPDF(){
     if(A.inclPhotos&&pdfPhotos.length>0){await Promise.all(pdfPhotos.map(function(p){return new Promise(function(res){var img=new Image();img.onload=function(){p._rw=img.naturalWidth;p._rh=img.naturalHeight;res();};img.onerror=res;img.src=p.display;});}));}
     var doc=buildPDF(A.report,A.sel,A.inclPhotos?pdfPhotos:[],A.location,currentTechnicianName(),reportCopyLabel());
     doc.save(reportPdfFileName(A.sel?A.sel.Account_Name:"",new Date(),reportCopyLabel()));
-    if(btn){btn.textContent="PDF Saved!";btn.className="bs-lg";setTimeout(function(){btn.textContent="Download PDF";btn.className="bg-lg";btn.disabled=false;},3000);}
+    if(btn){btn.textContent="PDF Saved!";btn.className="bs-lg";setTimeout(function(){btn.textContent="Download PDF";btn.className="bw-lg";btn.disabled=false;},3000);}
   }catch(e){if(btn){btn.disabled=false;btn.textContent="Download PDF";}}
 }
 
