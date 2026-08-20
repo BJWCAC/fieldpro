@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="394";
+var FP_VERSION="395";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7821,9 +7821,11 @@ var CUSTOMER_COPY_GAP_FUNCTION_WORDS=("in on at to for from with within of by pe
 // Labeled equipment identifiers: the label goes with the value, because a bare
 // "Serial:" reads worse than no mention at all. A model number counts as a part
 // number, and Endress+Hauser prints the same thing as an order number / order
-// code. The value is scanned by customerCopyIdValueEnd(), which needs a code in
-// it, so prose ("parts used", "part of the line") is left alone.
-var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|m\s*\/\s*n|mpn|models?|mdl|orders?|ordering|catalogs?|cat|items?|skus?|assembly|asm|products?|types?)\b(\s*(?:numbers?|nos?\.?|#|codes?|ids?))?\s*[:=#-]?[ \t]*/gi;
+// code. Replacement and spare name the same thing when the AI writes the parts
+// section without "Part number:". The value is scanned by customerCopyIdValueEnd(),
+// which needs a code in it, so prose ("parts used", "part of the line") is left
+// alone.
+var CUSTOMER_COPY_ID_RE=/\b(?:(work|purchase|sales|change)\s+)?(serials?|s\s*\/\s*n|sn|parts?|p\s*\/\s*n|pn|m\s*\/\s*n|mpn|models?|mdl|orders?|ordering|catalogs?|cat|items?|skus?|assembly|asm|products?|types?|replacements?|spares?)\b(\s*(?:numbers?|nos?\.?|#|codes?|ids?))?\s*[:=#-]?[ \t]*/gi;
 // "Type" and "Cat" only read as equipment identifiers when the value looks like
 // a real code, so "NEMA Type 4X" and "Cat 5e cable" keep their values.
 var CUSTOMER_COPY_WEAK_LABEL_RE=/^(?:types?|cat)$/i;
@@ -7909,7 +7911,8 @@ var CUSTOMER_COPY_KEEP_PAIR_PREFIXES=("wo po so inv ref job tkt tag loop bldg rm
 // "Masoneilan 21000 valve" is a model.
 var CUSTOMER_COPY_EQUIPMENT_NOUNS=("recorder transmitter transducer sensor probe meter flowmeter magmeter analyzer analyser monitor detector "+
   "controller gauge gage valve actuator positioner regulator integrator indicator totalizer switch relay module instrument pump "+
-  "turbidimeter spectrophotometer colorimeter chlorinator sampler thermocouple rtd element head converter scale unit").split(" ");
+  "turbidimeter spectrophotometer colorimeter chlorinator sampler thermocouple rtd element head converter scale unit "+
+  "assembly kit cell cartridge gasket liner electrode diaphragm register lamp").split(" ");
 // Words that make the number beside them a reference rather than a model: a
 // place in the plant, a document or date reference, or a piece of the shop's own
 // test equipment, whose model is the calibration's traceability record and not
@@ -8138,19 +8141,29 @@ function customerCopyNumberIsMeasured(line,words,i){
   if(line.charAt(w.start-1)===","&&/\d$/.test(line.slice(0,w.start-1)))return true;
   if(/^,\d{3}\b/.test(line.slice(w.end)))return true;
   if(!next)return false;
-  // Every unit counts here, including the ones that double as ordinary words:
-  // a plain number followed by "F" or "in" is a reading far more often than it
-  // is a model number.
+  // A 6+ digit number followed by "in" is the preposition ("066800, in the
+  // detector"), not inches. Short numbers still treat every unit as a unit,
+  // including the ones that double as ordinary words: "Ambient 72 F" and
+  // "0.010 in" are readings.
+  if(/^\d{6,}$/.test(w.word))
+    return customerCopyFollowingWordIsUnit(next.word)||customerCopyIsUnitReading(next.word);
   return CUSTOMER_COPY_UNITS.indexOf(next.word.toLowerCase())>=0||customerCopyIsUnitReading(next.word);
 }
 // Is this number the customer's own reference? The word in front of it says so:
 // a plant or panel name, a job label, an ISA loop prefix, a place, or a date.
 function customerCopyNumberIsReference(line,words,i){
   if(CUSTOMER_COPY_JOB_LABEL_RE.test(line.slice(0,words[i].start)))return true;
+  // A 6+ digit number is a part or serial number, not a plant reference — "cell 2"
+  // is a place, "cell 066800" is a replacement cell.
+  if(/^\d{6,}$/.test(words[i].word))return false;
   var prev=i>0?words[i-1].word.toLowerCase():"";
   if(!prev)return false;
   return CUSTOMER_COPY_KEEP_PREFIXES.indexOf(prev)>=0||CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(prev)>=0||
     CUSTOMER_COPY_ISA_PREFIXES.indexOf(prev)>=0||CUSTOMER_COPY_MODEL_KEEP_WORDS.indexOf(prev)>=0;
+}
+function customerCopyNumberIsReadingVerb(words,i){
+  var prev=i>0?words[i-1].word.toLowerCase():"";
+  return /^(?:read|reads|reading|logged|measured|sampled)$/.test(prev);
 }
 function customerCopyIsEquipmentNoun(word){
   return CUSTOMER_COPY_EQUIPMENT_NOUNS.indexOf(String(word||"").toLowerCase())>=0;
@@ -8199,22 +8212,45 @@ function customerCopyEquipmentNounBeside(line,words,i){
 // transmitter" says nothing about a brand — and a verb, which is what that word
 // usually is. An abbreviated brand (ABB, GF, YSI) is written in capitals, so it
 // still reads as one at the start of a sentence.
-function customerCopyBrandWordBefore(line,words,i){
-  var prev=i>0?words[i-1].word:"";
-  if(!prev||!/^[A-Z][A-Za-z&+.']*$/.test(prev))return false;
-  if(/(?:ed|ing)$/i.test(prev))return false;
-  if(!/^[A-Z]{2,4}$/.test(prev)&&!/[A-Za-z0-9][^.!?]*$/.test(line.slice(0,words[i-1].start)))return false;
-  if(customerCopyIsEquipmentNoun(prev))return false;
-  if(/^(?:a|an|the|this|that|these|those|its|their|our|new|spare|existing|both|read|found|set|left|saw|ran|took|put|made|is|was|are|were|has|had)$/i.test(prev))return false;
-  var lead=prev.toLowerCase();
+function customerCopyIsBrandToken(word,line,start,opts){
+  word=String(word||"");
+  opts=opts||{};
+  if(!word||!/^[A-Z][A-Za-z&+.']*$/.test(word))return false;
+  if(/(?:ed|ing)$/i.test(word))return false;
+  // A series+letter+number ("Promag P 300") is allowed to open the sentence;
+  // a lone capitalized word there is usually a verb ("Recorded FIT101").
+  if(!opts.allowLead&&!/^[A-Z]{2,4}$/.test(word)&&!/[A-Za-z0-9][^.!?]*$/.test(String(line||"").slice(0,start)))return false;
+  if(customerCopyIsEquipmentNoun(word))return false;
+  if(/^(?:a|an|the|this|that|these|those|its|their|our|new|spare|existing|both|read|found|set|left|saw|ran|took|put|made|is|was|are|were|has|had)$/i.test(word))return false;
+  var lead=word.toLowerCase();
   return CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead)<0&&CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(lead)<0&&
     CUSTOMER_COPY_MODEL_KEEP_WORDS.indexOf(lead)<0;
 }
+function customerCopyBrandWordBefore(line,words,i){
+  if(i>0&&customerCopyIsBrandToken(words[i-1].word,line,words[i-1].start))return true;
+  return customerCopySeriesLetterBefore(line,words,i);
+}
+function customerCopySeriesLetterBefore(line,words,i){
+  return i>1&&/^[A-Z]$/.test(words[i-1].word)&&customerCopyIsBrandToken(words[i-2].word,line,words[i-2].start,{allowLead:true});
+}
+// "replacement 307575", "spare 24001660", "pen arm 90" — the word in front of a
+// short number is what says it is a part rather than a count. Only words behind
+// the number count, so "Ordered 12 pen assemblies" keeps the 12.
+var CUSTOMER_COPY_PART_CONTEXT_WORDS=("replacement replacements spare spares kit assembly cell cartridge gasket liner "+
+  "electrode diaphragm register lamp arm tip pen fiber").split(" ");
+function customerCopyPartContextBefore(words,i){
+  for(var j=Math.max(0,i-2);j<i;j++){
+    if(CUSTOMER_COPY_PART_CONTEXT_WORDS.indexOf(words[j].word.toLowerCase())>=0)return true;
+  }
+  return false;
+}
 // A model number written as a plain number, which no shape can tell from a
-// reading on its own, and a model number wearing the shape of a plant tag
-// ("Hach SC200"). The equipment noun beside it is what identifies either one,
-// and everything a number can otherwise be — a reading, a plant or panel
-// reference, a job number, a date, a price — is checked first.
+// reading on its own; a 6+ digit part or serial written without a hyphen
+// ("replacement 307575", "Honeywell 51404671"); a model variant ("Fisher 667-4");
+// and a model number wearing the shape of a plant tag ("Hach SC200"). The
+// equipment noun beside a short number is what identifies it, a long number
+// does not need one, and everything a number can otherwise be — a reading, a
+// plant or panel reference, a job number, a date, a price — is checked first.
 // opts.seen lists numbers this copy has already withheld elsewhere: a number
 // withheld once is withheld everywhere, so a later mention with nothing beside
 // it to identify it ("re-ranged the Rosemount 3051 to 0-150 in H2O") goes too.
@@ -8228,19 +8264,28 @@ function redactCustomerCopyModelNumbers(line,opts){
     if(repeatsOnly){if(!repeat)continue;}
     else{
       var plain=/^\d{2,5}$/.test(w.word)&&(repeat||!/^(?:19|20)\d\d$/.test(w.word));
+      // A long all-digit number with no unit is a part or serial number. Readings
+      // of this length always carry a unit (1284567 gallons) or a thousands group.
+      var long=/^\d{6,}$/.test(w.word);
+      // A model variant written with a short suffix ("Fisher 667-4"). Dates and
+      // ranges with a unit (4-20 mA, 1200-1500 GPM) are filtered out below.
+      var variant=/^\d{2,5}[-./]\d{1,4}$/.test(w.word);
       // A tag-shaped code is only a model when a brand wrote it and the
       // equipment stands beside it; on its own it is the plant's own tag and it
       // stays.
-      var tag=!plain&&customerCopyIsPlantLoopTag(w.word)&&w.word.indexOf("-")<0&&customerCopyBrandWordBefore(line,words,i);
-      if(!plain&&!tag)continue;
+      var tag=!plain&&!long&&!variant&&customerCopyIsPlantLoopTag(w.word)&&w.word.indexOf("-")<0&&customerCopyBrandWordBefore(line,words,i);
+      if(!plain&&!long&&!variant&&!tag)continue;
     }
     if(keep.indexOf(w.word)>=0)continue;
     // In a deal name the job number is written in this shape, so it only goes
     // on evidence that the report meant it as equipment (opts.known).
     if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(w.word)&&known.indexOf(w.word)<0)continue;
     if(customerCopyNumberIsMeasured(line,words,i))continue;
+    if(customerCopyNumberIsReadingVerb(words,i))continue;
     if(customerCopyNumberIsReference(line,words,i))continue;
-    if(!repeat&&!customerCopyEquipmentNounBeside(line,words,i))continue;
+    var longNum=/^\d{6,}$/.test(w.word);
+    if(!repeat&&!longNum&&!customerCopyEquipmentNounBeside(line,words,i)&&
+      !customerCopySeriesLetterBefore(line,words,i)&&!customerCopyPartContextBefore(words,i))continue;
     // Named for the technician with the series word in front of it, because
     // "3051" on its own says little about what was taken out.
     var brand=customerCopyBrandWordBefore(line,words,i);

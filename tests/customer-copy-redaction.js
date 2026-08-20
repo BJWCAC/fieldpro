@@ -379,6 +379,10 @@ var report=[
   "Enclosure is NEMA Type 4X, IP65, wired with 18 AWG in 3/4in conduit, SS316 fittings.",
   "Calibrated with a Fluke 754 documenting calibrator, cal due 2027-02-14, per ISO 17025.",
   "",
+  "## 9. MATERIALS / PARTS USED",
+  "Installed replacement 307575. Honeywell 51404671 pen arm on the recorder.",
+  "Chart paper 24001660 restocked. Promag P 300 was verified at 1200 GPM.",
+  "",
   "## RECOMMENDATIONS",
   "- Replace the MRC 7000 within 12 months; quoted 1,850 for a like-for-like swap.",
   "- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.",
@@ -389,8 +393,8 @@ var report=[
   "- Site is at 13400 Main St NW, Rogers, MN 55374"
 ].join("\n");
 var out=redactCustomerCopyText(report);
-["DR4500A","6M-4471","MRC 7000","MRC7000","88-2214","24001660-001","51404671-501","Model 90","R11CA111AA3A","1,850",
- "3051","Promag 400","SC200"].forEach(function(v){
+["DR4500A","6M-4471","MRC 7000","MRC7000","88-2214","24001660-001","51404671-501","51404671","307575","24001660","Model 90","R11CA111AA3A","1,850",
+ "3051","Promag 400","SC200","P 300"].forEach(function(v){
   check("report withholds "+v,out.text.indexOf(v)<0,"got:\n"+out.text);
 });
 ["Honeywell","Partlow","Rosemount","Promag","Hach","Blower 12","Drive 2","Manhole 12","0-150 in H2O",
@@ -430,6 +434,45 @@ var placeholderSection=redactCustomerCopyText(["## EQUIPMENT SERVICED","- Serial
 check("a section of nothing but announcements takes its heading with it",
   placeholderSection==="## CALIBRATION RESULTS\nAs-found 1.8% of span at 1 in/hr on loop FIT-101.",
   "got:\n"+JSON.stringify(placeholderSection));
+
+// --- unlabeled 6+ digit part / serial / replacement numbers -----------------
+// The service-report body is where this leaked: v393 told generate() the
+// instrument's identity and v394 looks up replacement parts, so the AI writes
+// those numbers into sections 2 / 9 / 10 without always labeling them. A 6+
+// digit number with no unit is a part or serial, not a reading — readings of
+// that length carry a unit (1284567 gallons) or sit after a reading verb.
+withholds("Installed replacement 307575.","307575");
+withholds("Recommended replacement Honeywell 307575.","307575");
+withholds("Honeywell 51404671 pen arm installed.","51404671");
+withholds("- Honeywell pen arm 51404671, qty 1","51404671");
+withholds("Replacement sensor cell 066800 installed.","066800");
+withholds("Recorder 12345678 calibrated today.","12345678");
+withholds("- Pen arm assembly, Honeywell 51404671, qty 1","51404671");
+withholds("Order the 51404671 pen kit for the recorder.","51404671");
+withholds("Ask Honeywell for 51404671.","51404671");
+withholds("Spare 24001660 restocked.","24001660");
+withholds("Chart paper 24001660 restocked, 12 rolls.","24001660");
+withholds("Installed a new cell, 066800, in the detector.","066800");
+withholds("Recommended replacement: pen arm 51404671 and fiber tip 307215.","51404671");
+withholds("Recommended replacement: pen arm 51404671 and fiber tip 307215.","307215");
+withholds("Fisher 667-4 actuator on the valve.","667-4");
+withholds("Promag P 300 was verified at 1200 GPM.","300");
+keeps("Promag P 300 was verified at 1200 GPM.","1200 GPM");
+// The same number later in the copy, with nothing beside it.
+var longRepeat=redactCustomerCopyText(["Installed replacement 307575.",
+  "Confirm 307575 before ordering."].join("\n")).text;
+check("a 6+ digit part number goes wherever it is written again",longRepeat.indexOf("307575")<0,longRepeat);
+// What those rules must not cost.
+unchanged("Totalizer read 1284567 gallons at 10:42.");
+unchanged("The meter read 1284567 at 10:42.");
+unchanged("The meter read 45231 at 10:00 and again at 14:30.");
+unchanged("Ordered 12 pen assemblies for the recorder.");
+unchanged("Verified 10-32 screws on the transmitter cover.");
+unchanged("Range 1200-1500 GPM, setpoint 1350 GPM.");
+unchanged("Site phone is 763-972-1001.");
+unchanged("Work order 44821 covered the transmitter calibration.");
+unchanged("Cell 2 sampled at the aeration basin.");
+unchanged("Spare chart paper restocked, 12 rolls on hand.");
 
 // --- the parts list a deficiency lookup writes (section 10) ------------------
 // Parts Lookup writes one line per part into "10. Parts Needed / Recommended",
@@ -641,7 +684,7 @@ sweepCodes.forEach(function(code){
   });
 });
 ["Part number","Part No.","P/N","PN","Serial","Serial number","S/N","Model","Model number","Model No.","Mdl","Order code",
- "Order number","Catalog number","Item #","SKU","MPN","Assembly number","Product number","Type"].forEach(function(label){
+ "Order number","Catalog number","Item #","SKU","MPN","Assembly number","Product number","Type","Replacement","Spare"].forEach(function(label){
   ["DR4500A","Honeywell DR4500A","Partlow MRC 7000","51404671-501","Honeywell 51404671-501","FMU90-R11CA111AA3A","6M-4471"].forEach(function(value){
     [": "," "].forEach(function(sep){
       var t="Recorder "+label+sep+value+" was verified onsite.";sweepCount++;
