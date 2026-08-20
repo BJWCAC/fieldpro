@@ -222,6 +222,11 @@ check("a price on an equipment line leaves no half of itself behind",
  ["- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
  ["Chart recorder (DR4500AY-1000-0-0-0) verified.","Chart recorder verified."],
  ["Replaced chart paper, 24001660-001, on the recorder.","Replaced chart paper on the recorder."],
+ // Both commas only go when what follows continues the clause. In a list the
+ // comma in front of the value is the list's, and taking it fused two items:
+ // this equipment line read "- Chart recorder, Honeywell panel LCP-3".
+ ["- Chart recorder, Honeywell, Model number: DR4500AY-1000-0-0-0, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
+ ["- Chart paper, 24001660-001, 12 rolls on hand","- Chart paper, 12 rolls on hand"],
  ["- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.","- Stock two spare pen assemblies, pen kit."],
  ["Existing recorder is a Yokogawa uR1800 unit.","Existing recorder is a Yokogawa unit."],
  // A determiner with nothing noun-like after it goes with the value.

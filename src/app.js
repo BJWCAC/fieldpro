@@ -8348,8 +8348,15 @@ function closeCustomerCopyGaps(text){
       if(closes){
         // A value set off by commas takes both of them with it: "Replaced chart
         // paper, 24001660-001, on the recorder" reads "Replaced chart paper on
-        // the recorder".
-        var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right);
+        // the recorder". Only when what follows continues the same clause,
+        // which is what a preposition or a verb after the comma says. In a list
+        // the comma in front of the value belongs to the list, and taking it
+        // fuses two items into one: "- Chart recorder, Honeywell, Model number:
+        // DR4500A, panel LCP-3" read "- Chart recorder, Honeywell panel LCP-3",
+        // as if the panel were the brand's.
+        var after=(/^[,;][ \t]*([A-Za-z][A-Za-z0-9'\-]*)/.exec(right)||[])[1]||"";
+        var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right)&&!!after&&
+          CUSTOMER_COPY_GAP_FUNCTION_WORDS.indexOf(after.toLowerCase())>=0;
         for(var w=0;w<3;w++){
           var trimmed=left.replace(CUSTOMER_COPY_GAP_TRAILING_RE,"$1").replace(/[ \t]+$/,"");
           if(trimmed===left)break;
