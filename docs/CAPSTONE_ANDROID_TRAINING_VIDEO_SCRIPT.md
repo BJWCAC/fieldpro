@@ -186,16 +186,16 @@ Narration:
 
 > Add photos from the camera, gallery, or Snap Photo during video. Add a short label for filenames and a description to explain why each photo matters. CapStone can save copies to your phone Downloads folder as backup — turn that on in Settings. If you add many photos, CapStone warns when browser storage is getting full. Export older History from Settings if needed so local saves keep working on poor cell service.
 
-## Section 7: Explain the nine optional fields
+## Section 7: Explain the ten optional fields
 
 Screen action:
 
-- Scroll to the nine report fields.
+- Scroll to the ten report fields.
 - Fill in one example field.
 
 Narration:
 
-> These nine fields are optional. You do not need to fill all of them in. If they are blank, CapStone uses your notes, photos, deal information, and GPS. Use the fields when you want specific information to appear in a specific report section.
+> These ten fields are optional. You do not need to fill all of them in. If they are blank, CapStone uses your notes, photos, deal information, and GPS. Use the fields when you want specific information to appear in a specific report section. Field nine is what you installed today. Field ten is what still has to be ordered.
 
 Example:
 
@@ -211,6 +211,28 @@ On-screen callout:
 
 ```text
 Blank fields are ignored.
+```
+
+## Section 7a: Look up parts for what you found
+
+Screen action:
+
+- With the deficiency above still filled in, scroll to **Parts for Recorded Deficiencies**.
+- Tap **Look Up Parts** and wait for the list.
+- Uncheck one part, then tap **Add … to 10. Parts Needed / Recommended**.
+- Scroll back up and show the parts written into field ten.
+
+Narration:
+
+> Once you have written down what is wrong, CapStone can look up what has to be ordered to fix it. Tap Look Up Parts. It reads what you wrote in fields five through eight, the brand and model of the instrument you saved on the Assets tab, and your photo descriptions, then searches the manufacturer's own parts lists. Every part comes back with the deficiency it is for, and it is marked Verified, Likely, or Confirm number so you know how much to trust the number. Check it against the nameplate before ordering. Uncheck anything we already stock, then tap Add. That writes the parts into field ten, which goes into the report. Nothing is ordered and nothing goes to Zoho from this panel.
+
+Important:
+
+```text
+Save the instrument on the Assets tab first, or at least fill in its brand and model.
+Without a model, the lookup can only name the part, not its number.
+No prices — the office quotes the work.
+A Customer Copy shows the part names and quantities and leaves the part numbers out.
 ```
 
 ## Section 8: Generate the AI report
