@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-08-20
-Current live version: v395
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=395
+Current live version: v396
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=396
 ```
 
 ---
@@ -225,6 +225,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v396 | #287 | **Capture secondary buttons follow day / night** — reported from the field as the Capture controls having the `.bg` navy background again. v385 treated Capture cards as always dark, so GET LOCATION, → AI, CLEAR, Pause, Save Video / Photos to Phone, Transcribe, Clear Parts List, and the Capture Report Copy Name choices stayed `.bg` / `.bg-lg` (`#1a2a3a`) after Dark Mode was turned off and the cards went white. The surface rule is the same as Report: a neutral button matches the card it sits on. Day mode now applies the `.bw` white/teal treatment on Capture, History, and Deals cards (`body.light .card .bg`), photo/video cards follow the parent card instead of staying a dark island, and `surfaceNeutralClass()` picks `.bw` on Capture when the theme is light so a toggle does not leave the copy picker on the wrong class. Night mode is unchanged — those cards are dark, so `.bg` stays. |
 | v385 | #276 | **Neutral buttons on white cards are no longer black boxes** — `.bg` / `.bg-lg` are dark by design (`var(--card)` / `#1a2a3a`), which is right on Capture's dark cards and wrong everywhere the app goes light: **Internal Copy** / **Other** in the white Report Copy Name card and the full-width **Regenerate Report** button both rendered as black slabs, and Regenerate did not match the white **Download PDF** button directly above it. New documented `.bw` / `.bw-lg` classes (white background, teal label, light border — the treatment the `#pdf-btn` id override was doing as a one-off) now cover neutral secondary actions on light surfaces: Download PDF, Regenerate Report, the Report Copy Name choices on the Report tab, Retry File Sync on the amber retry panel, Refresh deals / Change deal / Load Existing Asset / Request addition / Remove and + Add row on the white Assets setup card and its subform tables, and CHANGE on the Inbox deal bar. The `#pdf-btn` override is gone, and `dlPDF()` restores `.bw-lg` rather than putting the dark class back after "PDF Saved!". Buttons on genuinely dark surfaces (Capture's cards, History and Inbox cards, Settings) keep `.bg` / `.bg-lg`. Because the copy picker renders on two surfaces, `reportCopyPickerHtml(scope)` picks its neutral class from the scope — Capture keeps `.bg` on its dark card. **Update Photos on This Report** (v384) became `.bb-lg` teal: as the only remaining full-width `.bg-lg` it read as a black slab among the amber/teal/green actions around it, and teal matches **Add Photos**, the action that leads into it. Selected state (`.report-copy-btn.on`), the shared `.btn-armed` pressed state, and the `.is-busy` spinner all still work on the light buttons. Every tab was swept in the browser for buttons whose computed background is dark while the nearest opaque surface behind them is light — including the Assets states that only render on demand (existing-asset search results, the picklist addition panel, category subform tables). Eight such pairs on main; none left. |
 | v193 | #80 | Capture mode status line; standardized save/retry labels; History polish; capture photo pending sync; Zoho timeouts; offline messaging |
 | v194 | #81 | Collapsible help boxes on all tabs; nested Capture/Assets help; persisted open state |

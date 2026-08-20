@@ -62,6 +62,11 @@ body.light .card{background:#fff}
 /* Neutral secondary on a white card — .bg/.bg-lg read as black boxes there. */
 .bw{background:#fff;color:#2d6b60;padding:9px 16px;font-size:13px;border:1px solid #b2ddd6}
 .bw-lg{background:#fff;color:#2d6b60;padding:13px 20px;font-size:15px;width:100%;border:1px solid #b2ddd6}
+/* Always-white surfaces keep the .bw treatment in both themes. */
+.workflow-card .bg:not(.on),.workflow-card .bg-lg,.asset-setup-card .bg:not(.on),.asset-setup-card .bg-lg,.asset-setup-context .bg:not(.on),.pdf-opts .bg:not(.on),.pdf-opts .bg-lg,.report-save-checklist .bg:not(.on),.report-retry-actions .bg:not(.on),#p-report .card .bg:not(.on),#p-report .card .bg-lg{background:#fff;color:#2d6b60;border-color:#b2ddd6}
+/* Day mode: Capture / History / Deals cards go white — .bg must match the card, not stay navy. */
+body.light .card .bg:not(.on),body.light .card .bg-lg,body.light .hist-card .bg:not(.on),body.light .hist-card .bg-lg,body.light .deal-card .bg:not(.on){background:#fff;color:#2d6b60;border-color:#b2ddd6}
+body.light .pcard{background:#fff;border-color:#b2ddd6}
 .bb{background:#007a6a;color:#fff;padding:9px 16px;font-size:13px}
 .bb-lg{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%}
 .asset-path-btn{background:#007a6a;color:#fff;padding:14px 20px;font-size:15px;width:100%;min-height:58px;border:1px solid #006050;text-align:center;white-space:normal;line-height:1.2}

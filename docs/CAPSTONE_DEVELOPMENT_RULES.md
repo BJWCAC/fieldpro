@@ -170,14 +170,24 @@ Do not use undefined classes (e.g. `.bb` without a matching rule) or `.bg-lg` fo
 (`var(--card)` / `#1a2a3a`), so on a white card — the whole Report tab, `.pdf-opts`,
 `.workflow-card`, `.report-save-checklist`, `.report-retry-actions`, `.asset-setup-card`,
 `.asset-setup-context`, the Inbox deal bar — they read as **black boxes**. Use `.bw` / `.bw-lg`
-there rather than a one-off id override. A dark full-width `.bg-lg` is right for a utility action
-on a dark pane (Pause, Save Video to Downloads, Save All Photos to Phone), but a step in the
-report workflow needs a colour that says so — **Update Photos on This Report** is `.bb-lg` teal
-like **Add Photos**, the action that leads into it, rather than a dark slab between the amber and
-green actions around it. When one control renders on both a dark and a white surface — the Report
-Copy Name picker appears on Capture and on Report — choose the neutral class from the scope being
-rendered instead of restyling the shared component class. Anything that rewrites a button's
-`className` at runtime (`dlPDF()` restoring **Download PDF**) has to restore the same class.
+there rather than a one-off id override.
+
+**Day / night:** Capture, History, and Deals cards are dark at night and white in day mode
+(`body.light .card`). A `.bg` / `.bg-lg` control on those cards must look like `.bw` in day
+mode — `body.light .card .bg` (and the matching History card rule) apply the white/teal
+treatment so a theme toggle does not leave navy slabs on a white Capture card. Photo and
+video cards (`.pcard`) follow the parent card. Report cards, `.workflow-card`,
+`.asset-setup-card`, and the other always-white surfaces stay light in both themes and keep
+`.bw`. A dark full-width `.bg-lg` is right for a utility action on a dark pane at night
+(Pause, Save Video to Downloads, Save All Photos to Phone); in day mode the same controls
+sit on a white card and take the `.bw` treatment. A step in the report workflow needs a
+colour that says so — **Update Photos on This Report** is `.bb-lg` teal like **Add Photos**,
+the action that leads into it, rather than a dark slab between the amber and green actions
+around it. When one control renders on both a dark and a white surface — the Report Copy
+Name picker appears on Capture and on Report — choose the class from the scope **and the
+theme** (`surfaceNeutralClass()`): Report is always `.bw`; Capture is `.bg` at night and
+`.bw` in day. Anything that rewrites a button's `className` at runtime (`dlPDF()` restoring
+**Download PDF**) has to restore the same class.
 
 ## Button processing feedback rules
 

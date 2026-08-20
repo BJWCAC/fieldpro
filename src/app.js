@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="395";
+var FP_VERSION="396";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -838,8 +838,8 @@ function renderVideoCards(){
       "<div class='pc-time'>Video "+(i+1)+" — "+esc(v.source==="gallery"?"Gallery":"Recorded")+" — "+mb+" MB"+(v.time?" — "+esc(v.time):"")+"</div>"+
       "<div style='font-size:11px;color:var(--dim);margin-bottom:6px'>"+esc(videoTranscriptLabel(v))+(v.transcript?"<div style='color:var(--text);margin-top:4px;white-space:pre-line;max-height:80px;overflow:auto'>"+esc(v.transcript.slice(0,400))+"</div>":"")+"</div>"+
       "<div style='font-size:10px;color:var(--dim);margin-bottom:8px'>"+esc(videoSyncLabel(v))+"</div>"+
-      "<div class='pc-acts'><button class='bg bsm' onclick=\"saveVideoToPhone('"+esc(v.id)+"')\">Save to Phone</button>"+
-      (canTx?"<button class='bg bsm' onclick=\"transcribeVideoById('"+esc(v.id)+"')\">Transcribe</button>":"")+
+      "<div class='pc-acts'><button class='"+surfaceNeutralClass()+" bsm' onclick=\"saveVideoToPhone('"+esc(v.id)+"')\">Save to Phone</button>"+
+      (canTx?"<button class='"+surfaceNeutralClass()+" bsm' onclick=\"transcribeVideoById('"+esc(v.id)+"')\">Transcribe</button>":"")+
       "<button class='bd bsm' onclick=\"removeVideo('"+esc(v.id)+"')\">Remove</button></div>"+
       "</div></div>";
   }).join("");
@@ -2087,7 +2087,12 @@ async function waitForUploads(ms){
     return{timedOut:false};
   }
 }
-function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");scheduleKeySyncAutoPush();}
+function isLightTheme(){return document.body.classList.contains("light");}
+/* Neutral secondary class for the surface a control sits on. Report / Assets
+   setup cards are always white. Capture / History / Deals cards are dark at
+   night and white in day mode — same surface rule as .bw vs .bg. */
+function surfaceNeutralClass(alwaysLight){return (alwaysLight||isLightTheme())?"bw":"bg";}
+function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");renderReportCopyPickers();if(typeof renderPhotoCards==="function")renderPhotoCards();if(typeof renderVideoCards==="function")renderVideoCards();if(typeof renderHistory==="function")renderHistory();scheduleKeySyncAutoPush();}
 function toggleAutoSaveZoho(){
   A.autoSaveZoho=!A.autoSaveZoho;
   var t=el("tog-auto-zoho");if(t)t.classList.toggle("on",A.autoSaveZoho);
@@ -6755,7 +6760,7 @@ function setupAssetFieldAiButtons(){
     if(lbl){row.appendChild(lbl);}
     else{var lab=document.createElement("label");lab.className="lbl";lab.style.marginBottom="0";lab.textContent=id.replace("asset-","").replace(/-/g," ");row.appendChild(lab);}
     var btn=document.createElement("button");
-    btn.type="button";btn.className="field-ai-btn bg bsm";btn.setAttribute("data-field-ai-target","asset:"+id);
+    btn.type="button";btn.className="field-ai-btn "+surfaceNeutralClass(true)+" bsm";btn.setAttribute("data-field-ai-target","asset:"+id);
     btn.title="Polish dictated text with AI";btn.textContent="→ AI";
     btn.onclick=function(){runFieldPolishAi("asset:"+id);};
     row.appendChild(btn);
@@ -7383,7 +7388,7 @@ function renderPhotoCards(){
     (function(pid){ta.addEventListener("input",function(){updatePhotoDesc(pid,this.value);});})(p.id);
     var aiRow=document.createElement("div");aiRow.className="field-ai-row";
     var aiLbl=document.createElement("span");aiLbl.className="pc-ai-lbl";aiLbl.textContent="Description (Wispr)";
-    var aiBtn=document.createElement("button");aiBtn.type="button";aiBtn.className="field-ai-btn bg bsm";aiBtn.setAttribute("data-field-ai-target","photo:"+p.id);aiBtn.title="Polish dictated text with AI";aiBtn.textContent="→ AI";
+    var aiBtn=document.createElement("button");aiBtn.type="button";aiBtn.className="field-ai-btn "+surfaceNeutralClass()+" bsm";aiBtn.setAttribute("data-field-ai-target","photo:"+p.id);aiBtn.title="Polish dictated text with AI";aiBtn.textContent="→ AI";
     (function(pid){aiBtn.onclick=function(){runFieldPolishAi("photo:"+pid);};})(p.id);
     aiRow.appendChild(aiLbl);aiRow.appendChild(aiBtn);
     var aiSt=document.createElement("div");aiSt.className="field-ai-status";aiSt.id="field-ai-status-"+p.id;
@@ -7394,7 +7399,7 @@ function renderPhotoCards(){
       (function(pid){retry.onclick=function(){retryCapturePhotoUpload(pid);};})(p.id);
       acts.appendChild(retry);
     }
-    var phoneBtn=document.createElement("button");phoneBtn.className="bg bsm";phoneBtn.textContent=p.savedToPhone?"On Phone":"Save to Phone";
+    var phoneBtn=document.createElement("button");phoneBtn.className=surfaceNeutralClass()+" bsm";phoneBtn.textContent=p.savedToPhone?"On Phone":"Save to Phone";
     (function(pid,idx){phoneBtn.onclick=function(){var ph=A.photos.find(function(x){return x.id===pid;});if(ph&&saveCapturePhotoToPhone(ph,idx,{source:ph.phoneSource||"photo"}))renderPhotoCards();};})(p.id,i);
     acts.appendChild(phoneBtn);
     var rm=document.createElement("button");rm.className="bd bsm";rm.textContent="Remove";
@@ -7678,9 +7683,9 @@ function reportCopyPickerHtml(scope){
   var active=normalizeReportCopyType(A.reportCopyType);
   var custom=active===REPORT_COPY_CUSTOM_KEY;
   var missing=reportCopyMissingCustom();
-  // Capture holds this picker in a dark card, Report in a white one, so the
-  // unselected buttons follow their own surface instead of showing as black.
-  var neutral=scope==="report"?"bw":"bg";
+  // Report cards are always white. Capture cards are dark at night and white
+  // in day mode, so the unselected buttons follow the surface they sit on.
+  var neutral=surfaceNeutralClass(scope==="report");
   var btns=REPORT_COPY_TYPES.map(function(t){
     return "<button type=\"button\" id=\"report-copy-btn-"+t.key+"-"+scope+"\" class=\""+neutral+" bfull report-copy-btn"+(t.key===active?" on":"")+"\" data-no-busy onclick=\"pickReportCopyType('"+t.key+"')\">"+esc(t.label)+"</button>";
   }).join("");
@@ -10695,13 +10700,13 @@ function renderHistory(){
     html+=active.map(function(r){var i=hist.indexOf(r);var d=new Date(r.date);var ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})+" — "+d.toLocaleTimeString();
       return "<div class='hist-card'><div class='h-acct'>"+esc(r.account)+"</div><div class='h-meta'>"+ds+(r.stage?" — "+esc(r.stage):"")+" — "+r.photos+" photo"+(r.photos!==1?"s":"")+(r.hasVideo?" + video":"")+(r.location?"<br>"+esc(r.location.substring(0,60)):"")+
       "</div>"+(r.deal?"<div style='font-size:12px;color:var(--sub);margin-bottom:6px'>"+esc(r.deal)+"</div>":"")+historyStatusHtml(r)+
-      "<div class='h-action-group'><div class='h-action-label'>Continue</div><div class='h-acts'><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bp bsm' onclick='viewHist("+i+")'>View</button></div><div class='h-action-label'>Share / Export</div><div class='h-acts'><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='bg bsm' onclick='archiveHist("+i+")'>Archive</button></div></div></div>";
+      "<div class='h-action-group'><div class='h-action-label'>Continue</div><div class='h-acts'><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bp bsm' onclick='viewHist("+i+")'>View</button></div><div class='h-action-label'>Share / Export</div><div class='h-acts'><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='"+surfaceNeutralClass()+" bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='"+surfaceNeutralClass()+" bsm' onclick='archiveHist("+i+")'>Archive</button></div></div></div>";
     }).join("");
     if(archived.length){
       html+="<div style='font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--bdr)'>Archived ("+archived.length+")</div>";
       html+=archived.map(function(r){var i=hist.indexOf(r);var d=new Date(r.date);var ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+" — "+d.toLocaleTimeString();
         return "<div class='hist-card' style='opacity:.7;border-style:dashed'><div class='h-acct'>"+esc(r.account)+"</div><div class='h-meta'>"+ds+" — "+r.photos+" photo"+(r.photos!==1?"s":"")+(r.hasVideo?" + video":"")+"</div>"+historyStatusHtml(r)+
-        "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'><button class='bp bsm' onclick='viewHist("+i+")'>View</button><button class='bg bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='bs bsm' onclick='unarchiveHist("+i+")'>Restore</button><button class='bd bsm' onclick='permDeleteHist("+i+")'>Delete</button></div></div></div>";
+        "<div class='h-action-group'><div class='h-action-label'>Review</div><div class='h-acts'><button class='bp bsm' onclick='viewHist("+i+")'>View</button><button class='"+surfaceNeutralClass()+" bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='bs bsm' onclick='unarchiveHist("+i+")'>Restore</button><button class='bd bsm' onclick='permDeleteHist("+i+")'>Delete</button></div></div></div>";
       }).join("");
     }
   }
