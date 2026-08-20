@@ -121,7 +121,7 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 8. Add photo labels and descriptions.
 9. Dictate or type field notes.
 10. Optionally fill in any of the nine structured report fields.
-11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place and no wording such as "redacted" or "withheld", so the report still reads normally — and prints each photo's AI Synthesis without its AI Observation. The Report tab lists what was left out.
+11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place and no wording such as "redacted" or "withheld", so the report still reads normally — and prints each photo's AI Synthesis without its AI Observation. That includes a model number written as a plain number beside the equipment it names ("Rosemount 3051 transmitter"), while readings, plant references ("Basin 12", "Room 101"), loop tags, work order numbers, and the deal's job number stay. The Report tab lists what was left out.
 12. Generate the AI report.
 13. Review the report.
 14. Regenerate if details need correction — keep the same copy name to replace that copy, or pick a different name to issue a second copy of the same visit.
@@ -270,7 +270,7 @@ Recommended Android smoke test:
 16. Generate again.
 17. Confirm the existing Zoho note updates or a replacement note is created if the old one was deleted.
 18. Switch **Report Copy Name** to Internal Copy, generate/save again, and confirm the Deal keeps one PDF per copy name.
-19. On a report that mentions a serial number, part number, model number, E+H order code, or price, confirm the Customer Copy withholds them (report body, deal name in the header, your photo description, and the AI Synthesis) with no placeholder text left behind, that the surrounding sentences still read, that no AI Observation block appears on the copy, and that Internal Copy shows everything.
+19. On a report that mentions a serial number, part number, model number written with or without letters ("DR4500A", "Rosemount 3051"), E+H order code, or price, confirm the Customer Copy withholds them (report body, deal name in the header, your photo description, and the AI Synthesis) with no placeholder text left behind, that the surrounding sentences still read, that no AI Observation block appears on the copy, and that Internal Copy shows everything.
 20. On a report where the AI wrote a placeholder of its own (`Serial: [redacted]`, `part number withheld on customer copy`, `Model: N/A`), confirm the Customer Copy carries none of that wording while ordinary field wording such as "pen arm removed and replaced" survives.
 
 Stress test (poor signal):

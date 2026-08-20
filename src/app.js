@@ -356,7 +356,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="390";
+var FP_VERSION="391";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7819,7 +7819,7 @@ var CUSTOMER_COPY_JOB_LABEL_RE=/\b(?:(?:work|purchase|sales|change)\s+order|wo|p
 // Readings are the point of the report, so anything carrying an engineering
 // unit is never treated as a code: 24VDC, 4-20mA, 0-150inH2O, 3/4in, 100psig,
 // 3200mg/L.
-var CUSTOMER_COPY_UNITS=("ma a amp amps v vac vdc kv mv w kw mw hp hz khz mhz rpm psi psig psia bar mbar kpa mpa pa "+
+var CUSTOMER_COPY_UNITS=("ma a amp amps ampere amperes v volt volts vac vdc kv mv w watt watts kw mw hp hz khz mhz rpm psi psig psia bar mbar kpa mpa pa "+
   "inh2o inwc inhg in ft yd mm cm m km mil mils gal gals gallon gallons liter liters gpm gph gpd mgd cfm cfh scfm scfh acfm lpm lps "+
   "l ml oz lb lbs kg g mg s sec secs min mins hr hrs h ms us ns day days wk wks mo yr yrs feet inches pounds "+
   "c f k degc degf deg degrees pct percent ppm ppb ntu su ph ohm ohms kohm mohm db va kva kwh btu awg ga x "+
@@ -7856,6 +7856,26 @@ var CUSTOMER_COPY_KEEP_PREFIXES=("ip nema iso iec ieee ansi asme astm nfpa nsf u
 // the spaced-code pass on top of the ratings above.
 var CUSTOMER_COPY_KEEP_PAIR_PREFIXES=("wo po so inv ref job tkt tag loop bldg rm ste apt hwy rt us cr co box lot unit "+
   "al ak az ar ca ct de fl ga hi ia il ks ky ma md me mi mn ms mo mt nc nd ne nh nj nm nv ny oh ok pa ri sc sd tn tx ut va vt wa wi wv wy dc").split(" ");
+// The equipment a number can name. A model number is very often written as a
+// plain number ("Rosemount 3051 transmitter", "Promag 400 magnetic flow meter"),
+// and shape alone cannot tell that number from a reading, a plant reference, or
+// a job number — so the equipment noun standing beside it is the second signal
+// that makes it a model number. Singular only: "Replaced 250 valves" is a count,
+// "Masoneilan 21000 valve" is a model.
+var CUSTOMER_COPY_EQUIPMENT_NOUNS=("recorder transmitter transducer sensor probe meter flowmeter magmeter analyzer analyser monitor detector "+
+  "controller gauge gage valve actuator positioner regulator integrator indicator totalizer switch relay module instrument pump "+
+  "turbidimeter spectrophotometer colorimeter chlorinator sampler thermocouple rtd element head converter scale unit").split(" ");
+// Words that make the number beside them a reference rather than a model: a
+// place in the plant, a document or date reference, or a piece of the shop's own
+// test equipment, whose model is the calibration's traceability record and not
+// the customer's asset.
+var CUSTOMER_COPY_MODEL_KEEP_WORDS=("building bldg manhole mh station lift digester lagoon headworks weir flume sump wetwell cell aisle "+
+  "cabinet breaker feeder blower mixer screen press silo gate door hatch sample grab bottle truck route shelf bin drive "+
+  "figure fig page photo note section sheet drawing dwg detail appendix table exhibit step shift crew visit day deal "+
+  "wwtp wtp wwtf wrf wpcf stp site plant facility city county village township campus "+
+  "january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec "+
+  "monday tuesday wednesday thursday friday saturday sunday "+
+  "fluke druck ametek beamex additel ralston mensor transcat crystal hart375 fieldmate").split(" ");
 // Dates, times, revisions, ordinals, chemistry, and material grades are not
 // codes. Spelled-out compounds ("4-wire", "24-volt") are not codes either.
 var CUSTOMER_COPY_NOT_CODE_RES=[
@@ -7872,6 +7892,25 @@ var CUSTOMER_COPY_NOT_CODE_RES=[
   /^(?:h2o2?|h2so4|h3po4|h2s|hocl|hcl|naocl|naoh|na2co3|nahso3|co2|clo2|cl2|o2|o3|n2|nh3|nh4|no2|no3|po4|so2|so3|so4|caco3|cacl2|caoh2|fecl3|feso4|kmno4|mgoh2|ch4)$/i,
   /^(?:ss)?\d{3}l?(?:ss)?$/i
 ];
+// Adds to the list of what this copy took out, which the Report tab shows the
+// technician. A code named with its label or its series word ("Serial 6M-4471",
+// "Rosemount 3051") and the same code named on its own are one removal, so the
+// fuller name is the one kept.
+function customerCopyAddRemoved(list,value){
+  value=String(value||"").replace(/\s+/g," ").trim();
+  if(!value||list.indexOf(value)>=0)return list;
+  var tail=value.slice(value.lastIndexOf(" ")+1);
+  for(var i=0;i<list.length;i++){
+    if(list[i]===tail){list.splice(i,1);break;}
+  }
+  if(tail===value){
+    for(var j=0;j<list.length;j++){
+      if(list[j].length>value.length&&list[j].slice(-value.length-1)===" "+value)return list;
+    }
+  }
+  list.push(value);
+  return list;
+}
 function isCustomerCopyLabel(label){
   // Matches the Customer Copy preset and any typed name that reads as a
   // customer copy, so a hand-typed "Customer Walkthrough" is filtered too.
@@ -7919,6 +7958,10 @@ function customerCopyIsEquipmentCode(tok){
   if(lead&&CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead.toLowerCase())>=0)return false;
   // Mixed letters and digits, written the way a nameplate writes a code.
   if(tok.length>=4&&/[A-Z]/.test(tok))return true;
+  // The same code typed in lower case ("replaced the dr4500a pen arm"). Letters
+  // first and at least three digits, which is what separates a code from a
+  // reading typed the same way ("10am", "45min", "1500gpm").
+  if(/^[a-z]{2,5}\d{3,}[a-z0-9]{0,4}$/.test(tok))return true;
   // An all-digit code is only distinguishable from a reading when it is long and
   // grouped the way part numbers are grouped (51404671-501, 24001660-001).
   return /^\d{5,}[-.]\d{2,}(?:[-.][A-Za-z0-9]{1,8})*$/.test(tok);
@@ -8029,6 +8072,133 @@ function redactCustomerCopySpacedCodes(line,opts){
   });
   return{text:text,count:count,codes:codes};
 }
+// Words and their positions on one line, so a number can be judged by what
+// stands beside it. Trailing punctuation comes off the word the way the other
+// passes take it off, and the offsets stay exact, which is what lets a value be
+// lifted out without touching the punctuation around it.
+function customerCopyLineWords(line){
+  var re=/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,m,out=[];
+  while((m=re.exec(String(line||"")))){
+    var raw=m[0],word=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
+    if(word)out.push({word:word,start:m.index,end:m.index+word.length});
+  }
+  return out;
+}
+// Is this number a measurement rather than a code? A unit after it, a percent
+// sign, a clock time, or a thousands group all say it was never a model number.
+function customerCopyNumberIsMeasured(line,words,i){
+  var w=words[i],next=words[i+1];
+  if(line.charAt(w.end)==="%"||line.charAt(w.end)===":"||line.charAt(w.start-1)===":")return true;
+  // "1,850" arrives as "1" and "850": the second half is part of the number.
+  if(line.charAt(w.start-1)===","&&/\d$/.test(line.slice(0,w.start-1)))return true;
+  if(/^,\d{3}\b/.test(line.slice(w.end)))return true;
+  if(!next)return false;
+  // Every unit counts here, including the ones that double as ordinary words:
+  // a plain number followed by "F" or "in" is a reading far more often than it
+  // is a model number.
+  return CUSTOMER_COPY_UNITS.indexOf(next.word.toLowerCase())>=0||customerCopyIsUnitReading(next.word);
+}
+// Is this number the customer's own reference? The word in front of it says so:
+// a plant or panel name, a job label, an ISA loop prefix, a place, or a date.
+function customerCopyNumberIsReference(line,words,i){
+  if(CUSTOMER_COPY_JOB_LABEL_RE.test(line.slice(0,words[i].start)))return true;
+  var prev=i>0?words[i-1].word.toLowerCase():"";
+  if(!prev)return false;
+  return CUSTOMER_COPY_KEEP_PREFIXES.indexOf(prev)>=0||CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(prev)>=0||
+    CUSTOMER_COPY_ISA_PREFIXES.indexOf(prev)>=0||CUSTOMER_COPY_MODEL_KEEP_WORDS.indexOf(prev)>=0;
+}
+function customerCopyIsEquipmentNoun(word){
+  return CUSTOMER_COPY_EQUIPMENT_NOUNS.indexOf(String(word||"").toLowerCase())>=0;
+}
+// Does the sentence say what this number is the model of? Either the equipment
+// noun follows it ("Rosemount 3051 differential pressure transmitter"), or the
+// number is written after the noun as its identifier ("Chart recorder, Rosemount
+// 3051, panel LCP-3") — in which case only a brand or series word may stand
+// between them, which is what keeps a bare reading ("the meter read 45231") out
+// of it. Neither scan crosses the end of a sentence.
+function customerCopyEquipmentNounBeside(line,words,i){
+  var j,gap;
+  for(j=i+1;j<words.length&&j<=i+3;j++){
+    gap=line.slice(words[j-1].end,words[j].start);
+    if(/[.!?]/.test(gap))break;
+    if(customerCopyIsEquipmentNoun(words[j].word))return true;
+  }
+  var brands=0;
+  for(j=i-1;j>=0&&j>=i-3;j--){
+    gap=line.slice(words[j].end,words[j+1].start);
+    if(/[.!?]/.test(gap))break;
+    if(customerCopyIsEquipmentNoun(words[j].word))return true;
+    if(/^(?:a|an|the)$/i.test(words[j].word))continue;
+    if(brands<2&&/^[A-Z][A-Za-z&+.']*$/.test(words[j].word)){brands++;continue;}
+    break;
+  }
+  return false;
+}
+// Is a brand or series word standing in front of this number? That is how a
+// nameplate identifier is written into a sentence ("the Hach SC200 controller"),
+// and it is what tells a model apart from a tag the plant assigned itself.
+// Two things are not brands however they are capitalized: a word that is only
+// capitalized because it opens the sentence — "Recorded FIT101 at the
+// transmitter" says nothing about a brand — and a verb, which is what that word
+// usually is. An abbreviated brand (ABB, GF, YSI) is written in capitals, so it
+// still reads as one at the start of a sentence.
+function customerCopyBrandWordBefore(line,words,i){
+  var prev=i>0?words[i-1].word:"";
+  if(!prev||!/^[A-Z][A-Za-z&+.']*$/.test(prev))return false;
+  if(/(?:ed|ing)$/i.test(prev))return false;
+  if(!/^[A-Z]{2,4}$/.test(prev)&&!/[A-Za-z0-9][^.!?]*$/.test(line.slice(0,words[i-1].start)))return false;
+  if(customerCopyIsEquipmentNoun(prev))return false;
+  if(/^(?:a|an|the|this|that|these|those|its|their|our|new|spare|existing|both|read|found|set|left|saw|ran|took|put|made|is|was|are|were|has|had)$/i.test(prev))return false;
+  var lead=prev.toLowerCase();
+  return CUSTOMER_COPY_KEEP_PREFIXES.indexOf(lead)<0&&CUSTOMER_COPY_KEEP_PAIR_PREFIXES.indexOf(lead)<0&&
+    CUSTOMER_COPY_MODEL_KEEP_WORDS.indexOf(lead)<0;
+}
+// A model number written as a plain number, which no shape can tell from a
+// reading on its own, and a model number wearing the shape of a plant tag
+// ("Hach SC200"). The equipment noun beside it is what identifies either one,
+// and everything a number can otherwise be — a reading, a plant or panel
+// reference, a job number, a date, a price — is checked first.
+// opts.seen lists numbers this copy has already withheld elsewhere: a number
+// withheld once is withheld everywhere, so a later mention with nothing beside
+// it to identify it ("re-ranged the Rosemount 3051 to 0-150 in H2O") goes too.
+function redactCustomerCopyModelNumbers(line,opts){
+  opts=opts||{};
+  var keep=opts.keep||[],known=opts.known||[],seen=opts.seen||[],repeatsOnly=!!opts.repeatsOnly;
+  var count=0,codes=[],numbers=[],branded=[],out="",last=0;
+  var words=customerCopyLineWords(line);
+  for(var i=0;i<words.length;i++){
+    var w=words[i],repeat=seen.indexOf(w.word)>=0;
+    if(repeatsOnly){if(!repeat)continue;}
+    else{
+      var plain=/^\d{2,5}$/.test(w.word)&&(repeat||!/^(?:19|20)\d\d$/.test(w.word));
+      // A tag-shaped code is only a model when a brand wrote it and the
+      // equipment stands beside it; on its own it is the plant's own tag and it
+      // stays.
+      var tag=!plain&&customerCopyIsPlantLoopTag(w.word)&&w.word.indexOf("-")<0&&customerCopyBrandWordBefore(line,words,i);
+      if(!plain&&!tag)continue;
+    }
+    if(keep.indexOf(w.word)>=0)continue;
+    // In a deal name the job number is written in this shape, so it only goes
+    // on evidence that the report meant it as equipment (opts.known).
+    if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(w.word)&&known.indexOf(w.word)<0)continue;
+    if(customerCopyNumberIsMeasured(line,words,i))continue;
+    if(customerCopyNumberIsReference(line,words,i))continue;
+    if(!repeat&&!customerCopyEquipmentNounBeside(line,words,i))continue;
+    // Named for the technician with the series word in front of it, because
+    // "3051" on its own says little about what was taken out.
+    var brand=customerCopyBrandWordBefore(line,words,i);
+    var shown=(brand?words[i-1].word+" ":"")+w.word;
+    if(codes.indexOf(shown)<0)codes.push(shown);
+    if(numbers.indexOf(w.word)<0)numbers.push(w.word);
+    // A brand wrote this number, which is as deliberate as a label: it is what
+    // lets the same number be told from the visit's job number in the deal name.
+    // The brand word travels with it, because a site name is not a brand.
+    if(brand&&branded.indexOf(shown)<0)branded.push(shown);
+    out+=line.slice(last,w.start)+CUSTOMER_COPY_GAP;
+    last=w.end;count++;
+  }
+  return{text:out+line.slice(last),count:count,codes:codes,numbers:numbers,branded:branded};
+}
 // All-caps text (a shouted voice note, a report heading) makes every word look
 // like a code prefix, so the spaced-code pass sits it out.
 function customerCopyLineIsShouting(line){
@@ -8044,23 +8214,39 @@ function customerCopyLineIsShouting(line){
 // the same one.
 function redactCustomerCopyBareCodes(s,opts){
   opts=opts||{};
-  var keep=opts.keep||[],known=opts.known||[],count=0,codes=[];
-  var text=String(s).split("\n").map(function(line){
+  var keep=opts.keep||[],known=opts.known||[],count=0,codes=[],branded=[];
+  var seen=(opts.seen||[]).slice();
+  function sweep(line,pass){
     if(/https?:\/\/|www\./i.test(line))return line;
-    var spaced=redactCustomerCopySpacedCodes(line,opts);
-    count+=spaced.count;
-    spaced.codes.forEach(function(c){if(codes.indexOf(c)<0)codes.push(c);});
-    return spaced.text.replace(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,function(raw){
+    var text=line;
+    if(!pass){
+      var spaced=redactCustomerCopySpacedCodes(text,opts);
+      count+=spaced.count;
+      spaced.codes.forEach(function(c){customerCopyAddRemoved(codes,c);});
+      text=spaced.text;
+    }
+    var model=redactCustomerCopyModelNumbers(text,{keep:keep,known:known,jobNumbersStay:opts.jobNumbersStay,seen:seen,repeatsOnly:!!pass});
+    count+=model.count;
+    model.codes.forEach(function(c){customerCopyAddRemoved(codes,c);});
+    model.numbers.forEach(function(n){if(seen.indexOf(n)<0)seen.push(n);});
+    model.branded.forEach(function(n){if(branded.indexOf(n)<0)branded.push(n);});
+    if(pass)return model.text;
+    return model.text.replace(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,function(raw){
       var tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
       if(!tok||!customerCopyIsEquipmentCode(tok))return raw;
       if(keep.indexOf(tok)>=0)return raw;
       if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(tok)&&known.indexOf(tok)<0)return raw;
       count++;
-      if(codes.indexOf(tok)<0)codes.push(tok);
+      customerCopyAddRemoved(codes,tok);
       return CUSTOMER_COPY_GAP+raw.slice(tok.length);
     });
-  }).join("\n");
-  return{text:text,count:count,codes:codes};
+  }
+  var lines=String(s).split("\n").map(function(line){return sweep(line,0);});
+  // A second sweep, now that every number this copy withholds is known: the
+  // first sweep reads each line on its own, so a repeat mention earlier or later
+  // in the report has nothing beside it to give it away.
+  if(seen.length)lines=lines.map(function(line){return sweep(line,1);});
+  return{text:lines.join("\n"),count:count,codes:codes,numbers:seen,branded:branded};
 }
 // Wording that announces a removal, marked as a gap so it closes like a value.
 // The label in front of it goes too: "Model number: [redacted]" leaves neither
@@ -8086,7 +8272,7 @@ function redactCustomerCopyText(text,opts){
   opts=opts||{};
   if(!opts.keep)opts={keep:customerCopyKeepTokens(),known:opts.known,jobNumbersStay:opts.jobNumbersStay};
   var count=0,removed=[];
-  function note(v){v=String(v||"").trim();if(v&&removed.indexOf(v)<0)removed.push(v);}
+  function note(v){customerCopyAddRemoved(removed,v);}
   var placeholders=redactCustomerCopyPlaceholders(s);s=placeholders.text;count+=placeholders.count;
   placeholders.removed.forEach(note);
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){
@@ -8094,7 +8280,14 @@ function redactCustomerCopyText(text,opts){
   });
   var labeled=redactCustomerCopyLabeledIds(s);s=labeled.text;count+=labeled.count;
   labeled.removed.forEach(note);
-  var bare=redactCustomerCopyBareCodes(s,opts);s=bare.text;count+=bare.count;
+  // A code the report labeled once ("Model: Rosemount 3051", "Model: Hach
+  // SC200") is equipment data wherever else the report writes it, with or
+  // without a label. Only the codes no shape catches on their own are carried
+  // over — a plain number and a tag-shaped code — because the rest already go
+  // everywhere they appear, and a brand word is not a code at all.
+  var bare=redactCustomerCopyBareCodes(s,{keep:opts.keep,known:opts.known,jobNumbersStay:opts.jobNumbersStay,
+    seen:labeled.values.filter(function(v){return /\d/.test(v)&&!customerCopyIsEquipmentCode(v);})});
+  s=bare.text;count+=bare.count;
   bare.codes.forEach(note);
   // Money written without a symbol reads as money next to a pricing word, but a
   // reading, a duration, or a count on that same line is still not a price.
@@ -8206,10 +8399,10 @@ function closeCustomerCopyEmptySections(lines){
 // What the report body and photo notes are allowed to keep: whatever survives in
 // the deal name. Anything the header withheld is withheld everywhere, so the two
 // can never disagree about the same number.
-function customerCopyKeepTokens(dealName,reportText){
+function customerCopyKeepTokens(dealName,reportText,account){
   var name=dealName===undefined?((typeof A!=="undefined"&&A&&A.sel)?String(A.sel.Deal_Name||""):""):String(dealName||"");
   if(!name)return[];
-  var shown=customerSafeDealName(name,reportText);
+  var shown=customerSafeDealName(name,reportText,account);
   return customerCopyJobRefTokens(name).filter(function(tok){return shown.indexOf(tok)>=0;});
 }
 function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{keep:keep}:null).text;}
@@ -8222,18 +8415,39 @@ function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{ke
 // ("CAC-4641 DR4500A chart recorder calibration" prints as "CAC-4641 chart
 // recorder calibration"), which is also what keeps the name inside the header
 // cell.
-function customerSafeDealName(name,reportText){
+function customerSafeDealName(name,reportText,account){
   var report=reportText===undefined?((typeof A!=="undefined"&&A)?A.report:""):reportText;
-  // A code in the deal name that shares the job-number shape (DR-4500) is only
-  // withheld when the report carried the same one under an identifier label
-  // ("Model: DR-4500"), which is what the generation prompts ask for. Every
-  // unlabeled mention is left out of this on purpose: the report says "job
-  // CAC-4641" too, and that is the number the customer uses for the visit.
+  var acct=account===undefined?((typeof A!=="undefined"&&A&&A.sel)?A.sel.Account_Name:""):account;
   // The keep list is deliberately empty here — it exists to protect this deal's
   // number in other text, and using it on the name itself would shield every
   // number in the name, including a model number.
-  var known=redactCustomerCopyLabeledIds(report||"").values;
-  return redactCustomerCopyText(name,{keep:[],known:known,jobNumbersStay:true}).text;
+  return redactCustomerCopyText(name,{keep:[],known:customerCopyDealNameEvidence(report,acct),jobNumbersStay:true}).text;
+}
+// What tells a code in the deal name from the visit's job number, which shares
+// its shape (`DR-4500`, `3051`). Two deliberate mentions in the report count as
+// evidence that the number is equipment data: one under an identifier label
+// ("Model: DR-4500"), which is what the generation prompts ask for, and one the
+// body withheld with a brand in front of it ("Rosemount 3051 transmitter").
+// A bare mention is deliberately not evidence: a report says "job 4641 chart
+// recorder calibration" as readily as it names a model, and treating every
+// code-shaped mention as equipment cost the deal its own number. The site's own
+// name is not a brand either, so a number written after it ("the Rogers 4641
+// chart recorder") stays the visit's number. The body is read here without this
+// deal's keep list, because the keep list is what this answer decides.
+function customerCopyDealNameEvidence(report,account){
+  var text=String(report||"");
+  if(!text)return[];
+  var site=String(account||"").toLowerCase().match(/[a-z]+/g)||[];
+  var labeled=redactCustomerCopyLabeledIds(text);
+  var out=labeled.values.slice();
+  var bare=redactCustomerCopyBareCodes(labeled.text,{keep:[],known:[],
+    seen:labeled.values.filter(function(v){return /\d/.test(v)&&!customerCopyIsEquipmentCode(v);})});
+  bare.branded.forEach(function(pair){
+    var bits=String(pair).split(" ");
+    if(bits.length<2||site.indexOf(bits[0].toLowerCase())>=0)return;
+    if(out.indexOf(bits[1])<0)out.push(bits[1]);
+  });
+  return out;
 }
 // Copies the photos so the captured description/observation/synthesis stay
 // intact for the internal copy.
@@ -10139,12 +10353,12 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
     // record's deal rather than whatever is open on screen, so the number is read
     // from the deal being printed.
     var fullReport=report;
-    var jobRefs=customerCopyKeepTokens(deal&&deal.Deal_Name,fullReport);
+    var jobRefs=customerCopyKeepTokens(deal&&deal.Deal_Name,fullReport,deal&&deal.Account_Name);
     report=customerSafeText(report,jobRefs);
     photos=customerSafePhotos(photos,jobRefs);
     // A deal is often named after the equipment, so the header name is filtered
     // too. The deal object itself is left untouched.
-    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name,fullReport)});
+    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name,fullReport,deal.Account_Name)});
   }
   // A photo whose bytes are gone would print as an empty framed box with a
   // caption, which reads like a rendering fault to whoever receives the PDF.
