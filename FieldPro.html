@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=393"/>
+<link rel="stylesheet" href="src/styles.css?v=394"/>
 
 </head>
 <body autocomplete="off">
@@ -278,10 +278,11 @@
     <details class="help-box nested" data-help-id="capture-parts">
       <summary>Help: Parts Lookup</summary>
       <div class="help-box-body">
-        <p>Looks up what has to be ordered to correct the deficiencies you recorded on this visit, from the manufacturer's own parts lists, and writes the ones you keep into <strong>10. Parts Needed / Recommended</strong>.</p>
+        <p>Looks up what has to be ordered to correct what this visit designated as bad, by reading the <strong>entire capture</strong> — every section, every photo, and every note — then searching manufacturer parts lists on the live web. The ones you keep go into <strong>10. Parts Needed / Recommended</strong>.</p>
         <ul>
-          <li>Record the problem first — <strong>5. Findings</strong>, <strong>6. Issues / Deficiencies</strong>, <strong>7. Recommendations</strong>, or <strong>8. Follow-Up</strong>. Every part comes back tied to one of them.</li>
-          <li>Save the instrument on the <strong>Assets</strong> tab first, or fill in its brand and model there, for part numbers that match the actual model. Without a model the lookup can only name the part.</li>
+          <li>Record the problem anywhere on this visit — <strong>5. Findings</strong>, <strong>6. Issues / Deficiencies</strong>, a photo note, a voice note, or a photo of the failed part. Every part comes back tied to what you designated as bad.</li>
+          <li>The lookup reads the photos themselves for the <strong>device's part / model / order number</strong> on the nameplate. It does not search History or a shop parts database.</li>
+          <li>Save the instrument on the <strong>Assets</strong> tab first, or photograph the nameplate, so the search matches the actual model.</li>
           <li>Each part shows <strong>Verified</strong>, <strong>Likely</strong>, or <strong>Confirm number</strong> with the source it came from. Check the number against the nameplate before ordering.</li>
           <li>Uncheck what the shop already stocks, then tap <strong>Add … to 10. Parts Needed / Recommended</strong>. Nothing is ordered and nothing is written to Zoho from here.</li>
           <li>No prices — the office quotes the work. A <strong>Customer Copy</strong> keeps the part names, quantities, and what each is for, and leaves the part numbers out.</li>
@@ -289,7 +290,7 @@
         </ul>
       </div>
     </details>
-    <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Reads what you recorded in sections 5–8 and the equipment on the Assets tab, then searches manufacturer parts lists. Review each part before it goes in the report.</div>
+    <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Reads this entire visit — sections, photos, and notes — then searches the live web for the replacement part. Review each part before it goes in the report.</div>
     <div id="parts-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#2d6b60;line-height:1.5"></div>
     <button class="bb-lg" id="parts-lookup-btn" onclick="runPartsLookup()" style="margin-bottom:8px">Look Up Parts</button>
     <div id="parts-list" style="display:none"></div>
@@ -1100,8 +1101,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=393"></script>
-<script src="src/app.js?v=393"></script>
+<script src="src/accounts-map.js?v=394"></script>
+<script src="src/app.js?v=394"></script>
 
 </body>
 </html>
