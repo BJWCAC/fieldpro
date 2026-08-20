@@ -8179,7 +8179,7 @@ function redactCustomerCopyModelNumbers(line,opts){
     }
     if(keep.indexOf(w.word)>=0)continue;
     // In a deal name the job number is written in this shape, so it only goes
-    // when the report labeled the same code.
+    // on evidence that the report meant it as equipment (opts.known).
     if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(w.word)&&known.indexOf(w.word)<0)continue;
     if(customerCopyNumberIsMeasured(line,words,i))continue;
     if(customerCopyNumberIsReference(line,words,i))continue;
