@@ -509,6 +509,7 @@ Every code PR should run at least:
 node --check src/app.js
 node --check netlify/functions/zoho-proxy.js
 node tests/customer-copy-redaction.js
+node tests/parts-lookup.js
 git diff --check
 ```
 

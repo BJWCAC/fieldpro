@@ -14,18 +14,20 @@ A technician records a deficiency on site — a binding pen drive, a slow pH ele
 
 The answer is a short list of parts, each one tied to a deficiency the technician actually recorded. It is not a catalog page and not a spare-parts program.
 
-**Inputs available** (all optional, all from work already done on the visit):
+**Inputs available** (all optional, all from **this visit** — never History, never a shop parts database, never another job):
 
 | Input | Where it comes from |
 |---|---|
-| Deficiencies, findings, recommendations, follow-up | Capture sections 5–8 |
-| Equipment serviced | Capture section 2 |
-| Brand, type, model, serial, series, category | Assets saved this visit (`A.asset.savedItems`), or the asset form still open |
-| What the technician wrote on each photo | `A.photos[].desc` |
-| Voice notes | Capture voice notes |
+| The entire capture | Every filled section 1–10, not only 5–8 |
+| The photos themselves | Capture photos and Assets nameplate photos, sent as images so the model can read a nameplate and see what was designated bad |
+| Technician / AI notes on each photo | `A.photos[].label`, `desc`, `aiDesc`, `synthesis` |
+| Voice notes and video transcript | Capture voice notes and the walkthrough transcript |
+| Brand, type, model, serial, series, category, nameplate extras | Assets saved this visit (`A.asset.savedItems`), or the asset form still open |
 | Account, deal name, deal stage | The selected deal |
 
-**A lookup with no deficiency text is not a lookup.** Without a recorded problem there is nothing for a part to be *for*, and the answer degrades into a generic spares list. Return nothing rather than guess.
+**A lookup with nothing designated as bad is not a lookup.** The designation can be written (sections, photo notes, voice) or visible on a photo (a circled part, a cracked cell, a tag that says replace). Without a problem there is nothing for a part to be *for*, and the answer degrades into a generic spares list. Return nothing rather than guess.
+
+**Read the device first, then search the live web.** Walk every photo and every line of text for the part / model / order / serial number of the instrument that needs the replacement. Copy the full code as printed. Then search manufacturer sites, manuals, and authorized distributors for the part that repairs *that* instrument. Do not answer from a remembered catalog or from a prior capture.
 
 ---
 
@@ -54,7 +56,7 @@ Rules:
 - **`part_number`** — the manufacturer's own number, exactly as published. Empty string when a genuine search does not surface one; never a guess, never a placeholder, never invented digits. An empty `part_number` is a usable answer as long as `description` and `basis` say what to ask the manufacturer for.
 - **`description`** — what the part is, in the words a purchasing clerk needs. Include the instrument family so a line item can be checked against the asset record.
 - **`qty`** — what one repair needs, as a number plus a unit when the unit matters (`1`, `2`, `12 rolls`, `1 kit`). Say `stock 2` in `notes` when the shop would normally keep a spare on the truck; do not inflate `qty` to cover that.
-- **`for`** — the recorded deficiency this part addresses, quoted or closely paraphrased from what the technician wrote. **Every part must have one.** A part with no deficiency behind it does not belong in the list.
+- **`for`** — the recorded deficiency this part addresses, quoted or closely paraphrased from what the technician wrote or from what the photos show. **Every part must have one.** A part with no recorded or visible deficiency behind it does not belong in the list.
 - **`kind`** — one of:
   - `consumable` — used up on a schedule (chart paper, reagents, buffers, calibration gas, sensor caps).
   - `wear` — wears out in service and is meant to be replaced (pen arms, electrodes, diaphragms, o-rings, filters).
@@ -64,12 +66,12 @@ Rules:
 - **`confidence`** — `verified` (found on the manufacturer's own parts list, manual, or authorized distributor page and cited in `basis`), `likely` (found on a reputable source, or the part is unambiguous for the family but the exact number depends on an option code), `unverified` (named from field knowledge only — say so plainly and give the search path in `basis`).
 - **`basis`** — the source, short: manufacturer document or domain, plus the page/table when it helps. CapStone prints it after `Source: `, so write a source phrase rather than a sentence. For `unverified`, name where the number has to come from instead: `"Honeywell — ask for the DR4500A pen kit for a 3-pen unit"`.
 - **`notes`** — optional, one or two sentences, and only when it changes what gets ordered: an option code the number depends on, a kit that supersedes individual parts, a shelf life, a supersession, a calibration consequence (§4).
-- **Return `[]`** when there is no recorded deficiency, when the equipment cannot be identified well enough to name a part, or when the deficiency needs no part (a re-range, a setting, a loose terminal).
+- **Return `[]`** when there is no recorded or visible deficiency, when the equipment cannot be identified well enough to name a part, or when the deficiency needs no part (a re-range, a setting, a loose terminal).
 - **At most 12 parts.** A longer list is a catalog dump; rank by what the recorded deficiencies actually need.
 
 ### Search first, deeply
 
-Run several targeted searches rather than answering from memory: `"<brand> <model> spare parts list"`, `"<brand> <model> replacement parts"`, `"<brand> <model> service manual"`, `"<brand> <model> accessories"`, and the specific part by name (`"<brand> <model> pen arm assembly part number"`). Prefer the manufacturer's own document; cross-check a number on a second source before calling it `verified`. Decode the full model/order code where the part depends on it — a Promag electrode depends on the liner and the wetted material, a gas sensor depends on the gas and the range.
+Run several targeted searches of the **live internet** rather than answering from memory or from a prior job: `"<brand> <model> spare parts list"`, `"<brand> <model> replacement parts"`, `"<brand> <model> service manual"`, `"<brand> <model> accessories"`, the specific part by name (`"<brand> <model> pen arm assembly part number"`), the full nameplate model/order code plus the failed part, and the exact nameplate number plus `replacement` / `spare`. Search manufacturer sites, manuals, and authorized distributors. Prefer the manufacturer's own document; cross-check a number on a second source before calling it `verified`. Decode the full model/order code where the part depends on it — a Promag electrode depends on the liner and the wetted material, a gas sensor depends on the gas and the range.
 
 ### Never price it
 
@@ -142,6 +144,6 @@ Parts land in the report through Capture section **10. Parts Needed / Recommende
 
 ## 6. Provider strategy (CapStone Parts Lookup)
 
-Same arrangement as `Model_AI_Specs`: **Gemini primary, Claude fallback, no merge.** `partsLookupProviders()` orders them, `fetchPartsLookupDraft()` runs one and takes the first usable answer. Both calls set `search:true` — an ungrounded parts answer is a guess, and a guessed part number is worse than no answer, so **keep web-search grounding on both calls**. Gemini gets a generous `maxTok` because thinking tokens count against the budget and a multi-source parts search spends a lot of them.
+Same arrangement as `Model_AI_Specs`: **Gemini primary, Claude fallback, no merge.** `partsLookupProviders()` orders them, `buildPartsLookupPayload()` attaches this visit's photos (nameplate first) plus the assembled text, and `fetchPartsLookupDraft()` runs one and takes the first usable answer. Both calls set `search:true` — an ungrounded parts answer is a guess, and a guessed part number is worse than no answer, so **keep web-search grounding on both calls**. Claude is allowed more search uses (`PARTS_LOOKUP_SEARCH_USES`) so the extra nameplate-code queries actually run. Gemini gets a generous `maxTok` because thinking tokens count against the budget and a multi-source parts search spends a lot of them. The payload is this visit only: Capture and Assets photos, this visit's sections and notes. History and other jobs are not inputs.
 
 The lookup is a Pending AI item (`parts_lookup`) like every other AI call in CapStone: a weak-signal failure queues and retries rather than losing the recorded deficiency. It never writes to Zoho on its own — the technician reviews the list, unchecks what the shop already stocks, and adds the rest to section 10, which is what reaches the report, the deal note, and the PDF.

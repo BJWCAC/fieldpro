@@ -122,7 +122,7 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 8. Add photo labels and descriptions.
 9. Dictate or type field notes.
 10. Optionally fill in any of the ten structured report fields.
-10a. If you recorded a deficiency, tap **Look Up Parts** under **Parts for Recorded Deficiencies**, review what comes back, and add the parts you want to **10. Parts Needed / Recommended**.
+10a. If this visit designated something as bad — in a section, a photo note, or a photo of the failed part — tap **Look Up Parts** under **Parts for Recorded Deficiencies**. It reads the whole capture including the pictures, searches the live web for the replacement part, and you add what you want to **10. Parts Needed / Recommended**.
 11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place and no wording such as "redacted" or "withheld", so the report still reads normally — and prints each photo's AI Synthesis without its AI Observation. That includes a model number written as a plain number beside the equipment it names ("Rosemount 3051 transmitter"), while readings, plant references ("Basin 12", "Room 101"), loop tags, work order numbers, and the deal's job number stay. The Report tab lists what was left out.
 12. Generate the AI report.
 13. Review the report.
@@ -165,12 +165,12 @@ Empty fields are ignored. Field 9 is what you installed today; field 10 is what 
 
 ## Parts for Recorded Deficiencies
 
-Record the problem first — in **5. Findings**, **6. Issues / Deficiencies**, **7. Recommendations**, or **8. Follow-Up**. Then tap **Look Up Parts**.
+Record the problem first — in **5. Findings**, **6. Issues / Deficiencies**, a photo note, a voice note, or a photo of the failed part. Then tap **Look Up Parts**.
 
-CapStone reads what you wrote in those fields, the brand and model of the equipment saved (or open) on the **Assets** tab, your photo descriptions, and your voice notes, then searches the manufacturer's own parts lists. Every part comes back tied to the deficiency it corrects.
+CapStone reads the **entire capture** — every section, every photo (the images themselves, so it can read the nameplate and see what was designated bad), the technician and AI notes on those photos, voice notes, and the video transcript — then searches manufacturer parts lists on the **live web**. It does not look in History or a shop parts database. Every part comes back tied to what this visit designated as bad.
 
 - Each part shows **Verified**, **Likely**, or **Confirm number** with the source it came from. Check the number against the nameplate before ordering — a Likely number usually depends on an option code the nameplate carries.
-- Save the instrument on **Assets** first, or at least fill in its brand and model there. Without a model the lookup can only name the part, not its number.
+- Photograph the nameplate, or save the instrument on **Assets** first. The lookup reads the device's part / model / order number from this visit and searches for the replacement part for *that* instrument.
 - Uncheck what the shop already stocks, then tap **Add … to 10. Parts Needed / Recommended**. That field is an ordinary section you can edit, and it goes into the report on Generate.
 - **Nothing is ordered and nothing is written to Zoho from the panel.** Only what you add to field 10 reaches the report, the PDF, and the deal note.
 - **No prices.** The office quotes the work, and pricing is withheld from a customer copy anyway.

@@ -353,9 +353,14 @@ function combineModelAiSpecsForUpdate(newSpec,existingZohoSpec){
 var PARTS_SECTION_ID="sec10";
 var PARTS_DEFICIENCY_SEC_IDS=["sec5","sec6","sec7","sec8"];
 var PARTS_LOOKUP_MAX=12;
+var PARTS_LOOKUP_MAX_CAPTURE_PHOTOS=12;
+var PARTS_LOOKUP_MAX_ASSET_PHOTOS=6;
+var PARTS_LOOKUP_SEARCH_USES=10;
+var PARTS_LOOKUP_PHOTO_MAX_W=900;
+var PARTS_LOOKUP_PHOTO_QUALITY=0.5;
 var PARTS_LOOKUP_KINDS=["consumable","wear","repair","replace-unit","test-standard"];
 var PARTS_LOOKUP_CONFIDENCE=["verified","likely","unverified"];
-var PARTS_LOOKUP_SYSTEM_PROMPT="You list the parts needed to correct deficiencies a field technician recorded on a water/wastewater instrumentation service visit, for a calibration company (Calibrations & Controls). Full rules: docs/PARTS_LOOKUP_RULES.md in this repo — keep this prompt in sync with that file.\n\nFIRST, before writing anything, DO A DEEP WEB SEARCH — do not answer from memory. Run SEVERAL targeted searches, not one: (1) \"<brand> <model> spare parts list\", (2) \"<brand> <model> replacement parts\", (3) the manufacturer's service or instruction manual, (4) \"<brand> <model> accessories\", and (5) the specific part by name (\"<brand> <model> pen arm assembly part number\"). Prefer the MANUFACTURER's own document and cross-check a number on a second source before calling it verified. Decode the FULL model/order code where the part depends on it — an electrode depends on liner and wetted material, a gas cell on the gas and range, a chart on the range and time base.\n\nReturn ONLY a minified JSON array — no markdown, no code fence, no prose before or after. Each element uses exactly these keys, all string values:\npart_number, manufacturer, description, qty, for, kind, confidence, basis, notes\n\n- part_number: the manufacturer's own number exactly as published, or \"\" when a genuine search does not surface one. NEVER invent digits and never write a placeholder — no \"N/A\", \"TBD\", \"unknown\", \"[redacted]\", \"withheld\", \"not shown\", or \"***\". An empty part_number with a clear description and basis is a useful answer.\n- manufacturer: the brand that sells the part.\n- description: what the part is, in the words a purchasing clerk needs, including the instrument family.\n- qty: what ONE repair needs (\"1\", \"2\", \"12 rolls\", \"1 kit\"). Put a stocking suggestion in notes instead of inflating qty.\n- for: the recorded deficiency this part corrects, quoted or closely paraphrased from what the technician wrote. EVERY part must have one — a part with no recorded deficiency behind it does not belong in the list.\n- kind: consumable (used up on a schedule) | wear (wears out in service) | repair (replaced because it failed) | replace-unit (not separately available or not field-replaceable, so the assembly or instrument is the answer) | test-standard (verifies the repair rather than performing it).\n- confidence: verified (on the manufacturer's own parts list/manual, cited in basis) | likely (reputable source, or unambiguous for the family but the exact number depends on an option code) | unverified (field knowledge only).\n- basis: the source, short — manufacturer document or domain, plus the table when it helps. It is printed after \"Source: \", so write it as a source phrase and not as a sentence. For unverified, name where the number comes from instead (\"Honeywell — ask for the DR4500A pen kit for a 3-pen unit\").\n- notes: optional, one or two sentences, ONLY when it changes what gets ordered: an option code the number depends on, a kit that supersedes individual parts, a shelf life or expiry, a supersession, or a calibration consequence.\n\nReturn [] when there is no recorded deficiency, when the equipment cannot be identified well enough to name a part, or when the deficiency needs no part at all (a re-range, a setting, a loose terminal). At most "+PARTS_LOOKUP_MAX+" parts, ranked by what the recorded deficiencies actually need — a longer list is a catalog dump.\n\nNEVER PRICE ANYTHING. No price, cost, quote, list price, or currency, anywhere in any field. The shop prices its own work, published prices are stale, and pricing is withheld from a customer copy.\n\nCall out in notes, when it applies: the calibration data lives in the part (Siemens SENSORPROM, Endress+Hauser S-DAT, Micro Motion FCF, Foxboro Meter Factor, Hach sc sensors) so replacing the wrong half loses the factory calibration; a manufacturer kit contains the part, so name the kit and what else is in it; dated stock (reagents, buffers, calibration gas, Hach LDO caps, electrochemical gas cells, turbidity standards) expires on a shelf; the number depends on an option the visit did not record, so say which nameplate detail decides it; a superseded or obsolete number; a part that is not field-replaceable (magmeter liners, sealed sensors, potted assemblies).\n\nField starting points, not a substitute for the search: chart recorders — pen arm assembly and fiber-tip pens are separate numbers, chart paper by chart number (it encodes range and time base), drive motor when the pen binds across the whole span rather than at one point, door gasket. pH/ORP — electrode or cartridge (a slope under ~90% is a dying electrode, not a calibration problem), reference junction, dated buffer set, o-rings, cable; the sc100/sc200 controller is not the sensor. Dissolved oxygen — the Hach LDO sensor cap IS the calibration and it expires. Chlorine/colorimetric — dated reagent sets, pump/colorimeter tubing kit (the usual cause of erratic readings), strainer. Turbidimeters — vials, desiccant, lamp assembly, StablCal standards. Fixed gas detection — the cell or element has a calendar life, a poisoned catalytic bead reads LOW while still zeroing fine so a unit that zeroes and will not span is a cell, plus splash guard, dust filter, gasket, and calibration gas with a demand-flow regulator (expired gas is the top span failure); the cell number depends on gas and range. Magmeters — electrodes matched to the process, coil assembly, matched dual-lead sensor cable (not generic wire), flange gaskets; a damaged LINER is replace-unit. Ultrasonic level/flow — transducer, bracket, cable, enclosure desiccant, and re-enter the range after a transducer swap. DP/pressure transmitters — sensor module (the calibrated part), process o-rings and PTFE gaskets, manifold, diaphragm seals, terminal block; an absolute unit cannot be vent-zeroed. RTD/temperature — element, thermowell, terminal block; simulating the RTD tests the transmitter, not the element. Metering pumps — the wet-end kit (diaphragm, check valves, seals, tubing) rather than the diaphragm alone. Water meters — register and gasket set, and wear always reads LOW. Balances/scales — load cell, traceable mass set, leveling feet, display cable. Metal detectors — certified ferrous/non-ferrous/stainless test spheres are the verification, plus belt and reject flap seals. Anything with an enclosure — gaskets, cord grips, cable glands, conduit seals, fuses, surge protectors, terminal blocks, which are what keeps water out of a panel and are almost never in the technician's note.";
+var PARTS_LOOKUP_SYSTEM_PROMPT="You list the parts needed to correct deficiencies a field technician recorded on a water/wastewater instrumentation service visit, for a calibration company (Calibrations & Controls). Full rules: docs/PARTS_LOOKUP_RULES.md in this repo — keep this prompt in sync with that file.\n\nREAD THIS VISIT FIRST. The user message includes the entire capture — every section, every photo as an image, every technician/AI note on those photos, voice notes, and the video transcript. Walk all of it. Find what the technician designated as bad, failed, worn, leaking, binding, or needing replacement: a circled or labeled part in a photo, a cracked cell, a note that says replace, a deficiency in section 6, a voice note, a failed span. Then read the part / model / order / serial number of the DEVICE that needs that part, from the nameplate photos and from any text that recorded it. Copy the full model or order code exactly as printed. That identity comes only from THIS visit — never from a remembered catalog, a prior capture, History, a shop parts database, or another job.\n\nTHEN DO A DEEP WEB SEARCH of the live internet — do not answer from memory and do not reuse a part number from a past job. Run SEVERAL targeted searches, not one: (1) \"<brand> <model> spare parts list\", (2) \"<brand> <model> replacement parts\", (3) the manufacturer's service or instruction manual, (4) \"<brand> <model> accessories\", (5) the specific failed part by name (\"<brand> <model> pen arm assembly part number\"), (6) \"<brand> <full nameplate model/order code> <failed part> part number\", and (7) the exact nameplate number plus \"replacement\" or \"spare\". Search manufacturer sites, manuals, and authorized distributors. Prefer the MANUFACTURER's own document and cross-check a number on a second source before calling it verified. Decode the FULL model/order code where the part depends on it — an electrode depends on liner and wetted material, a gas cell on the gas and range, a chart on the range and time base.\n\nReturn ONLY a minified JSON array — no markdown, no code fence, no prose before or after. Each element uses exactly these keys, all string values:\npart_number, manufacturer, description, qty, for, kind, confidence, basis, notes\n\n- part_number: the manufacturer's own number exactly as published, or \"\" when a genuine search does not surface one. NEVER invent digits and never write a placeholder — no \"N/A\", \"TBD\", \"unknown\", \"[redacted]\", \"withheld\", \"not shown\", or \"***\". An empty part_number with a clear description and basis is a useful answer.\n- manufacturer: the brand that sells the part.\n- description: what the part is, in the words a purchasing clerk needs, including the instrument family.\n- qty: what ONE repair needs (\"1\", \"2\", \"12 rolls\", \"1 kit\"). Put a stocking suggestion in notes instead of inflating qty.\n- for: the recorded deficiency this part corrects, quoted or closely paraphrased from what the technician wrote or from what the photos show. EVERY part must have one — a part with no recorded or visible deficiency behind it does not belong in the list.\n- kind: consumable (used up on a schedule) | wear (wears out in service) | repair (replaced because it failed) | replace-unit (not separately available or not field-replaceable, so the assembly or instrument is the answer) | test-standard (verifies the repair rather than performing it).\n- confidence: verified (on the manufacturer's own parts list/manual, cited in basis) | likely (reputable source, or unambiguous for the family but the exact number depends on an option code) | unverified (field knowledge only).\n- basis: the source, short — manufacturer document or domain, plus the table when it helps. It is printed after \"Source: \", so write it as a source phrase and not as a sentence. For unverified, name where the number comes from instead (\"Honeywell — ask for the DR4500A pen kit for a 3-pen unit\").\n- notes: optional, one or two sentences, ONLY when it changes what gets ordered: an option code the number depends on, a kit that supersedes individual parts, a shelf life or expiry, a supersession, or a calibration consequence.\n\nReturn [] when there is no recorded or visible deficiency, when the equipment cannot be identified well enough to name a part, or when the deficiency needs no part at all (a re-range, a setting, a loose terminal). At most "+PARTS_LOOKUP_MAX+" parts, ranked by what the recorded deficiencies actually need — a longer list is a catalog dump.\n\nNEVER PRICE ANYTHING. No price, cost, quote, list price, or currency, anywhere in any field. The shop prices its own work, published prices are stale, and pricing is withheld from a customer copy.\n\nCall out in notes, when it applies: the calibration data lives in the part (Siemens SENSORPROM, Endress+Hauser S-DAT, Micro Motion FCF, Foxboro Meter Factor, Hach sc sensors) so replacing the wrong half loses the factory calibration; a manufacturer kit contains the part, so name the kit and what else is in it; dated stock (reagents, buffers, calibration gas, Hach LDO caps, electrochemical gas cells, turbidity standards) expires on a shelf; the number depends on an option the visit did not record, so say which nameplate detail decides it; a superseded or obsolete number; a part that is not field-replaceable (magmeter liners, sealed sensors, potted assemblies).\n\nField starting points, not a substitute for the search: chart recorders — pen arm assembly and fiber-tip pens are separate numbers, chart paper by chart number (it encodes range and time base), drive motor when the pen binds across the whole span rather than at one point, door gasket. pH/ORP — electrode or cartridge (a slope under ~90% is a dying electrode, not a calibration problem), reference junction, dated buffer set, o-rings, cable; the sc100/sc200 controller is not the sensor. Dissolved oxygen — the Hach LDO sensor cap IS the calibration and it expires. Chlorine/colorimetric — dated reagent sets, pump/colorimeter tubing kit (the usual cause of erratic readings), strainer. Turbidimeters — vials, desiccant, lamp assembly, StablCal standards. Fixed gas detection — the cell or element has a calendar life, a poisoned catalytic bead reads LOW while still zeroing fine so a unit that zeroes and will not span is a cell, plus splash guard, dust filter, gasket, and calibration gas with a demand-flow regulator (expired gas is the top span failure); the cell number depends on gas and range. Magmeters — electrodes matched to the process, coil assembly, matched dual-lead sensor cable (not generic wire), flange gaskets; a damaged LINER is replace-unit. Ultrasonic level/flow — transducer, bracket, cable, enclosure desiccant, and re-enter the range after a transducer swap. DP/pressure transmitters — sensor module (the calibrated part), process o-rings and PTFE gaskets, manifold, diaphragm seals, terminal block; an absolute unit cannot be vent-zeroed. RTD/temperature — element, thermowell, terminal block; simulating the RTD tests the transmitter, not the element. Metering pumps — the wet-end kit (diaphragm, check valves, seals, tubing) rather than the diaphragm alone. Water meters — register and gasket set, and wear always reads LOW. Balances/scales — load cell, traceable mass set, leveling feet, display cable. Metal detectors — certified ferrous/non-ferrous/stainless test spheres are the verification, plus belt and reject flap seals. Anything with an enclosure — gaskets, cord grips, cable glands, conduit seals, fuses, surge protectors, terminal blocks, which are what keeps water out of a panel and are almost never in the technician's note.";
 // Report copy names. The same field data is often issued more than once — a
 // customer copy and an internal copy, or a one-off name the technician types.
 // The label rides along into the PDF header, PDF filename, WorkDrive filename,
@@ -369,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="393";
+var FP_VERSION="394";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -6679,9 +6684,10 @@ async function processPendingAiItem(item){
     return;
   }
   if(item.type==="report_generate"){await retryQueuedReportGenerate(item);return;}
-  // The queued item carries the assembled context, so a retry looks the same
-  // deficiencies up even if the Capture tab has moved on to the next instrument.
-  if(item.type==="parts_lookup"){await runPartsLookup({fromQueue:true,silent:true,content:item.content||""});return;}
+  // The queued item carries the assembled text and the photo ids, so a retry
+  // looks the same deficiencies up — and rehydrates the same pictures from
+  // IndexedDB — even if the Capture tab has moved on to the next instrument.
+  if(item.type==="parts_lookup"){await runPartsLookup({fromQueue:true,silent:true,content:item.content||"",photoIds:item.photoIds,assetPhotoIds:item.assetPhotoIds});return;}
   if(item.type==="asset_extract"||item.type==="asset_extract_sensor"){await retryQueuedAssetExtract(item);return;}
   if(item.type==="asset_specs"){await runAssetSpecsJob(item);return;}
   throw new Error("Unknown pending AI type");
@@ -7522,10 +7528,27 @@ function geminiSearchTool(model){
   if(/1\.5|1\.0/.test(m))return{google_search_retrieval:{}};
   return{google_search:{}};
 }
+// Claude-style content blocks (text + {type:"image",source:{data}}) become
+// Gemini generateContent parts. A plain string stays a single text part, which
+// is what every existing Gemini caller already sends.
+function geminiPartsFromClaudeContent(content){
+  if(typeof content==="string")return [{text:content}];
+  if(!Array.isArray(content))return [{text:String(content==null?"":content)}];
+  return content.map(function(block){
+    if(!block)return null;
+    if(block.type==="image"&&block.source&&block.source.data){
+      return {inline_data:{mime_type:block.source.media_type||"image/jpeg",data:block.source.data}};
+    }
+    var t=String(block.text||"");
+    return t?{text:t}:null;
+  }).filter(Boolean);
+}
 async function callGeminiAPI(opts){
   if(!GEMINI_API_KEY)throw new Error("Gemini API key required");
   opts=opts||{};
-  var body={contents:[{role:"user",parts:[{text:opts.content}]}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
+  var parts=geminiPartsFromClaudeContent(opts.content);
+  if(!parts.length)parts=[{text:""}];
+  var body={contents:[{role:"user",parts:parts}],generationConfig:{maxOutputTokens:opts.maxTok||4000}};
   if(opts.sys)body.systemInstruction={parts:[{text:opts.sys}]};
   var wantQuality=!!opts.preferQuality;
   var model;
@@ -8611,11 +8634,11 @@ async function addAiPhotoNotes(photos,opts){
   return captioned;
 }
 // PARTS LOOKUP — what to order for the deficiencies this visit recorded.
-// Everything it reads is work the technician already did: the deficiency
-// sections, the equipment the Assets tab identified, the photo notes, the voice
-// notes. Nothing is written anywhere until the technician checks a part and adds
-// it to section 10, which is the only path into the report, the PDF, and the
-// deal note — so a wrong answer costs a tap, not a record.
+// It reads the entire capture: every section, every photo (the images, not
+// just the notes), AI observations/synthesis, voice, and the video transcript.
+// Identity comes from this visit only — never History or a parts database —
+// and the replacement part is searched on the live web. Nothing is written
+// anywhere until the technician checks a part and adds it to section 10.
 function partsLookupProviders(){return modelAiSpecsProviders();}
 function partsSectionLabel(){
   var idx=SEC_IDS.indexOf(PARTS_SECTION_ID);
@@ -8632,6 +8655,66 @@ function partsSectionText(ids){
 }
 function partsDeficiencyText(){return partsSectionText(PARTS_DEFICIENCY_SEC_IDS);}
 function partsHasDeficiency(){return !!partsDeficiencyText().trim();}
+function partsCapturePhotos(){
+  return (A.photos&&A.photos.length?A.photos:(A.reportPhotos||[]))||[];
+}
+function partsPhotoNoteLines(photos){
+  return (photos||[]).map(function(p,i){
+    if(!p)return "";
+    var bits=[];
+    var label=String(p.label||"").trim();
+    var desc=String(p.desc||"").trim();
+    var ai=String(p.aiDesc||"").trim();
+    var syn=String(p.synthesis||"").trim();
+    if(label)bits.push("Label: "+label);
+    if(desc)bits.push("Technician: "+desc);
+    if(ai)bits.push("AI observation: "+ai);
+    if(syn)bits.push("AI synthesis: "+syn);
+    if(!bits.length)return "";
+    return "Photo "+(i+1)+":\n"+bits.map(function(t){return "- "+t;}).join("\n");
+  }).filter(Boolean);
+}
+function partsLookupHasEvidence(opts){
+  opts=opts||{};
+  if(String(opts.deficiency||"").trim())return true;
+  if(String(opts.otherSections||"").trim())return true;
+  if(String(opts.voice||"").trim())return true;
+  if(String(opts.transcript||"").trim())return true;
+  if(String(opts.photoNotes||"").trim())return true;
+  if((opts.photoCount||0)>0)return true;
+  if((opts.assetPhotoCount||0)>0)return true;
+  return false;
+}
+function assemblePartsLookupText(input){
+  input=input||{};
+  var blocks=[];
+  if(input.deal)blocks.push(input.deal);
+  if(input.equipment&&input.equipment.length){
+    blocks.push("EQUIPMENT IDENTIFIED ON THIS VISIT (Assets tab / form on screen — identity only, not a prior job's parts list):\n"+input.equipment.map(function(l){return "- "+l;}).join("\n"));
+  }
+  if(input.allSections)blocks.push("ENTIRE CAPTURE — EVERY SECTION THE TECHNICIAN FILLED IN:\n"+input.allSections);
+  if(input.photoNotes)blocks.push("NOTES ON THE EQUIPMENT PHOTOGRAPHED (the actual images are attached — read nameplates, circled parts, and anything designated bad):\n"+input.photoNotes);
+  if(input.voice)blocks.push("GENERAL VOICE NOTES:\n"+input.voice);
+  if(input.transcript)blocks.push("VIDEO VOICE TRANSCRIPT:\n"+input.transcript);
+  if(input.used)blocks.push("MATERIALS / PARTS ALREADY USED ON THIS VISIT (do not list these again unless more are needed):\n"+input.used);
+  if(input.already)blocks.push("PARTS ALREADY ON THE LIST FOR THIS VISIT (do not repeat these):\n"+input.already);
+  if(input.imageCount)blocks.push(input.imageCount+" photo(s) from this visit are attached. Read every one for the failed part and for the device's part / model / order / serial number.");
+  blocks.push("THIS VISIT ONLY. Identify the failed part and the instrument from the text and photos in this message. Do not use a remembered catalog, a prior capture, History, or a shop parts database. Search the live web for the replacement part.");
+  return blocks.join("\n\n");
+}
+function partsHasLookupEvidence(){
+  var photos=partsCapturePhotos();
+  var assetPhotos=(A.asset&&A.asset.photos)||[];
+  return partsLookupHasEvidence({
+    deficiency:partsDeficiencyText(),
+    otherSections:partsSectionText(["sec1","sec2","sec3","sec4"]),
+    voice:getVoiceNotesValue(),
+    transcript:getVideoTranscriptValue(),
+    photoNotes:partsPhotoNoteLines(photos).join("\n"),
+    photoCount:photos.filter(function(p){return p&&fpHasPhotoDisplay(p.display);}).length,
+    assetPhotoCount:assetPhotos.filter(assetPhotoHasData).length
+  });
+}
 // The best identity this visit has for the instrument: what the Assets tab saved
 // to Zoho, plus the asset form still on screen — a technician looks parts up
 // before saving the record as often as after.
@@ -8648,6 +8731,10 @@ function partsEquipmentLines(){
     if(o.serial)bits.push("Serial: "+o.serial);
     if(o.category)bits.push("Category: "+o.category);
     if(o.name)bits.push("Record: "+o.name);
+    if(o.sensorModel)bits.push("Sensor model: "+o.sensorModel);
+    if(o.nameplateAdditional)bits.push("Nameplate additional: "+o.nameplateAdditional);
+    if(o.description)bits.push("Description: "+o.description);
+    if(o.dealNotes)bits.push("Asset notes: "+o.dealNotes);
     if(!bits.length)return;
     var line=bits.join(", ");
     if(out.indexOf(line)<0)out.push(line);
@@ -8655,38 +8742,106 @@ function partsEquipmentLines(){
   ((A.asset&&A.asset.savedItems)||[]).forEach(add);
   add({brand:assetInput("asset-brand"),brandOther:assetInput("asset-brand-other"),type:assetInput("asset-type"),
     series:assetInput("asset-series"),model:assetInput("asset-model"),serial:assetInput("asset-serial"),
-    category:assetInput("asset-category")});
+    category:assetInput("asset-category"),name:assetInput("asset-name"),
+    nameplateAdditional:assetInput("asset-nameplate-additional"),description:assetInput("asset-description"),
+    dealNotes:assetInput("asset-deal-notes"),
+    sensorModel:(A.asset&&A.asset.dynamicValues&&A.asset.dynamicValues.Sensor_Model_Number)||""});
   return out;
 }
-function partsLookupContent(){
-  var blocks=[];
-  if(A.sel)blocks.push("Account: "+(A.sel.Account_Name||"")+"\nDeal: "+(A.sel.Deal_Name||"")+"\nStage: "+(A.sel.Stage||""));
-  var eq=partsEquipmentLines();
-  if(eq.length)blocks.push("EQUIPMENT IDENTIFIED ON THIS VISIT (Assets tab / Zoho Equipments):\n"+eq.map(function(l){return "- "+l;}).join("\n"));
-  var served=el("sec2")&&el("sec2").value.trim();
-  if(served)blocks.push("EQUIPMENT / SYSTEMS SERVICED (technician):\n"+served);
-  var def=partsDeficiencyText();
-  if(def)blocks.push("RECORDED DEFICIENCIES, FINDINGS, AND RECOMMENDATIONS (technician, on site):\n"+def);
-  var photoNotes=(A.photos&&A.photos.length?A.photos:(A.reportPhotos||[])).map(function(p){return String(p&&p.desc||"").trim();}).filter(Boolean);
-  if(photoNotes.length)blocks.push("TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED:\n"+photoNotes.map(function(t){return "- "+t;}).join("\n"));
-  var voice=getVoiceNotesValue().trim();
-  if(voice)blocks.push("GENERAL VOICE NOTES:\n"+voice);
-  var used=el("sec9")&&el("sec9").value.trim();
-  if(used)blocks.push("MATERIALS / PARTS ALREADY USED ON THIS VISIT (do not list these again unless more are needed):\n"+used);
-  var already=el(PARTS_SECTION_ID)&&el(PARTS_SECTION_ID).value.trim();
-  if(already)blocks.push("PARTS ALREADY ON THE LIST FOR THIS VISIT (do not repeat these):\n"+already);
-  return blocks.join("\n\n");
+function partsLookupContent(imageCount){
+  var photos=partsCapturePhotos();
+  var allIds=SEC_IDS.filter(function(id){return id!==PARTS_SECTION_ID&&id!=="sec9";});
+  var deal=A.sel?("Account: "+(A.sel.Account_Name||"")+"\nDeal: "+(A.sel.Deal_Name||"")+"\nStage: "+(A.sel.Stage||"")):"";
+  return assemblePartsLookupText({
+    deal:deal,
+    equipment:partsEquipmentLines(),
+    allSections:partsSectionText(allIds),
+    photoNotes:partsPhotoNoteLines(photos).join("\n"),
+    voice:getVoiceNotesValue().trim(),
+    transcript:getVideoTranscriptValue().trim(),
+    used:el("sec9")&&el("sec9").value.trim()||"",
+    already:el(PARTS_SECTION_ID)&&el(PARTS_SECTION_ID).value.trim()||"",
+    imageCount:imageCount||0
+  });
 }
-async function fetchPartsLookupDraft(provider,content){
+function partsPhotoRank(p){
+  var n=0;
+  if(p&&String(p.desc||"").trim())n+=4;
+  if(p&&String(p.label||"").trim())n+=2;
+  if(p&&String(p.shortDescription||"").trim())n+=2;
+  if(p&&String(p.aiDesc||"").trim())n+=1;
+  if(p&&String(p.synthesis||"").trim())n+=1;
+  return n;
+}
+function partsPhotoIds(photos){
+  return (photos||[]).map(function(p){return p&&p.id;}).filter(Boolean);
+}
+async function partsHydratePhotosById(ids,livePhotos){
+  ids=ids||[];
+  if(!ids.length)return [];
+  var byId={};
+  (livePhotos||[]).forEach(function(p){if(p&&p.id)byId[p.id]=p;});
+  var need=ids.filter(function(id){
+    var p=byId[id];
+    return !(p&&(fpHasPhotoDisplay(p.display)||fpHasPhotoDisplay(p.data)));
+  });
+  var map=need.length?await fpIdbGetPhotos(need):{};
+  return ids.map(function(id){
+    var p=byId[id]||{id:id};
+    var display=fpHasPhotoDisplay(p.display)?p.display:(fpHasPhotoDisplay(p.data)?p.data:(map[id]||""));
+    if(!fpHasPhotoDisplay(display))return null;
+    return Object.assign({},p,{display:display});
+  }).filter(Boolean);
+}
+async function appendPartsLookupImages(content,photos,opts){
+  opts=opts||{};
+  var max=opts.max||PARTS_LOOKUP_MAX_CAPTURE_PHOTOS;
+  var kind=opts.kind||"Capture";
+  var ranked=(photos||[]).filter(function(p){
+    return p&&(fpHasPhotoDisplay(p.display)||fpHasPhotoDisplay(p.data));
+  }).slice().sort(function(a,b){return partsPhotoRank(b)-partsPhotoRank(a);}).slice(0,max);
+  var sent=[];
+  for(var i=0;i<ranked.length;i++){
+    var src=fpHasPhotoDisplay(ranked[i].display)?ranked[i].display:ranked[i].data;
+    var b64=await compressPhoto(src,PARTS_LOOKUP_PHOTO_MAX_W,PARTS_LOOKUP_PHOTO_QUALITY);
+    if(!b64)continue;
+    content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}});
+    var caption=kind+" photo "+(i+1);
+    if(opts.roleFn)caption+=" ("+opts.roleFn(ranked[i])+")";
+    var notes=partsPhotoNoteLines([ranked[i]])[0];
+    if(notes)caption+="\n"+notes;
+    else caption+=" — read the nameplate and anything designated as failed or needing replacement.";
+    content.push({type:"text",text:caption});
+    sent.push(ranked[i]);
+  }
+  return sent;
+}
+async function buildPartsLookupPayload(opts){
+  opts=opts||{};
+  var capture=partsCapturePhotos();
+  var assets=(A.asset&&A.asset.photos)||[];
+  if(opts.photoIds&&opts.photoIds.length)capture=await partsHydratePhotosById(opts.photoIds,capture);
+  if(opts.assetPhotoIds&&opts.assetPhotoIds.length)assets=await partsHydratePhotosById(opts.assetPhotoIds,assets);
+  var content=[];
+  var assetSent=await appendPartsLookupImages(content,assets,{max:PARTS_LOOKUP_MAX_ASSET_PHOTOS,kind:"Asset nameplate",roleFn:assetPhotoRoleLabel});
+  var capSent=await appendPartsLookupImages(content,capture,{max:PARTS_LOOKUP_MAX_CAPTURE_PHOTOS,kind:"Capture"});
+  var n=assetSent.length+capSent.length;
+  var text=String(opts.text||"").trim()||partsLookupContent(n);
+  if(opts.text&&n)text+="\n\n"+n+" photo(s) from this visit are attached. Read every one for the failed part and for the device's part / model / order / serial number.";
+  content.push({type:"text",text:text});
+  return {text:text,content:content,imageCount:n,photoIds:partsPhotoIds(capSent),assetPhotoIds:partsPhotoIds(assetSent)};
+}
+async function fetchPartsLookupDraft(provider,payload){
+  var content=payload&&payload.content?payload.content:[{type:"text",text:typeof payload==="string"?payload:(payload&&payload.text||"")}];
   if(provider==="claude"){
-    var d=await callAPI({sys:PARTS_LOOKUP_SYSTEM_PROMPT,content:[{type:"text",text:content}],maxTok:2000,ms:90000,search:true,searchMaxUses:6});
+    var d=await callAPI({sys:PARTS_LOOKUP_SYSTEM_PROMPT,content:content,maxTok:2500,ms:120000,search:true,searchMaxUses:PARTS_LOOKUP_SEARCH_USES});
     return getText(d).trim();
   }
   if(provider==="gemini"){
     // Generous maxTok for the same reason as Model_AI_Specs: Gemini "thinking"
     // tokens count against the output budget and a multi-source parts search
     // spends a lot of them, so a tight budget returns a truncated JSON array.
-    var g=await callGeminiAPI({sys:PARTS_LOOKUP_SYSTEM_PROMPT,content:content,maxTok:6144,ms:110000,search:true,preferQuality:true});
+    var g=await callGeminiAPI({sys:PARTS_LOOKUP_SYSTEM_PROMPT,content:content,maxTok:6144,ms:130000,search:true,preferQuality:true});
     return getGeminiText(g).trim();
   }
   return "";
@@ -8735,18 +8890,19 @@ function normalizePartsLookupRow(o,i){
 function normalizePartsLookupRows(arr){
   return (arr||[]).map(normalizePartsLookupRow).filter(Boolean).slice(0,PARTS_LOOKUP_MAX);
 }
-async function computePartsLookup(contentOverride){
+async function computePartsLookup(opts){
+  opts=typeof opts==="string"?{text:opts}:(opts||{});
   var providers=partsLookupProviders();
   if(!providers.length)return{ok:false,reason:"no_api_keys"};
-  var content=String(contentOverride||"").trim()||partsLookupContent();
-  if(!content)return{ok:false,reason:"no_deficiency"};
+  var payload=await buildPartsLookupPayload(opts);
+  if(!payload.text&&!payload.imageCount)return{ok:false,reason:"no_deficiency"};
   var errors=[],firstError=null,chosen=null,chosenProvider="";
   for(var i=0;i<providers.length;i++){
     var p=providers[i],pname=p==="gemini"?"Gemini":"Claude",primary=i===0;
-    setPartsStatus("Searching manufacturer parts lists for the recorded deficiencies ("+pname+(primary?"":" fallback")+")...",false);
+    setPartsStatus("Reading this visit's photos and notes, then searching the live web for replacement parts ("+pname+(primary?"":" fallback")+")...",false);
     if(!primary)await new Promise(function(r){setTimeout(r,1200+Math.floor(Math.random()*800));});
     var txt="";
-    try{txt=await fetchPartsLookupDraft(p,content);}
+    try{txt=await fetchPartsLookupDraft(p,payload);}
     catch(e){
       if(!firstError)firstError=e;
       errors.push(pname+": "+formatAiProviderError(e&&e.message?e.message:String(e)));
@@ -8756,16 +8912,16 @@ async function computePartsLookup(contentOverride){
     if(!arr){errors.push(pname+": returned no usable parts list");continue;}
     chosen=arr;chosenProvider=pname;break;
   }
-  if(!chosen)return{ok:false,reason:"ai_failed",errors:errors,error:firstError};
-  return{ok:true,parts:normalizePartsLookupRows(chosen),provider:chosenProvider,warnings:errors,content:content};
+  if(!chosen)return{ok:false,reason:"ai_failed",errors:errors,error:firstError,content:payload.text,photoIds:payload.photoIds,assetPhotoIds:payload.assetPhotoIds};
+  return{ok:true,parts:normalizePartsLookupRows(chosen),provider:chosenProvider,warnings:errors,content:payload.text,photoIds:payload.photoIds,assetPhotoIds:payload.assetPhotoIds};
 }
 async function runPartsLookup(opts){
   opts=opts||{};
   if(A.partsLookupRunning){if(!opts.silent)showToast("Parts lookup already running",2500);return;}
   var queuedContent=String(opts.content||"").trim();
-  if(!queuedContent&&!partsHasDeficiency()){
-    if(!opts.silent)showToast("Write what you found in Issues / Deficiencies (or Findings, Recommendations, Follow-Up) first — parts are looked up for a recorded deficiency.",8000);
-    setPartsStatus("Nothing to look up yet. Parts are found for a deficiency you recorded — fill in 5. Findings, 6. Issues / Deficiencies, 7. Recommendations, or 8. Follow-Up above.",false);
+  if(!queuedContent&&!partsHasLookupEvidence()){
+    if(!opts.silent)showToast("Record what is bad first — in a section, a photo note, a voice note, or a photo of the failed part.",8000);
+    setPartsStatus("Nothing to look up yet. Parts are found for what this visit designated as bad — write it in a section, on a photo, or photograph the failed part and the nameplate.",false);
     return;
   }
   if(!API_KEY&&!GEMINI_API_KEY&&!opts.fromQueue){
@@ -8777,16 +8933,17 @@ async function runPartsLookup(opts){
   var btn=el("parts-lookup-btn");
   if(btn){btn.disabled=true;btn.textContent="Looking up parts...";}
   try{
-    var res=await computePartsLookup(queuedContent);
+    var res=await computePartsLookup({text:queuedContent,photoIds:opts.photoIds,assetPhotoIds:opts.assetPhotoIds});
     if(!res.ok){
       if(res.reason==="no_api_keys")throw new Error("Add an Anthropic or Gemini API key in Settings first.");
-      if(res.reason==="no_deficiency")throw new Error("No recorded deficiency to look parts up for.");
+      if(res.reason==="no_deficiency")throw new Error("No recorded or visible deficiency to look parts up for.");
       if(res.error&&shouldQueueAiError(res.error)){
         // A retry that fails again has to throw: retryPendingAi() keeps only the
         // items that threw, so re-queuing here would be overwritten and the
         // lookup would be dropped instead of retried.
         if(opts.fromQueue)throw res.error;
-        enqueuePendingAi({type:"parts_lookup",target:"parts",content:queuedContent||partsLookupContent(),
+        enqueuePendingAi({type:"parts_lookup",target:"parts",content:queuedContent||res.content||partsLookupContent(),
+          photoIds:res.photoIds,assetPhotoIds:res.assetPhotoIds,
           label:"Parts lookup",error:(res.errors&&res.errors[0])||"queued"});
         setPartsStatus("Weak signal — parts lookup queued. It retries automatically when the connection improves, and your deficiency notes are saved either way.",false);
         if(!opts.silent)showToast("Parts lookup queued — retries when the connection improves",5000);
@@ -8800,11 +8957,11 @@ async function runPartsLookup(opts){
     renderPartsLookup();
     scheduleCaptureDraftSave();
     if(!res.parts.length){
-      setPartsStatus("No parts to order for what was recorded — either the deficiency does not call for one, or the equipment is not identified well enough to name a part. Add the brand and model on the Assets tab and look up again.",false);
-      if(!opts.silent)showToast("No parts needed for what was recorded",4500);
+      setPartsStatus("No parts to order for what this visit designated as bad — either the deficiency does not call for one, or the instrument is not identified well enough. Read the nameplate photos, add the brand and model on the Assets tab, and look up again.",false);
+      if(!opts.silent)showToast("No parts found for what was designated as bad",4500);
     }else{
       var warn=(res.warnings&&res.warnings.length)?" "+res.provider+" answered after "+res.warnings.length+" provider error(s).":"";
-      setPartsStatus(res.parts.length+" part"+(res.parts.length!==1?"s":"")+" found by "+res.provider+" from manufacturer sources. Uncheck anything the shop already stocks, then add the rest to "+partsSectionLabel()+"."+warn,false);
+      setPartsStatus(res.parts.length+" part"+(res.parts.length!==1?"s":"")+" found by "+res.provider+" from live manufacturer sources. Uncheck anything the shop already stocks, then add the rest to "+partsSectionLabel()+"."+warn,false);
       if(!opts.silent)showToast(res.parts.length+" part"+(res.parts.length!==1?"s":"")+" found — review and add to the report",4500);
     }
   }catch(e){

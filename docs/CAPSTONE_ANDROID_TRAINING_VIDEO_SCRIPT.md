@@ -224,13 +224,13 @@ Screen action:
 
 Narration:
 
-> Once you have written down what is wrong, CapStone can look up what has to be ordered to fix it. Tap Look Up Parts. It reads what you wrote in fields five through eight, the brand and model of the instrument you saved on the Assets tab, and your photo descriptions, then searches the manufacturer's own parts lists. Every part comes back with the deficiency it is for, and it is marked Verified, Likely, or Confirm number so you know how much to trust the number. Check it against the nameplate before ordering. Uncheck anything we already stock, then tap Add. That writes the parts into field ten, which goes into the report. Nothing is ordered and nothing goes to Zoho from this panel.
+> Once you have written down what is wrong — or photographed the failed part and the nameplate — CapStone can look up what has to be ordered to fix it. Tap Look Up Parts. It reads the entire capture: every field, every photo, and your notes, then searches the manufacturer's own parts lists on the live web. It does not look in past jobs. Every part comes back with the deficiency it is for, and it is marked Verified, Likely, or Confirm number so you know how much to trust the number. Check it against the nameplate before ordering. Uncheck anything we already stock, then tap Add. That writes the parts into field ten, which goes into the report. Nothing is ordered and nothing goes to Zoho from this panel.
 
 Important:
 
 ```text
-Save the instrument on the Assets tab first, or at least fill in its brand and model.
-Without a model, the lookup can only name the part, not its number.
+Photograph the nameplate, or save the instrument on the Assets tab first.
+The lookup reads the device's number from this visit and searches the live web.
 No prices — the office quotes the work.
 A Customer Copy shows the part names and quantities and leaves the part numbers out.
 ```
