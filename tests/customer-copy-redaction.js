@@ -495,6 +495,39 @@ check("the job number beside it still is",namedAfterModel.indexOf("4641")>=0,JSO
 var bothWays=customerSafeText("Job 4641: replaced the DR-4500 recorder.",namedAfterModel);
 check("body follows the header on that model",bothWays.indexOf("DR-4500")<0&&bothWays.indexOf("4641")>=0,bothWays);
 check("no deal name means no keep list",customerCopyKeepTokens("","").length===0);
+// Caught in the browser: a deal named after a model whose number is written in
+// the job-number shape ("CAC-4641 Rosemount 3051 transmitter calibration") had
+// 3051 protected as a job number — and the keep list then shielded it in the
+// body as well, which is the leak the field reported. A brand in front of the
+// number in the report body is as deliberate as a label, so it counts as
+// evidence and the name gives the number up.
+var namedAfterModelNumber="CAC-4641 Rosemount 3051 transmitter calibration";
+var brandedBody=["- Influent flow transmitter, Rosemount 3051 differential pressure transmitter on loop FIT-101",
+  "Re-ranged the Rosemount 3051 to 0-150 in H2O at 1200 GPM.",
+  "Work order 44821 on job CAC-4641."].join("\n");
+check("a branded model number in the body is evidence for the deal name",
+  customerSafeDealName(namedAfterModelNumber,brandedBody,"Rogers WWTP")==="CAC-4641 Rosemount transmitter calibration",
+  customerSafeDealName(namedAfterModelNumber,brandedBody,"Rogers WWTP"));
+var brandedKeep=customerCopyKeepTokens(namedAfterModelNumber,brandedBody,"Rogers WWTP");
+check("the keep list stops shielding it in the body",brandedKeep.indexOf("3051")<0&&brandedKeep.indexOf("CAC-4641")>=0,
+  JSON.stringify(brandedKeep));
+var brandedOut=customerSafeText(brandedBody,brandedKeep);
+check("the body then withholds it everywhere",brandedOut.indexOf("3051")<0,brandedOut);
+check("and the job number and readings still stand",
+  brandedOut.indexOf("CAC-4641")>=0&&brandedOut.indexOf("Work order 44821")>=0&&brandedOut.indexOf("1200 GPM")>=0&&brandedOut.indexOf("FIT-101")>=0,
+  brandedOut);
+// A bare mention is still not evidence, and neither is the site's own name in
+// front of the number — both are how a report writes the visit's job number.
+[["4641 chart recorder calibration","Annual calibration of the chart recorder at Rogers WWTP. Work order 44821 on job 4641."],
+ ["Rogers WWTP - 4641 chart recorder","Job 4641 closed on the chart recorder."],
+ ["CAC 4641 chart recorder","Job CAC 4641 recorder calibration completed."],
+ ["Rogers WWTP 4641","Calibrated the Rogers WWTP 4641 chart recorder today."],
+ ["4641 chart recorder","Calibrated the Rogers 4641 chart recorder today."],
+ ["Deal 4641 recorder","Recorder calibrated on job 4641."]].forEach(function(pair){
+  check("the deal keeps its job number: "+pair[0],
+    customerSafeDealName(pair[0],pair[1],"Rogers WWTP").indexOf("4641")>=0,
+    customerSafeDealName(pair[0],pair[1],"Rogers WWTP"));
+});
 
 // --- generated sweeps -------------------------------------------------------
 // The same code in different sentence positions, because a neighbouring word is

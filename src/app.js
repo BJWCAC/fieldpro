@@ -7871,7 +7871,8 @@ var CUSTOMER_COPY_EQUIPMENT_NOUNS=("recorder transmitter transducer sensor probe
 // the customer's asset.
 var CUSTOMER_COPY_MODEL_KEEP_WORDS=("building bldg manhole mh station lift digester lagoon headworks weir flume sump wetwell cell aisle "+
   "cabinet breaker feeder blower mixer screen press silo gate door hatch sample grab bottle truck route shelf bin drive "+
-  "figure fig page photo note section sheet drawing dwg detail appendix table exhibit step shift crew visit day "+
+  "figure fig page photo note section sheet drawing dwg detail appendix table exhibit step shift crew visit day deal "+
+  "wwtp wtp wwtf wrf wpcf stp site plant facility city county village township campus "+
   "january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec "+
   "monday tuesday wednesday thursday friday saturday sunday "+
   "fluke druck ametek beamex additel ralston mensor transcat crystal hart375 fieldmate").split(" ");
@@ -8144,7 +8145,7 @@ function customerCopyBrandWordBefore(line,words,i){
 function redactCustomerCopyModelNumbers(line,opts){
   opts=opts||{};
   var keep=opts.keep||[],known=opts.known||[],seen=opts.seen||[],repeatsOnly=!!opts.repeatsOnly;
-  var count=0,codes=[],numbers=[],out="",last=0;
+  var count=0,codes=[],numbers=[],branded=[],out="",last=0;
   var words=customerCopyLineWords(line);
   for(var i=0;i<words.length;i++){
     var w=words[i],repeat=seen.indexOf(w.word)>=0;
@@ -8166,13 +8167,18 @@ function redactCustomerCopyModelNumbers(line,opts){
     if(!repeat&&!customerCopyEquipmentNounBeside(line,words,i))continue;
     // Named for the technician with the series word in front of it, because
     // "3051" on its own says little about what was taken out.
-    var shown=(customerCopyBrandWordBefore(line,words,i)?words[i-1].word+" ":"")+w.word;
+    var brand=customerCopyBrandWordBefore(line,words,i);
+    var shown=(brand?words[i-1].word+" ":"")+w.word;
     if(codes.indexOf(shown)<0)codes.push(shown);
     if(numbers.indexOf(w.word)<0)numbers.push(w.word);
+    // A brand wrote this number, which is as deliberate as a label: it is what
+    // lets the same number be told from the visit's job number in the deal name.
+    // The brand word travels with it, because a site name is not a brand.
+    if(brand&&branded.indexOf(shown)<0)branded.push(shown);
     out+=line.slice(last,w.start)+CUSTOMER_COPY_GAP;
     last=w.end;count++;
   }
-  return{text:out+line.slice(last),count:count,codes:codes,numbers:numbers};
+  return{text:out+line.slice(last),count:count,codes:codes,numbers:numbers,branded:branded};
 }
 // All-caps text (a shouted voice note, a report heading) makes every word look
 // like a code prefix, so the spaced-code pass sits it out.
@@ -8189,7 +8195,7 @@ function customerCopyLineIsShouting(line){
 // the same one.
 function redactCustomerCopyBareCodes(s,opts){
   opts=opts||{};
-  var keep=opts.keep||[],known=opts.known||[],count=0,codes=[];
+  var keep=opts.keep||[],known=opts.known||[],count=0,codes=[],branded=[];
   var seen=(opts.seen||[]).slice();
   function sweep(line,pass){
     if(/https?:\/\/|www\./i.test(line))return line;
@@ -8204,6 +8210,7 @@ function redactCustomerCopyBareCodes(s,opts){
     count+=model.count;
     model.codes.forEach(function(c){if(codes.indexOf(c)<0)codes.push(c);});
     model.numbers.forEach(function(n){if(seen.indexOf(n)<0)seen.push(n);});
+    model.branded.forEach(function(n){if(branded.indexOf(n)<0)branded.push(n);});
     if(pass)return model.text;
     return model.text.replace(/[A-Za-z0-9][A-Za-z0-9._+\-\/]*/g,function(raw){
       var tok=raw.replace(/[.,;:'")\]}\-\/_]+$/,"");
@@ -8220,7 +8227,7 @@ function redactCustomerCopyBareCodes(s,opts){
   // first sweep reads each line on its own, so a repeat mention earlier or later
   // in the report has nothing beside it to give it away.
   if(seen.length)lines=lines.map(function(line){return sweep(line,1);});
-  return{text:lines.join("\n"),count:count,codes:codes,numbers:seen};
+  return{text:lines.join("\n"),count:count,codes:codes,numbers:seen,branded:branded};
 }
 // Wording that announces a removal, marked as a gap so it closes like a value.
 // The label in front of it goes too: "Model number: [redacted]" leaves neither
@@ -8373,10 +8380,10 @@ function closeCustomerCopyEmptySections(lines){
 // What the report body and photo notes are allowed to keep: whatever survives in
 // the deal name. Anything the header withheld is withheld everywhere, so the two
 // can never disagree about the same number.
-function customerCopyKeepTokens(dealName,reportText){
+function customerCopyKeepTokens(dealName,reportText,account){
   var name=dealName===undefined?((typeof A!=="undefined"&&A&&A.sel)?String(A.sel.Deal_Name||""):""):String(dealName||"");
   if(!name)return[];
-  var shown=customerSafeDealName(name,reportText);
+  var shown=customerSafeDealName(name,reportText,account);
   return customerCopyJobRefTokens(name).filter(function(tok){return shown.indexOf(tok)>=0;});
 }
 function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{keep:keep}:null).text;}
@@ -8389,18 +8396,39 @@ function customerSafeText(text,keep){return redactCustomerCopyText(text,keep?{ke
 // ("CAC-4641 DR4500A chart recorder calibration" prints as "CAC-4641 chart
 // recorder calibration"), which is also what keeps the name inside the header
 // cell.
-function customerSafeDealName(name,reportText){
+function customerSafeDealName(name,reportText,account){
   var report=reportText===undefined?((typeof A!=="undefined"&&A)?A.report:""):reportText;
-  // A code in the deal name that shares the job-number shape (DR-4500) is only
-  // withheld when the report carried the same one under an identifier label
-  // ("Model: DR-4500"), which is what the generation prompts ask for. Every
-  // unlabeled mention is left out of this on purpose: the report says "job
-  // CAC-4641" too, and that is the number the customer uses for the visit.
+  var acct=account===undefined?((typeof A!=="undefined"&&A&&A.sel)?A.sel.Account_Name:""):account;
   // The keep list is deliberately empty here — it exists to protect this deal's
   // number in other text, and using it on the name itself would shield every
   // number in the name, including a model number.
-  var known=redactCustomerCopyLabeledIds(report||"").values;
-  return redactCustomerCopyText(name,{keep:[],known:known,jobNumbersStay:true}).text;
+  return redactCustomerCopyText(name,{keep:[],known:customerCopyDealNameEvidence(report,acct),jobNumbersStay:true}).text;
+}
+// What tells a code in the deal name from the visit's job number, which shares
+// its shape (`DR-4500`, `3051`). Two deliberate mentions in the report count as
+// evidence that the number is equipment data: one under an identifier label
+// ("Model: DR-4500"), which is what the generation prompts ask for, and one the
+// body withheld with a brand in front of it ("Rosemount 3051 transmitter").
+// A bare mention is deliberately not evidence: a report says "job 4641 chart
+// recorder calibration" as readily as it names a model, and treating every
+// code-shaped mention as equipment cost the deal its own number. The site's own
+// name is not a brand either, so a number written after it ("the Rogers 4641
+// chart recorder") stays the visit's number. The body is read here without this
+// deal's keep list, because the keep list is what this answer decides.
+function customerCopyDealNameEvidence(report,account){
+  var text=String(report||"");
+  if(!text)return[];
+  var site=String(account||"").toLowerCase().match(/[a-z]+/g)||[];
+  var labeled=redactCustomerCopyLabeledIds(text);
+  var out=labeled.values.slice();
+  var bare=redactCustomerCopyBareCodes(labeled.text,{keep:[],known:[],
+    seen:labeled.values.filter(function(v){return /\d/.test(v)&&!customerCopyIsEquipmentCode(v);})});
+  bare.branded.forEach(function(pair){
+    var bits=String(pair).split(" ");
+    if(bits.length<2||site.indexOf(bits[0].toLowerCase())>=0)return;
+    if(out.indexOf(bits[1])<0)out.push(bits[1]);
+  });
+  return out;
 }
 // Copies the photos so the captured description/observation/synthesis stay
 // intact for the internal copy.
@@ -10306,12 +10334,12 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
     // record's deal rather than whatever is open on screen, so the number is read
     // from the deal being printed.
     var fullReport=report;
-    var jobRefs=customerCopyKeepTokens(deal&&deal.Deal_Name,fullReport);
+    var jobRefs=customerCopyKeepTokens(deal&&deal.Deal_Name,fullReport,deal&&deal.Account_Name);
     report=customerSafeText(report,jobRefs);
     photos=customerSafePhotos(photos,jobRefs);
     // A deal is often named after the equipment, so the header name is filtered
     // too. The deal object itself is left untouched.
-    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name,fullReport)});
+    if(deal&&deal.Deal_Name)deal=Object.assign({},deal,{Deal_Name:customerSafeDealName(deal.Deal_Name,fullReport,deal.Account_Name)});
   }
   // A photo whose bytes are gone would print as an empty framed box with a
   // caption, which reads like a rendering fault to whoever receives the PDF.
