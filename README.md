@@ -124,8 +124,8 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 10. Optionally fill in any of the ten structured report fields.
 10a. If you recorded a deficiency, tap **Look Up Parts** under **Parts for Recorded Deficiencies**, review what comes back, and add the parts you want to **10. Parts Needed / Recommended**.
 11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place and no wording such as "redacted" or "withheld", so the report still reads normally — and prints each photo's AI Synthesis without its AI Observation. That includes a model number written as a plain number beside the equipment it names ("Rosemount 3051 transmitter"), while readings, plant references ("Basin 12", "Room 101"), loop tags, work order numbers, and the deal's job number stay. The Report tab lists what was left out.
-12. Generate the AI report. When it says a part was replaced or is needed, CapStone researches the manufacturer's replacement part number from the instrument's model / order / part number and lists it under **9. Materials / Parts Used**.
-13. Review the report, including the **Replacement Parts** card. Tap **Research Replacement Parts** to look parts up again — for example after adding the instrument on the Assets tab.
+12. Generate the AI report.
+13. Review the report.
 14. Regenerate if details need correction — keep the same copy name to replace that copy, or pick a different name to issue a second copy of the same visit.
 15. Save Report to Zoho when signal allows.
 16. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
