@@ -412,22 +412,27 @@ A visit can be issued as more than one report copy (customer, internal, or a nam
 prompt, and any capture field left out of it silently disappears from the report even though it is
 still stored and still shown beside the photos:
 
-- Voice notes, the video transcript, the nine report sections, **and the technician's per-photo
+- Voice notes, the video transcript, the ten report sections, **and the technician's per-photo
   descriptions** all go into the prompt. A photo description is field data, not a caption — the AI
   Observation and AI Synthesis are the model's own text and are not a substitute for what the
   technician wrote.
+- Section 10 is a parts order, so the prompt tells the model to carry every part from the pre-filled
+  section 10 into the report with its part number, quantity, and the deficiency it is for exactly as
+  given, and never to invent, correct, or drop a part number or add a part it was not given.
 - Only the first four photos are sent as images, so photo notes go in as text for **every** photo,
   independent of that image budget.
 - The report body still must not describe photos or cite photo numbers. Fold the facts into the
   section they belong to instead.
 - Any new capture field a technician can type into must be added to this prompt in the same PR —
   and, per the customer copy content rule, to the render-time filter.
-- **The instrument's own identity goes into the prompt too.** The assets saved to Zoho Equipments on
-  this visit (`replacementPartIdentities()`) are added as `INSTRUMENTS DOCUMENTED ON THIS VISIT`
-  with each value labeled the way the prompt asks the model to write one (`Model/order number: …`,
-  `Serial: …`). Without it the report can only name the equipment as loosely as the notes did, and
-  nothing downstream has a model number to work from. The records are identity, not a work log: the
-  prompt says so, so the model must not report work they do not describe.
+- **The instrument's own identity goes into the prompt too.** The equipment this visit identified
+  (`partsEquipmentLines()` — assets saved to Zoho Equipments plus the asset form still open) is added
+  as `INSTRUMENTS DOCUMENTED ON THIS VISIT`, each value labeled the way the prompt asks the model to
+  write one (`Model: …`, `Serial: …`). Without it the report could only name the equipment as loosely
+  as the notes did — the model and serial the technician had already saved to Zoho never reached the
+  report body. It is the same helper Parts Lookup reads, so the report and the parts list describe
+  the instrument identically. The records are identity, not a work log: the prompt says so, so the
+  model must not report work they do not describe.
 
 **AI photo text belongs to the report photos, and Capture holds its own copy of each photo.**
 `A.photos` (Capture) and `A.reportPhotos` (Report) are separate objects for the same photo, so
@@ -436,51 +441,6 @@ Otherwise the next background History save — which describes the Capture tab �
 copy of the same photo over the stored record and both AI blocks are gone. `mergeHistoryRecord()`
 is the second line of defence: on a silent autosave it merges `photoData` per photo id and keeps
 each photo's existing `desc`, `label`, `aiDesc`, and `synthesis` when the incoming copy has none.
-
-## Replacement part research rule
-
-**A report that says a part was replaced, or has to be, must also say what to order.** Reported from
-the field as "it mentioned we needed the pen replaced but it did not look up a part number based on
-the instrument part number — it should have researched and found a replacement part and documented
-it in the proper section." The instrument's identity is already on the visit, so the manufacturer's
-replacement part number is researched from it and written into the report.
-
-- **The lookup runs on Generate, after the report text comes back.** `generate()` calls
-  `applyReplacementPartResearch()` before the History save, so the merged text is what the PDF, the
-  Zoho note, and History all carry. It is best effort by design: a failed lookup leaves the report
-  exactly as written and queues `parts_research` in Pending AI, so a weak signal never costs the
-  technician the report. `Settings → Research replacement part numbers on Generate`
-  (`fp_parts_research`, on by default, in `KEY_SYNC_FIELDS`) turns the automatic pass off, and the
-  Report tab's **Research Replacement Parts** button runs it on demand for a report that was written
-  before the lookup existed — or again, after the instrument is added on the Assets tab.
-- **Two gates before a search is spent.** `replacementPartIntentLines()` has to find a line saying
-  something was replaced or is needed, and there has to be an instrument to look a part up from:
-  either an asset saved on the Assets tab (`replacementPartIdentities()`) or an identifier the report
-  itself names (`replacementPartReportCodes()`, which reads the report with the customer-copy filter
-  and takes what that filter would remove — the same reader, used in the opposite direction). The
-  intent regex is deliberately wide: a false positive costs one lookup, a false negative costs the
-  technician the order.
-- **Search first, and never invent a number.** `REPLACEMENT_PART_SYSTEM_PROMPT` requires a deep
-  multi-source web search of the manufacturer's own parts list or manual before anything is written,
-  and forbids guessing or pattern-matching a part number outright: a part with no verifiable number
-  is written without one, saying how to source it instead. Providers come from
-  `modelAiSpecsProviders()` for the same reason the calibration specs do — Gemini first with search,
-  Claude as a search-enabled fallback, first usable draft wins, no merge. The lookup answers `SKIP`
-  when it can tie nothing to an identified instrument, and a `SKIP` adds nothing rather than a guess.
-- **The block goes in the proper section, once.** `mergeReplacementPartsIntoReport()` appends under
-  the report's own `9. Materials / Parts Used` heading (matching the shapes a model writes instead),
-  creates that section ahead of `KEY POINTS SUMMARY` when the report left it out, and replaces the
-  block a previous run wrote instead of stacking a second copy — `stripReplacementPartBlock()` takes
-  back only the lead line and the bullets directly under it, plus a heading it added that would be
-  left standing over nothing.
-- **Numbers arrive labeled, and each line has to survive the copy.** The prompt requires
-  `Part number: <value>` so a customer copy removes the number and its label together, like every
-  other identifier; nothing in the lookup filters anything, because the block is report text and
-  `buildPDF()` / `buildReportExportText()` already filter that. `parseReplacementPartLines()` rejects
-  a line that is nothing but the number, so the block's own label can never end up standing over an
-  empty list on a customer copy.
-- **Every change to the lookup runs `node tests/replacement-part-research.js`**, and a change to the
-  block's wording runs `node tests/customer-copy-redaction.js` with it.
 
 ## Customer copy content rule (applies to every capture, now and in future)
 
@@ -504,6 +464,7 @@ replacement part number is researched from it and written into the report.
 - **Plant tags stay.** An ISA loop tag (`FIT-101`, `LT-200`, `AIT-2301`, `FIT101`) and a panel or area tag (`LCP-3`, `MCC-2`, `VFD-1`) tell the customer which instrument was serviced, so `customerCopyIsPlantLoopTag()` and `CUSTOMER_COPY_KEEP_PREFIXES` keep them. The tag exception needs a real ISA function code, which is what stops a part number such as `GK-4471` or `DR-4500` from hiding behind the same shape. A hyphenated model whose prefix *is* an ISA code has to be labeled to be withheld.
 - **Never redact readings.** Calibration values, engineering units, percentages, dates, and durations must survive — they are the point of the report. `customerCopyIsUnitReading()` keeps anything carrying a unit (`24VDC`, `4-20mA`, `0-150inH2O`, `3/4in`, `120VAC/24VDC`), `CUSTOMER_COPY_NOT_CODE_RES` keeps dates, times, revisions, chemistry (`H2SO4`, `NaOCl`), and material grades (`SS316`, `316L`), and `CUSTOMER_COPY_KEEP_PREFIXES` keeps ratings and standards (`IP65`, `SIL2`, `NEMA 4X`, `ISO 17025`) plus lab abbreviations (`MLSS 3200`, `TDS 450`). A pricing line withholds money but keeps a number followed by a unit, a duration, or a count ("within 12 months", "4 rolls"). When extending the rules, add a "must not redact" case alongside every "must redact" case, and put both in `tests/customer-copy-redaction.js`.
 - **Any new AI or free-text field that lands in a report must be routed through the filter** before it reaches a customer copy. Add it to `customerSafePhotos()` (or the equivalent) in the same PR that introduces it.
+- **A parts list is filtered like any other section, and the shape of the line matters.** Parts Lookup writes its parts into capture section 10, which reaches the copy through the report body, so no new render path is involved — but `partsLookupLine()` writes the line for the filter as much as for the reader. The part number carries its label (`Part number: 51404671-501`), because a labeled value is lifted out with its label; and it stands as **its own sentence** rather than as an item between two commas, because a value set off by commas takes both commas with it and the quantity would be welded to the manufacturer (`Honeywell qty 1`) on every customer copy. A customer copy of a parts line keeps the part name, the manufacturer, the quantity, the deficiency it is for, and the source, and loses the number: `- Pen arm assembly, red, chart recorder, Honeywell. Qty 1 — for: pen drive binding at mid-span. Wear part. Source: Honeywell parts list.` A parts section whose every line was only a number takes its heading with it, like any other emptied section. The lookup is told never to write a price and never to write a placeholder where a number should be — a number it could not find arrives empty, because wording in its place would reach the report as if it were a value. Rules: `docs/PARTS_LOOKUP_RULES.md`.
 - **Generation prompts must require labeled numbers and forbid placeholders.** The report, photo-caption, and synthesis prompts instruct the model to write `Serial: …` / `Part number: …` rather than a bare number, which is what makes the value detectable later — and what lets the label be lifted out with it so the sentence still reads. The same prompts tell the model to write the number itself and never a placeholder (`[redacted]`, `withheld`, `not shown`, `N/A`) and never to mention redaction, withholding, or customer copies at all: removal happens when the copy is rendered, and a model that redacts on its own both hides the value from the internal copy and puts redaction wording in front of the customer. Keep both instructions in any new prompt that can mention equipment.
 - **A typed `Other` name containing "customer" is treated as a customer copy** (`isCustomerCopyLabel()` matches `/customer/i`), so a hand-typed "Customer Walkthrough" is filtered too.
 - **History always keeps the full capture.** Rendering a customer copy must never change stored state: `redactCustomerCopyText()` returns new strings and `customerSafePhotos()` copies the photos, so any copy type can still be rebuilt from History later. A background autosave (`saveCaptureWorkLocally({silent:true})`) can add or update but never blank content — `mergeHistoryRecord()` keeps the existing `report`, `voiceNotes`, `sections`, `photoData`, `videos`, and transcript when the incoming meta is empty, because the Capture DOM is empty whenever a report was opened from History with **View**. The same merge also runs **per photo**: an autosave that describes the same photo with less text keeps that photo's stored `desc`, `label`, `aiDesc`, and `synthesis`. Only a deliberate save writes exactly what is on screen.
@@ -548,7 +509,6 @@ Every code PR should run at least:
 node --check src/app.js
 node --check netlify/functions/zoho-proxy.js
 node tests/customer-copy-redaction.js
-node tests/replacement-part-research.js
 git diff --check
 ```
 

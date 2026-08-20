@@ -67,8 +67,8 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 - report and asset save checklists
 - organized Settings tab (technician, sync, storage, troubleshooting, appearance, Anthropic + Gemini API keys, app info)
 - Pending Sync badge and retry for failed Zoho/WorkDrive/asset operations
-- AI report generation with optional nine structured fields
-- **Replacement part numbers researched for you** — when the report says a part was replaced or is needed, AI searches the manufacturer's own parts list from the instrument's model / order / part number and writes the replacement part number into **9. Materials / Parts Used**. A part it cannot verify is listed without a number and with how to source it, never a guess. Re-run it any time from the Report tab; turn the automatic pass off in Settings for a faster Generate
+- AI report generation with optional ten structured fields
+- **Parts for Recorded Deficiencies** — look up what has to be ordered to correct the deficiencies you recorded, from the manufacturer's own parts lists, against the brand and model the Assets tab identified; each part comes back tied to the deficiency it corrects and marked Verified, Likely, or Confirm number with its source. Review the list, uncheck what the shop already stocks, and add the rest to **10. Parts Needed / Recommended**. No prices, nothing ordered, nothing written to Zoho from the panel
 - **Report copy names** — issue the same visit as a Customer Copy, an Internal Copy, or a name you type; the name shows in the PDF header and is used for the PDF, WorkDrive file, Deal attachment, and Zoho note title, so a second copy is filed next to the first instead of duplicating it
 - **Customer copies withhold equipment part, model, order, and serial numbers and pricing** — a model number counts as a part number, and Endress+Hauser prints it as an order number / order code; withheld from the report body, the deal name in the header, your photo descriptions, and AI Synthesis, while work/purchase order numbers and all calibration readings stay. Nothing in the copy says so: there is no placeholder where a value was, no note under the copy name in the PDF, no section heading left standing over a blank space, and any wording that announces a removal ("redacted", "withheld", "N/A") goes with the value — the sentence simply closes up. Each photo carries its AI Synthesis only; the AI Observation is left off, because the synthesis already merges it with your note. The Report tab shows exactly what the customer will see and lists what was taken out, and one tap on Internal Copy brings the full detail back
 - no deal amount anywhere in the report — the PDF header, on-screen report header, and Zoho note carry no pricing
@@ -121,7 +121,8 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 7. Add photos from gallery or video snaps.
 8. Add photo labels and descriptions.
 9. Dictate or type field notes.
-10. Optionally fill in any of the nine structured report fields.
+10. Optionally fill in any of the ten structured report fields.
+10a. If you recorded a deficiency, tap **Look Up Parts** under **Parts for Recorded Deficiencies**, review what comes back, and add the parts you want to **10. Parts Needed / Recommended**.
 11. Name the copy under **Report Copy Name** (Customer Copy, Internal Copy, or Other with your own name). A Customer Copy leaves out equipment part, model, order, and serial numbers and pricing — removed outright, with no note in their place and no wording such as "redacted" or "withheld", so the report still reads normally — and prints each photo's AI Synthesis without its AI Observation. That includes a model number written as a plain number beside the equipment it names ("Rosemount 3051 transmitter"), while readings, plant references ("Basin 12", "Room 101"), loop tags, work order numbers, and the deal's job number stay. The Report tab lists what was left out.
 12. Generate the AI report. When it says a part was replaced or is needed, CapStone researches the manufacturer's replacement part number from the instrument's model / order / part number and lists it under **9. Materials / Parts Used**.
 13. Review the report, including the **Replacement Parts** card. Tap **Research Replacement Parts** to look parts up again — for example after adding the instrument on the Assets tab.
@@ -141,9 +142,9 @@ CapStone is designed so field work is not lost when Zoho or network steps fail:
 - An amber **storage warning** appears at 8+ photos or high storage use — export older History from Settings if needed.
 - Failed Zoho/WorkDrive steps queue in **Pending Sync** for retry.
 
-## The nine report fields
+## The ten report fields
 
-The nine structured report fields are optional. They are not required to generate a report.
+The ten structured report fields are optional. They are not required to generate a report.
 
 Leave them blank when the voice notes and photo descriptions already explain the work.
 
@@ -158,8 +159,25 @@ Fill in one or more fields when you want to force information into a specific se
 7. Recommendations & Next Steps
 8. Follow-Up Required
 9. Materials / Parts Used
+10. Parts Needed / Recommended
 
-Empty fields are ignored.
+Empty fields are ignored. Field 9 is what you installed today; field 10 is what still has to be ordered, and **Parts for Recorded Deficiencies** fills it in for you.
+
+## Parts for Recorded Deficiencies
+
+Record the problem first — in **5. Findings**, **6. Issues / Deficiencies**, **7. Recommendations**, or **8. Follow-Up**. Then tap **Look Up Parts**.
+
+CapStone reads what you wrote in those fields, the brand and model of the equipment saved (or open) on the **Assets** tab, your photo descriptions, and your voice notes, then searches the manufacturer's own parts lists. Every part comes back tied to the deficiency it corrects.
+
+- Each part shows **Verified**, **Likely**, or **Confirm number** with the source it came from. Check the number against the nameplate before ordering — a Likely number usually depends on an option code the nameplate carries.
+- Save the instrument on **Assets** first, or at least fill in its brand and model there. Without a model the lookup can only name the part, not its number.
+- Uncheck what the shop already stocks, then tap **Add … to 10. Parts Needed / Recommended**. That field is an ordinary section you can edit, and it goes into the report on Generate.
+- **Nothing is ordered and nothing is written to Zoho from the panel.** Only what you add to field 10 reaches the report, the PDF, and the deal note.
+- **No prices.** The office quotes the work, and pricing is withheld from a customer copy anyway.
+- A **Customer Copy** keeps the part names, quantities, and what each part is for, and leaves the part numbers out. Internal Copy and the Zoho deal note keep everything.
+- On weak or no signal the lookup queues as **Pending AI** and retries automatically — your deficiency notes are saved either way.
+
+The domain rules behind the lookup (what a deficiency usually needs by instrument family, and the traps worth calling out) are in `docs/PARTS_LOOKUP_RULES.md`.
 
 ## Zoho deal notes behavior
 

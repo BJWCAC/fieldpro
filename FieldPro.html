@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=392"/>
+<link rel="stylesheet" href="src/styles.css?v=393"/>
 
 </head>
 <body autocomplete="off">
@@ -251,12 +251,13 @@
     <details class="help-box nested" data-help-id="capture-sections">
       <summary>Help: Report Sections</summary>
       <div class="help-box-body">
-        <p>These nine fields are optional structured notes. Fill in only what applies to this visit. Empty sections are left out of the generated report.</p>
+        <p>These ten fields are optional structured notes. Fill in only what applies to this visit. Empty sections are left out of the generated report.</p>
         <ul>
           <li>Dictate with Wispr, then tap <strong>→ AI</strong> on each field to polish the text.</li>
           <li>On weak or no signal, AI work queues as <strong>Pending AI</strong> and retries automatically.</li>
           <li>Voice notes still work if you prefer free-form dictation.</li>
           <li>Sections are saved in the Capture draft and History.</li>
+          <li><strong>9. Materials / Parts Used</strong> is what you installed today. <strong>10. Parts Needed / Recommended</strong> is what still has to be ordered — use <strong>Parts for Recorded Deficiencies</strong> below to look those up.</li>
         </ul>
       </div>
     </details>
@@ -269,7 +270,32 @@
     <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">6. Issues / Deficiencies</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec6" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec6')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec6"></div><textarea id="sec6" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
     <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">7. Recommendations &amp; Next Steps</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec7" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec7')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec7"></div><textarea id="sec7" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
     <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">8. Follow-Up Required</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec8" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec8')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec8"></div><textarea id="sec8" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
-    <div><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">9. Materials / Parts Used</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec9" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec9')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec9"></div><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div style="margin-bottom:10px"><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">9. Materials / Parts Used</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec9" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec9')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec9"></div><textarea id="sec9" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+    <div><div class="field-ai-row"><label class="lbl" style="margin-bottom:0">10. Parts Needed / Recommended</label><button type="button" class="field-ai-btn bg bsm" data-field-ai-target="sec10" title="Polish dictated text with AI" onclick="runFieldPolishAi('sec10')">→ AI</button></div><div class="field-ai-status" id="field-ai-status-sec10"></div><textarea id="sec10" inputmode="text" rows="2" oninput="checkGen()"></textarea></div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Parts for Recorded Deficiencies</div>
+    <details class="help-box nested" data-help-id="capture-parts">
+      <summary>Help: Parts Lookup</summary>
+      <div class="help-box-body">
+        <p>Looks up what has to be ordered to correct the deficiencies you recorded on this visit, from the manufacturer's own parts lists, and writes the ones you keep into <strong>10. Parts Needed / Recommended</strong>.</p>
+        <ul>
+          <li>Record the problem first — <strong>5. Findings</strong>, <strong>6. Issues / Deficiencies</strong>, <strong>7. Recommendations</strong>, or <strong>8. Follow-Up</strong>. Every part comes back tied to one of them.</li>
+          <li>Save the instrument on the <strong>Assets</strong> tab first, or fill in its brand and model there, for part numbers that match the actual model. Without a model the lookup can only name the part.</li>
+          <li>Each part shows <strong>Verified</strong>, <strong>Likely</strong>, or <strong>Confirm number</strong> with the source it came from. Check the number against the nameplate before ordering.</li>
+          <li>Uncheck what the shop already stocks, then tap <strong>Add … to 10. Parts Needed / Recommended</strong>. Nothing is ordered and nothing is written to Zoho from here.</li>
+          <li>No prices — the office quotes the work. A <strong>Customer Copy</strong> keeps the part names, quantities, and what each is for, and leaves the part numbers out.</li>
+          <li>On weak or no signal the lookup queues as <strong>Pending AI</strong> and retries automatically.</li>
+        </ul>
+      </div>
+    </details>
+    <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px">Reads what you recorded in sections 5–8 and the equipment on the Assets tab, then searches manufacturer parts lists. Review each part before it goes in the report.</div>
+    <div id="parts-status" style="display:none;background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#2d6b60;line-height:1.5"></div>
+    <button class="bb-lg" id="parts-lookup-btn" onclick="runPartsLookup()" style="margin-bottom:8px">Look Up Parts</button>
+    <div id="parts-list" style="display:none"></div>
+    <div id="parts-meta" style="display:none;font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px"></div>
+    <button class="bp-lg" id="parts-add-btn" onclick="addPartsToSection()" style="display:none;margin-bottom:8px">Add Parts to 10. Parts Needed / Recommended</button>
+    <button class="bg-lg" id="parts-clear-btn" onclick="clearPartsLookup()" style="display:none">Clear Parts List</button>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">Report Copy Name</div>
@@ -501,7 +527,6 @@
       <div class="stitle">Report Workflow</div>
       <ol>
         <li>Review the report text, photos, and header details.</li>
-        <li>Check <strong>Replacement Parts</strong> — when a part was replaced or is needed, CapStone researches the manufacturer part number from the instrument's model number and lists it under <strong>9. Materials / Parts Used</strong>. Research again after adding the instrument on Assets.</li>
         <li>Check the save checklist before saving to Zoho.</li>
         <li>Save Report to Zoho to update the Deal note, attach the PDF, and sync WorkDrive files.</li>
         <li>Use Retry options if any step did not complete.</li>
@@ -518,7 +543,6 @@
       <div id="report-copy-picker-report"></div>
     </div>
     <div id="report-customer-notice" class="report-customer-notice" style="display:none"></div>
-    <div id="report-parts-research" class="report-parts-research" style="display:none"></div>
     <div class="pdf-opts">
       <div class="stitle">PDF Options</div>
       <div class="tog-row" onclick="togPhotos()">
@@ -832,13 +856,6 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">Saving an asset no longer waits for the AI spec lookup — the asset saves immediately and <strong>Model_AI_Specs</strong> is researched and written to Zoho a few seconds later, so you can start the next asset right away. Progress shows on each item under Assets Saved This Visit. Turn off to write specs during save (slower, but confirmed before you move on).</div>
       </div>
     </div>
-    <div class="tog-row" onclick="toggleReplacementPartResearch()" style="margin-top:10px">
-      <div class="tog on" id="tog-parts-research"><div class="tog-thumb"></div></div>
-      <div>
-        <div style="font-size:14px;font-weight:500">Research replacement part numbers on Generate</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">When the report says a part was replaced or is needed, AI searches the manufacturer's parts list from the instrument's model / order / part number and adds the replacement part number under <strong>9. Materials / Parts Used</strong>. Turn off to only look parts up on demand from the <strong>Research Replacement Parts</strong> button on the Report tab (generation is faster with it off).</div>
-      </div>
-    </div>
   </div>
   <div class="settings-group-title" data-perm-group="help">Workflow Help</div>
   <div class="card">
@@ -1083,8 +1100,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=392"></script>
-<script src="src/app.js?v=392"></script>
+<script src="src/accounts-map.js?v=393"></script>
+<script src="src/app.js?v=393"></script>
 
 </body>
 </html>

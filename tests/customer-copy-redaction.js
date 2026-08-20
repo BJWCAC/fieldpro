@@ -431,29 +431,73 @@ check("a section of nothing but announcements takes its heading with it",
   placeholderSection==="## CALIBRATION RESULTS\nAs-found 1.8% of span at 1 in/hr on loop FIT-101.",
   "got:\n"+JSON.stringify(placeholderSection));
 
-// --- the researched replacement parts block ---------------------------------
-// The parts lookup writes manufacturer part numbers into the report body, so
-// the copy filters them like any other identifier. Each line has to keep the
-// part it names, and the block's label must never end up standing over an empty
-// list — see tests/replacement-part-research.js for the line-level guarantee.
-var partsBlock=["## 9. Materials / Parts Used",
-  "- Chart paper, 12 rolls on hand",
-  "Replacement parts researched from manufacturer literature:",
-  "- Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts; source: honeywell.com)",
-  "- Pen arm assembly, purple, fits the Honeywell DR4500A (Part number: 51404671-501; sold singly; source: honeywell.com)",
-  "- Sensor cap, 1 year service life, fits the Hach LDO probe (order through Hach quoting the probe serial number)"].join("\n");
-var partsOut=redactCustomerCopyText(partsBlock);
-["24001660-001","51404671-501","DR4500A"].forEach(function(v){
-  check("the researched parts block withholds "+v,partsOut.text.indexOf(v)<0,"got:\n"+partsOut.text);
+// --- the parts list a deficiency lookup writes (section 10) ------------------
+// Parts Lookup writes one line per part into "10. Parts Needed / Recommended",
+// so what the app itself writes is checked here rather than a hand-typed
+// approximation of it: the numbers go, the order still reads, and everything a
+// customer needs to approve the work stays.
+eval(src.slice(src.indexOf("function partsKindLabel("),src.indexOf("function partsLookupKey(")));
+var partRows=[
+  {description:"Pen arm assembly, red, DR4500A chart recorder",manufacturer:"Honeywell",partNumber:"51404671-501",
+   qty:"1",forIssue:"pen drive binding at mid-span",kind:"wear",confidence:"verified",
+   basis:"Honeywell DR4500 parts list",notes:"Sold as a pen kit with the fiber tip."},
+  {description:"Circular chart paper, 0-1500 GPM, 24 hr",manufacturer:"Honeywell",partNumber:"24001660-001",
+   qty:"12 rolls",forIssue:"chart stock down to two rolls on site",kind:"consumable",confidence:"verified",
+   basis:"Honeywell chart catalog",notes:""},
+  {description:"Sensor o-ring set, PTFE, Rosemount 3051",manufacturer:"Rosemount",partNumber:"",
+   qty:"2",forIssue:"weeping at the process flange",kind:"wear",confidence:"unverified",
+   basis:"Rosemount — ask for the 3051 coplanar flange o-ring kit",notes:""}
+];
+var partLines=partRows.map(partsLookupLine);
+// The number is written with its label, and as its own sentence rather than as an
+// item between two commas — a value set off by commas takes both commas with it,
+// which welded the quantity to the manufacturer ("Honeywell qty 1").
+check("the parts line labels its number",partLines[0].indexOf(". Part number: 51404671-501. Qty 1")>=0,partLines[0]);
+withholds(partLines[0],"51404671-501");
+check("the parts line closes as an order a customer can read",
+  redactCustomerCopyText(partLines[0]).text===
+  "- Pen arm assembly, red, chart recorder, Honeywell. Qty 1 — for: pen drive binding at mid-span. Wear part. Source: Honeywell parts list. Sold as a pen kit with the fiber tip.",
+  "got: "+JSON.stringify(redactCustomerCopyText(partLines[0]).text));
+var partsOut=redactCustomerCopyText(["## 10. PARTS NEEDED / RECOMMENDED"].concat(partLines).join("\n"));
+["51404671-501","24001660-001","DR4500A","DR4500","3051"].forEach(function(v){
+  check("the parts list withholds "+v,partsOut.text.indexOf(v)<0,"got:\n"+partsOut.text);
 });
-["Chart paper","12 in circular","0-100","Pen arm assembly","purple","Honeywell","box of 100 charts","honeywell.com",
- "Sensor cap","1 year service life","12 rolls","Replacement parts researched from manufacturer literature:"].forEach(function(v){
-  check("the researched parts block keeps "+v,partsOut.text.indexOf(v)>=0,"got:\n"+partsOut.text);
+["Pen arm assembly","Qty 1","Qty 12 rolls","Qty 2","0-1500 GPM","24 hr","Honeywell","Rosemount",
+ "pen drive binding at mid-span","weeping at the process flange","Wear part","Consumable",
+ "part number to be confirmed with the manufacturer","o-ring kit"].forEach(function(v){
+  check("the parts list keeps "+v,partsOut.text.indexOf(v)>=0,"got:\n"+partsOut.text);
 });
-check("the researched parts block says nothing about what went",!marksWithheld(partsOut.text),"got:\n"+partsOut.text);
-check("every researched part is still named",
-  partsOut.text.split("\n").filter(function(l){return /^-\s/.test(l);}).length===4,"got:\n"+partsOut.text);
-readsClean(partsOut.text.split("\n").filter(function(l){return /^-\s/.test(l);}).join("\n"),"researched parts block");
+check("the parts list never says anything was withheld",!marksWithheld(partsOut.text),"got:\n"+partsOut.text);
+readsClean(partsOut.text,"parts list");
+// A parts line writes the part's own words between the equipment noun and the
+// brand ("Sensor o-ring set, PTFE, Rosemount 3051"), which is farther than the
+// scans around the number reach — the brand in front of it and the equipment
+// named on the line are what withhold it.
+withholds("- Sensor o-ring set, PTFE, Rosemount 3051, qty 2 — for: weeping at the process flange.","3051");
+withholds("- Magmeter liner, Endress+Hauser Promag 400, qty 1 — for: liner damage at the flange.","400");
+keeps("- Sensor o-ring set, PTFE, Rosemount 3051, qty 2 — for: weeping at the process flange.","qty 2");
+keeps("- Magmeter liner, Endress+Hauser Promag 400, qty 1 — for: liner damage at the flange.","Endress+Hauser");
+// And what that must not cost: a number on the same kind of line that is a
+// reading, a count, a date, or a plant reference.
+unchanged("- Chart paper, 0-1500 GPM, 24 hr, qty 12 rolls — for: chart stock down to two rolls.");
+unchanged("- Cal gas cylinder, 25 ppm CL2, qty 2 — for: span gas expired at the monitor.");
+unchanged("Ordered on August 12 for the transmitter.");
+unchanged("Basin 12 sensor cleaned and Pump 14 recorder verified.");
+// A function word on both sides of the hole reads as a typo, so the preposition
+// the value hung from goes with it mid-line the way it already does at the end.
+[["Replace the MRC 7000 with a like-for-like unit.","Replace with a like-for-like unit."],
+ ["Ask Honeywell for the DR4500A with a 3-pen head.","Ask Honeywell with a 3-pen head."]].forEach(function(pair){
+  var got=redactCustomerCopyText(pair[0]).text;
+  check("closes the mid-line gap in "+JSON.stringify(pair[0]),got===pair[1],"got: "+JSON.stringify(got));
+});
+// A parts section that was nothing but numbers goes with its heading, like any
+// other emptied section: there was nothing in it for the customer.
+var partsOnlyNumbers=redactCustomerCopyText(["## 9. MATERIALS / PARTS USED","Chart paper replaced.","",
+  "## 10. PARTS NEEDED / RECOMMENDED","- Part number: 51404671-501","- Part number: 24001660-001","",
+  "## KEY POINTS SUMMARY","- Pen arm replaced"].join("\n")).text;
+check("an emptied parts section takes its heading with it",
+  partsOnlyNumbers==="## 9. MATERIALS / PARTS USED\nChart paper replaced.\n\n## KEY POINTS SUMMARY\n- Pen arm replaced",
+  "got:\n"+JSON.stringify(partsOnlyNumbers));
 
 // --- the document itself must not announce the filtering ---------------------
 // The copy carried a note under its name in the PDF and a line in the shared

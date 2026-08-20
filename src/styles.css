@@ -163,8 +163,6 @@ body.light .hist-card{background:#fff}
 .report-copy-status{font-size:11px;color:var(--sub);line-height:1.5}
 .report-customer-notice{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#92400e;line-height:1.55}
 .report-customer-notice .stitle{color:#92400e}
-.report-parts-research{background:#fff;border:1px solid #b2ddd6;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#0f2420;line-height:1.55}
-.report-parts-research .stitle{color:#2d6b60}
 .report-photo-missing{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#991b1b;line-height:1.55}
 .asset-picklist-request-panel{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.55}
 .asset-picklist-request-panel .stitle{margin-bottom:6px;color:#92400e}
