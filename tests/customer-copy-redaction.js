@@ -124,6 +124,99 @@ withholds("Chart recorder (DR4500AY-1000-0-0-0) verified.","DR4500AY-1000-0-0-0"
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","Honeywell");
 keeps("Replaced the Honeywell DR4500A chart recorder in panel 3.","chart recorder in panel 3.");
 
+// --- a model number written as a plain number -------------------------------
+// The leak the report body kept showing: a brand and a plain number is a model
+// number, and no shape can tell that number from a reading, so the equipment
+// noun standing beside it is what identifies it.
+withholds("Calibrated the Rosemount 3051 differential pressure transmitter.","3051");
+withholds("Installed an Endress+Hauser Promag 400 magnetic flow meter.","400");
+withholds("The Promag 53 sensor was verified at 1200 GPM.","53");
+withholds("Grundfos DME 60 metering pump stroke set to 40%.","60");
+withholds("Verified the Fisher 667 actuator travel.","667");
+withholds("Micro Motion 2700 transmitter checked.","2700");
+withholds("Masoneilan 21000 valve stroked.","21000");
+withholds("Magnetrol Kotron 805 probe cleaned.","805");
+withholds("Krohne Optiflux 4000 meter verified.","4000");
+withholds("GF Signet 2551 sensor replaced.","2551");
+// The identifier can be written after the equipment it names, the way an
+// equipment list writes it.
+withholds("- Chart recorder, Rosemount 3051, panel LCP-3","3051");
+withholds("- Backup unit: Partlow 7000","7000");
+keeps("Calibrated the Rosemount 3051 differential pressure transmitter.","Rosemount");
+keeps("- Chart recorder, Rosemount 3051, panel LCP-3","panel LCP-3");
+check("the model number is named for the technician with its series word",
+  redactCustomerCopyText("Calibrated the Rosemount 3051 transmitter.").removed.indexOf("Rosemount 3051")>=0,
+  JSON.stringify(redactCustomerCopyText("Calibrated the Rosemount 3051 transmitter.").removed));
+// The same number in the same copy, where the sentence says nothing about what
+// it is: a number withheld once is withheld everywhere.
+var repeated=redactCustomerCopyText(["Installed a Rosemount 3051 transmitter.",
+  "Re-ranged the Rosemount 3051 to 0-150 in H2O."].join("\n")).text;
+check("a repeat mention goes with the first",repeated.indexOf("3051")<0,repeated);
+var labeledRepeat=redactCustomerCopyText("Model: Rosemount 3051. Re-ranged the 3051 and verified span.").text;
+check("a labeled number goes where the report writes it again",labeledRepeat.indexOf("3051")<0,labeledRepeat);
+// A reading still wins, even for a number this copy withholds elsewhere.
+keeps("Model: Rosemount 3051. Totalizer read 3051 gallons.","3051 gallons");
+// A model wearing the shape of a plant tag: the brand in front of it is what
+// tells it from a tag the plant assigned itself.
+withholds("Replaced the Hach SC200 controller.","SC200");
+check("a tag-shaped model goes wherever it is written again",
+  redactCustomerCopyText("Replaced the Hach SC200 controller. The SC200 controller passed.").text.indexOf("SC200")<0,
+  redactCustomerCopyText("Replaced the Hach SC200 controller. The SC200 controller passed.").text);
+// A word is not a brand just because it opens the sentence, and a verb is never
+// one: a plant tag written after either of them stays.
+unchanged("Recorded FIT101 at the transmitter.");
+unchanged("Read FIT101 at the meter.");
+unchanged("Verified FIT101 on the recorder.");
+unchanged("FIT101 transmitter verified at 4-20 mA.");
+unchanged("Loop FIT-101 transmitter verified.");
+unchanged("SC-1 speed controller for Blower 2 verified.");
+// The same code typed in lower case.
+withholds("Replaced the dr4500a pen arm.","dr4500a");
+withholds("Existing recorder is a partlow mrc7000 unit.","mrc7000");
+
+// --- what a plain number can otherwise be, all of which must survive --------
+unchanged("Totalizer read 1284567 gallons at 10:42.");
+unchanged("The meter read 45231 at 10:00 and again at 14:30.");
+unchanged("Meter reading 45231 recorded on the totalizer.");
+unchanged("Basin 2 and Clarifier 3 were inspected; Well 4 offline.");
+unchanged("Room 101 recorder checked; Building 2B riser verified.");
+unchanged("Manhole 12 sampled; Lift Station 3 pump verified.");
+unchanged("Blower 12 motor and Drive 2 restarted.");
+unchanged("Feeder 3 valve cycled; Screen 2 sensor cleaned.");
+unchanged("Pump 12 rebuilt and Pump 14 sensor replaced.");
+unchanged("Panel 250 transmitter wiring corrected.");
+unchanged("Loop 101 transmitter verified at 4-20 mA.");
+unchanged("Work order 44821 covered the transmitter calibration.");
+unchanged("Purchase order 7781 referenced for the recorder pen kit.");
+unchanged("Ticket 5521 valve repair closed.");
+unchanged("Ambient 72 F at the transmitter; 45% RH.");
+unchanged("Supply measured 480 volt at the drive; 24 VDC at the transmitter.");
+unchanged("Torqued 25 ft-lb on the transmitter flange bolts.");
+unchanged("Setpoint 1350 GPM on the meter; range 0-1500 GPM.");
+unchanged("TDS 450 and ORP 250 mV read at the probe.");
+unchanged("Verified 10-32 screws on the transmitter cover.");
+unchanged("Since 2019 the recorder has drifted 1.8% of span.");
+unchanged("Calibrated 2026-08-19; the transmitter passed.");
+unchanged("Sampled at 10:42; the analyzer was stable.");
+unchanged("Replaced 250 valves across the plant.");
+unchanged("Installed 200 ft of cable to the transmitter.");
+unchanged("Ordered 12 pen assemblies for the recorder.");
+unchanged("Sampled 10am and 5pm at the analyzer.");
+unchanged("Sch 40 PVC downstream of the valve.");
+unchanged("Rev 3 nameplate on the transmitter; firmware v2.1 verified.");
+unchanged("Class I Div 2 area; Zone 4 gauge inspected.");
+unchanged("45 min soak on the recorder chart.");
+unchanged("Replaced the 4-wire RTD with a 3-wire RTD at the transmitter.");
+// The shop's own test equipment is the calibration's traceability record, not
+// the customer's asset, so its model stays.
+unchanged("Calibrated per ISO 17025 with a Fluke 754 documenting calibrator.");
+unchanged("Fluke 754 calibrator used at the transmitter, cal due 2027-02-14.");
+// A price is still a price on a line that names equipment.
+withholds("Quoted 1,850 for a new transmitter.","1,850");
+check("a price on an equipment line leaves no half of itself behind",
+  redactCustomerCopyText("Quoted 1,850 for a new transmitter.").text==="Quoted for a new transmitter.",
+  redactCustomerCopyText("Quoted 1,850 for a new transmitter.").text);
+
 // --- the gap closes, so the copy reads as a report and not as a redaction ----
 [["The DR4500A pen drive was binding at mid-span.","The pen drive was binding at mid-span."],
  ["- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
@@ -250,11 +343,15 @@ var report=[
   "## EQUIPMENT SERVICED",
   "- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3",
   "- Backup recorder: Partlow MRC 7000 (Serial number 88-2214)",
+  "- Influent flow transmitter, Rosemount 3051 differential pressure transmitter on loop FIT-101",
+  "- Endress+Hauser Promag 400 magnetic flow meter, 0-1500 GPM, and a Hach SC200 controller",
   "- Chart paper part number 24001660-001 restocked, 12 rolls on hand",
   "- Loop FIT-101, 0-1500 GPM, 4-20 mA output, 24 VDC loop power",
   "",
   "## FINDINGS",
   "The DR4500A pen drive was binding at mid-span. Pen arm P/N 51404671-501 was replaced.",
+  "Re-ranged the Rosemount 3051 to 0-150 in H2O; the SC200 controller passed.",
+  "Blower 12 motor and Drive 2 were restarted after Manhole 12 was sampled.",
   "As-found error 1.8% of span at 50%; as-left 0.2%. Chart speed verified at 1 in/hr.",
   "Loop verified at 4.00 mA (0 GPM), 12.01 mA (750 GPM), 19.98 mA (1500 GPM). Ambient 72 F, 45% RH.",
   "Enclosure is NEMA Type 4X, IP65, wired with 18 AWG in 3/4in conduit, SS316 fittings.",
@@ -270,10 +367,12 @@ var report=[
   "- Site is at 13400 Main St NW, Rogers, MN 55374"
 ].join("\n");
 var out=redactCustomerCopyText(report);
-["DR4500A","6M-4471","MRC 7000","MRC7000","88-2214","24001660-001","51404671-501","Model 90","R11CA111AA3A","1,850"].forEach(function(v){
+["DR4500A","6M-4471","MRC 7000","MRC7000","88-2214","24001660-001","51404671-501","Model 90","R11CA111AA3A","1,850",
+ "3051","Promag 400","SC200"].forEach(function(v){
   check("report withholds "+v,out.text.indexOf(v)<0,"got:\n"+out.text);
 });
-["Honeywell","Partlow","LCP-3","FIT-101","0-1500 GPM","4-20 mA","24 VDC","1.8%","0.2%","1 in/hr","4.00 mA","19.98 mA","72 F","45% RH",
+["Honeywell","Partlow","Rosemount","Promag","Hach","Blower 12","Drive 2","Manhole 12","0-150 in H2O",
+ "LCP-3","FIT-101","0-1500 GPM","4-20 mA","24 VDC","1.8%","0.2%","1 in/hr","4.00 mA","19.98 mA","72 F","45% RH",
  "NEMA Type 4X","IP65","18 AWG","3/4in","SS316","Fluke 754","2027-02-14","ISO 17025","Work order 44821","Purchase order 7781",
  "MN 55374","12 rolls","12 months","2 hr 30 min","August 19, 2026"].forEach(function(v){
   check("report keeps "+v,out.text.indexOf(v)>=0,"got:\n"+out.text);
@@ -429,6 +528,35 @@ sweepCodes.forEach(function(code){
 });
 check(sweepCount+" generated code sentences all withhold their code",!sweepLeaks.length,sweepLeaks.slice(0,5).join("\n    "));
 
+// A plain model number beside every kind of equipment the report names, and the
+// same shapes used as a plant reference or a reading, which must all survive.
+var sweepModels=["3051","400","667","2700","805","2551","21000","53"];
+var sweepNouns=["transmitter","sensor","meter","recorder","analyzer","controller","gauge","valve","actuator","probe","pump","totalizer"];
+var modelLeaks=[],modelCount=0;
+sweepModels.forEach(function(code){
+  sweepNouns.forEach(function(noun){
+    ["Installed a Rosemount "+code+" "+noun+" at the influent.",
+     "- Influent "+noun+", Rosemount "+code+", panel LCP-3",
+     "The Rosemount "+code+" "+noun+" was calibrated."].forEach(function(t){
+      modelCount++;
+      var got=redactCustomerCopyText(t).text;
+      if(got.indexOf(code)>=0||marksWithheld(got))modelLeaks.push(t+" -> "+got);
+    });
+  });
+});
+check(modelCount+" generated model-number sentences all withhold their number",!modelLeaks.length,modelLeaks.slice(0,5).join("\n    "));
+var sweepPlaces=["Basin","Clarifier","Well","Room","Building","Manhole","Blower","Drive","Feeder","Screen","Pump","Panel","Loop","Zone","Bay","Station"];
+var placeLosses=[],placeCount=0;
+sweepPlaces.forEach(function(place){
+  ["2","12","101"].forEach(function(n){
+    sweepNouns.slice(0,6).forEach(function(noun){
+      var t=place+" "+n+" "+noun+" was verified.";placeCount++;
+      if(redactCustomerCopyText(t).text!==t)placeLosses.push(t+" -> "+redactCustomerCopyText(t).text);
+    });
+  });
+});
+check(placeCount+" generated plant references are left alone",!placeLosses.length,placeLosses.slice(0,5).join("\n    "));
+
 var sweepReadings=["4-20 mA","4-20mA","0-150 in H2O","0-1500 GPM","24 VDC","24VDC","120VAC/24VDC","480 V","0.5%","1.8% of span",
  "pH 7.01","0.8 ppm","0.12 NTU","250 mV","3200 mg/L","72 F","23.9 VDC","1 in/hr","3/4in","1-1/2 in","18 AWG","10-32 screws",
  "1/4-20 bolts","2 hr 30 min","30 min","12 months","1284567 gal","1200-1500 GPM","0.010 in","0.15 in/s","60 Hz","1750 RPM",
@@ -441,7 +569,11 @@ var sweepFrames=[
   function(v){return v+" confirmed by the technician.";},
   function(v){return "Loop reads "+v+" as found.";},
   function(v){return "- "+v;},
-  function(v){return "Setpoint "+v+" and alarm cleared.";}
+  function(v){return "Setpoint "+v+" and alarm cleared.";},
+  // An equipment noun beside a reading must not make the reading look like a
+  // model number, in either direction.
+  function(v){return "Recorded "+v+" at the transmitter.";},
+  function(v){return "The recorder logged "+v+" during the visit.";}
 ];
 var sweepLosses=[],readingCount=0;
 sweepReadings.forEach(function(value){
