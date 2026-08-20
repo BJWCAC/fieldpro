@@ -369,7 +369,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="392";
+var FP_VERSION="393";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -8377,12 +8377,23 @@ function closeCustomerCopyGaps(text){
         if(!closes&&next&&CUSTOMER_COPY_GAP_FUNCTION_WORDS.indexOf(next.toLowerCase())>=0)
           left=left.replace(CUSTOMER_COPY_GAP_TRAILING_RE,"$1").replace(/[ \t]+$/,"");
       }
+      // A dash has nothing left to introduce when a bracketed aside is all that
+      // follows the value: "fits the Honeywell DR4500A — (box of 100)" reads
+      // "fits the Honeywell (box of 100)".
+      if(!closes&&/^[(\[]/.test(right))left=left.replace(/[ \t]*[\-–—]+[ \t]*$/,"");
       var spaced=!closes;
       if(closes){
         // A value set off by commas takes both of them with it: "Replaced chart
         // paper, 24001660-001, on the recorder" reads "Replaced chart paper on
-        // the recorder".
-        var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right);
+        // the recorder". Only when what follows continues the same clause,
+        // which is what a preposition or a verb after the comma says. In a list
+        // the comma in front of the value belongs to the list, and taking it
+        // fuses two items into one: "- Chart recorder, Honeywell, Model number:
+        // DR4500A, panel LCP-3" read "- Chart recorder, Honeywell panel LCP-3",
+        // as if the panel were the brand's.
+        var after=(/^[,;][ \t]*([A-Za-z][A-Za-z0-9'\-]*)/.exec(right)||[])[1]||"";
+        var paired=/[,;][ \t]*$/.test(left)&&/^[,;]/.test(right)&&!!after&&
+          CUSTOMER_COPY_GAP_FUNCTION_WORDS.indexOf(after.toLowerCase())>=0;
         for(var w=0;w<3;w++){
           var trimmed=left.replace(CUSTOMER_COPY_GAP_TRAILING_RE,"$1").replace(/[ \t]+$/,"");
           if(trimmed===left)break;
@@ -8396,6 +8407,10 @@ function closeCustomerCopyGaps(text){
         // Nothing is left for the punctuation to sit against: "Parts: DR4500A.
         // Also replaced chart paper." starts at "Also".
         if(!/[A-Za-z0-9]/.test(left)){right=right.replace(/^[.,;:!?]+[ \t]*/,"");spaced=true;}
+        // The value opened a bracketed aside, so the separator behind it has
+        // nothing in front of it either: "(Part number: 24001660-001; box of
+        // 100)" reads "(box of 100)".
+        else if(/[(\[]$/.test(left))right=right.replace(/^[ \t]*[,;:]+[ \t]*/,"");
         // A dash keeps its space: "Recorder — DR4500A — calibrated." reads
         // "Recorder — calibrated."
         else if(/^[\-–—]/.test(right))spaced=true;
@@ -8974,9 +8989,16 @@ async function generate(){
     // the report, so without this the notes never make it into the report.
     var photoNotes=photoSrc.map(function(p){return String(p&&p.desc||"").trim();}).filter(Boolean).map(function(t){return "- "+t;}).join("\n");
     var transcriptVal=getVideoTranscriptValue().trim();
+    // The instrument's own identity is field data the technician already
+    // entered, so the report gets it too. Without it the report can only name
+    // the equipment as loosely as the notes did — the model and serial the
+    // Assets tab wrote to Zoho never reached the report body at all. Same lines
+    // the parts lookup reads, so the two describe the instrument identically.
+    var equipList=partsEquipmentLines();
+    var equipInfo=equipList.length?"INSTRUMENTS DOCUMENTED ON THIS VISIT (equipment records saved from the Assets tab):\n"+equipList.map(function(l){return "- "+l;}).join("\n")+"\n\n":"";
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n7. Write every number you were given and never a placeholder in its place — no \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Removing values is handled when the copy is rendered.\n8. Section 10 is a parts order. Carry every part from the pre-filled section 10 into it with its part number, quantity, and the deficiency it is for exactly as given — never invent, correct, or drop a part number, and never add a part that was not given to you.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## 10. Parts Needed / Recommended\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+equipInfo+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n7. Write every number you were given and never a placeholder in its place — no \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Removing values is handled when the copy is rendered.\n8. Section 10 is a parts order. Carry every part from the pre-filled section 10 into it with its part number, quantity, and the deficiency it is for exactly as given — never invent, correct, or drop a part number, and never add a part that was not given to you.\n9. The instrument records are the equipment's identity, not a work log: use them to name the instrument and to write its model, order, and serial numbers where they belong, and do not report work they do not describe.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## 10. Parts Needed / Recommended\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
     // Fresh report text — the Deal PDF for this copy name must be replaced

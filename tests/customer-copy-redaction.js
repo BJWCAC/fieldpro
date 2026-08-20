@@ -222,6 +222,11 @@ check("a price on an equipment line leaves no half of itself behind",
  ["- Chart recorder, Honeywell DR4500A, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
  ["Chart recorder (DR4500AY-1000-0-0-0) verified.","Chart recorder verified."],
  ["Replaced chart paper, 24001660-001, on the recorder.","Replaced chart paper on the recorder."],
+ // Both commas only go when what follows continues the clause. In a list the
+ // comma in front of the value is the list's, and taking it fused two items:
+ // this equipment line read "- Chart recorder, Honeywell panel LCP-3".
+ ["- Chart recorder, Honeywell, Model number: DR4500AY-1000-0-0-0, Serial: 6M-4471, panel LCP-3","- Chart recorder, Honeywell, panel LCP-3"],
+ ["- Chart paper, 24001660-001, 12 rolls on hand","- Chart paper, 12 rolls on hand"],
  ["- Stock two spare pen assemblies, Model 90 pen kit, order code R11CA111AA3A.","- Stock two spare pen assemblies, pen kit."],
  ["Existing recorder is a Yokogawa uR1800 unit.","Existing recorder is a Yokogawa unit."],
  // A determiner with nothing noun-like after it goes with the value.
@@ -241,6 +246,13 @@ check("a price on an equipment line leaves no half of itself behind",
  ["Order code R11CA111AA3A; ship to Rogers, MN 55374.","Ship to Rogers, MN 55374."],
  // A dash keeps its spacing.
  ["Recorder — DR4500A — calibrated.","Recorder — calibrated."],
+ // A dash has nothing left to introduce when a bracketed aside is all that
+ // follows the value, and a value that opened one takes the separator behind it.
+ // Both are how the researched replacement parts block writes a part number.
+ ["Chart paper, fits the Honeywell DR4500A — Part number: 24001660-001 (box of 100 charts)","Chart paper, fits the Honeywell (box of 100 charts)"],
+ ["Chart paper, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts)","Chart paper, fits the Honeywell (box of 100 charts)"],
+ ["Recorder — Model: DR4500A (Honeywell) verified.","Recorder (Honeywell) verified."],
+ ["Replaced the pen arm [P/N 51404671-501, purple ink] this visit.","Replaced the pen arm [purple ink] this visit."],
  // A heading keeps its line even when the only thing on it was withheld.
  ["## Model: DR4500A","##"]].forEach(function(pair){
   var got=redactCustomerCopyText(pair[0]).text;
