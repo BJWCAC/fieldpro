@@ -8340,6 +8340,10 @@ function closeCustomerCopyGaps(text){
       // "Replace the MRC 7000 within 12 months" loses the "the" as well.
       if(closes||!next||CUSTOMER_COPY_GAP_FUNCTION_WORDS.indexOf(next.toLowerCase())>=0)
         left=left.replace(CUSTOMER_COPY_GAP_ARTICLE_RE,"$1").replace(/[ \t]+$/,"");
+      // A dash has nothing left to introduce when a bracketed aside is all that
+      // follows the value: "fits the Honeywell DR4500A — (box of 100)" reads
+      // "fits the Honeywell (box of 100)".
+      if(!closes&&/^[(\[]/.test(right))left=left.replace(/[ \t]*[\-–—]+[ \t]*$/,"");
       var spaced=!closes;
       if(closes){
         // A value set off by commas takes both of them with it: "Replaced chart
@@ -8359,6 +8363,10 @@ function closeCustomerCopyGaps(text){
         // Nothing is left for the punctuation to sit against: "Parts: DR4500A.
         // Also replaced chart paper." starts at "Also".
         if(!/[A-Za-z0-9]/.test(left)){right=right.replace(/^[.,;:!?]+[ \t]*/,"");spaced=true;}
+        // The value opened a bracketed aside, so the separator behind it has
+        // nothing in front of it either: "(Part number: 24001660-001; box of
+        // 100)" reads "(box of 100)".
+        else if(/[(\[]$/.test(left))right=right.replace(/^[ \t]*[,;:]+[ \t]*/,"");
         // A dash keeps its space: "Recorder — DR4500A — calibrated." reads
         // "Recorder — calibrated."
         else if(/^[\-–—]/.test(right))spaced=true;
@@ -8609,8 +8617,9 @@ var REPLACEMENT_PART_SYSTEM_PROMPT="You are the parts desk for a water/wastewate
 "7. Never write a placeholder — no \"[redacted]\", \"withheld\", \"not shown\", \"N/A\", \"TBD\", \"***\" — and never mention redaction, withholding, or customer copies.\n"+
 "8. Plain text only: no markdown bold, no headings, no preamble, no closing remark, no citation brackets.\n\n"+
 "OUTPUT: one line per part, at most "+REPLACEMENT_PART_MAX_ITEMS+" lines, each starting with \"- \" and shaped like:\n"+
-"- <part and what it does>, fits the <brand> <model> — Part number: <value> (<brand>; <kit or pack note>; source: <domain>)\n"+
-"Example: - Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)\n\n"+
+"- <part and what it does>, fits the <brand> <model> (Part number: <value>; <kit or pack note>; source: <domain>)\n"+
+"Example: - Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts; source: honeywell.com)\n"+
+"Keep the number inside the brackets and do not repeat the brand there: a customer copy takes the number out, and the line has to read without it.\n\n"+
 "If the report names no replaceable part, or no part can be tied to an identified instrument, or a genuine search turns up nothing trustworthy for any of them, respond with exactly: SKIP";
 function isReplacementPartResearchEnabled(){try{return localStorage.getItem("fp_parts_research")!=="0";}catch(e){return true;}}
 function toggleReplacementPartResearch(){

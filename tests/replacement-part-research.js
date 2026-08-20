@@ -106,8 +106,8 @@ check("no report means no codes",replacementPartReportCodes("").length===0);
 
 // --- reading the researched lines out of the model's answer ------------------
 var answer=["Here are the replacement parts I found:",
-  "1. **Chart paper**, 12 in circular, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)",
-  "- Pen arm assembly, purple, fits the Honeywell DR4500A — Part number: 51404671-501 (Honeywell; sold singly; source: honeywell.com)",
+  "1. **Chart paper**, 12 in circular, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts; source: honeywell.com)",
+  "- Pen arm assembly, purple, fits the Honeywell DR4500A (Part number: 51404671-501; sold singly; source: honeywell.com)",
   "",
   "Let me know if you need anything else."].join("\n");
 var parsed=parseReplacementPartLines(answer);
@@ -121,12 +121,12 @@ eq("SKIP yields no parts",parseReplacementPartLines("SKIP").length,0);
 eq("a stray-punctuation SKIP yields no parts",parseReplacementPartLines("\"SKIP.\"").length,0);
 eq("a heading is not a part",parseReplacementPartLines("## Parts").length,0);
 eq("a repeated line is listed once",
-  parseReplacementPartLines(["- Chart paper — Part number: 24001660-001","- Chart paper — Part number: 24001660-001"].join("\n")).length,1);
-var overrun=[];for(i=0;i<12;i++)overrun.push("- Part "+i+" — Part number: 2400166"+i+"-001");
+  parseReplacementPartLines(["- Chart paper (Part number: 24001660-001)","- Chart paper (Part number: 24001660-001)"].join("\n")).length,1);
+var overrun=[];for(i=0;i<12;i++)overrun.push("- Pen arm "+i+" (Part number: 2400166"+i+"-001)");
 eq("the list is capped",parseReplacementPartLines(overrun.join("\n")).length,REPLACEMENT_PART_MAX_ITEMS);
 
 // --- where the block lands --------------------------------------------------
-var partLines=["- Chart paper, 12 in circular, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)"];
+var partLines=["- Chart paper, 12 in circular, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts; source: honeywell.com)"];
 var withSection=["## 3. Work Performed","Replaced the pen arm.","",
   "## 9. Materials / Parts Used","- Chart paper, 12 rolls on hand","",
   "## KEY POINTS SUMMARY","- Pen arm replaced"].join("\n");
@@ -159,7 +159,7 @@ check("a report without it does not",!reportHasReplacementPartBlock(withSection)
 eq("no researched parts leaves the report untouched",mergeReplacementPartsIntoReport(withSection,[]),withSection);
 
 // --- researching twice replaces the list ------------------------------------
-var second=["- Pen arm assembly, fits the Honeywell DR4500A — Part number: 51404671-501 (Honeywell; sold singly; source: honeywell.com)"];
+var second=["- Pen arm assembly, fits the Honeywell DR4500A (Part number: 51404671-501; sold singly; source: honeywell.com)"];
 eq("the second lookup replaces the first block",mergeReplacementPartsIntoReport(merged,second),
   mergeReplacementPartsIntoReport(withSection,second));
 eq("taking the block back restores the report",stripReplacementPartBlock(merged),withSection);
@@ -180,7 +180,7 @@ var copy=redactCustomerCopyText(mergeReplacementPartsIntoReport(withSection,part
 ["24001660-001","DR4500A"].forEach(function(v){
   check("a customer copy withholds the researched "+v,copy.text.indexOf(v)<0,"got:\n"+copy.text);
 });
-["Chart paper","12 in circular","Honeywell","box of 100","honeywell.com",REPLACEMENT_PART_BLOCK_LEAD].forEach(function(v){
+["Chart paper","12 in circular","Honeywell","box of 100 charts","honeywell.com",REPLACEMENT_PART_BLOCK_LEAD].forEach(function(v){
   check("a customer copy keeps "+v,copy.text.indexOf(v)>=0,"got:\n"+copy.text);
 });
 check("the researched line says nothing about what was withheld",
@@ -198,7 +198,7 @@ copy.text.split("\n").forEach(function(line){
   eq("a line that is only a number is not a part: "+line,parseReplacementPartLines(line).length,0);
 });
 // A line the lookup could not put a number on carries no hole either.
-var noNumber=["- Pen arm assembly, fits the Honeywell DR4500A — order through Honeywell quoting the recorder's serial number"];
+var noNumber=["- Pen arm assembly, fits the Honeywell DR4500A (order through Honeywell quoting the recorder's serial number)"];
 var noNumberCopy=redactCustomerCopyText(mergeReplacementPartsIntoReport(withSection,noNumber));
 check("a part with no number survives the copy",
   noNumberCopy.text.indexOf("order through Honeywell quoting the recorder's serial number")>=0,"got:\n"+noNumberCopy.text);

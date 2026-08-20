@@ -241,6 +241,13 @@ check("a price on an equipment line leaves no half of itself behind",
  ["Order code R11CA111AA3A; ship to Rogers, MN 55374.","Ship to Rogers, MN 55374."],
  // A dash keeps its spacing.
  ["Recorder — DR4500A — calibrated.","Recorder — calibrated."],
+ // A dash has nothing left to introduce when a bracketed aside is all that
+ // follows the value, and a value that opened one takes the separator behind it.
+ // Both are how the researched replacement parts block writes a part number.
+ ["Chart paper, fits the Honeywell DR4500A — Part number: 24001660-001 (box of 100 charts)","Chart paper, fits the Honeywell (box of 100 charts)"],
+ ["Chart paper, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts)","Chart paper, fits the Honeywell (box of 100 charts)"],
+ ["Recorder — Model: DR4500A (Honeywell) verified.","Recorder (Honeywell) verified."],
+ ["Replaced the pen arm [P/N 51404671-501, purple ink] this visit.","Replaced the pen arm [purple ink] this visit."],
  // A heading keeps its line even when the only thing on it was withheld.
  ["## Model: DR4500A","##"]].forEach(function(pair){
   var got=redactCustomerCopyText(pair[0]).text;
@@ -427,20 +434,21 @@ check("a section of nothing but announcements takes its heading with it",
 var partsBlock=["## 9. Materials / Parts Used",
   "- Chart paper, 12 rolls on hand",
   "Replacement parts researched from manufacturer literature:",
-  "- Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)",
-  "- Pen arm assembly, purple, fits the Honeywell DR4500A — Part number: 51404671-501 (Honeywell; sold singly; source: honeywell.com)",
-  "- Sensor cap, 1 year service life, fits the Hach LDO probe — order through Hach quoting the probe serial number"].join("\n");
+  "- Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A (Part number: 24001660-001; box of 100 charts; source: honeywell.com)",
+  "- Pen arm assembly, purple, fits the Honeywell DR4500A (Part number: 51404671-501; sold singly; source: honeywell.com)",
+  "- Sensor cap, 1 year service life, fits the Hach LDO probe (order through Hach quoting the probe serial number)"].join("\n");
 var partsOut=redactCustomerCopyText(partsBlock);
 ["24001660-001","51404671-501","DR4500A"].forEach(function(v){
   check("the researched parts block withholds "+v,partsOut.text.indexOf(v)<0,"got:\n"+partsOut.text);
 });
-["Chart paper","12 in circular","0-100","Pen arm assembly","purple","Honeywell","box of 100","honeywell.com",
+["Chart paper","12 in circular","0-100","Pen arm assembly","purple","Honeywell","box of 100 charts","honeywell.com",
  "Sensor cap","1 year service life","12 rolls","Replacement parts researched from manufacturer literature:"].forEach(function(v){
   check("the researched parts block keeps "+v,partsOut.text.indexOf(v)>=0,"got:\n"+partsOut.text);
 });
 check("the researched parts block says nothing about what went",!marksWithheld(partsOut.text),"got:\n"+partsOut.text);
 check("every researched part is still named",
   partsOut.text.split("\n").filter(function(l){return /^-\s/.test(l);}).length===4,"got:\n"+partsOut.text);
+readsClean(partsOut.text.split("\n").filter(function(l){return /^-\s/.test(l);}).join("\n"),"researched parts block");
 
 // --- the document itself must not announce the filtering ---------------------
 // The copy carried a note under its name in the PDF and a line in the shared
