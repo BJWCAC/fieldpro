@@ -419,6 +419,29 @@ check("a section of nothing but announcements takes its heading with it",
   placeholderSection==="## CALIBRATION RESULTS\nAs-found 1.8% of span at 1 in/hr on loop FIT-101.",
   "got:\n"+JSON.stringify(placeholderSection));
 
+// --- the researched replacement parts block ---------------------------------
+// The parts lookup writes manufacturer part numbers into the report body, so
+// the copy filters them like any other identifier. Each line has to keep the
+// part it names, and the block's label must never end up standing over an empty
+// list — see tests/replacement-part-research.js for the line-level guarantee.
+var partsBlock=["## 9. Materials / Parts Used",
+  "- Chart paper, 12 rolls on hand",
+  "Replacement parts researched from manufacturer literature:",
+  "- Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)",
+  "- Pen arm assembly, purple, fits the Honeywell DR4500A — Part number: 51404671-501 (Honeywell; sold singly; source: honeywell.com)",
+  "- Sensor cap, 1 year service life, fits the Hach LDO probe — order through Hach quoting the probe serial number"].join("\n");
+var partsOut=redactCustomerCopyText(partsBlock);
+["24001660-001","51404671-501","DR4500A"].forEach(function(v){
+  check("the researched parts block withholds "+v,partsOut.text.indexOf(v)<0,"got:\n"+partsOut.text);
+});
+["Chart paper","12 in circular","0-100","Pen arm assembly","purple","Honeywell","box of 100","honeywell.com",
+ "Sensor cap","1 year service life","12 rolls","Replacement parts researched from manufacturer literature:"].forEach(function(v){
+  check("the researched parts block keeps "+v,partsOut.text.indexOf(v)>=0,"got:\n"+partsOut.text);
+});
+check("the researched parts block says nothing about what went",!marksWithheld(partsOut.text),"got:\n"+partsOut.text);
+check("every researched part is still named",
+  partsOut.text.split("\n").filter(function(l){return /^-\s/.test(l);}).length===4,"got:\n"+partsOut.text);
+
 // --- the document itself must not announce the filtering ---------------------
 // The copy carried a note under its name in the PDF and a line in the shared
 // text ("Customer copy — … are not included."), which said what the filtering

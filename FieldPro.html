@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=391"/>
+<link rel="stylesheet" href="src/styles.css?v=392"/>
 
 </head>
 <body autocomplete="off">
@@ -501,6 +501,7 @@
       <div class="stitle">Report Workflow</div>
       <ol>
         <li>Review the report text, photos, and header details.</li>
+        <li>Check <strong>Replacement Parts</strong> — when a part was replaced or is needed, CapStone researches the manufacturer part number from the instrument's model number and lists it under <strong>9. Materials / Parts Used</strong>. Research again after adding the instrument on Assets.</li>
         <li>Check the save checklist before saving to Zoho.</li>
         <li>Save Report to Zoho to update the Deal note, attach the PDF, and sync WorkDrive files.</li>
         <li>Use Retry options if any step did not complete.</li>
@@ -517,6 +518,7 @@
       <div id="report-copy-picker-report"></div>
     </div>
     <div id="report-customer-notice" class="report-customer-notice" style="display:none"></div>
+    <div id="report-parts-research" class="report-parts-research" style="display:none"></div>
     <div class="pdf-opts">
       <div class="stitle">PDF Options</div>
       <div class="tog-row" onclick="togPhotos()">
@@ -830,6 +832,13 @@
         <div style="font-size:11px;color:var(--dim);margin-top:2px">Saving an asset no longer waits for the AI spec lookup — the asset saves immediately and <strong>Model_AI_Specs</strong> is researched and written to Zoho a few seconds later, so you can start the next asset right away. Progress shows on each item under Assets Saved This Visit. Turn off to write specs during save (slower, but confirmed before you move on).</div>
       </div>
     </div>
+    <div class="tog-row" onclick="toggleReplacementPartResearch()" style="margin-top:10px">
+      <div class="tog on" id="tog-parts-research"><div class="tog-thumb"></div></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">Research replacement part numbers on Generate</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:2px">When the report says a part was replaced or is needed, AI searches the manufacturer's parts list from the instrument's model / order / part number and adds the replacement part number under <strong>9. Materials / Parts Used</strong>. Turn off to only look parts up on demand from the <strong>Research Replacement Parts</strong> button on the Report tab (generation is faster with it off).</div>
+      </div>
+    </div>
   </div>
   <div class="settings-group-title" data-perm-group="help">Workflow Help</div>
   <div class="card">
@@ -1074,8 +1083,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=391"></script>
-<script src="src/app.js?v=391"></script>
+<script src="src/accounts-map.js?v=392"></script>
+<script src="src/app.js?v=392"></script>
 
 </body>
 </html>

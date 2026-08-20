@@ -422,6 +422,12 @@ still stored and still shown beside the photos:
   section they belong to instead.
 - Any new capture field a technician can type into must be added to this prompt in the same PR —
   and, per the customer copy content rule, to the render-time filter.
+- **The instrument's own identity goes into the prompt too.** The assets saved to Zoho Equipments on
+  this visit (`replacementPartIdentities()`) are added as `INSTRUMENTS DOCUMENTED ON THIS VISIT`
+  with each value labeled the way the prompt asks the model to write one (`Model/order number: …`,
+  `Serial: …`). Without it the report can only name the equipment as loosely as the notes did, and
+  nothing downstream has a model number to work from. The records are identity, not a work log: the
+  prompt says so, so the model must not report work they do not describe.
 
 **AI photo text belongs to the report photos, and Capture holds its own copy of each photo.**
 `A.photos` (Capture) and `A.reportPhotos` (Report) are separate objects for the same photo, so
@@ -430,6 +436,51 @@ Otherwise the next background History save — which describes the Capture tab �
 copy of the same photo over the stored record and both AI blocks are gone. `mergeHistoryRecord()`
 is the second line of defence: on a silent autosave it merges `photoData` per photo id and keeps
 each photo's existing `desc`, `label`, `aiDesc`, and `synthesis` when the incoming copy has none.
+
+## Replacement part research rule
+
+**A report that says a part was replaced, or has to be, must also say what to order.** Reported from
+the field as "it mentioned we needed the pen replaced but it did not look up a part number based on
+the instrument part number — it should have researched and found a replacement part and documented
+it in the proper section." The instrument's identity is already on the visit, so the manufacturer's
+replacement part number is researched from it and written into the report.
+
+- **The lookup runs on Generate, after the report text comes back.** `generate()` calls
+  `applyReplacementPartResearch()` before the History save, so the merged text is what the PDF, the
+  Zoho note, and History all carry. It is best effort by design: a failed lookup leaves the report
+  exactly as written and queues `parts_research` in Pending AI, so a weak signal never costs the
+  technician the report. `Settings → Research replacement part numbers on Generate`
+  (`fp_parts_research`, on by default, in `KEY_SYNC_FIELDS`) turns the automatic pass off, and the
+  Report tab's **Research Replacement Parts** button runs it on demand for a report that was written
+  before the lookup existed — or again, after the instrument is added on the Assets tab.
+- **Two gates before a search is spent.** `replacementPartIntentLines()` has to find a line saying
+  something was replaced or is needed, and there has to be an instrument to look a part up from:
+  either an asset saved on the Assets tab (`replacementPartIdentities()`) or an identifier the report
+  itself names (`replacementPartReportCodes()`, which reads the report with the customer-copy filter
+  and takes what that filter would remove — the same reader, used in the opposite direction). The
+  intent regex is deliberately wide: a false positive costs one lookup, a false negative costs the
+  technician the order.
+- **Search first, and never invent a number.** `REPLACEMENT_PART_SYSTEM_PROMPT` requires a deep
+  multi-source web search of the manufacturer's own parts list or manual before anything is written,
+  and forbids guessing or pattern-matching a part number outright: a part with no verifiable number
+  is written without one, saying how to source it instead. Providers come from
+  `modelAiSpecsProviders()` for the same reason the calibration specs do — Gemini first with search,
+  Claude as a search-enabled fallback, first usable draft wins, no merge. The lookup answers `SKIP`
+  when it can tie nothing to an identified instrument, and a `SKIP` adds nothing rather than a guess.
+- **The block goes in the proper section, once.** `mergeReplacementPartsIntoReport()` appends under
+  the report's own `9. Materials / Parts Used` heading (matching the shapes a model writes instead),
+  creates that section ahead of `KEY POINTS SUMMARY` when the report left it out, and replaces the
+  block a previous run wrote instead of stacking a second copy — `stripReplacementPartBlock()` takes
+  back only the lead line and the bullets directly under it, plus a heading it added that would be
+  left standing over nothing.
+- **Numbers arrive labeled, and each line has to survive the copy.** The prompt requires
+  `Part number: <value>` so a customer copy removes the number and its label together, like every
+  other identifier; nothing in the lookup filters anything, because the block is report text and
+  `buildPDF()` / `buildReportExportText()` already filter that. `parseReplacementPartLines()` rejects
+  a line that is nothing but the number, so the block's own label can never end up standing over an
+  empty list on a customer copy.
+- **Every change to the lookup runs `node tests/replacement-part-research.js`**, and a change to the
+  block's wording runs `node tests/customer-copy-redaction.js` with it.
 
 ## Customer copy content rule (applies to every capture, now and in future)
 
@@ -497,6 +548,7 @@ Every code PR should run at least:
 node --check src/app.js
 node --check netlify/functions/zoho-proxy.js
 node tests/customer-copy-redaction.js
+node tests/replacement-part-research.js
 git diff --check
 ```
 

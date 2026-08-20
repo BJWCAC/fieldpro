@@ -355,8 +355,8 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="391";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,partsResearch:null,partsResearchRunning:false,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="392";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -551,7 +551,7 @@ var INBOX_TRANSCRIPT_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/fun
 var PLAUD_PROXY_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/plaud-proxy";
 var PICKLIST_REQUEST_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/picklist-request";
 var KEY_SYNC_URL="https://dulcet-sherbet-40f8f6.netlify.app/.netlify/functions/key-sync";
-var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research","fp_asset_bg_specs","fp_proxy_secret"];
+var KEY_SYNC_FIELDS=["fp_api_key","fp_gemini_api_key","fp_plaud_tokens","fp_plaud_auto_pull","fp_auto_save_zoho","fp_auto_save_phone_photos","fp_record_audio","fp_theme","fp_key_sync_auto","fp_key_sync_auto_restore","fp_asset_auto_research","fp_asset_bg_specs","fp_parts_research","fp_proxy_secret"];
 var KEY_SYNC_AUTO_PUSH_MS=8000;
 var KEY_SYNC_AUTO_PULL_MS=1500;
 var keySyncPushTimer=null;
@@ -1784,6 +1784,7 @@ function bootApp(){
     var ap=el("tog-auto-phone-photos");if(ap)ap.classList.toggle("on",A.autoSavePhonePhotos);
     var ar=el("tog-asset-auto-research");if(ar)ar.classList.toggle("on",isAssetAutoResearchEnabled());
     var bg=el("tog-asset-bg-specs");if(bg)bg.classList.toggle("on",isAssetBgSpecsEnabled());
+    var pr=el("tog-parts-research");if(pr)pr.classList.toggle("on",isReplacementPartResearchEnabled());
     setTechnicianUI();
     renderReportCopyPickers();
     A.asset.savedItems=loadAssetSavedVisitFromStorage();
@@ -2209,7 +2210,7 @@ function scheduleCaptureDraftSave(){
 function clearCaptureDraft(){try{localStorage.removeItem("fp_capture_draft");}catch(e){}setCaptureDraftStatus("",false);}
 async function restoreCaptureDraft(d){
   if(!d)return;
-  A.sel=d.deal||null;A.location=d.location||null;A.photos=await fpHydratePhotoData(d.photos||[]);A.reportPhotos=await fpHydratePhotoData(d.reportPhotos||[]);fpIdbPutPhotos(A.photos.concat(A.reportPhotos));await applyVideosAndTranscript(d);A.report=d.report||"";A.reportTechnician=d.technician||"";A.currentHistoryId=d.currentHistoryId||null;A.zohoNoteId=d.zohoNoteId||null;A.dealPdfAttached=!!d.dealPdfAttached;A.dealPdfAttachments=d.dealPdfAttachments||{};A.workdrivePdfUrl=d.workdrivePdfUrl||null;
+  A.sel=d.deal||null;A.location=d.location||null;A.photos=await fpHydratePhotoData(d.photos||[]);A.reportPhotos=await fpHydratePhotoData(d.reportPhotos||[]);fpIdbPutPhotos(A.photos.concat(A.reportPhotos));await applyVideosAndTranscript(d);A.report=d.report||"";A.partsResearch=null;A.reportTechnician=d.technician||"";A.currentHistoryId=d.currentHistoryId||null;A.zohoNoteId=d.zohoNoteId||null;A.dealPdfAttached=!!d.dealPdfAttached;A.dealPdfAttachments=d.dealPdfAttachments||{};A.workdrivePdfUrl=d.workdrivePdfUrl||null;
   applyReportCopyFromRecord(d);
   if(el("tx"))el("tx").value=d.voiceNotes||"";if(el("tx2"))el("tx2").value=d.voiceNotes||"";
   if(d.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value=d.sections[id]||"";});
@@ -2246,7 +2247,7 @@ function newProject(){
 }
 function clearCapture(){
   clearCaptureDraft();
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.partsResearch=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -6560,6 +6561,7 @@ function pendingAiLabel(item){
   if(item.type==="asset_extract")return "Asset photo extraction";
   if(item.type==="asset_extract_sensor")return "Sensor photo extraction";
   if(item.type==="asset_specs")return item.label||"Model_AI_Specs research";
+  if(item.type==="parts_research")return item.label||"Replacement part research";
   return item.label||"Pending AI";
 }
 function removePendingAiByTarget(target){
@@ -6662,6 +6664,7 @@ async function processPendingAiItem(item){
   if(item.type==="report_generate"){await retryQueuedReportGenerate(item);return;}
   if(item.type==="asset_extract"||item.type==="asset_extract_sensor"){await retryQueuedAssetExtract(item);return;}
   if(item.type==="asset_specs"){await runAssetSpecsJob(item);return;}
+  if(item.type==="parts_research"){await runQueuedReplacementPartResearch(item);return;}
   throw new Error("Unknown pending AI type");
 }
 async function retryPendingAi(opts){
@@ -8555,6 +8558,406 @@ async function addAiPhotoNotes(photos,opts){
   }catch(e){}
   return captioned;
 }
+// REPLACEMENT PART RESEARCH
+// A report that says a part was replaced, or has to be, is only half of an
+// order: the technician still has to find out what to order. The instrument's
+// own identity is already on the visit — the Assets tab wrote its model number
+// to Zoho, or the report names it because the technician read it off the
+// nameplate — so the replacement part number is looked up from that identity
+// while the report is being written, and lands in section 9, Materials / Parts
+// Used, where a parts list belongs. Researched by the same providers that write
+// Model_AI_Specs (Gemini first with search, Claude as a search-enabled
+// fallback, no merge), for the same reason: a part number has to come from the
+// manufacturer's own literature, never from memory.
+//
+// Each number is written with its label ("Part number: 24001660-001") so a
+// customer copy removes the number and its label together, the way it removes
+// every other identifier. Nothing here filters anything — the block is report
+// text like any other, so buildPDF() and buildReportExportText() filter it.
+var REPLACEMENT_PART_BLOCK_LEAD="Replacement parts researched from manufacturer literature:";
+var REPLACEMENT_PART_MAX_ITEMS=6;
+var REPLACEMENT_PART_MAX_INTENT_LINES=14;
+var REPLACEMENT_PART_MAX_CODES=12;
+var REPLACEMENT_PART_MAX_IDENTITIES=6;
+// The section a researched parts list is merged into. Matches the heading the
+// report prompt asks for ("## 9. Materials / Parts Used") and the shapes a
+// model writes instead ("## PARTS USED", "## Materials and Parts").
+var REPLACEMENT_PART_SECTION_RE=/^#{1,3}\s*(?:\d+[.)]\s*)?(?:materials?|parts?|consumables?)\b/i;
+var REPLACEMENT_PART_SUMMARY_SECTION_RE=/^#{1,3}\s*(?:key\s+points|summary\b)/i;
+// The gate that decides whether a report is worth a search at all. Deliberately
+// wide — it only has to notice that something was replaced or has to be, and
+// the research call answers SKIP for everything it cannot turn into a part
+// number, so a false positive costs one lookup and a false negative costs the
+// technician the order.
+var REPLACEMENT_PART_INTENT_RE=new RegExp("\\b(?:replac\\w*|swap(?:s|ped|ping)?|rebuil\\w*|retrofit\\w*|renew\\w*|"+
+  "refill\\w*|worn|wear|failed|failing|broken|cracked|torn|leaking|seized|binding|sticking|plugged|fouled|"+
+  "expired|obsolete|discontinued|end\\s+of\\s+life|spares?|consumables?|"+
+  "(?:repair|rebuild|service|pen|paper|seal|gasket|maintenance)\\s+kit|"+
+  "out\\s+of\\s+(?:chart\\s+)?paper|"+
+  "needs?\\s+(?:a\\s+|an\\s+|the\\s+)?new\\b|need(?:s|ed)?\\s+(?:to\\s+be\\s+)?(?:replac|order)\\w*|"+
+  "require[sd]?\\s+(?:a\\s+|an\\s+|the\\s+)?new\\b|order(?:ed|ing)?\\s+(?:a\\s+|an\\s+|the\\s+)?(?:new|replacement|spare)\\b|"+
+  "install(?:ed|ing)?\\s+(?:a\\s+|an\\s+|the\\s+)?new\\b)","i");
+var REPLACEMENT_PART_SYSTEM_PROMPT="You are the parts desk for a water/wastewater instrument calibration company (Calibrations & Controls). A technician's field report says a part was replaced, or has to be replaced. Your job is to name the manufacturer's replacement part number for that part, worked out from the instrument's own brand and model/order/part number, so the report the technician files already says what to order.\n\n"+
+"FIRST, before writing anything, DO A DEEP WEB SEARCH — never answer from memory. Run SEVERAL targeted searches per part: (1) \"<brand> <model> spare parts list\", (2) \"<brand> <model> <part> part number\", (3) the manufacturer's service/instruction manual or parts catalog, and (4) the accessory/consumable table for that family. Decode the model or order code far enough to pick the right variant — chart diameter, range, wetted material, supply voltage, and pen or cartridge colour all change the part number. Prefer the MANUFACTURER's own parts list or manual; when the first source is ambiguous or looks wrong, open a SECOND source and cross-check before committing to a number. If the instrument is discontinued, give the current successor part and say so.\n\n"+
+"RULES:\n"+
+"1. Research only the parts the report actually names as replaced, failing, worn, or needed. Never add a part the report does not mention, and never invent work.\n"+
+"2. NEVER invent, guess, or pattern-match a part number. Give a number only when a source you actually found states it for this instrument. When no source states one, write the line without a number and say how to source it (for example \"order through Honeywell quoting the recorder's serial number\").\n"+
+"3. Write every part number with its label, exactly as \"Part number: <value>\" (or \"Order code: <value>\" where the manufacturer prints it that way) — never a bare number. A customer copy removes the number and its label together, so a labeled number leaves a line that still reads.\n"+
+"4. If the report already names the manufacturer part number for a part, leave that part out — only add what the report does not already carry.\n"+
+"5. Say what the part is and what it fits, whether it is sold singly or as a kit, and the pack quantity when the source states one.\n"+
+"6. No prices, no lead times, no supplier quotes.\n"+
+"7. Never write a placeholder — no \"[redacted]\", \"withheld\", \"not shown\", \"N/A\", \"TBD\", \"***\" — and never mention redaction, withholding, or customer copies.\n"+
+"8. Plain text only: no markdown bold, no headings, no preamble, no closing remark, no citation brackets.\n\n"+
+"OUTPUT: one line per part, at most "+REPLACEMENT_PART_MAX_ITEMS+" lines, each starting with \"- \" and shaped like:\n"+
+"- <part and what it does>, fits the <brand> <model> — Part number: <value> (<brand>; <kit or pack note>; source: <domain>)\n"+
+"Example: - Chart paper, 12 in circular, 0-100 range, fits the Honeywell DR4500A — Part number: 24001660-001 (Honeywell; box of 100; source: honeywell.com)\n\n"+
+"If the report names no replaceable part, or no part can be tied to an identified instrument, or a genuine search turns up nothing trustworthy for any of them, respond with exactly: SKIP";
+function isReplacementPartResearchEnabled(){try{return localStorage.getItem("fp_parts_research")!=="0";}catch(e){return true;}}
+function toggleReplacementPartResearch(){
+  var on=!isReplacementPartResearchEnabled();
+  try{localStorage.setItem("fp_parts_research",on?"1":"0");}catch(e){}
+  var t=el("tog-parts-research");if(t)t.classList.toggle("on",on);
+  showToast(on?"Replacement part research ON":"Replacement part research OFF",2500);
+  scheduleKeySyncAutoPush();
+}
+// The lines that say something was replaced or has to be. They are what the
+// research call is asked about, so the model researches the report's own parts
+// rather than a parts list for the instrument in general.
+function replacementPartIntentLines(text){
+  var out=[];
+  String(text||"").split("\n").forEach(function(raw){
+    var t=String(raw||"").replace(/\s+/g," ").trim();
+    if(!t||/^#{1,3}\s/.test(t))return;
+    if(t.indexOf(REPLACEMENT_PART_BLOCK_LEAD)===0)return;
+    if(!REPLACEMENT_PART_INTENT_RE.test(t))return;
+    if(out.indexOf(t)<0)out.push(t);
+  });
+  return out.slice(0,REPLACEMENT_PART_MAX_INTENT_LINES);
+}
+// The instrument's own numbers, read straight out of the report the technician
+// filed. The customer-copy filter already knows how to find an identifier in
+// field prose, labeled or not, so the same reader is used here in the opposite
+// direction: what a customer copy takes out is exactly what a parts lookup
+// needs. Pricing is dropped — it is removed by the same pass but is not an
+// identifier.
+function replacementPartReportCodes(text){
+  var t=String(text||"");
+  if(!t)return[];
+  var found=redactCustomerCopyText(t,{keep:[],known:[]}).removed||[];
+  return found.filter(function(v){
+    return /\d/.test(v)&&!/^[\s$\d.,]+$/.test(v)&&!CUSTOMER_COPY_PRICE_WORD_RE.test(v);
+  }).slice(0,REPLACEMENT_PART_MAX_CODES);
+}
+// The instruments this visit documented, from the assets saved to Zoho
+// Equipments plus the asset form as it stands when the technician filled it in
+// without saving yet. Internal assets are the shop's own tools rather than the
+// customer's instrument, so they are left out.
+function replacementPartIdentities(){
+  var out=[],seen={};
+  function add(id){
+    if(!id)return;
+    var brand=String(id.brand||"").trim(),model=String(id.model||"").trim();
+    if(!isUsableModelForAiSpecs(model,brand,id.brandOther))return;
+    var key=(brand+"|"+model).toLowerCase();
+    if(seen[key]||out.length>=REPLACEMENT_PART_MAX_IDENTITIES)return;
+    seen[key]=true;
+    out.push({brand:brand,brandOther:String(id.brandOther||"").trim(),type:String(id.type||"").trim(),
+      series:String(id.series||"").trim(),model:model,serial:String(id.serial||"").trim(),
+      category:String(id.category||"").trim(),name:String(id.name||"").trim(),
+      nameplate:String(id.nameplate||"").replace(/\s+/g," ").trim().slice(0,300)});
+  }
+  ((A.asset&&A.asset.savedItems)||[]).forEach(function(a){
+    add({brand:a.brand,brandOther:a.brandOther,type:a.type,series:a.series,model:a.model,serial:a.serial,
+      category:a.category,name:a.name,nameplate:a.nameplateAdditional});
+  });
+  if(!isInternalAssetModule()&&el("asset-model")){
+    add({brand:assetInput("asset-brand"),brandOther:assetInput("asset-brand-other"),type:assetInput("asset-type"),
+      series:assetInput("asset-series"),model:assetInput("asset-model"),serial:assetInput("asset-serial"),
+      category:assetInput("asset-category"),name:assetInput("asset-name"),nameplate:assetInput("asset-nameplate-additional")});
+  }
+  return out;
+}
+function replacementPartIdentityText(list){
+  return (list||[]).map(function(a,i){
+    var bits=[];
+    if(a.brand)bits.push("Brand: "+a.brand+(a.brandOther?" ("+a.brandOther+")":""));
+    if(a.model)bits.push("Model/order number: "+a.model);
+    if(a.series)bits.push("Series: "+a.series);
+    if(a.type)bits.push("Type: "+a.type);
+    if(a.category)bits.push("Category: "+a.category);
+    if(a.serial)bits.push("Serial: "+a.serial);
+    if(a.name)bits.push("Name: "+a.name);
+    if(a.nameplate)bits.push("Nameplate details: "+a.nameplate);
+    return (i+1)+". "+bits.join(" | ");
+  }).join("\n");
+}
+function replacementPartResearchContent(identities,codes,intent){
+  var s="INSTRUMENTS DOCUMENTED ON THIS VISIT"+(identities.length?" (from the Zoho equipment records saved today):\n"+replacementPartIdentityText(identities):": none recorded.");
+  if(codes.length)s+="\n\nIDENTIFIERS THE REPORT ITSELF NAMES (read out of the report text — a part, model, order, or serial number the technician or the AI wrote):\n"+codes.map(function(c){return "- "+c;}).join("\n");
+  s+="\n\nWHAT THE REPORT SAYS WAS REPLACED OR HAS TO BE REPLACED:\n"+intent.map(function(l){return "- "+l;}).join("\n");
+  return s;
+}
+async function fetchReplacementPartsDraft(provider,content){
+  if(provider==="claude"){
+    var d=await callAPI({sys:REPLACEMENT_PART_SYSTEM_PROMPT,content:content,maxTok:1200,ms:75000,search:true,searchMaxUses:8});
+    return getText(d).trim();
+  }
+  if(provider==="gemini"){
+    // Same budget reasoning as the calibration specs: Gemini 2.5 spends
+    // "thinking" tokens out of maxOutputTokens, and a multi-source parts search
+    // spends a lot of them, so the budget sits well above the few hundred
+    // tokens the lines themselves need. preferQuality asks for a Pro-tier model
+    // and falls back to Flash.
+    var g=await callGeminiAPI({sys:REPLACEMENT_PART_SYSTEM_PROMPT,content:content,maxTok:4096,ms:90000,search:true,preferQuality:true});
+    return getGeminiText(g).trim();
+  }
+  return "";
+}
+// One researched part per line, cleaned of the preamble, numbering, and bold a
+// model adds even when asked not to. A line with neither a number nor the word
+// "part" in it is the model talking about its own answer, not a part.
+function parseReplacementPartLines(txt){
+  var out=[];
+  String(txt||"").split("\n").forEach(function(raw){
+    var t=String(raw||"").replace(/\s+/g," ").replace(/\*+/g,"").trim();
+    if(!t||/^#{1,3}\s/.test(t))return;
+    t=t.replace(/^[-*\u2022]\s*/,"").replace(/^\d+[.)]\s*/,"").trim();
+    if(!t||t.length<10||/:$/.test(t))return;
+    if(isModelAiSpecsSkip(t))return;
+    if(!/\d/.test(t)&&!/\bparts?\b/i.test(t))return;
+    // A line that is nothing but the number would leave the block's own label
+    // standing over an empty list on a customer copy, so it is not a part line:
+    // a part has to be named as well as numbered.
+    if(!/[A-Za-z]/.test(customerSafeText(t,[])))return;
+    if(out.length>=REPLACEMENT_PART_MAX_ITEMS)return;
+    var line="- "+t;
+    if(out.indexOf(line)<0)out.push(line);
+  });
+  return out;
+}
+function isReplacementPartSectionHeading(line){return REPLACEMENT_PART_SECTION_RE.test(String(line||"").trim());}
+function isReportSectionHeading(line){return /^#{1,3}\s/.test(String(line||"").trim());}
+// Is there anything left under this heading before the next one starts?
+function replacementPartSectionIsEmpty(lines,from){
+  for(var i=from;i<lines.length;i++){
+    if(isReportSectionHeading(lines[i]))return true;
+    if(String(lines[i]).trim())return false;
+  }
+  return true;
+}
+// Takes back the block a previous run wrote, so researching twice replaces the
+// list instead of stacking a second copy. Only the lead line and the bullets
+// directly under it go; anything the report wrote in the same section stays. A
+// heading left standing over nothing goes too — it was added for the block.
+function stripReplacementPartBlock(report){
+  var lines=String(report||"").split("\n"),out=[],i=0;
+  while(i<lines.length){
+    if(lines[i].trim()!==REPLACEMENT_PART_BLOCK_LEAD){out.push(lines[i]);i++;continue;}
+    i++;
+    while(i<lines.length&&/^\s*-\s/.test(lines[i]))i++;
+    if(out.length&&isReplacementPartSectionHeading(out[out.length-1])&&replacementPartSectionIsEmpty(lines,i)){
+      out.pop();
+      while(out.length&&!out[out.length-1].trim())out.pop();
+    }
+  }
+  // Two blank lines where the block used to be would read as a gap.
+  var cleaned=[];
+  out.forEach(function(line){
+    if(!String(line).trim()&&cleaned.length&&!String(cleaned[cleaned.length-1]).trim())return;
+    cleaned.push(line);
+  });
+  while(cleaned.length&&!String(cleaned[cleaned.length-1]).trim())cleaned.pop();
+  return cleaned.join("\n");
+}
+function reportHasReplacementPartBlock(report){
+  return String(report||"").split("\n").some(function(l){return l.trim()===REPLACEMENT_PART_BLOCK_LEAD;});
+}
+// Merges the researched lines into the section a parts list belongs in. They go
+// under whatever the report already put there rather than over it. A report
+// that left the section out gets it back, placed ahead of KEY POINTS SUMMARY so
+// the summary stays last.
+function mergeReplacementPartsIntoReport(report,lines){
+  var text=String(report||"");
+  if(!lines||!lines.length)return text;
+  var block=[REPLACEMENT_PART_BLOCK_LEAD].concat(lines);
+  var rows=stripReplacementPartBlock(text).split("\n");
+  var at=-1,i;
+  for(i=0;i<rows.length;i++){if(isReplacementPartSectionHeading(rows[i])){at=i;break;}}
+  if(at>=0){
+    var end=rows.length;
+    for(i=at+1;i<rows.length;i++){if(isReportSectionHeading(rows[i])){end=i;break;}}
+    var tail=end;
+    while(tail>at+1&&!rows[tail-1].trim())tail--;
+    return rows.slice(0,tail).concat(block,rows.slice(tail)).join("\n");
+  }
+  var section=["## "+SEC_LABELS[8]].concat(block);
+  for(i=0;i<rows.length;i++){
+    if(!REPLACEMENT_PART_SUMMARY_SECTION_RE.test(String(rows[i]).trim()))continue;
+    var head=i;
+    while(head>0&&!rows[head-1].trim())head--;
+    return rows.slice(0,head).concat([""],section,rows.slice(head)).join("\n");
+  }
+  while(rows.length&&!rows[rows.length-1].trim())rows.pop();
+  return rows.concat([""],section).join("\n");
+}
+// Researches the replacement parts for one report. Returns
+// {ok:true,lines,provider} or {ok:false,reason,...}; queue:true means the
+// lookup failed the way a weak signal fails, so it is worth retrying.
+async function researchReplacementParts(opts){
+  opts=opts||{};
+  var report=String(opts.report!==undefined?opts.report:(A.report||""));
+  var notes=String(opts.notes||"");
+  var intent=replacementPartIntentLines(report+"\n"+notes);
+  if(!intent.length)return{ok:false,reason:"no_replacement_mentioned"};
+  var identities=opts.identities||replacementPartIdentities();
+  var codes=replacementPartReportCodes(report+"\n"+notes);
+  if(!identities.length&&!codes.length)return{ok:false,reason:"no_equipment_identified"};
+  var providers=modelAiSpecsProviders();
+  if(!providers.length)return{ok:false,reason:"no_api_keys"};
+  var content=replacementPartResearchContent(identities,codes,intent);
+  var errors=[],skipped=[],queue=false,chosen="",chosenProvider="",lines=[];
+  for(var i=0;i<providers.length;i++){
+    var p=providers[i],pname=p==="gemini"?"Gemini":"Claude";
+    if(i)await new Promise(function(r){setTimeout(r,1500+Math.floor(Math.random()*1000));});
+    var txt="";
+    try{txt=(await fetchReplacementPartsDraft(p,content)||"").trim();}
+    catch(e){
+      console.log("Replacement part "+p+" research failed:",e);
+      if(shouldQueueAiError(e))queue=true;
+      errors.push(pname+": "+formatAiProviderError(e&&e.message?e.message:String(e)));
+      continue;
+    }
+    if(isModelAiSpecsSkip(txt)){skipped.push(pname);continue;}
+    var parsed=parseReplacementPartLines(txt);
+    if(!parsed.length){skipped.push(pname);continue;}
+    chosen=txt;chosenProvider=pname;lines=parsed;break;
+  }
+  if(!chosen)return{ok:false,reason:errors.length?"ai_failed":"ai_skip",errors:errors,skipped:skipped,queue:queue};
+  var out={ok:true,lines:lines,provider:chosenProvider,identities:identities.length,codes:codes.length};
+  if(errors.length)out.warnings=errors;
+  if(skipped.length)out.skipped=skipped;
+  return out;
+}
+// Researches and writes the block into A.report. Best effort by design: a
+// failed lookup leaves the report exactly as written and queues a retry, so a
+// weak signal never costs the technician the report.
+async function applyReplacementPartResearch(opts){
+  opts=opts||{};
+  var identities=replacementPartIdentities();
+  var notes=opts.notes!==undefined?opts.notes:replacementPartCaptureNotes();
+  A.partsResearch={status:"running"};
+  if(!opts.fromGenerate)renderReplacementPartsPanel();
+  var res;
+  try{res=await researchReplacementParts({report:A.report||"",notes:notes,identities:identities});}
+  catch(e){res={ok:false,reason:"error",errors:[e&&e.message?e.message:String(e)],queue:shouldQueueAiError(e)};}
+  if(res.ok){
+    var merged=mergeReplacementPartsIntoReport(A.report||"",res.lines);
+    if(merged!==A.report){A.report=merged;A.dealPdfStale=true;}
+    A.partsResearch={status:"done",lines:res.lines,provider:res.provider,warnings:res.warnings||null,at:new Date().toISOString()};
+    removePendingAiByTypeTarget("parts_research","report");
+    return res;
+  }
+  A.partsResearch={status:res.reason==="no_replacement_mentioned"?"nothing":"failed",reason:res.reason,errors:res.errors||null,at:new Date().toISOString()};
+  if(res.queue){
+    enqueuePendingAi({type:"parts_research",target:"report",historyId:A.currentHistoryId||null,identities:identities,notes:notes,
+      label:"Replacement part research",error:(res.errors&&res.errors[0])||"lookup failed"});
+    schedulePendingAiRetry("parts_research_enqueued",600);
+  }else removePendingAiByTypeTarget("parts_research","report");
+  return res;
+}
+// Everything the technician typed that a parts lookup can read, for the times
+// the report body says less than the capture did. Empty when the report was
+// opened from History, which fills the report but not the Capture fields.
+function replacementPartCaptureNotes(){
+  var parts=[];
+  try{
+    var v=getVoiceNotesValue();if(v&&v.trim())parts.push(v.trim());
+    var t=getVideoTranscriptValue();if(t&&t.trim())parts.push(t.trim());
+    SEC_IDS.forEach(function(id,idx){var e=el(id);if(e&&e.value.trim())parts.push(SEC_LABELS[idx]+": "+e.value.trim());});
+    ((A.photos&&A.photos.length?A.photos:A.reportPhotos)||[]).forEach(function(p){
+      if(p&&p.desc&&String(p.desc).trim())parts.push(String(p.desc).trim());
+    });
+  }catch(e){}
+  return parts.join("\n");
+}
+// The Report tab button, for a report that was written before the lookup ran —
+// or that needs it run again after the technician added the instrument on the
+// Assets tab.
+async function runReplacementPartResearch(){
+  if(!A.report){showToast("Generate the report first",3000);return;}
+  if(A.partsResearchRunning)return;
+  if(!API_KEY&&!GEMINI_API_KEY){enterKey();showToast("Add an Anthropic or Gemini API key in Settings first",4000);return;}
+  A.partsResearchRunning=true;
+  var btn=el("parts-research-btn");
+  if(btn){btn.disabled=true;btn.textContent="Researching parts...";}
+  try{
+    var res=await applyReplacementPartResearch({});
+    if(res.ok){
+      saveOrUpdateHistory(Object.assign(buildCaptureHistoryMeta(),{report:A.report}),{preserveExisting:true});
+      renderReport();
+      showToast(res.lines.length+" replacement part"+(res.lines.length!==1?"s":"")+" added to Materials / Parts Used",6000);
+    }else{
+      renderReplacementPartsPanel();
+      showToast(replacementPartsStatusText(A.partsResearch),7000);
+    }
+  }finally{
+    A.partsResearchRunning=false;
+    if(btn){btn.disabled=false;btn.textContent="Research Replacement Parts";}
+  }
+}
+async function runQueuedReplacementPartResearch(item){
+  var recs=getHistory(),idx=-1;
+  var current=!!(A.currentHistoryId&&item.historyId&&item.historyId===A.currentHistoryId);
+  if(!current&&item.historyId){for(var i=0;i<recs.length;i++){if(recs[i].id===item.historyId){idx=i;break;}}}
+  var report=current?(A.report||""):(idx>=0?String(recs[idx].report||""):"");
+  if(!report){removePendingAiById(item.id);return;}
+  var res=await researchReplacementParts({report:report,notes:item.notes||"",identities:item.identities||[]});
+  if(!res.ok){
+    if(res.queue)throw new Error((res.errors&&res.errors[0])||"replacement part lookup failed");
+    removePendingAiById(item.id);
+    return;
+  }
+  var merged=mergeReplacementPartsIntoReport(report,res.lines);
+  if(current){
+    A.report=merged;A.dealPdfStale=true;
+    A.partsResearch={status:"done",lines:res.lines,provider:res.provider,at:new Date().toISOString()};
+    saveOrUpdateHistory(Object.assign(buildCaptureHistoryMeta(),{report:merged}),{preserveExisting:true});
+    renderReport();
+  }else if(idx>=0){
+    recs[idx]=Object.assign({},recs[idx],{report:merged});
+    if(persistHistoryRecords(recs,idx).saved)renderHistory();
+  }
+  removePendingAiById(item.id);
+}
+function replacementPartsStatusText(state){
+  if(!state)return "";
+  if(state.status==="running")return "Researching replacement parts from manufacturer literature...";
+  if(state.status==="done")return (state.lines?state.lines.length:0)+" replacement part"+((state.lines&&state.lines.length)!==1?"s":"")+" added to Materials / Parts Used"+(state.provider?" ("+state.provider+")":"")+".";
+  if(state.status==="nothing")return "No part was reported as replaced or needed, so nothing was looked up.";
+  if(state.reason==="no_equipment_identified")return "No instrument identity to look a part up from — save the instrument on the Assets tab, or name its model number in the report, then research again.";
+  if(state.reason==="no_api_keys")return "Add an Anthropic and/or Gemini API key in Settings to research replacement parts.";
+  if(state.reason==="ai_skip")return "The lookup could not tie a replacement part to an identified instrument, so nothing was added rather than a guessed number.";
+  return "Replacement part lookup did not complete"+(state.errors&&state.errors[0]?": "+state.errors[0]:"")+". Tap Research Replacement Parts to try again.";
+}
+function renderReplacementPartsPanel(){
+  var box=el("report-parts-research");if(!box)return;
+  if(!A.report){box.style.display="none";box.innerHTML="";return;}
+  var state=A.partsResearch;
+  var mentioned=replacementPartIntentLines((A.report||"")+"\n"+replacementPartCaptureNotes()).length>0;
+  var listed=reportHasReplacementPartBlock(A.report);
+  var body;
+  if(state&&state.status)body=replacementPartsStatusText(state);
+  else if(listed)body="Replacement parts are listed under Materials / Parts Used in this report.";
+  else if(mentioned)body="This report says a part was replaced or is needed, but no replacement part number has been looked up yet.";
+  else body="Nothing in this report reads as a part that was replaced or is needed. Research anyway if a part should be ordered.";
+  var warn=state&&state.status==="failed";
+  box.style.display="block";
+  box.innerHTML="<div class='stitle' style='margin-bottom:6px"+(warn?";color:#f59e0b":"")+"'>Replacement Parts</div>"+
+    "<div style='line-height:1.6'>"+esc(body)+"</div>"+
+    (state&&state.status==="done"&&state.lines&&state.lines.length?"<div style='margin-top:6px;white-space:pre-line'>"+esc(state.lines.join("\n"))+"</div>":"")+
+    "<button type='button' class='bb bsm' id='parts-research-btn' style='margin-top:8px' onclick='runReplacementPartResearch()'"+(state&&state.status==="running"?" disabled":"")+">"+
+    (listed?"Research Replacement Parts Again":"Research Replacement Parts")+"</button>";
+}
 // GENERATE
 async function generate(){
   if(!requireReportCopyName())return;
@@ -8576,11 +8979,27 @@ async function generate(){
     // the report, so without this the notes never make it into the report.
     var photoNotes=photoSrc.map(function(p){return String(p&&p.desc||"").trim();}).filter(Boolean).map(function(t){return "- "+t;}).join("\n");
     var transcriptVal=getVideoTranscriptValue().trim();
+    // The instrument's own identity is field data the technician already
+    // entered, so the report gets it too. Without it the report can only name
+    // the equipment as loosely as the notes did, and nothing downstream — the
+    // parts lookup included — has a model number to work from.
+    var equipList=replacementPartIdentities();
+    var equipInfo=equipList.length?"INSTRUMENTS DOCUMENTED ON THIS VISIT (equipment records saved from the Assets tab):\n"+replacementPartIdentityText(equipList)+"\n\n":"";
     var locInfo=A.location?"\nSite: "+(A.location.address||"See GPS")+"\nGPS: "+A.location.lat.toFixed(6)+", "+A.location.lng.toFixed(6):"";
     var dealInfo=A.sel?"\nAccount: "+A.sel.Account_Name+"\nDeal: "+(A.sel.Deal_Name||"N/A")+"\nStage: "+(A.sel.Stage||"N/A"):"\nNo deal selected.";
-    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n7. Write every number you were given and never a placeholder in its place — no \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Removing values is handled when the copy is rendered.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
+    content.push({type:"text",text:"Generate a professional field service report for a water/wastewater treatment facility.\n\nDate: "+new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"\nTime: "+new Date().toLocaleTimeString()+"\nTechnician: "+technicianDisplayName()+"\n"+locInfo+"\n"+dealInfo+"\n\nGENERAL VOICE NOTES:\n"+(txVal||"None.")+"\n\n"+(transcriptVal?"VIDEO VOICE TRANSCRIPT (spoken narration transcribed from the recorded walkthrough video):\n"+transcriptVal+"\n\n":"")+(photoNotes?"TECHNICIAN NOTES ON THE EQUIPMENT PHOTOGRAPHED (written on site, one per photo):\n"+photoNotes+"\n\n":"")+equipInfo+(sectionText?"PRE-FILLED SECTIONS:\n"+sectionText+"\n":"")+"INSTRUCTIONS:\n1. Only report facts provided. Do not fabricate.\n2. Use every fact from the technician's photo notes in whichever sections they belong to, but do NOT describe or mention the photos themselves and do not refer to photo numbers.\n3. Only include sections with content.\n4. Professional field service language.\n5. End with ## KEY POINTS SUMMARY with 4-6 bullet points using -.\n6. Always label an equipment part, model, order, or serial number where it appears (for example \"Serial: 12345\", \"Part number: 4X-9921\", \"Model number: FMU90\", or \"Order code: R11CA111AA3A\") and never write one without its label — a customer copy removes the number and its label together, so a labeled number leaves a sentence that still reads. Do not invent numbers.\n7. Write every number you were given and never a placeholder in its place — no \"[redacted]\", \"withheld\", \"not shown\", or \"N/A\" — and never mention redaction, withholding, or customer copies. Removing values is handled when the copy is rendered.\n8. The instrument records are the equipment's identity, not a work log: use them to name the instrument and to write its model, order, part, and serial numbers where they belong, and do not report work they do not describe.\n9. When a part was replaced or has to be replaced, name the part and what failed. Write the replacement part number only if you were given it — the replacement part is researched from the manufacturer's literature after this report is written and added to section 9.\n\n# FIELD SERVICE REPORT\n## 1. Site Visit Summary\n## 2. Equipment / Systems Serviced\n## 3. Work Performed\n## 4. Calibration Results & Readings\n## 5. Findings & Observations\n## 6. Issues / Deficiencies\n## 7. Recommendations & Next Steps\n## 8. Follow-Up Required\n## 9. Materials / Parts Used\n## KEY POINTS SUMMARY"});
     var data=await callAPI({content:content,maxTok:3500,ms:90000});
     A.report=getText(data)||"Report generation failed.";
+    A.partsResearch=null;
+    // A report that says a part was replaced or is needed does not yet say what
+    // to order. The instrument's identity is on this visit, so the replacement
+    // part number is researched from it now and written into section 9 before
+    // the report is saved — the PDF, the Zoho note, and History all carry it.
+    if(isReplacementPartResearchEnabled()){
+      if(btn)btn.textContent="Researching parts...";
+      await applyReplacementPartResearch({fromGenerate:true,notes:replacementPartCaptureNotes()});
+      if(btn)btn.textContent="Generating...";
+    }
     // Fresh report text — the Deal PDF for this copy name must be replaced
     // instead of leaving the previously attached copy in place.
     A.dealPdfStale=true;
@@ -8701,6 +9120,7 @@ function renderReport(){
   var customerSafe=reportCopyIsCustomer();
   var rb=el("rpt-body");if(rb)rb.textContent=customerSafe?customerSafeText(A.report):A.report;
   renderCustomerCopyNotice();
+  renderReplacementPartsPanel();
   renderReportHeaderRows();
   var ndl=el("no-deal-rpt");if(ndl)ndl.style.display=A.sel?"none":"flex";
   var sb=el("save-btn");if(sb)sb.disabled=!A.sel;
@@ -9368,6 +9788,7 @@ function applySyncSettings(s){
     var kr=el("tog-key-sync-auto-restore");if(kr)kr.classList.toggle("on",isKeySyncAutoRestoreEnabled());
     var arr=el("tog-asset-auto-research");if(arr)arr.classList.toggle("on",isAssetAutoResearchEnabled());
     var bgr=el("tog-asset-bg-specs");if(bgr)bgr.classList.toggle("on",isAssetBgSpecsEnabled());
+    var prr=el("tog-parts-research");if(prr)prr.classList.toggle("on",isReplacementPartResearchEnabled());
     if(typeof renderPlaudSettingsUI==="function")renderPlaudSettingsUI();
     if(isPlaudConnected()&&isPlaudAutoPullEnabled())startPlaudAutoPullIfNeeded();else stopPlaudAutoPull();
   }finally{
@@ -10093,7 +10514,7 @@ function warnRestoredPhotosMissing(photos,expected){
   if(missing>0)showToast(missing+" photo"+(missing!==1?"s":"")+" from this report "+(missing!==1?"are":"is")+" no longer stored on this device — descriptions and AI notes are still here.",8000);
   return missing;
 }
-async function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.report=r.report;A.reportPhotos=await fpHydratePhotoData(r.photoData||[]);warnRestoredPhotosMissing(A.reportPhotos,(r.photoData||[]).length);fpIdbPutPhotos(A.reportPhotos);await hydrateCaptureVideoFromRecord(r);A.lastSaveResult=r.zohoSaved?{note:true,dealPdf:!!(r.dealPdfAttached||r.pdfSaved),workdrive:!!r.pdfSaved,assets:0,warning:""}:null;setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();updateCaptureModeStatus();go("report");}
+async function viewHist(i){var h=getHistory();var r=h[i];if(!r)return;A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.report=r.report;A.partsResearch=null;A.reportPhotos=await fpHydratePhotoData(r.photoData||[]);warnRestoredPhotosMissing(A.reportPhotos,(r.photoData||[]).length);fpIdbPutPhotos(A.reportPhotos);await hydrateCaptureVideoFromRecord(r);A.lastSaveResult=r.zohoSaved?{note:true,dealPdf:!!(r.dealPdfAttached||r.pdfSaved),workdrive:!!r.pdfSaved,assets:0,warning:""}:null;setReportTechnician(r.technician||"");A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();renderReport();updateCaptureModeStatus();go("report");}
 function captureHistorySavedLabel(r){
   if(!r)return"";
   var t=r.localSavedAt||r.date;
@@ -10111,6 +10532,7 @@ async function loadHistoryRecordIntoCapture(r){
   A.reportPhotos=pd;A.photos=pd.map(function(p){return{id:p.id,display:p.display,label:p.label||"",desc:p.desc,time:p.time,w:p.w||0,h:p.h||0,aiDesc:p.aiDesc||"",synthesis:p.synthesis||"",syncStatus:p.syncStatus||"not_synced",syncMessage:p.syncMessage||"",savedToPhone:!!p.savedToPhone,phoneFileName:p.phoneFileName||"",phoneSource:p.phoneSource||""};});
   fpIdbPutPhotos(pd);
   A.report=r.report||"";
+  A.partsResearch=null;
   setReportTechnician(r.technician||"");
   A.dealPdfAttached=!!r.dealPdfAttached;A.dealPdfAttachments=r.dealPdfAttachments||{};A.dealPdfStale=false;applyReportCopyFromRecord(r);A.currentHistoryId=r.id;A.zohoNoteId=r.zohoNoteId||null;A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);updateDealUI();updateLocationUI();
   if(r.sections)SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value=r.sections[id]||"";});
