@@ -7892,6 +7892,25 @@ var CUSTOMER_COPY_NOT_CODE_RES=[
   /^(?:h2o2?|h2so4|h3po4|h2s|hocl|hcl|naocl|naoh|na2co3|nahso3|co2|clo2|cl2|o2|o3|n2|nh3|nh4|no2|no3|po4|so2|so3|so4|caco3|cacl2|caoh2|fecl3|feso4|kmno4|mgoh2|ch4)$/i,
   /^(?:ss)?\d{3}l?(?:ss)?$/i
 ];
+// Adds to the list of what this copy took out, which the Report tab shows the
+// technician. A code named with its label or its series word ("Serial 6M-4471",
+// "Rosemount 3051") and the same code named on its own are one removal, so the
+// fuller name is the one kept.
+function customerCopyAddRemoved(list,value){
+  value=String(value||"").replace(/\s+/g," ").trim();
+  if(!value||list.indexOf(value)>=0)return list;
+  var tail=value.slice(value.lastIndexOf(" ")+1);
+  for(var i=0;i<list.length;i++){
+    if(list[i]===tail){list.splice(i,1);break;}
+  }
+  if(tail===value){
+    for(var j=0;j<list.length;j++){
+      if(list[j].length>value.length&&list[j].slice(-value.length-1)===" "+value)return list;
+    }
+  }
+  list.push(value);
+  return list;
+}
 function isCustomerCopyLabel(label){
   // Matches the Customer Copy preset and any typed name that reads as a
   // customer copy, so a hand-typed "Customer Walkthrough" is filtered too.
@@ -8203,12 +8222,12 @@ function redactCustomerCopyBareCodes(s,opts){
     if(!pass){
       var spaced=redactCustomerCopySpacedCodes(text,opts);
       count+=spaced.count;
-      spaced.codes.forEach(function(c){if(codes.indexOf(c)<0)codes.push(c);});
+      spaced.codes.forEach(function(c){customerCopyAddRemoved(codes,c);});
       text=spaced.text;
     }
     var model=redactCustomerCopyModelNumbers(text,{keep:keep,known:known,jobNumbersStay:opts.jobNumbersStay,seen:seen,repeatsOnly:!!pass});
     count+=model.count;
-    model.codes.forEach(function(c){if(codes.indexOf(c)<0)codes.push(c);});
+    model.codes.forEach(function(c){customerCopyAddRemoved(codes,c);});
     model.numbers.forEach(function(n){if(seen.indexOf(n)<0)seen.push(n);});
     model.branded.forEach(function(n){if(branded.indexOf(n)<0)branded.push(n);});
     if(pass)return model.text;
@@ -8218,7 +8237,7 @@ function redactCustomerCopyBareCodes(s,opts){
       if(keep.indexOf(tok)>=0)return raw;
       if(opts.jobNumbersStay&&customerCopyLooksLikeJobNumber(tok)&&known.indexOf(tok)<0)return raw;
       count++;
-      if(codes.indexOf(tok)<0)codes.push(tok);
+      customerCopyAddRemoved(codes,tok);
       return CUSTOMER_COPY_GAP+raw.slice(tok.length);
     });
   }
@@ -8253,7 +8272,7 @@ function redactCustomerCopyText(text,opts){
   opts=opts||{};
   if(!opts.keep)opts={keep:customerCopyKeepTokens(),known:opts.known,jobNumbersStay:opts.jobNumbersStay};
   var count=0,removed=[];
-  function note(v){v=String(v||"").trim();if(v&&removed.indexOf(v)<0)removed.push(v);}
+  function note(v){customerCopyAddRemoved(removed,v);}
   var placeholders=redactCustomerCopyPlaceholders(s);s=placeholders.text;count+=placeholders.count;
   placeholders.removed.forEach(note);
   CUSTOMER_COPY_MONEY_RES.forEach(function(re){

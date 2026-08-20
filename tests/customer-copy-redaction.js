@@ -246,6 +246,16 @@ check("a price on an equipment line leaves no half of itself behind",
   var got=redactCustomerCopyText(pair[0]).text;
   check("closes the gap in "+JSON.stringify(pair[0]),got===pair[1],"got: "+JSON.stringify(got));
 });
+// The technician's list names each removal once: a code named with its label or
+// its series word and the same code named on its own are one removal.
+var listedOnce=redactCustomerCopyText(["Installed a Rosemount 3051 transmitter.",
+  "Re-ranged the 3051 and verified span.",
+  "Chart paper part number 24001660-001 restocked.",
+  "- Chart paper 24001660-001, 12 rolls"].join("\n")).removed;
+check("the withheld list names a code once",
+  listedOnce.indexOf("Rosemount 3051")>=0&&listedOnce.indexOf("3051")<0&&
+  listedOnce.indexOf("part number 24001660-001")>=0&&listedOnce.indexOf("24001660-001")<0,
+  JSON.stringify(listedOnce));
 // Every removal is named for the technician, who has no marker in the copy to
 // go by.
 var listed=redactCustomerCopyText("Recorder model: Honeywell DR4500A, serial 6M-4471. Quoted $412.00.");
