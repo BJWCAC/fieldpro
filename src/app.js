@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="396";
+var FP_VERSION="397";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -10997,6 +10997,31 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   function footer(){doc.setDrawColor(0,192,160);doc.line(ML,ph-9,pw-MR,ph-9);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(80,100,98);doc.text("CapStone by Calibrations & Controls | Page "+doc.internal.getNumberOfPages(),pw/2,ph-5,{align:"center"});}
   function np(){footer();doc.addPage();y=14;}
   function guard(h){if(y+(h||8)>ph-16)np();}
+  function remaining(){return ph-16-y;}
+  // Phone photos scale to ~140mm. Reserving the picture plus a 50mm caption
+  // block before drawing used more than page 1 had left under the letterhead,
+  // so the first picture (and the report body after it) always opened on
+  // page 2 and left page 1 empty. Fit the picture into the space that is
+  // actually left; captions go to the next page on their own if they must.
+  function fitPhoto(p,maxH){
+    var rw=p._rw||p.w||640;var rh=p._rh||p.h||480;
+    var naturalW=rw/150*25.4;var naturalH=rh/150*25.4;
+    var cap=Math.max(24,Math.min(140,maxH||140));
+    var scale=Math.min(1,CW/naturalW,cap/naturalH);
+    var fw=Math.round(naturalW*scale*10)/10;var fh=Math.round(naturalH*scale*10)/10;
+    return {fw:fw,fh:fh,fx:ML+(CW-fw)/2};
+  }
+  function captionBox(title,text,fill,stroke,titleColor,bodyColor){
+    if(!text)return;
+    var lines=doc.splitTextToSize(text,CW-8);
+    var boxH=lines.length*4.8+10;
+    guard(boxH);
+    doc.setFillColor(fill[0],fill[1],fill[2]);doc.setDrawColor(stroke[0],stroke[1],stroke[2]);doc.rect(ML,y,CW,boxH,"FD");
+    doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(titleColor[0],titleColor[1],titleColor[2]);doc.text(title,ML+3,y+5);
+    doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(bodyColor[0],bodyColor[1],bodyColor[2]);
+    lines.forEach(function(l,i){doc.text(l,ML+3,y+10+i*4.8);});
+    y+=boxH+3;
+  }
   doc.setFillColor(255,255,255);doc.rect(0,0,pw,30,"F");
   doc.setFillColor(0,192,160);doc.rect(0,28.5,pw,1.5,"F");
   var logoW=60,logoH=Math.round(60*(157/500)*10)/10;
@@ -11024,17 +11049,20 @@ function buildPDF(report,deal,photos,location,technician,copyLabel){
   if(deal){doc.setFillColor(245,247,252);doc.setDrawColor(210,215,228);doc.roundedRect(ML,y,CW,28,2,2,"FD");var c2=ML+CW*0.52;[[ML+4,y+8,"ACCOUNT",deal.Account_Name],[ML+4,y+20,"DEAL NAME",deal.Deal_Name],[c2,y+8,"STAGE",deal.Stage],[c2,y+20,"DATE",deal.Closing_Date]].forEach(function(r){doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(100,116,139);doc.text(r[2],r[0],r[1]-3);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(15,23,42);doc.text((r[3]||"---").substring(0,36),r[0],r[1]+3);});y+=33;}
   doc.setDrawColor(210,215,228);doc.line(ML,y,pw-MR,y);y+=6;
   if(photos&&photos.length>0){
-    guard(14);y+=4;doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(0,192,160);doc.text("SITE PHOTO DOCUMENTATION",ML,y);doc.setDrawColor(0,192,160);doc.line(ML,y+2,pw-MR,y+2);y+=8;
+    var labelH=8,minPhotoH=40;
+    // Keep the section title with the first picture so page 1 is not a
+    // letterhead and an empty heading.
+    guard(14+labelH+minPhotoH);y+=4;doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(0,192,160);doc.text("SITE PHOTO DOCUMENTATION",ML,y);doc.setDrawColor(0,192,160);doc.line(ML,y+2,pw-MR,y+2);y+=8;
     for(var idx=0;idx<photos.length;idx++){
-      var p=photos[idx];var rw=p._rw||p.w||640;var rh=p._rh||p.h||480;
-      var naturalW=rw/150*25.4;var naturalH=rh/150*25.4;var maxW=CW;var maxH=140;
-      var scale=Math.min(1,maxW/naturalW,maxH/naturalH);var fw=Math.round(naturalW*scale*10)/10;var fh=Math.round(naturalH*scale*10)/10;var fx=ML+(CW-fw)/2;
-      guard(fh+50);
+      var p=photos[idx];
+      guard(labelH+minPhotoH);
       doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(0,192,160);doc.text("Photo "+(idx+1)+" — "+p.time,ML,y);doc.setDrawColor(200,200,200);doc.line(ML,y+2,pw-MR,y+2);y+=6;
-      try{doc.addImage(p.display,"JPEG",fx,y,fw,fh,undefined,"MEDIUM");}catch(e){}y+=fh+3;
-      if(p.desc){var vl=doc.splitTextToSize(p.desc,CW-8);var vh=vl.length*4.8+10;doc.setFillColor(255,255,255);doc.setDrawColor(200,200,200);doc.rect(ML,y,CW,vh,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(0,150,120);doc.text("YOUR DESCRIPTION",ML+3,y+5);doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(0,192,160);vl.forEach(function(l,i){doc.text(l,ML+3,y+10+i*4.8);});y+=vh+3;}
-      if(p.aiDesc){var al=doc.splitTextToSize(p.aiDesc,CW-8);var ah=al.length*4.8+10;doc.setFillColor(255,255,255);doc.setDrawColor(200,200,200);doc.rect(ML,y,CW,ah,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(30,80,180);doc.text("AI OBSERVATION",ML+3,y+5);doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(30,80,180);al.forEach(function(l,i){doc.text(l,ML+3,y+10+i*4.8);});y+=ah+3;}
-      if(p.synthesis){var sl=doc.splitTextToSize(p.synthesis,CW-8);var sh=sl.length*4.8+10;doc.setFillColor(240,253,244);doc.setDrawColor(167,243,208);doc.rect(ML,y,CW,sh,"FD");doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(6,95,70);doc.text("AI SYNTHESIS",ML+3,y+5);doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(6,95,70);sl.forEach(function(l,i){doc.text(l,ML+3,y+10+i*4.8);});y+=sh+3;}
+      var sized=fitPhoto(p,remaining());
+      try{doc.addImage(p.display,"JPEG",sized.fx,y,sized.fw,sized.fh,undefined,"MEDIUM");}catch(e){}
+      y+=sized.fh+3;
+      captionBox("YOUR DESCRIPTION",p.desc,[255,255,255],[200,200,200],[0,150,120],[0,192,160]);
+      captionBox("AI OBSERVATION",p.aiDesc,[255,255,255],[200,200,200],[30,80,180],[30,80,180]);
+      captionBox("AI SYNTHESIS",p.synthesis,[240,253,244],[167,243,208],[6,95,70],[6,95,70]);
       y+=6;
     }
     y+=4;
