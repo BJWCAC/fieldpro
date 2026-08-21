@@ -521,6 +521,7 @@ node --check src/app.js
 node --check netlify/functions/zoho-proxy.js
 node tests/customer-copy-redaction.js
 node tests/parts-lookup.js
+node tests/pdf-layout.js
 git diff --check
 ```
 
