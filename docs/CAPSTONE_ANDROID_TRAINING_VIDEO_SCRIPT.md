@@ -353,7 +353,7 @@ Screen action:
 
 Narration:
 
-> CapStone History lets you reopen a report and continue working. When you regenerate and save the same report, CapStone attempts to update the existing Zoho note and replace the matching WorkDrive files.
+> CapStone History lets you reopen a report and continue working. When you regenerate and save the same report, CapStone attempts to update the existing Zoho note and replace the matching WorkDrive files. To file the same visit on another deal — or several — tap Copy to Other Deals on Capture, Report, or History. Each deal gets its own History record; the original stays on the first deal.
 
 Warning:
 

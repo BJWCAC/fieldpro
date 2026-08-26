@@ -35,6 +35,7 @@ There is no test framework. Per `docs/CAPSTONE_DEVELOPMENT_RULES.md`, the standa
 - `node tests/parts-lookup.js` (plain Node script; required for any change to the parts lookup assembly or Gemini image conversion)
 - `node tests/day-night-buttons.js` (plain Node script; required for any change to `.bg` / `.bw` surface classes or day/night button styling)
 - `node tests/pdf-layout.js` (plain Node script; required for any change to `buildPDF()` pagination or first-page layout)
+- `node tests/copy-capture-to-deals.js` (plain Node script; required for any change to copy-visit-to-other-deals or History blob refcounting)
 - `git diff --check`
 
 ### Versioning gotcha

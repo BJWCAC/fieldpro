@@ -39,6 +39,8 @@ check("theme toggle re-renders photo cards",/function toggleDark\(\)\{[^}]*rende
 check("theme toggle re-renders History cards",/function toggleDark\(\)\{[^}]*renderHistory\(\)/.test(app));
 check("photo Save to Phone uses the surface class",app.indexOf("phoneBtn.className=surfaceNeutralClass()+\" bsm\"")>=0);
 check("photo → AI uses the surface class",app.indexOf("aiBtn.className=\"field-ai-btn \"+surfaceNeutralClass()+\" bsm\"")>=0);
+check("Copy to Other Deals on Capture uses the surface class",app.indexOf("cdb.className=surfaceNeutralClass()+\"-lg\"")>=0);
+check("theme toggle re-renders Copy to Other Deals",/function toggleDark\(\)\{[^}]*copy-deals-btn/.test(app));
 
 if(failed){
   console.error("\n"+failed+" failed, "+passed+" passed");
