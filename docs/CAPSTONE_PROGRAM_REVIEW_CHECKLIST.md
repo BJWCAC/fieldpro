@@ -158,6 +158,8 @@ Check:
 - [ ] History list loads.
 - [ ] View report works.
 - [ ] Open + Continue works.
+- [ ] Copy to Deals opens the multi-select picker and writes a History record per selected deal.
+- [ ] A copied visit keeps the original on its deal and is not linked to the original Zoho note.
 - [ ] Continued report restores deal/report/photos/sections.
 - [ ] Continued report updates existing Zoho note when possible.
 - [ ] PDF from history works.

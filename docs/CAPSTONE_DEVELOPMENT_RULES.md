@@ -416,6 +416,18 @@ A visit can be issued as more than one report copy (customer, internal, or a nam
 - Same copy name = replace (WorkDrive overrides by name; the Deal PDF is deleted through `delete_deal_attachment` then re-attached). Different copy name = file alongside. Never stack copies of the same name.
 - Store `copyType`, `copyLabel`, and `dealPdfAttachments` on the History record and Capture draft so reopening a project keeps replace-instead-of-duplicate behavior. Records saved before copy names existed keep their unlabeled filenames.
 
+## Copy visit to other deals
+
+One History record stays one deal. Filing the same visit on another deal (or several) is a **copy**, not a shared record:
+
+- **Copy to Other Deals** (Capture, Report, History, and the Active Deal card) opens the deal picker in multi-select. The source deal is marked *This visit* and cannot be selected again.
+- Each target gets a new History id, its own deal fields, and a `copiedFromId` back to the original. Zoho note id, Deal PDF attachments, and WorkDrive PDF URL are cleared so the next save files that deal instead of updating the first one.
+- Photos and videos keep the same blob keys so a copy does not double storage. `permDeleteHist` and `clearOldPhotos` only delete a blob when no remaining record still shows it (`unreferencedHistoryBlobKeys()`).
+- After the local copies are written, a visit that already has a report can be saved to Zoho on each target (note + Deal PDF + WorkDrive) in one pass. Failed saves queue in Pending Sync the same way a single-deal save does.
+- The report text is copied as written. The PDF header uses the target deal name at render time. Regenerating a copy is optional and is the way to rewrite the body for that deal.
+- Switching the active deal on the Deals tab while capture work is open still detaches `currentHistoryId` (next save is a new record) and now says so. Prefer **Copy to Other Deals** when the visit belongs on more than one deal.
+- Any change to the clone or blob-refcount helpers must run `node tests/copy-capture-to-deals.js`.
+
 ## Report generation input rules
 
 **Everything the technician typed on site has to reach the report body.** `generate()` builds one
@@ -522,6 +534,7 @@ node --check netlify/functions/zoho-proxy.js
 node tests/customer-copy-redaction.js
 node tests/parts-lookup.js
 node tests/pdf-layout.js
+node tests/copy-capture-to-deals.js
 git diff --check
 ```
 

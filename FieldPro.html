@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=397"/>
+<link rel="stylesheet" href="src/styles.css?v=398"/>
 
 </head>
 <body autocomplete="off">
@@ -101,6 +101,7 @@
       <ul>
         <li>Confirm the active deal, technician, and GPS before documenting.</li>
         <li>Tap <strong>Save Locally to History</strong> anytime — especially before generating or when signal is weak.</li>
+        <li>To file the same visit on another deal (or several), tap <strong>Copy to Other Deals</strong>. Each deal gets its own History record; the original stays put.</li>
         <li>Add photos, voice notes, and only the report sections that apply.</li>
         <li>Review the field checklist, then tap <strong>Generate AI Report</strong>.</li>
         <li>After generating, open Report to review and save to Zoho when signal is better.</li>
@@ -117,12 +118,14 @@
       <li>Capture notes, photos, video, and report section details.</li>
       <li>Review the draft status and generate the AI report.</li>
       <li>Save Report to Zoho; CapStone queues failed sync for retry.</li>
+      <li>Copy to Other Deals when the same visit belongs on more than one Zoho deal.</li>
     </ol>
   </div>
   <div id="deal-bar" class="card" style="background:#fff;border:1px solid #b2ddd6;display:none;margin-bottom:10px;color:#0f2420">
     <div class="stitle" style="color:var(--green);margin-bottom:2px">Active Deal</div>
     <div id="db-acct" style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:800;color:#0f2420"></div>
     <div id="db-info" style="font-size:12px;color:#2d6b60"></div>
+    <div style="margin-top:8px"><button type="button" class="bw bsm" onclick="openCopyCaptureDealPicker()">Copy to Other Deals</button></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -320,6 +323,7 @@
     <div id="gen-summary-txt" style="color:#2d6b60;line-height:1.6"></div>
   </div>
   <button class="bp-lg" id="local-save-btn" onclick="saveCaptureWorkLocally()" style="display:none;margin-bottom:8px">Save Locally to History</button>
+  <button class="bg-lg" id="copy-deals-btn" onclick="openCopyCaptureDealPicker()" style="display:none;margin-bottom:8px">Copy to Other Deals</button>
   <button class="bs-lg" id="gen-btn" onclick="generate()" style="display:none;margin-bottom:8px">Generate AI Report</button>
   <div id="photos-only-box" style="display:none;margin-bottom:20px">
     <div style="font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:6px">Only the photos changed? This report already has text. Update Photos replaces its photo gallery with the photos above and leaves every word of the report as written — no new AI report, no retyping.</div>
@@ -512,6 +516,7 @@
       <ul>
         <li>Check the save checklist for deal, technician, GPS, photos, and assets.</li>
         <li><strong>Save Report to Zoho</strong> updates the existing Deal note for this report instead of creating duplicates.</li>
+        <li><strong>Copy to Other Deals</strong> files this same visit on additional Zoho deals as separate History records — then save each copy, or save them all to Zoho from the picker.</li>
         <li>CapStone also attaches the PDF to the Deal and uploads files to WorkDrive.</li>
         <li>Use <strong>Retry Report Save</strong> or <strong>Retry File Sync</strong> if any step fails.</li>
       </ul>
@@ -530,6 +535,7 @@
         <li>Review the report text, photos, and header details.</li>
         <li>Check the save checklist before saving to Zoho.</li>
         <li>Save Report to Zoho to update the Deal note, attach the PDF, and sync WorkDrive files.</li>
+        <li>Copy to Other Deals when the same visit belongs on more than one deal.</li>
         <li>Use Retry options if any step did not complete.</li>
       </ol>
     </div>
@@ -538,6 +544,7 @@
       <button id="save-btn" class="bp" onclick="saveNote()">Save Report to Zoho</button>
       <button class="bpu" onclick="openShare()">Share</button>
     </div>
+    <button type="button" class="bw-lg" id="copy-deals-report-btn" onclick="openCopyCaptureDealPicker()" style="margin-bottom:8px">Copy to Other Deals</button>
     <div class="card" style="margin-bottom:8px">
       <div class="stitle">Report Copy Name</div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5">Change the name before you download or regenerate to issue a second copy of this visit instead of replacing the first. A Customer Copy never includes equipment part, model, order, or serial numbers, or pricing.</div>
@@ -629,6 +636,7 @@
       <p>History stores reports on this device so you can continue work later without starting over.</p>
       <ul>
         <li><strong>Open + Continue</strong> restores Capture fields, photos, notes, and sections.</li>
+        <li><strong>Copy to Deals</strong> makes an independent History record on each deal you pick, then optionally saves each copy to Zoho.</li>
         <li><strong>View</strong> opens the generated report only.</li>
         <li>Status chips show Zoho save, PDF attachment, technician, and pending sync.</li>
         <li>Continuing a saved report updates the same Zoho note when you save again.</li>
@@ -639,6 +647,7 @@
     <div class="stitle">History Workflow</div>
     <ol>
       <li>Open + Continue restores Capture fields, photos, and notes for the same report.</li>
+      <li>Copy to Deals files this visit on additional deals as separate History records.</li>
       <li>View opens the generated report without changing Capture.</li>
       <li>Continuing a saved report updates the same Zoho note instead of creating a duplicate.</li>
       <li>Check status chips for Zoho, PDF, technician, and pending sync before leaving the site.</li>
@@ -991,7 +1000,7 @@
 <div id="inboxdealmodal" class="smodal" style="align-items:center" onclick="if(event.target===this)closeInboxDealPicker()">
   <div class="sbox" style="border-radius:12px;max-width:520px;max-height:88vh;overflow:auto;width:100%" onclick="event.stopPropagation()">
     <div id="inbox-deal-picker-title" style="font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:800;margin-bottom:8px">Select Deal</div>
-    <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:12px">Search and filter the same Zoho deals list as the Deals tab.</div>
+    <div id="inbox-deal-picker-hint" style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:12px">Search and filter the same Zoho deals list as the Deals tab.</div>
     <div class="card" style="margin-bottom:10px">
       <input type="text" id="inbox-d-search" placeholder="Search account, deal, description..." oninput="applyInboxDealPickerFilters()" style="margin-bottom:8px"/>
       <div class="g2">
@@ -1002,6 +1011,9 @@
     <div class="sort-bar" id="inbox-d-sort-bar"></div>
     <div id="inbox-d-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
     <div id="inbox-d-list" style="max-height:42vh;overflow:auto;margin-bottom:12px"></div>
+    <div id="inbox-copy-actions" style="display:none;margin-bottom:8px">
+      <button type="button" class="bp bfull" id="inbox-copy-confirm" onclick="confirmCopyCaptureToDeals()">Copy to selected deals</button>
+    </div>
     <button type="button" class="bg bfull" onclick="closeInboxDealPicker()">Cancel</button>
   </div>
 </div>
@@ -1101,8 +1113,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=397"></script>
-<script src="src/app.js?v=397"></script>
+<script src="src/accounts-map.js?v=398"></script>
+<script src="src/app.js?v=398"></script>
 
 </body>
 </html>

@@ -130,6 +130,7 @@ If permissions are denied, open Android app/site settings for Chrome and allow t
 15. Save Report to Zoho when signal allows.
 16. Confirm the report PDF is attached to the Zoho deal and WorkDrive links are included.
 17. Use History if the report needs to be continued later.
+17a. To file the same visit on another deal — or several — tap **Copy to Other Deals** on Capture, Report, or History. Each deal gets its own History record. If the report is already generated you can save every copy to Zoho in one pass, or open each copy later and save one at a time.
 
 ## Reliability on poor cell service
 
@@ -190,6 +191,7 @@ CapStone is designed to reduce duplicate Zoho deal notes.
 - If the stored note was deleted manually in Zoho, CapStone clears the stale ID and creates a replacement note.
 - If Zoho returns a blank update error for a missing note, CapStone retries by creating a replacement note.
 - CapStone also attaches the generated report PDF directly to the selected Zoho deal when saving.
+- **Copy to Other Deals** writes a new History record per target deal (new report id, no Zoho note id) so saving a copy files that deal instead of updating the first one. The original visit stays on its deal. Photos are shared on the device; deleting one copy does not remove pictures still used by another.
 
 Important: notes created before the report marker was added may not always be recoverable automatically. Once a report is saved with the current milestone behavior, future updates are more reliable.
 

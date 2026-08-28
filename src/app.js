@@ -373,8 +373,8 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="397";
+var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="398";
 var MIN_ZOHO_PROXY_BUILD=289;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1908,6 +1908,10 @@ window.linkInboxToDealPrompt=linkInboxToDealPrompt;
 window.openInboxDealPicker=openInboxDealPicker;
 window.closeInboxDealPicker=closeInboxDealPicker;
 window.applyInboxDealPickerFilters=applyInboxDealPickerFilters;
+window.openCopyCaptureDealPicker=openCopyCaptureDealPicker;
+window.confirmCopyCaptureToDeals=confirmCopyCaptureToDeals;
+window.copyHistToDeals=copyHistToDeals;
+window.toggleCopyDeal=toggleCopyDeal;
 window.linkInboxToActiveDeal=linkInboxToActiveDeal;
 window.generateInboxSummary=generateInboxSummary;
 window.saveInboxToZoho=saveInboxToZoho;
@@ -2014,7 +2018,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -2092,7 +2096,7 @@ function isLightTheme(){return document.body.classList.contains("light");}
    setup cards are always white. Capture / History / Deals cards are dark at
    night and white in day mode — same surface rule as .bw vs .bg. */
 function surfaceNeutralClass(alwaysLight){return (alwaysLight||isLightTheme())?"bw":"bg";}
-function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");renderReportCopyPickers();if(typeof renderPhotoCards==="function")renderPhotoCards();if(typeof renderVideoCards==="function")renderVideoCards();if(typeof renderHistory==="function")renderHistory();scheduleKeySyncAutoPush();}
+function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");renderReportCopyPickers();if(typeof renderPhotoCards==="function")renderPhotoCards();if(typeof renderVideoCards==="function")renderVideoCards();if(typeof renderHistory==="function")renderHistory();var cdb=el("copy-deals-btn");if(cdb)cdb.className=surfaceNeutralClass()+"-lg";scheduleKeySyncAutoPush();}
 function toggleAutoSaveZoho(){
   A.autoSaveZoho=!A.autoSaveZoho;
   var t=el("tog-auto-zoho");if(t)t.classList.toggle("on",A.autoSaveZoho);
@@ -2405,7 +2409,12 @@ function selectDeal(id,opts){
   opts=opts||{};
   var d=A.deals.find(function(x){return x.id===id;});if(!d)return;
   var prevDealId=A.sel&&A.sel.id;
-  if(prevDealId&&prevDealId!==id){A.currentHistoryId=null;A.zohoNoteId=null;}
+  if(prevDealId&&prevDealId!==id){
+    A.currentHistoryId=null;A.zohoNoteId=null;
+    if(typeof captureDraftHasWork==="function"&&captureDraftHasWork()){
+      showToast("This visit is now on the new deal. The earlier History record stays on the first deal. Use Copy to Other Deals to file it on several deals at once.",8000);
+    }
+  }
   A.sel=d;
   ast().linkMode="deal";
   ast().standaloneAccount=null;
@@ -7425,6 +7434,7 @@ function checkGen(){
   var show=hasP||hasN||hasSec||hasT||(A.videos&&A.videos.length>0);
   var gb=el("gen-btn");if(gb)gb.style.display=show?"flex":"none";
   var lsb=el("local-save-btn");if(lsb)lsb.style.display=show?"flex":"none";
+  var cdb=el("copy-deals-btn");if(cdb){cdb.style.display=(show||!!A.report)?"flex":"none";cdb.className=surfaceNeutralClass()+"-lg";}
   var psb=el("phone-save-all-btn");if(psb)psb.style.display=hasP?"flex":"none";
   // Only offered once this capture has a finished report to update.
   var pob=el("photos-only-box");if(pob)pob.style.display=(hasP&&A.report)?"block":"none";
@@ -9844,6 +9854,219 @@ async function autoSync(){
   }catch(e){showToast("Sync error: "+e.message,4000);console.error("AutoSync error:",e);}
 }
 
+// COPY VISIT TO OTHER DEALS
+// One History record stays one deal. Copying writes a new record per target
+// so each deal can be edited and filed on its own. Photos and videos keep
+// the same blob keys — deleting a copy must not erase bytes another record
+// still shows.
+function newHistoryId(){return "r"+Date.now()+"-"+Math.random().toString(36).slice(2,8);}
+function cloneHistoryRecordForDeal(source,deal,opts){
+  opts=opts||{};
+  if(!source||!deal||!deal.id)return null;
+  var now=opts.now||new Date().toISOString();
+  var photos=Array.isArray(source.photoData)?source.photoData.map(function(p){return Object.assign({},p);}):[];
+  var videos=Array.isArray(source.videos)?source.videos.map(function(v){return Object.assign({},v);}):[];
+  var sections=source.sections?Object.assign({},source.sections):{};
+  var parts=Array.isArray(source.parts)?source.parts.map(function(p){return Object.assign({},p);}):[];
+  return{
+    id:opts.id||newHistoryId(),
+    date:now,
+    localSavedAt:now,
+    account:deal.Account_Name||"",
+    deal:deal.Deal_Name||"",
+    stage:deal.Stage||"",
+    amount:deal.Amount||null,
+    closingDate:deal.Closing_Date||"",
+    location:source.location||"",
+    locationData:source.locationData?Object.assign({},source.locationData):null,
+    photos:photos.length,
+    photoData:photos,
+    videos:videos,
+    hasVideo:videos.length>0||!!source.videoId,
+    videoId:source.videoId||null,
+    audioId:source.audioId||null,
+    videoTranscript:source.videoTranscript||"",
+    sections:sections,
+    parts:parts,
+    partsMeta:source.partsMeta?Object.assign({},source.partsMeta):null,
+    report:source.report||"",
+    voiceNotes:source.voiceNotes||"",
+    technician:source.technician||"",
+    copyType:source.copyType||"",
+    copyLabel:source.copyLabel||"",
+    dealPdfAttached:false,
+    dealPdfAttachments:{},
+    dealId:deal.id,
+    zohoNoteId:null,
+    zohoSaved:false,
+    pdfSaved:false,
+    workdrivePdfUrl:null,
+    captureInProgress:!source.report,
+    copiedFromId:source.id||null,
+    archived:false
+  };
+}
+function historyRecordActiveBlobKeys(r){
+  var ids=[];
+  if(r&&Array.isArray(r.photoData)){
+    r.photoData.forEach(function(p){if(p&&p.id&&(p.display||p.idb))ids.push(p.id);});
+  }
+  if(r&&r.videoId)ids.push(r.videoId);
+  if(r&&r.audioId)ids.push(r.audioId);
+  if(r&&Array.isArray(r.videos)){
+    r.videos.forEach(function(v){if(v){if(v.vidKey)ids.push(v.vidKey);if(v.audioKey)ids.push(v.audioKey);}});
+  }
+  return ids;
+}
+function historyRecordsActiveBlobKeySet(records){
+  var used={};
+  (records||[]).forEach(function(r){historyRecordActiveBlobKeys(r).forEach(function(k){if(k)used[k]=1;});});
+  return used;
+}
+function unreferencedHistoryBlobKeys(candidateIds,records){
+  var used=historyRecordsActiveBlobKeySet(records);
+  var seen={};
+  return (candidateIds||[]).filter(function(id){
+    if(!id||seen[id]||used[id])return false;
+    seen[id]=1;
+    return true;
+  });
+}
+function deleteUnreferencedHistoryBlobs(candidateIds,records){
+  var unused=unreferencedHistoryBlobKeys(candidateIds,records);
+  if(unused.length&&typeof fpIdbDeletePhotos==="function")fpIdbDeletePhotos(unused);
+  return unused;
+}
+function copyHistoryRecordToDeals(source,deals){
+  if(!source||!deals||!deals.length)return[];
+  var h=getHistory();
+  var copies=[];
+  var skipped=0;
+  var t0=Date.now();
+  deals.forEach(function(deal,i){
+    if(!deal||!deal.id||deal.id===source.dealId){skipped++;return;}
+    if(h.some(function(r){return !r.archived&&r.dealId===deal.id&&r.copiedFromId===source.id;})){skipped++;return;}
+    var rec=cloneHistoryRecordForDeal(source,deal,{id:"r"+t0+"c"+i+"-"+String(deal.id).slice(-8),now:new Date(t0+i).toISOString()});
+    if(!rec)return;
+    h.unshift(rec);
+    copies.push(rec);
+  });
+  if(!copies.length)return{copies:[],skipped:skipped};
+  var pr=persistHistoryRecords(h,0);
+  if(!pr.saved)return{copies:[],skipped:skipped,failed:true};
+  badge("tb-hist",pr.records.filter(function(r){return!r.archived;}).length||"");
+  return{copies:copies,skipped:skipped};
+}
+function historyCopiedFromLabel(r){
+  if(!r||!r.copiedFromId)return"";
+  var src=historyRecordById(r.copiedFromId);
+  if(src)return "Copied from "+(src.deal||src.account||"another deal");
+  return "Copied from another deal";
+}
+function captureSourceHistoryRecord(){
+  if(typeof captureDraftHasWork==="function"&&(captureDraftHasWork()||A.report))saveCaptureWorkLocally({silent:true});
+  if(A.currentHistoryId)return historyRecordById(A.currentHistoryId);
+  return null;
+}
+function isCopyCaptureDealPicker(){return A.dealPickerContext==="copy-capture";}
+function copyDealPickerSourceId(){
+  var src=historyRecordById(A.copySourceHistoryId);
+  return src&&src.dealId||null;
+}
+function selectedCopyDealCount(){
+  var ids=A.copyDealIds||{};
+  var n=0;
+  Object.keys(ids).forEach(function(id){if(ids[id])n++;});
+  return n;
+}
+function updateCopyDealPickerActions(){
+  var box=el("inbox-copy-actions"),btn=el("inbox-copy-confirm");
+  if(!box||!btn)return;
+  if(!isCopyCaptureDealPicker()){box.style.display="none";return;}
+  box.style.display="block";
+  var n=selectedCopyDealCount();
+  btn.textContent=n?"Copy to "+n+" deal"+(n!==1?"s":""):"Copy to selected deals";
+  btn.disabled=!n;
+}
+function openCopyCaptureDealPicker(sourceId){
+  if(!A.deals||!A.deals.length){showToast("Refresh deals on Deals tab first",4000);go("deals");return;}
+  var source=sourceId?historyRecordById(sourceId):captureSourceHistoryRecord();
+  if(!source){showToast("Save this visit locally first, then copy it to other deals",6000);return;}
+  A.inboxPickerItemId=null;
+  A.dealPickerContext="copy-capture";
+  A.copySourceHistoryId=source.id;
+  A.copyDealIds={};
+  openDealPickerModal();
+}
+function copyHistToDeals(i){
+  var h=getHistory();
+  var r=h[i];
+  if(!r)return;
+  openCopyCaptureDealPicker(r.id);
+}
+function toggleCopyDeal(dealId){
+  if(!dealId||!isCopyCaptureDealPicker())return;
+  if(dealId===copyDealPickerSourceId()){showToast("This visit is already on that deal",3500);return;}
+  if(!A.copyDealIds)A.copyDealIds={};
+  if(A.copyDealIds[dealId])delete A.copyDealIds[dealId];
+  else A.copyDealIds[dealId]=1;
+  applyInboxDealPickerFilters();
+  updateCopyDealPickerActions();
+}
+async function confirmCopyCaptureToDeals(){
+  var source=historyRecordById(A.copySourceHistoryId);
+  if(!source){showToast("Could not find the visit to copy",5000);return;}
+  var ids=Object.keys(A.copyDealIds||{}).filter(function(id){return A.copyDealIds[id];});
+  var deals=ids.map(function(id){return A.deals.find(function(d){return d.id===id;});}).filter(function(d){return d&&d.id&&d.id!==source.dealId;});
+  if(!deals.length){showToast("Pick at least one other deal",4000);return;}
+  var names=deals.map(function(d){return dealHeaderText(d)||d.Deal_Name||d.Account_Name||d.id;}).join("\n");
+  if(!confirm("Copy this visit to "+deals.length+" deal"+(deals.length!==1?"s":"")+"?\n\n"+names+"\n\nEach deal gets its own History record. The original stays on "+(source.deal||source.account||"the current deal")+"."))return;
+  var result=copyHistoryRecordToDeals(source,deals);
+  if(result.failed){showToast("Could not save the copies — free space in Settings first",7000);return;}
+  if(!result.copies.length){
+    showToast(result.skipped?"Those deals already have a copy of this visit":"No deals were copied",6000);
+    return;
+  }
+  closeInboxDealPicker();
+  renderHistory();
+  var saveZoho=false;
+  if(source.report){
+    saveZoho=confirm("Also save each copy to Zoho now?\n\nThis files the report note and PDF on each selected deal. You can skip this and open each copy from History later.");
+  }
+  if(saveZoho)await saveCopiedHistoryRecordsToZoho(result.copies,source.id);
+  else{
+    var extra=result.skipped?" ("+result.skipped+" already had a copy)":"";
+    showToast("Copied this visit to "+result.copies.length+" deal"+(result.copies.length!==1?"s":"")+extra+" — open each from History to edit or save to Zoho",8000);
+    go("history");
+  }
+}
+async function saveCopiedHistoryRecordsToZoho(copies,restoreId){
+  var sourceId=restoreId||A.currentHistoryId;
+  var stay=A.report?"report":"history";
+  var ok=0,fail=0;
+  try{
+    for(var i=0;i<copies.length;i++){
+      var rec=historyRecordById(copies[i].id)||copies[i];
+      if(!rec.report)continue;
+      showUploadStatus("Saving copy "+(i+1)+" of "+copies.length+" to Zoho...",false);
+      showToast("Saving copy "+(i+1)+" of "+copies.length+" to Zoho...",4000);
+      await loadHistoryRecordIntoCapture(rec);
+      A.zohoNoteId=null;A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=true;A.workdrivePdfUrl=null;A.lastSaveResult=null;A.lastSaveIssue=null;
+      try{await saveNoteToZoho({});ok++;}
+      catch(e){fail++;console.log("copy save to zoho",e);}
+    }
+  }finally{
+    var back=historyRecordById(sourceId);
+    if(back)await loadHistoryRecordIntoCapture(back);
+    updateCaptureModeStatus();
+    if(A.report)renderReport();
+  }
+  if(ok&&!fail)showToast("Copied and saved "+ok+" deal"+(ok!==1?"s":"")+" to Zoho",7000);
+  else if(ok)showToast("Copied "+copies.length+". Saved "+ok+" to Zoho; "+fail+" queued or failed — check Pending Sync or History",9000);
+  else showToast("Copies are in History. Zoho save did not finish — open each copy and tap Save Report to Zoho",9000);
+  go(stay==="report"&&A.report?"report":"history");
+}
+
 // HISTORY
 function saveHistory(meta){
   var h=getHistory();h.unshift(meta);
@@ -10369,10 +10592,20 @@ function inboxDealFieldsFromSel(){
 function openDealPickerModal(){
   if(!A.deals.length){showToast("No deals loaded",4000);return;}
   var title=el("inbox-deal-picker-title");
+  var hint=el("inbox-deal-picker-hint");
   if(title){
     if(A.inboxPickerItemId)title.textContent="Link to Deal";
     else if(A.dealPickerContext==="assets")title.textContent="Pick deal for new asset";
+    else if(isCopyCaptureDealPicker())title.textContent="Copy visit to deals";
     else title.textContent="Select Deal";
+  }
+  if(hint){
+    if(isCopyCaptureDealPicker()){
+      var src=historyRecordById(A.copySourceHistoryId);
+      hint.textContent="Check every deal that should get its own copy of this visit. The original stays on "+((src&&(src.deal||src.account))||"the current deal")+".";
+    }else{
+      hint.textContent="Search and filter the same Zoho deals list as the Deals tab.";
+    }
   }
   var accounts=Array.from(new Set(A.deals.map(function(d){return d.Account_Name;}).filter(Boolean))).sort();
   var stages=Array.from(new Set(A.deals.map(function(d){return d.Stage;}).filter(Boolean))).sort();
@@ -10393,6 +10626,7 @@ function openDealPickerModal(){
     });
   }
   applyInboxDealPickerFilters();
+  updateCopyDealPickerActions();
   var m=el("inboxdealmodal");
   if(m){
     m.style.display="flex";
@@ -10408,6 +10642,9 @@ function openInboxDealPicker(itemId){
 function closeInboxDealPicker(){
   A.inboxPickerItemId=null;
   A.dealPickerContext=null;
+  A.copySourceHistoryId=null;
+  A.copyDealIds=null;
+  updateCopyDealPickerActions();
   var m=el("inboxdealmodal");if(m)m.style.display="none";
 }
 function setInboxDealSort(f){
@@ -10443,11 +10680,18 @@ function applyInboxDealPickerFilters(){
   var dl=el("inbox-d-list");if(!dl)return;
   if(!filtered.length){dl.innerHTML="<div class='empty' style='padding:16px 0'><div class='e-sub'>No deals match your search</div></div>";return;}
   dl.innerHTML="";
+  var copyMode=isCopyCaptureDealPicker();
+  var sourceDealId=copyMode?copyDealPickerSourceId():null;
   filtered.forEach(function(d){
-    var sel=A.sel&&A.sel.id===d.id;var amt=fmtAmt(d.Amount);var own=ownerStr(d);
-    var dc2=document.createElement("div");dc2.className="deal-card"+(sel?" sel":"");
-    (function(did){dc2.onclick=function(){pickInboxDeal(did);};})(d.id);
-    dc2.innerHTML="<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px'><div class='d-acct'>"+esc(d.Account_Name||"---")+"</div>"+(amt?"<div style='color:var(--green);font-weight:700;font-size:13px;flex-shrink:0;margin-left:8px'>"+amt+"</div>":"")+"</div><div class='d-deal'>"+esc(d.Deal_Name||"")+"</div><div class='d-meta'><span class='stage-pill'>"+esc(d.Stage||"")+"</span>"+(own?"<span style='font-size:11px;color:var(--dim)'>"+esc(own)+"</span>":"")+(d.Closing_Date?"<span style='font-size:11px;color:var(--dim)'>"+d.Closing_Date+"</span>":"")+"</div>"+(d.Description?"<div class='d-desc'>"+esc(d.Description)+"</div>":"");
+    var sel=copyMode?!!(A.copyDealIds&&A.copyDealIds[d.id]):(A.sel&&A.sel.id===d.id);
+    var isSource=copyMode&&sourceDealId&&d.id===sourceDealId;
+    var amt=fmtAmt(d.Amount);var own=ownerStr(d);
+    var dc2=document.createElement("div");dc2.className="deal-card"+(sel||isSource?" sel":"");
+    if(isSource)dc2.style.opacity="0.7";
+    if(copyMode&&!isSource)(function(did){dc2.onclick=function(){toggleCopyDeal(did);};})(d.id);
+    else if(!copyMode)(function(did){dc2.onclick=function(){pickInboxDeal(did);};})(d.id);
+    var mark=copyMode?(isSource?"<span style='color:var(--amber);font-weight:700;margin-right:6px'>This visit</span>":(sel?"<span style='color:var(--green);font-weight:700;margin-right:6px'>✓</span>":"<span style='color:var(--dim);margin-right:6px'>○</span>")):"";
+    dc2.innerHTML="<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px'><div class='d-acct'>"+mark+esc(d.Account_Name||"---")+"</div>"+(amt?"<div style='color:var(--green);font-weight:700;font-size:13px;flex-shrink:0;margin-left:8px'>"+amt+"</div>":"")+"</div><div class='d-deal'>"+esc(d.Deal_Name||"")+"</div><div class='d-meta'><span class='stage-pill'>"+esc(d.Stage||"")+"</span>"+(own?"<span style='font-size:11px;color:var(--dim)'>"+esc(own)+"</span>":"")+(d.Closing_Date?"<span style='font-size:11px;color:var(--dim)'>"+d.Closing_Date+"</span>":"")+"</div>"+(d.Description?"<div class='d-desc'>"+esc(d.Description)+"</div>":"");
     dl.appendChild(dc2);
   });
 }
@@ -10698,9 +10942,10 @@ function renderHistory(){
   if(!active.length&&!archived.length){html="<div class='empty'><div class='e-icon'>&#128203;</div><div class='e-title'>No History Yet</div><div class='e-sub'>Reports save here automatically</div></div>";}
   else{
     html+=active.map(function(r){var i=hist.indexOf(r);var d=new Date(r.date);var ds=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})+" — "+d.toLocaleTimeString();
+      var copied=historyCopiedFromLabel(r);
       return "<div class='hist-card'><div class='h-acct'>"+esc(r.account)+"</div><div class='h-meta'>"+ds+(r.stage?" — "+esc(r.stage):"")+" — "+r.photos+" photo"+(r.photos!==1?"s":"")+(r.hasVideo?" + video":"")+(r.location?"<br>"+esc(r.location.substring(0,60)):"")+
-      "</div>"+(r.deal?"<div style='font-size:12px;color:var(--sub);margin-bottom:6px'>"+esc(r.deal)+"</div>":"")+historyStatusHtml(r)+
-      "<div class='h-action-group'><div class='h-action-label'>Continue</div><div class='h-acts'><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bp bsm' onclick='viewHist("+i+")'>View</button></div><div class='h-action-label'>Share / Export</div><div class='h-acts'><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='"+surfaceNeutralClass()+" bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='"+surfaceNeutralClass()+" bsm' onclick='archiveHist("+i+")'>Archive</button></div></div></div>";
+      "</div>"+(r.deal?"<div style='font-size:12px;color:var(--sub);margin-bottom:6px'>"+esc(r.deal)+"</div>":"")+(copied?"<div style='font-size:11px;color:var(--dim);margin-bottom:6px'>"+esc(copied)+"</div>":"")+historyStatusHtml(r)+
+      "<div class='h-action-group'><div class='h-action-label'>Continue</div><div class='h-acts'><button class='bs bsm' onclick='continueHist("+i+")'>Open + Continue</button><button class='bp bsm' onclick='viewHist("+i+")'>View</button></div><div class='h-action-label'>Share / Export</div><div class='h-acts'><button class='bpu bsm' onclick='shareHist("+i+")'>Share</button><button class='"+surfaceNeutralClass()+" bsm' onclick='dlHistPDF("+i+")'>PDF</button></div><div class='h-action-label'>Manage</div><div class='h-acts'><button class='"+surfaceNeutralClass()+" bsm' onclick='copyHistToDeals("+i+")'>Copy to Deals</button><button class='"+surfaceNeutralClass()+" bsm' onclick='archiveHist("+i+")'>Archive</button></div></div></div>";
     }).join("");
     if(archived.length){
       html+="<div style='font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--bdr)'>Archived ("+archived.length+")</div>";
@@ -10872,7 +11117,7 @@ function archiveHist(i){var h=getHistory();if(!h[i])return;h[i].archived=true;lo
 function unarchiveHist(i){var h=getHistory();if(!h[i])return;h[i].archived=false;localStorage.setItem("fp_history",JSON.stringify(h));renderHistory();}
 function historyRecordPhotoIds(r){return(r&&Array.isArray(r.photoData)?r.photoData:[]).map(function(p){return p&&p.id;}).filter(Boolean);}
 function historyRecordBlobKeys(r){var ids=historyRecordPhotoIds(r);if(r&&r.videoId)ids.push(r.videoId);if(r&&r.audioId)ids.push(r.audioId);if(r&&Array.isArray(r.videos))r.videos.forEach(function(v){if(v){if(v.vidKey)ids.push(v.vidKey);if(v.audioKey)ids.push(v.audioKey);}});return ids;}
-function permDeleteHist(i){if(!confirm("Permanently delete?"))return;var h=getHistory();var ids=historyRecordBlobKeys(h[i]);h.splice(i,1);localStorage.setItem("fp_history",JSON.stringify(h));if(ids.length)fpIdbDeletePhotos(ids);renderHistory();}
+function permDeleteHist(i){if(!confirm("Permanently delete?"))return;var h=getHistory();var ids=historyRecordBlobKeys(h[i]);h.splice(i,1);localStorage.setItem("fp_history",JSON.stringify(h));deleteUnreferencedHistoryBlobs(ids,h);renderHistory();}
 function shareHist(i){var h=getHistory();var r=h[i];if(!r)return;A.report=r.report;setReportTechnician(r.technician||"");applyReportCopyFromRecord(r);A.sel=dealFromRecord(r);A.location=restoreLocationFromRecord(r);openShare();}
 async function dlHistPDF(i){var h=getHistory();var r=h[i];if(!r)return;var pd=await fpHydratePhotoData(r.photoData||[]);var copy=reportCopyLabelFromRecord(r);var doc=buildPDF(r.report,dealFromRecord(r),pd,restoreLocationFromRecord(r),r.technician||"",copy);doc.save(reportPdfFileName(r.account,r.date,copy));}
 
@@ -10946,7 +11191,7 @@ function updateStorageInfo(){var e=el("storage-info");if(!e)return;var h=getHist
 function renderCorrections(){var e=el("corrections-list");if(!e)return;}
 async function exportHistory(){var h=getHistory();if(!h.length){alert("No history");return;}var hydrated=[];for(var i=0;i<h.length;i++){var r=h[i];if(Array.isArray(r.photoData)&&r.photoData.length){var pd=await fpHydratePhotoData(r.photoData);r=Object.assign({},r,{photoData:pd});}hydrated.push(r);}var data=JSON.stringify({app:"CapStone",exported:new Date().toISOString(),version:1,history:hydrated},null,2);var blob=new Blob([data],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="capstone-history-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
 function importHistory(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){try{var data=JSON.parse(e.target.result);if(!data.history||!Array.isArray(data.history)){alert("Invalid file");return;}var existing=getHistory();var existingIds=new Set(existing.map(function(r){return r.id;}));var toAdd=data.history.filter(function(r){return!existingIds.has(r.id);});var merged=toAdd.concat(existing).sort(function(a,b){return new Date(b.date)-new Date(a.date);});var toPut=[];toAdd.forEach(function(r){if(Array.isArray(r.photoData))r.photoData.forEach(function(p){if(fpHasPhotoDisplay(p.display))toPut.push(p);});});fpIdbPutPhotos(toPut).then(function(){var out=merged.map(function(r){if(Array.isArray(r.photoData))return Object.assign({},r,{photoData:r.photoData.map(fpPhotoForStorage)});return r;});try{localStorage.setItem("fp_history",JSON.stringify(out));}catch(err){try{localStorage.setItem("fp_history",JSON.stringify(merged));}catch(e2){}}renderHistory();updateStorageInfo();alert("Imported "+toAdd.length+" reports.");});}catch(err){alert("Could not read file");}};reader.readAsText(file);input.value="";}
-function clearOldPhotos(){if(!requireCap("destructive"))return;if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId||!!r.audioId||(Array.isArray(r.videos)&&r.videos.length>0);if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(r.videoId){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}if(r.audioId){delIds.push(r.audioId);r.audioId=null;r.audioSize=0;}if(Array.isArray(r.videos)&&r.videos.length){r.videos.forEach(function(v){if(v){if(v.vidKey)delIds.push(v.vidKey);if(v.audioKey)delIds.push(v.audioKey);}});r.videos=[];r.hasVideo=false;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
+function clearOldPhotos(){if(!requireCap("destructive"))return;if(!confirm("Remove photos and videos from reports older than 7 days?"))return;var h=getHistory();var cutoff=Date.now()-(7*24*60*60*1000);var count=0;var delIds=[];h=h.map(function(r){var old=new Date(r.date).getTime()<cutoff;var hasPhotoBytes=r.photoData&&r.photoData.some(function(p){return p.display||p.idb;});var hasVid=!!r.videoId||!!r.audioId||(Array.isArray(r.videos)&&r.videos.length>0);if(old&&(hasPhotoBytes||hasVid)){count++;r=Object.assign({},r);if(hasPhotoBytes)r.photoData=r.photoData.map(function(p){if(p&&p.id)delIds.push(p.id);return{id:p.id,display:"",idb:0,label:p.label||"",desc:p.desc,time:p.time,w:p.w,h:p.h,aiDesc:p.aiDesc,synthesis:p.synthesis};});if(r.videoId){delIds.push(r.videoId);r.videoId=null;r.hasVideo=false;r.videoSize=0;}if(r.audioId){delIds.push(r.audioId);r.audioId=null;r.audioSize=0;}if(Array.isArray(r.videos)&&r.videos.length){r.videos.forEach(function(v){if(v){if(v.vidKey)delIds.push(v.vidKey);if(v.audioKey)delIds.push(v.audioKey);}});r.videos=[];r.hasVideo=false;}}return r;});localStorage.setItem("fp_history",JSON.stringify(h));deleteUnreferencedHistoryBlobs(delIds,h);renderHistory();updateStorageInfo();alert("Removed photos/videos from "+count+" older reports.");}
 function clearAllHistory(){if(!requireCap("destructive"))return;if(!confirm("Delete ALL history? Cannot be undone."))return;var delIds=[];getHistory().forEach(function(r){delIds=delIds.concat(historyRecordBlobKeys(r));});localStorage.removeItem("fp_history");if(delIds.length)fpIdbDeletePhotos(delIds);renderHistory();updateStorageInfo();}
 
 // SHARE
