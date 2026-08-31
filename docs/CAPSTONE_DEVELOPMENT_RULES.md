@@ -39,6 +39,8 @@ Do not add a new tab as a one-off design. New tabs should feel like the existing
 
 For the planned **Inbox** tab (Plaud Note Pro / unassigned voice), read `docs/PLAUD_INTEGRATION.md` before implementation.
 
+For a **WO** (Work Order) tab, read `docs/WO_TAB_DESIGN.md` before implementation. Do not build it until the open questions in that file are answered. The recommended model is that the WO *is* the Zoho meeting (deal / account / contact links already on that record), not a new CRM module.
+
 ## Consistency checklist for every PR
 
 Before a PR is considered complete, check:
