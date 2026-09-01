@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "292";
+var PROXY_BUILD = "293";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -730,7 +730,7 @@ exports.handler = async function(event) {
 
       function meetingListFields(mod, statusField) {
         var title = mod === "Events" ? "Event_Title" : "Meeting_Title";
-        var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Host", "Venue", "Location", "Description", "$se_module", "$event_cancelled"];
+        var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Host", "Owner", "Venue", "Location", "Description", "$se_module", "$event_cancelled"];
         if (statusField) parts.push(statusField);
         return parts.join(",");
       }

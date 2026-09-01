@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=402"/>
+<link rel="stylesheet" href="src/styles.css?v=403"/>
 
 </head>
 <body autocomplete="off">
@@ -103,7 +103,8 @@
         <li>Select your technician (same picker as Settings) to see meetings hosted by you.</li>
         <li>Tap <strong>Refresh from Zoho</strong> so the list is current.</li>
         <li>Set <strong>From</strong> and <strong>To</strong> for the date window, or tap <strong>Today</strong> for just today. Changing dates refreshes that window from Zoho.</li>
-        <li>Use <strong>Meeting Status</strong> to include statuses other than Active. Active is a status — not the same as the date pickers.</li>
+        <li>Use <strong>Meeting Status</strong> to include statuses other than Active. Many calendars use Planned or Scheduled — tap <strong>All statuses</strong> if Active is empty. Active is a status, not a date.</li>
+        <li><strong>My meetings</strong> is the technician from the setup screen (Host, or Owner when Host is blank). <strong>All hosts</strong> shows everyone in the date window.</li>
         <li>Meetings are listed start of day first, then in time order.</li>
         <li>Open a WO to see deal, account, and contact links. <strong>Work this WO</strong> selects that deal and opens Capture.</li>
         <li>Work without a meeting still uses Deals → Capture. This tab does not create meetings.</li>
@@ -134,6 +135,8 @@
       <label class="wo-date-field">To<input type="date" id="wo-to" onchange="setWoDateRange()" data-no-auto-advance/></label>
       <button type="button" class="bg bsm" id="wo-today-btn" onclick="setWoDateToday()">Today</button>
     </div>
+    <div class="stitle" style="margin-top:12px">Technician</div>
+    <div class="wo-status-chips" id="wo-host-chips"></div>
     <div class="stitle" style="margin-top:12px">Meeting Status</div>
     <div class="wo-status-chips" id="wo-status-chips"></div>
     <input type="text" id="wo-search" placeholder="Search meetings..." oninput="renderWorkOrders()" data-no-auto-advance style="margin-top:8px"/>
@@ -1163,8 +1166,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=402"></script>
-<script src="src/app.js?v=402"></script>
+<script src="src/accounts-map.js?v=403"></script>
+<script src="src/app.js?v=403"></script>
 
 </body>
 </html>

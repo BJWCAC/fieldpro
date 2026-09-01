@@ -373,8 +373,8 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:["Active"],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="402";
+var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:["Active"],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",woHostMode:"mine",photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="403";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2028,7 +2028,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","loadWorkOrders","resetWorkOrdersUI","toggleWoStatus","setWoDateRange","setWoDateToday","selectWorkOrder","workThisWo","openWoAssets","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","loadWorkOrders","resetWorkOrdersUI","toggleWoStatus","toggleWoHostMode","selectAllWoStatuses","setWoDateRange","setWoDateToday","selectWorkOrder","workThisWo","openWoAssets","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -2504,23 +2504,39 @@ function woHostName(m){
 }
 function woNameTokens(s){
   var n=woNormalizeName(s);
-  if(n.indexOf("@")>=0)n=n.split("@")[0].replace(/[._]+/g," ");
+  if(n.indexOf("@")>=0)n=n.split("@")[0];
+  n=n.replace(/[._,;:()\/-]+/g," ");
   return n.split(" ").filter(Boolean);
 }
-function woMatchesTechnician(m,techName){
-  var tech=woNormalizeName(techName);
-  if(!tech)return false;
-  var host=woNormalizeName(woHostName(m));
-  if(!host)return false;
-  if(host===tech)return true;
-  var ht=woNameTokens(host),tt=woNameTokens(tech);
-  if(!ht.length||!tt.length)return false;
-  var shorter=ht.length<=tt.length?ht:tt;
-  var longer=ht.length<=tt.length?tt:ht;
-  for(var i=0;i<shorter.length;i++){
-    if(longer.indexOf(shorter[i])<0)return false;
+function woNamesMatch(a,b){
+  var na=woNormalizeName(a),nb=woNormalizeName(b);
+  if(!na||!nb)return false;
+  if(na===nb)return true;
+  var ta=woNameTokens(a),tb=woNameTokens(b);
+  if(!ta.length||!tb.length)return false;
+  var shorter=ta.length<=tb.length?ta:tb;
+  var longer=ta.length<=tb.length?tb:ta;
+  var all=true;
+  for(var i=0;i<shorter.length;i++){if(longer.indexOf(shorter[i])<0)all=false;}
+  if(all)return true;
+  if(ta.length>=2&&tb.length>=2&&ta[ta.length-1]===tb[tb.length-1]){
+    var fa=ta[0],fb=tb[0];
+    if(fa===fb)return true;
+    if(fa.length>=3&&fb.indexOf(fa)===0)return true;
+    if(fb.length>=3&&fa.indexOf(fb)===0)return true;
   }
-  return true;
+  return false;
+}
+function woMatchesTechnician(m,techName){
+  if(!woNormalizeName(techName))return false;
+  if(woNamesMatch(woHostName(m),techName))return true;
+  if(!woHostName(m)&&woNamesMatch(m&&m.owner,techName))return true;
+  return false;
+}
+function woStatusKeyList(s){
+  var n=woNormalizeName(s);
+  if(n==="complete"||n==="completed")return ["complete","completed"];
+  return n?[n]:[];
 }
 function woMatchesStatusFilter(m,selected){
   var list=selected||[];
@@ -2530,8 +2546,10 @@ function woMatchesStatusFilter(m,selected){
     for(var j=0;j<list.length;j++){if(woIsActiveStatus(list[j]))return true;}
     return false;
   }
+  var have=woStatusKeyList(st);
   for(var i=0;i<list.length;i++){
-    if(woNormalizeName(list[i])===st)return true;
+    var want=woStatusKeyList(list[i]);
+    for(var k=0;k<want.length;k++){if(have.indexOf(want[k])>=0)return true;}
   }
   return false;
 }
@@ -2606,7 +2624,7 @@ function filterWorkOrders(rows,opts){
   var q=woNormalizeName(opts.query);
   return sortWorkOrdersByStart((rows||[]).filter(function(m){
     if(m&&m.cancelled)return false;
-    if(tech!=null&&tech!==""){if(!woMatchesTechnician(m,tech))return false;}
+    if(opts.hostMode!=="all"&&tech!=null&&tech!==""){if(!woMatchesTechnician(m,tech))return false;}
     if(statuses&&statuses.length){if(!woMatchesStatusFilter(m,statuses))return false;}
     if(from||to){if(!woInDateRange(m,from,to))return false;}
     if(q){
@@ -2616,13 +2634,32 @@ function filterWorkOrders(rows,opts){
     return true;
   }));
 }
-function woFilterExplain(rows,tech,statuses,from,to){
+function woCountMap(rows,keyFn){
+  var map={},keys=[];
+  (rows||[]).forEach(function(m){
+    if(!m||m.cancelled)return;
+    var k=keyFn(m)||"(none)";
+    if(!map[k]){map[k]=0;keys.push(k);}
+    map[k]++;
+  });
+  return keys.map(function(k){return k+" ×"+map[k];}).join(", ");
+}
+function woLoadedHint(rows){
+  var hosts=woCountMap(rows,function(m){return woHostName(m)||"(no Host)";});
+  var st=woCountMap(rows,function(m){return woMeetingStatus(m)||"(no status)";});
+  var parts=[];
+  if(hosts)parts.push("Hosts: "+hosts);
+  if(st)parts.push("Statuses: "+st);
+  return parts.join(". ");
+}
+function woFilterExplain(rows,tech,statuses,from,to,hostMode){
   var n=(rows||[]).length;
+  var hint=woLoadedHint(rows);
   if(!n)return{title:"No meetings loaded",detail:"Tap Refresh from Zoho. Use From / To for the date window Zoho should return, or tap Today. Active is Meeting Status, not a date."};
   var hostHits=0,statusHits=0,dateHits=0;
   (rows||[]).forEach(function(m){
     if(m&&m.cancelled)return;
-    if(woMatchesTechnician(m,tech)){
+    if(hostMode==="all"||woMatchesTechnician(m,tech)){
       hostHits++;
       if(woMatchesStatusFilter(m,statuses)){
         statusHits++;
@@ -2630,8 +2667,8 @@ function woFilterExplain(rows,tech,statuses,from,to){
       }
     }
   });
-  if(!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. None have Host "+(tech||"(none)")+". The technician on the setup screen must match the meeting Host (a first name still matches First Last)."};
-  if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for Host "+tech+", but none in "+(statuses||[]).join(", ")+". Tap another Meeting Status chip — Active is a status, not a date."};
+  if(hostMode!=="all"&&!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. "+(hint?hint+". ":"")+"None matched "+(tech||"(none)")+". Tap All hosts if Zoho Host is blank or a different name. Owner is used only when Host is empty."};
+  if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for "+(hostMode==="all"?"all hosts":("Host "+tech))+", but none in "+(statuses||[]).join(", ")+". Tap All statuses — many calendars use Planned or Scheduled, not Active. Active is a status, not a date."};
   if(!dateHits){
     var lab=woRangeLabel(from,to);
     var when=(from&&to&&from===to)?"none on "+lab:"none between "+lab;
@@ -2684,6 +2721,8 @@ function normalizeZohoMeeting(rec,extras){
     status:woLookupName(rec&&(rec.Meeting_Status||rec.Event_Status||rec.Status)),
     host:woLookupName(rec&&(rec.Host||rec.$host)),
     hostId:woLookupId(rec&&(rec.Host||rec.$host)),
+    owner:woLookupName(rec&&rec.Owner),
+    ownerId:woLookupId(rec&&rec.Owner),
     contact:woLookupName(rec&&rec.Who_Id),
     contactId:woLookupId(rec&&rec.Who_Id),
     whatId:woLookupId(rec&&rec.What_Id),
@@ -2711,6 +2750,23 @@ function woStatusFilterFromStorage(){
 function saveWoStatusFilter(list){
   A.woStatusFilter=list&&list.length?list.slice():woDefaultStatusFilter();
   try{localStorage.setItem("fp_wo_status_filter",JSON.stringify(A.woStatusFilter));}catch(e){}
+}
+function woHostModeFromStorage(){
+  try{if(localStorage.getItem("fp_wo_host_mode")==="all")return "all";}catch(e){}
+  return "mine";
+}
+function saveWoHostMode(mode){
+  A.woHostMode=mode==="all"?"all":"mine";
+  try{localStorage.setItem("fp_wo_host_mode",A.woHostMode);}catch(e){}
+}
+function toggleWoHostMode(mode){
+  saveWoHostMode(mode);
+  renderWorkOrders();
+}
+function selectAllWoStatuses(){
+  var all=collectWorkOrderStatuses(A.workOrders,A.woStatuses);
+  saveWoStatusFilter(all.length?all:woDefaultStatusFilter());
+  renderWorkOrders();
 }
 function woDateRangeFromStorage(){
   try{
@@ -2949,12 +3005,19 @@ async function loadWorkOrders(){
       page++;
       if(sm)sm.textContent="Loading meetings... page "+page+" ("+all.length+" so far)";
     }
-    A.workOrders=all;
-    A.woStatuses=collectWorkOrderStatuses(all,A.woStatuses);
-    persistWorkOrdersCache();
-    if(sm){
-      sm.textContent=all.length+" meetings loaded for "+woRangeLabel(range.from,range.to)+" — "+new Date().toLocaleTimeString();
-      sm.style.color=all.length?"var(--green)":"var(--amber)";
+    if(!all.length&&(A.workOrders||[]).length){
+      if(sm){
+        sm.textContent="Zoho returned 0 for "+woRangeLabel(range.from,range.to)+" — still showing "+A.workOrders.length+" cached. Try All hosts / All statuses.";
+        sm.style.color="var(--amber)";
+      }
+    }else{
+      A.workOrders=all;
+      A.woStatuses=collectWorkOrderStatuses(all,A.woStatuses);
+      persistWorkOrdersCache();
+      if(sm){
+        sm.textContent=all.length+" meetings loaded for "+woRangeLabel(range.from,range.to)+" — "+new Date().toLocaleTimeString();
+        sm.style.color=all.length?"var(--green)":"var(--amber)";
+      }
     }
     renderWorkOrders();
   }catch(e){
@@ -2971,15 +3034,22 @@ async function loadWorkOrders(){
 }
 function renderWorkOrders(){
   if(!A.woStatusFilter||!A.woStatusFilter.length)A.woStatusFilter=woStatusFilterFromStorage();
+  if(!A.woHostMode)A.woHostMode=woHostModeFromStorage();
   var range=ensureWoDateRange();
   syncWoDateInputs();
   var tech=(A.technician||"").trim();
   var noTech=el("wo-no-tech-bar");
   if(noTech)noTech.style.display=tech? "none":"flex";
   A.woStatuses=collectWorkOrderStatuses(A.workOrders,A.woStatuses);
+  var hostChips=el("wo-host-chips");
+  if(hostChips){
+    hostChips.innerHTML="<button type='button' class='wo-status-chip"+(A.woHostMode!=="all"?" on":"")+"' onclick='toggleWoHostMode(\"mine\")'>My meetings</button>"+
+      "<button type='button' class='wo-status-chip"+(A.woHostMode==="all"?" on":"")+"' onclick='toggleWoHostMode(\"all\")'>All hosts</button>";
+  }
   var chips=el("wo-status-chips");
   if(chips){
-    chips.innerHTML=(A.woStatuses||[]).map(function(s){
+    var allOn=(A.woStatuses||[]).length&&(A.woStatuses||[]).every(function(s){return woMatchesStatusFilter({status:s},A.woStatusFilter);});
+    chips.innerHTML="<button type='button' class='wo-status-chip"+(allOn?" on":"")+"' onclick='selectAllWoStatuses()'>All statuses</button>"+(A.woStatuses||[]).map(function(s){
       var on=woMatchesStatusFilter({status:s},A.woStatusFilter);
       return "<button type='button' class='wo-status-chip"+(on?" on":"")+"' onclick='toggleWoStatus("+JSON.stringify(s)+")'>"+esc(s)+"</button>";
     }).join("");
@@ -2993,13 +3063,17 @@ function renderWorkOrders(){
     list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>Select a technician</div><div class='e-sub'>WO shows meetings where Host is the technician signed in on this device.</div></div>";
     return;
   }
-  var filtered=filterWorkOrders(A.workOrders,{technician:tech,statuses:A.woStatusFilter,query:q,from:range.from,to:range.to});
+  var filtered=filterWorkOrders(A.workOrders,{technician:tech,statuses:A.woStatusFilter,query:q,from:range.from,to:range.to,hostMode:A.woHostMode});
   badge("tb-wo",filtered.length);
   var dc=el("wo-count");
-  if(dc)dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · "+woRangeLabel(range.from,range.to)+" · Host "+tech+" · "+(A.woStatusFilter||[]).join(", ");
+  if(dc)dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · "+woRangeLabel(range.from,range.to)+" · "+(A.woHostMode==="all"?"All hosts":("Host "+tech))+" · "+(A.woStatusFilter||[]).join(", ");
   if(!filtered.length){
-    var why=woFilterExplain(A.workOrders,tech,A.woStatusFilter,range.from,range.to);
-    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>"+esc(why.title)+"</div><div class='e-sub'>"+esc(why.detail)+"</div></div>";
+    var why=woFilterExplain(A.workOrders,tech,A.woStatusFilter,range.from,range.to,A.woHostMode);
+    var extra="";
+    if((A.workOrders||[]).length){
+      extra="<div class='g2' style='margin-top:12px'><button type='button' class='bg bfull' onclick='toggleWoHostMode(\"all\")'>Show all hosts</button><button type='button' class='bg bfull' onclick='selectAllWoStatuses()'>Show all statuses</button></div>";
+    }
+    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>"+esc(why.title)+"</div><div class='e-sub'>"+esc(why.detail)+"</div>"+extra+"</div>";
     return;
   }
   var html="";
@@ -3016,7 +3090,7 @@ function renderWorkOrders(){
     html+="<div class='d-deal'>"+esc(m.title)+"</div>";
     html+="<div class='d-meta'><span class='stage-pill'>"+esc(m.status||"")+"</span>";
     html+="<span style='font-size:11px;color:var(--dim)'>"+esc(formatWoWhen(m.start))+"</span>";
-    html+="<span style='font-size:11px;color:var(--dim)'>"+(m.host?"Host "+esc(m.host):"Host not set")+"</span>";
+    html+="<span style='font-size:11px;color:var(--dim)'>"+(m.host?"Host "+esc(m.host):(m.owner?"Owner "+esc(m.owner):"Host not set"))+"</span>";
     if(m.venue)html+="<span style='font-size:11px;color:var(--dim)'>"+esc(m.venue)+"</span>";
     html+="</div>";
     if(m.dealName)html+="<div class='d-desc'>"+esc(m.dealName)+(m.contact?" · "+esc(m.contact):"")+"</div>";
