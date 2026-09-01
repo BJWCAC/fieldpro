@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=400"/>
+<link rel="stylesheet" href="src/styles.css?v=401"/>
 
 </head>
 <body autocomplete="off">
@@ -102,7 +102,8 @@
       <ul>
         <li>Select your technician (same picker as Settings) to see meetings hosted by you.</li>
         <li>Tap <strong>Refresh from Zoho</strong> so the list is current.</li>
-        <li>Use <strong>Meeting Status</strong> to include statuses other than Active. Active is a status — the list is not limited to today's date.</li>
+        <li>Set <strong>From</strong> and <strong>To</strong> for the date window, or tap <strong>Today</strong> for just today. Changing dates refreshes that window from Zoho.</li>
+        <li>Use <strong>Meeting Status</strong> to include statuses other than Active. Active is a status — not the same as the date pickers.</li>
         <li>Meetings are listed start of day first, then in time order.</li>
         <li>Open a WO to see deal, account, and contact links. <strong>Work this WO</strong> selects that deal and opens Capture.</li>
         <li>Work without a meeting still uses Deals → Capture. This tab does not create meetings.</li>
@@ -113,9 +114,9 @@
     <div class="stitle">WO Workflow</div>
     <ol>
       <li>Sign in as the technician (Host on the meeting).</li>
-      <li>Refresh meetings from Zoho.</li>
+      <li>Pick From / To, or tap Today, then refresh meetings from Zoho.</li>
       <li>Leave Meeting Status on Active, or add other statuses.</li>
-      <li>Open today's first meeting — earliest start time is at the top.</li>
+      <li>Open the first meeting in the range — earliest start time is at the top.</li>
       <li>Work this WO to load the deal and go to Capture.</li>
     </ol>
   </div>
@@ -127,7 +128,13 @@
   <div id="wo-err" class="err-box" style="display:none"></div>
   <div id="wo-sync-msg" style="font-size:11px;color:var(--dim);margin-bottom:10px;min-height:16px">Tap Refresh to load meetings from Zoho</div>
   <div class="card" style="margin-bottom:10px">
-    <div class="stitle">Meeting Status</div>
+    <div class="stitle">Dates</div>
+    <div class="wo-date-row">
+      <label class="wo-date-field">From<input type="date" id="wo-from" onchange="setWoDateRange()" data-no-auto-advance/></label>
+      <label class="wo-date-field">To<input type="date" id="wo-to" onchange="setWoDateRange()" data-no-auto-advance/></label>
+      <button type="button" class="bg bsm" id="wo-today-btn" onclick="setWoDateToday()">Today</button>
+    </div>
+    <div class="stitle" style="margin-top:12px">Meeting Status</div>
     <div class="wo-status-chips" id="wo-status-chips"></div>
     <input type="text" id="wo-search" placeholder="Search meetings..." oninput="renderWorkOrders()" data-no-auto-advance style="margin-top:8px"/>
   </div>
@@ -1156,8 +1163,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=400"></script>
-<script src="src/app.js?v=400"></script>
+<script src="src/accounts-map.js?v=401"></script>
+<script src="src/app.js?v=401"></script>
 
 </body>
 </html>

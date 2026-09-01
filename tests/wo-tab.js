@@ -30,7 +30,17 @@ eval(sliceFn("woMeetingStatus","woHostName"));
 eval(sliceFn("woHostName","woNameTokens"));
 eval(sliceFn("woNameTokens","woMatchesTechnician"));
 eval(sliceFn("woMatchesTechnician","woMatchesStatusFilter"));
-eval(sliceFn("woMatchesStatusFilter","woStartMs"));
+eval(sliceFn("woMatchesStatusFilter","woYmd"));
+eval(sliceFn("woYmd","woTodayYmd"));
+eval(sliceFn("woTodayYmd","woParseYmd"));
+eval(sliceFn("woParseYmd","woAddDaysYmd"));
+eval(sliceFn("woAddDaysYmd","woDefaultDateRange"));
+eval(sliceFn("woDefaultDateRange","woNormalizeDateRange"));
+eval(sliceFn("woNormalizeDateRange","woInDateRange"));
+eval(sliceFn("woInDateRange","woRangeLabel"));
+eval(sliceFn("woRangeLabel","woRangeStartIso"));
+eval(sliceFn("woRangeStartIso","woRangeEndIso"));
+eval(sliceFn("woRangeEndIso","woStartMs"));
 eval(sliceFn("woStartMs","sortWorkOrdersByStart"));
 eval(sliceFn("sortWorkOrdersByStart","filterWorkOrders"));
 eval(sliceFn("filterWorkOrders","woFilterExplain"));
@@ -41,6 +51,7 @@ eval(sliceFn("woDefaultStatusFilter","woStatusFilterFromStorage"));
 eval(sliceFn("collectWorkOrderStatuses","formatWoWhen"));
 
 check("Host name comes off the Host lookup",woLookupName({id:"u1",name:"Quintin"})==="Quintin");
+check("Host object can use email when name is blank",woLookupName({id:"u1",email:"quintin@shop.com"})==="quintin@shop.com");
 check("blank Host is empty",woLookupName(null)==="");
 check("name normalize folds case and spaces",woNormalizeName("  Quintin   White ")==="quintin white");
 check("Active status is recognized in any case",woIsActiveStatus("ACTIVE")&&woIsActiveStatus("Active"));
@@ -56,6 +67,8 @@ var nextMonth={id:"m6",title:"Next month cal",start:"2026-10-15T09:00:00-05:00",
 check("Host match uses the technician picker name",woMatchesTechnician(quintin,"Quintin")===true);
 check("Host match ignores extra spaces",woMatchesTechnician(quintin," quintin ")===true);
 check("first-name picker matches Host First Last",woMatchesTechnician({host:"Quintin Smith"},"Quintin")===true);
+check("Host email local-part matches first name",woMatchesTechnician({host:"quintin@shop.com"},"Quintin")===true);
+check("blank Host still lists for the signed-in technician",woMatchesTechnician({host:""},"Quintin")===true);
 check("Owner-like names do not count — Host must match",woMatchesTechnician({host:"Dispatcher",owner:"Quintin"},"Quintin")===false);
 check("no technician selected matches nothing",woMatchesTechnician(quintin,"")===false);
 
@@ -70,7 +83,14 @@ check("start of day is first",sorted[0].id==="m1"&&sorted[1].id==="m2",JSON.stri
 var filtered=filterWorkOrders([later,otherTech,completed,cancelled,quintin],{technician:"Quintin",statuses:["Active"]});
 check("filter is Host + Active + not cancelled",filtered.length===2&&filtered[0].id==="m1"&&filtered[1].id==="m2",JSON.stringify(filtered.map(function(m){return m.id;})));
 check("Completed appears when that status is selected",filterWorkOrders([completed,quintin],{technician:"Quintin",statuses:["Completed"]}).length===1);
-check("Active is not a date window — next month still lists",filterWorkOrders([nextMonth],{technician:"Quintin",statuses:["Active"]}).length===1);
+check("without a date picker next month still lists",filterWorkOrders([nextMonth],{technician:"Quintin",statuses:["Active"]}).length===1);
+check("Today date range keeps the same day",filterWorkOrders([quintin],{technician:"Quintin",statuses:["Active"],from:"2026-09-01",to:"2026-09-01"}).length===1);
+check("Today date range drops next month",filterWorkOrders([nextMonth],{technician:"Quintin",statuses:["Active"],from:"2026-09-01",to:"2026-09-01"}).length===0);
+var swapped=woNormalizeDateRange("2026-09-10","2026-09-01");
+check("from/to swap when reversed",swapped.from==="2026-09-01"&&swapped.to==="2026-09-10");
+var defRange=woDefaultDateRange();
+check("default date range is more than today",defRange.from<defRange.to);
+check("same-day today labels as Today",woRangeLabel(woTodayYmd(),woTodayYmd())==="Today");
 
 var rec=normalizeZohoMeeting({
   id:"ev1",
@@ -95,11 +115,13 @@ check("other statuses from the Meetings picklist stay available",statuses.indexO
 check("default status filter is Active",woDefaultStatusFilter().length===1&&woDefaultStatusFilter()[0]==="Active");
 
 var emptyLoad=woFilterExplain([],"Quintin",["Active"]);
-check("empty fetch explains it is not a today-only list",emptyLoad.detail.indexOf("today")>=0);
+check("empty fetch mentions the Today button",/today/i.test(emptyLoad.detail));
 var hostMiss=woFilterExplain([otherTech],"Quintin",["Active"]);
 check("Host miss names the technician",hostMiss.title.indexOf("Host")>=0&&hostMiss.detail.indexOf("Quintin")>=0);
 var statusMiss=woFilterExplain([completed],"Quintin",["Active"]);
 check("status miss says Active is not a date",statusMiss.detail.indexOf("not a date")>=0);
+var dateMiss=woFilterExplain([nextMonth],"Quintin",["Active"],"2026-09-01","2026-09-01");
+check("date miss names the range",dateMiss.title.indexOf("date")>=0&&dateMiss.detail.indexOf("Today")>=0);
 
 if(failed){
   console.error(failed+" failed, "+passed+" passed");

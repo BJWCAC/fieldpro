@@ -93,6 +93,11 @@ body.light .pcard{background:#fff;border-color:#b2ddd6}
 .asset-gps-slot:empty{display:none}
 .asset-gps-slot .asset-gps-cell{width:100%;min-width:0;box-sizing:border-box}
 .asset-gps-slot .asset-gps-cell input{width:100%;box-sizing:border-box}
+.wo-date-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-top:4px}
+.wo-date-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:128px;font-size:11px;color:var(--dim);letter-spacing:.04em;text-transform:uppercase;font-family:"Barlow Condensed",sans-serif;font-weight:700}
+.wo-date-field input{width:100%}
+#wo-today-btn{flex:0 0 auto}
+#wo-today-btn.on{border-color:var(--amber);color:var(--amber)}
 .wo-status-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .wo-status-chip{border:1px solid var(--bdr);background:var(--card);color:var(--text);border-radius:14px;padding:4px 10px;font-size:12px;font-family:"Barlow Condensed",sans-serif;font-weight:700;cursor:pointer}
 .wo-status-chip.on{border-color:var(--amber);background:#0a2020;color:var(--amber)}
