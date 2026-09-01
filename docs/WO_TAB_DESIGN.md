@@ -34,8 +34,9 @@ Deal (the job)
 |------|------|
 | Shape | Dedicated **WO** tab. The meeting *is* the WO. No new Work_Orders module. |
 | One WO per | Meeting. Same record as Meetings. Assets listed from the deal, underneath. |
-| Technician | Existing picker. Match **Host** (not Owner, not Participants). No Host match → the row is not theirs. |
-| Meeting Status | Default **Active**. The filter is selectable so other statuses can be shown. Every meeting in the chosen status(es) is in the list — not a 7/14/30-day window. |
+| Technician | Existing picker. Match **Host** (not Owner, not Participants). No Host match → the row is not theirs. Blank Host still lists. |
+| Meeting Status | Default **Active**. The filter is selectable so other statuses can be shown. |
+| Dates | From / To pickers plus **Today**. Default is 14 days back through 60 days forward. This is the Zoho window — separate from Meeting Status. |
 | Sort | Start of the day first (`Start_DateTime` ascending). Earliest meeting on top, then in schedule order. |
 | Contact | `Who_Id` on the meeting. Open in Zoho. |
 | Certificates | Existing Zoho modules tied to the asset. Later slice. Do not generate CapStone certificate PDFs in the first slice. |
@@ -57,13 +58,14 @@ This tab is the technician's calendar, the way they already look at Zoho.
 
 - Refresh from Zoho (own button). Cache in `localStorage` (`fp_work_orders`) so the list opens offline.
 - No technician selected → existing technician prompt; do not show the shop calendar.
-- **Meeting Status** chips/select: default Active; tap to include other values from the Meetings picklist. Active is a **status**, not a date. Zoho's Meetings GET without a start/end window only returns **today**; CapStone asks for about a year back and a year forward (search fallback if needed).
+- **Dates:** From / To pickers plus a **Today** button. Default window is 14 days back through 60 days forward. Changing dates (or Today) asks Zoho for that window. Active is still Meeting Status — not the same as Today.
+- **Meeting Status** chips/select: default Active; tap to include other values from the Meetings picklist.
 - Cards: account, meeting title, start time, venue, Host, status, deal name. Day headers (`Today`, `Mon Sep 1`).
-- Sort: `Start_DateTime` ascending inside the current status filter.
-- Badge = count after Host + status filters.
+- Sort: `Start_DateTime` ascending inside the current status + date filters.
+- Badge = count after Host + status + date filters.
 - Map keeps its own upcoming + coordinates view. The WO list does not require a pin.
 
-How Host matches: normalize the picklist name and `Host.name` (trim, collapse spaces, case-fold). A first name matches `First Last` (`Quintin` = `Quintin Smith`). `Brad White` will not match `Bradley White` until the names agree in Zoho.
+How Host matches: normalize the picklist name and `Host.name` (trim, collapse spaces, case-fold). A first name matches `First Last` (`Quintin` = `Quintin Smith`). A Host email matches on the local part (`quintin@shop.com`). Meetings with no Host still list (card says Host not set). `Brad White` will not match `Bradley White` until the names agree in Zoho.
 
 ---
 
