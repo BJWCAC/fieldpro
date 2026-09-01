@@ -35,7 +35,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
-| v399 | — | **WO tab** — dedicated Work Order tab that *is* the Zoho Meetings record. Host is the technician (existing picker). Meeting Status defaults to Active and is selectable. List is start-of-day first. Deal / account / contact / meeting Zoho links. **Work this WO** selects the deal and opens Capture. Does not create meetings; Deals → Capture still works. Result 1 / drawdown / cal cert modules (tied to the asset) are a later slice. `node tests/wo-tab.js`. Proxy build **291** (`get_meetings`, `get_meeting_status_values`). |
+| v399 | #290 | **WO tab** — dedicated Work Order tab that *is* the Zoho Meetings record. Host is the technician (existing picker). Meeting Status defaults to Active and is selectable. List is start-of-day first. Deal / account / contact / meeting Zoho links. **Work this WO** selects the deal and opens Capture. Does not create meetings; Deals → Capture still works. Result 1 / drawdown / cal cert modules (tied to the asset) are a later slice. `node tests/wo-tab.js`. Proxy build **291** (`get_meetings`, `get_meeting_status_values`). |
 
 ### Reliability & data safety
 
