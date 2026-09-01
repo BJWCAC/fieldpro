@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-09-01
-Current live version: v401
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=401
+Current live version: v402
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=402
 ```
 
 ---
@@ -35,7 +35,8 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
-| v401 | #291 | **WO From / To date pickers and a Today button** — the list was still empty because Zoho's window was not something the technician could set. Default range is 14 days back through 60 days forward; Today snaps both pickers to today and refreshes that day. Changing dates sends `start`/`end` to `get_meetings`. Meetings with no Host still list. Host email local-part matches the technician picker. |
+| v402 | #293 | **Work this WO / Open assets leave the WO tab; list is the setup-screen technician** — Open assets stayed on WO when a deal was found (`stayOnTab` was `wo`). Work this WO could snap back to WO if disabling the button retargeted the click to the card. Both now go to Capture / Assets and ignore a same-tick card click. Host filter is the technician from the setup prompt / Settings (`A.technician`); a blank Host no longer lists for everyone. |
+| v401 | #292 | **WO From / To date pickers and a Today button** — the list was still empty because Zoho's window was not something the technician could set. Default range is 14 days back through 60 days forward; Today snaps both pickers to today and refreshes that day. Changing dates sends `start`/`end` to `get_meetings`. Host email local-part matches the technician picker. |
 | v400 | #291 | **WO list is every Active meeting, not only today** — Zoho Meetings GET without `start`/`end` returns the current day only (often HTTP 204), so Active + Refresh looked empty unless something was scheduled today. Proxy build **292** asks for about a year back and a year forward, tries GET `start`/`end` and Search, and keeps the mode that actually returned rows (empty/204 is not treated as done). Host matching accepts a first-name picker against `First Last`. A blank Meeting Status still shows when Active is selected. Empty states say how many meetings loaded and whether Host or status hid them. Opening WO with an empty cache auto-refreshes. |
 | v399 | #290 | **WO tab** — dedicated Work Order tab that *is* the Zoho Meetings record. Host is the technician (existing picker). Meeting Status defaults to Active and is selectable. List is start-of-day first. Deal / account / contact / meeting Zoho links. **Work this WO** selects the deal and opens Capture. Does not create meetings; Deals → Capture still works. Result 1 / drawdown / cal cert modules (tied to the asset) are a later slice. `node tests/wo-tab.js`. Proxy build **291** (`get_meetings`, `get_meeting_status_values`). |
 
