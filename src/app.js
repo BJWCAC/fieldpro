@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:["Active"],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="401";
+var FP_VERSION="402";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2511,7 +2511,7 @@ function woMatchesTechnician(m,techName){
   var tech=woNormalizeName(techName);
   if(!tech)return false;
   var host=woNormalizeName(woHostName(m));
-  if(!host)return true;
+  if(!host)return false;
   if(host===tech)return true;
   var ht=woNameTokens(host),tt=woNameTokens(tech);
   if(!ht.length||!tt.length)return false;
@@ -2630,7 +2630,7 @@ function woFilterExplain(rows,tech,statuses,from,to){
       }
     }
   });
-  if(!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. None have Host "+(tech||"(none)")+". The technician picker must match the meeting Host (a first name still matches First Last). Meetings with no Host still list."};
+  if(!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. None have Host "+(tech||"(none)")+". The technician on the setup screen must match the meeting Host (a first name still matches First Last)."};
   if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for Host "+tech+", but none in "+(statuses||[]).join(", ")+". Tap another Meeting Status chip — Active is a status, not a date."};
   if(!dateHits){
     var lab=woRangeLabel(from,to);
@@ -2682,8 +2682,8 @@ function normalizeZohoMeeting(rec,extras){
     venue:woLookupName(venue),
     description:typeof (rec&&rec.Description)==="string"?rec.Description:"",
     status:woLookupName(rec&&(rec.Meeting_Status||rec.Event_Status||rec.Status)),
-    host:woLookupName(rec&&rec.Host),
-    hostId:woLookupId(rec&&rec.Host),
+    host:woLookupName(rec&&(rec.Host||rec.$host)),
+    hostId:woLookupId(rec&&(rec.Host||rec.$host)),
     contact:woLookupName(rec&&rec.Who_Id),
     contactId:woLookupId(rec&&rec.Who_Id),
     whatId:woLookupId(rec&&rec.What_Id),
@@ -2874,28 +2874,35 @@ function toggleWoStatus(status){
   saveWoStatusFilter(next);
   renderWorkOrders();
 }
+function woActionTab(opts){
+  opts=opts||{};
+  if(opts.goAssets)return "assets";
+  if(opts.goCapture)return "capture";
+  return "wo";
+}
 function selectWorkOrder(id,opts){
   opts=opts||{};
-  var m=(A.workOrders||[]).find(function(x){return x.id===id;});
+  if(A._woNavLock&&!opts.goCapture&&!opts.goAssets)return;
+  var m=(A.workOrders||[]).find(function(x){return String(x.id)===String(id);});
   if(!m)return;
   A.wo=m;
+  var tab=woActionTab(opts);
   if(m.dealId){
-    var d=(A.deals||[]).find(function(x){return x.id===m.dealId;});
+    var d=(A.deals||[]).find(function(x){return String(x.id)===String(m.dealId);});
     if(d){
-      selectDeal(m.dealId,{stayOnTab:opts.goCapture?"capture":"wo",fromWo:true});
+      selectDeal(m.dealId,{stayOnTab:tab,fromWo:true});
       A.wo=m;
-      updateDealUI();
-      if(opts.goCapture)go("capture");
-      else renderWorkOrders();
-      return;
+    }else{
+      A.sel={id:String(m.dealId),Deal_Name:m.dealName||"",Account_Name:m.accountName||"",Account_Id:m.accountId||"",Stage:"",Amount:null,Description:"",Owner:"",Closing_Date:null};
     }
-    A.sel={id:m.dealId,Deal_Name:m.dealName||"",Account_Name:m.accountName||"",Account_Id:m.accountId||"",Stage:"",Amount:null,Description:"",Owner:"",Closing_Date:null};
-    updateDealUI();
-  }else{
-    updateDealUI();
   }
-  if(opts.goAssets){go("assets");return;}
-  if(opts.goCapture){go("capture");return;}
+  updateDealUI();
+  if(tab!=="wo"){
+    A._woNavLock=true;
+    go(tab);
+    setTimeout(function(){A._woNavLock=false;},0);
+    return;
+  }
   renderWorkOrders();
 }
 function workThisWo(id){selectWorkOrder(id,{goCapture:true});}
@@ -3023,8 +3030,8 @@ function renderWorkOrders(){
       html+="</div>";
       if(m.description)html+="<div class='d-desc'>"+esc(m.description)+"</div>";
       html+="<div class='g2' style='margin-top:10px'>";
-      html+="<button type='button' class='bp bfull' onclick='event.stopPropagation();workThisWo(\""+esc(m.id)+"\")'>Work this WO</button>";
-      html+="<button type='button' class='bg bfull' onclick='event.stopPropagation();openWoAssets(\""+esc(m.id)+"\")'>Open assets</button>";
+      html+="<button type='button' class='bp bfull' data-no-busy onclick='event.preventDefault();event.stopPropagation();if(event.stopImmediatePropagation)event.stopImmediatePropagation();workThisWo(\""+esc(m.id)+"\")'>Work this WO</button>";
+      html+="<button type='button' class='bg bfull' data-no-busy onclick='event.preventDefault();event.stopPropagation();if(event.stopImmediatePropagation)event.stopImmediatePropagation();openWoAssets(\""+esc(m.id)+"\")'>Open assets</button>";
       html+="</div>";
     }
     html+="</div>";

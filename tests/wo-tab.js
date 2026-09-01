@@ -49,6 +49,7 @@ eval(sliceFn("woAttachDealAccount","normalizeZohoMeeting"));
 eval(sliceFn("normalizeZohoMeeting","woDefaultStatusFilter"));
 eval(sliceFn("woDefaultStatusFilter","woStatusFilterFromStorage"));
 eval(sliceFn("collectWorkOrderStatuses","formatWoWhen"));
+eval(sliceFn("woActionTab","selectWorkOrder"));
 
 check("Host name comes off the Host lookup",woLookupName({id:"u1",name:"Quintin"})==="Quintin");
 check("Host object can use email when name is blank",woLookupName({id:"u1",email:"quintin@shop.com"})==="quintin@shop.com");
@@ -68,7 +69,7 @@ check("Host match uses the technician picker name",woMatchesTechnician(quintin,"
 check("Host match ignores extra spaces",woMatchesTechnician(quintin," quintin ")===true);
 check("first-name picker matches Host First Last",woMatchesTechnician({host:"Quintin Smith"},"Quintin")===true);
 check("Host email local-part matches first name",woMatchesTechnician({host:"quintin@shop.com"},"Quintin")===true);
-check("blank Host still lists for the signed-in technician",woMatchesTechnician({host:""},"Quintin")===true);
+check("blank Host is not the signed-in technician",woMatchesTechnician({host:""},"Quintin")===false);
 check("Owner-like names do not count — Host must match",woMatchesTechnician({host:"Dispatcher",owner:"Quintin"},"Quintin")===false);
 check("no technician selected matches nothing",woMatchesTechnician(quintin,"")===false);
 
@@ -122,6 +123,9 @@ var statusMiss=woFilterExplain([completed],"Quintin",["Active"]);
 check("status miss says Active is not a date",statusMiss.detail.indexOf("not a date")>=0);
 var dateMiss=woFilterExplain([nextMonth],"Quintin",["Active"],"2026-09-01","2026-09-01");
 check("date miss names the range",dateMiss.title.indexOf("date")>=0&&dateMiss.detail.indexOf("Today")>=0);
+check("Work this WO goes to Capture",woActionTab({goCapture:true})==="capture");
+check("Open assets goes to Assets",woActionTab({goAssets:true})==="assets");
+check("opening a WO stays on WO",woActionTab({})==="wo");
 
 if(failed){
   console.error(failed+" failed, "+passed+" passed");
