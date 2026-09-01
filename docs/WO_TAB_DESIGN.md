@@ -4,7 +4,7 @@ Ideas for a **WO** (Work Order) tab. This is a design draft, not a build plan th
 
 ```text
 Last updated: 2026-09-01
-Status: Ideas for review — two list rules are accepted (technician filter, newest-first)
+Status: Ideas for review — two list rules are accepted (technician filter, start-of-day first)
 Related: docs/CAPSTONE_DEVELOPMENT_RULES.md (Future tab rule)
 ```
 
@@ -24,7 +24,7 @@ That last sentence is the load-bearing one: the work order is not a new kind of 
 
 - Technicians open this tab the way they open the Zoho calendar: **what is scheduled for me today**.
 - The list uses the **existing technician selection** (`A.technician` / Settings / boot prompt, from `Internal_Assets.Users`). It is not a second login.
-- Meetings are listed in **date and time order, most recent first** (start datetime descending).
+- Meetings are listed in **date and time order, start of the day first** (start datetime ascending). The earliest meeting of the day is at the top, then the rest in schedule order.
 
 ---
 
@@ -101,7 +101,7 @@ This tab is the technician's **calendar for the day**, not a second Deals list.
 
 Same card language as Deals: account on top, meeting title as the name, meta chips for when, venue, deal stage, assigned technician. Day headers (`Today`, `Tomorrow`, `Mon Sep 1`) so a 4pm yesterday and an 8am today do not blend. Badge = count in the current window after the technician filter.
 
-**Sort (accepted):** `Start_DateTime` descending — latest date, then latest time, at the top. A 2pm today sits above an 8am today; tomorrow sits above today. One-line flip to ascending if a field day wants morning-first inside *Today*.
+**Sort (accepted):** `Start_DateTime` ascending — start of the day first, then the rest in schedule order. An 8am today sits above a 2pm today; today sits above tomorrow. This is the working calendar, not a newest-first inbox.
 
 **Technician filter (accepted):** default list is meetings scheduled for the signed-in technician. Reuse `A.technician` (saved in `fp_technician`). Changing the picker in Settings or the boot prompt refilters immediately. No technician selected → do not show everyone else's calendar; show the same empty state as Capture's missing context ("Select a technician to see your scheduled work") and the existing technician prompt. An **All technicians** chip can exist for admin later; it is not the default.
 
@@ -113,7 +113,7 @@ If the picklist says `Brad White` and Zoho Owner is `Bradley White`, the row wil
 
 Fetch: pull meetings for the date window with `Owner` (and Participants) on the record, then filter on the device. A later improvement can resolve the picklist name to a CRM user id and use Zoho criteria so the proxy returns a smaller page.
 
-Default date window stays **Today** (the calendar they already look at). Upcoming and a short look-back remain available as chips; sort is still newest-first inside whatever window is on.
+Default date window stays **Today** (the calendar they already look at). Upcoming and a short look-back remain available as chips; sort is still start-of-day first inside whatever window is on.
 
 Refresh is its own button, like Deals. Cache in `localStorage` (`fp_work_orders`) so the list opens offline the way deals already do. Map can keep its own upcoming-only, location-required view; do not make the WO list depend on geocoding.
 
@@ -176,7 +176,7 @@ No code in this PR. When an approach is accepted, the first slice is roughly:
 
 1. **`zoho-proxy`**: a `get_meetings` (or widened `get_map_events`) that returns `Who_Id`, Participants, Description, **Owner**, and does not require coordinates. Keep the Map action as the upcoming/located subset, or share one fetch and filter in each tab.
 2. **`FieldPro.html`**: tab button, pane, workflow card, help box, list + record layout. Cache-bust + `FP_VERSION`.
-3. **`src/app.js`**: `A.wo`, load/cache/render, filter by `A.technician` against Owner / user Participants, sort by `Start_DateTime` descending, `selectWorkOrder()` that also calls `selectDeal`, RBAC toggle (`RBAC_TAB_TOGGLES`), `go('wo')`. Changing `saveTechnicianSetting()` must re-render the WO list.
+3. **`src/app.js`**: `A.wo`, load/cache/render, filter by `A.technician` against Owner / user Participants, sort by `Start_DateTime` ascending, `selectWorkOrder()` that also calls `selectDeal`, RBAC toggle (`RBAC_TAB_TOGGLES`), `go('wo')`. Changing `saveTechnicianSetting()` must re-render the WO list.
 4. **Header / Capture**: show meeting context when `A.wo` is set. Do not require it.
 5. **Docs**: Future tab checklist, changelog, this file marked accepted.
 
@@ -200,7 +200,7 @@ History `meetingId` and the asset-checkbox / certificate blocks are a second sli
 |------|------|
 | Technician filter | Required. Use the existing technician selection. Default list = that technician's meetings only. No technician selected → prompt, do not show the full shop calendar. |
 | Match field | `Owner.name` (and user Participants) against the `Internal_Assets.Users` display name. Not a new login. |
-| Sort | Date and time, **most recent first** (`Start_DateTime` descending). |
+| Sort | Date and time, **start of the day first** (`Start_DateTime` ascending). Earliest meeting on top, then in schedule order. |
 | Day view | This tab is their calendar for the day. Default window **Today**. |
 
 ## Open questions (need your call)
@@ -214,4 +214,4 @@ History `meetingId` and the asset-checkbox / certificate blocks are a second sli
 7. **Tab vs under Deals** — confirm you still want a dedicated **WO** tab (Approach A) rather than Approach C.
 8. **Owner vs calendar invite** — when a dispatcher owns the meeting and the tech is only invited, should that row still show (current yes: match Participants too)?
 
-The recommendation, if you do not want to think about it further: **Approach A, one WO per meeting, assets listed from the deal, certificates later, walk-ins still allowed without a WO, default list = today for the signed-in technician, newest first, contact = `Who_Id`.**
+The recommendation, if you do not want to think about it further: **Approach A, one WO per meeting, assets listed from the deal, certificates later, walk-ins still allowed without a WO, default list = today for the signed-in technician, start-of-day first, contact = `Who_Id`.**

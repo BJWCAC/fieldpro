@@ -5,7 +5,7 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 Current live version: v398
 Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=398
 ```
@@ -327,7 +327,7 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
-| **WO tab (Work Order)** | Asked for as a tab that holds the Zoho meeting itself — schedule plus links to deal, account, and contact — because a deal can have several meetings and the work (calibration cert, Result 1, drawdown) happens on a meeting. Design draft in `docs/WO_TAB_DESIGN.md`. Accepted list rules (2026-09-01): reuse the existing technician selection so the list is that tech's calendar for the day; sort date/time most recent first. Recommended: the meeting *is* the WO (no new Zoho module); Capture still allowed without one. Waiting on: every meeting vs some types; `Who_Id` vs Participants; look-back window; walk-in with no meeting; whether certificates are existing Zoho/PDF templates; one WO per meeting vs per asset; dedicated tab vs meetings under Deals; Owner-only vs invited Participant. |
+| **WO tab (Work Order)** | Asked for as a tab that holds the Zoho meeting itself — schedule plus links to deal, account, and contact — because a deal can have several meetings and the work (calibration cert, Result 1, drawdown) happens on a meeting. Design draft in `docs/WO_TAB_DESIGN.md`. Accepted list rules (2026-09-01): reuse the existing technician selection so the list is that tech's calendar for the day; sort date/time start-of-day first (earliest meeting on top, then in order). Recommended: the meeting *is* the WO (no new Zoho module); Capture still allowed without one. Waiting on: every meeting vs some types; `Who_Id` vs Participants; look-back window; walk-in with no meeting; whether certificates are existing Zoho/PDF templates; one WO per meeting vs per asset; dedicated tab vs meetings under Deals; Owner-only vs invited Participant. |
 | **Resend API key for picklist request emails** | Add `RESEND_API_KEY` on Netlify; optional `PICKLIST_REQUEST_FROM` (verified domain). Default to: `bradwhite@calibrationsandcontrols.com`. Until set, requests queue in Pending Sync. |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
