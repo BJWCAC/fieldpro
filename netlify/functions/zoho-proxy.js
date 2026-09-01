@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "290";
+var PROXY_BUILD = "291";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -649,6 +649,124 @@ exports.handler = async function(event) {
         return { statusCode: 200, headers: h, body: JSON.stringify(eventJson) };
       } catch (ee) {
         return { statusCode: eventResult.status, headers: h, body: eventResult.body };
+      }
+    }
+
+    if (data.action === "get_meeting_status_values") {
+      async function meetingFieldsForModule(mod) {
+        return req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/settings/fields?module=" + encodeURIComponent(mod),
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+      }
+      function pickMeetingStatusField(body) {
+        var rows = [];
+        try { rows = (JSON.parse(body).fields || []); } catch (e) { return null; }
+        var i, f, api, label;
+        for (i = 0; i < rows.length; i++) {
+          f = rows[i] || {};
+          api = String(f.api_name || "");
+          label = String(f.field_label || f.display_label || "");
+          if (api === "Meeting_Status" || /^meeting status$/i.test(label)) return f;
+        }
+        for (i = 0; i < rows.length; i++) {
+          f = rows[i] || {};
+          api = String(f.api_name || "");
+          if (api === "Event_Status" || api === "Status") return f;
+        }
+        return null;
+      }
+      var statusMods = ["Meetings", "Events"];
+      var statusMod = "";
+      var statusField = null;
+      var statusFieldsResult = null;
+      for (var smi = 0; smi < statusMods.length; smi++) {
+        statusFieldsResult = await meetingFieldsForModule(statusMods[smi]);
+        if (statusFieldsResult.status >= 200 && statusFieldsResult.status < 300) {
+          statusField = pickMeetingStatusField(statusFieldsResult.body);
+          if (statusField) { statusMod = statusMods[smi]; break; }
+        }
+      }
+      var statusValues = [];
+      if (statusField && Array.isArray(statusField.pick_list_values)) {
+        statusField.pick_list_values.forEach(function (opt) {
+          if (!opt || opt.type === "unused") return;
+          var name = String(opt.display_value || opt.actual_value || "").trim();
+          if (!name || name === "-None-") return;
+          if (statusValues.indexOf(name) < 0) statusValues.push(name);
+        });
+      }
+      return {
+        statusCode: 200,
+        headers: h,
+        body: JSON.stringify({
+          ok: true,
+          module: statusMod || "Meetings",
+          field_api_name: statusField ? statusField.api_name : "Meeting_Status",
+          statuses: statusValues
+        })
+      };
+    }
+
+    if (data.action === "get_meetings") {
+      var woPage = data.page || 1;
+      var woModule = data.crm_module || "Meetings";
+      var woStatusField = data.status_field || "Meeting_Status";
+
+      function meetingListFields(mod, statusField) {
+        var title = mod === "Events" ? "Event_Title" : "Meeting_Title";
+        var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Host", "Venue", "Location", "Description", "$se_module", "$event_cancelled"];
+        if (statusField) parts.push(statusField);
+        return parts.join(",");
+      }
+
+      function fetchMeetingsPage(mod, statusField) {
+        return req({
+          hostname: "www.zohoapis.com",
+          path: "/crm/v3/" + mod + "?per_page=200&page=" + woPage + "&fields=" + encodeURIComponent(meetingListFields(mod, statusField)),
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+      }
+
+      var woResult = await fetchMeetingsPage(woModule, woStatusField);
+      if (!data.crm_module && woPage === 1 && woResult.status >= 400) {
+        var eventsTry = await fetchMeetingsPage("Events", woStatusField);
+        if (eventsTry.status >= 200 && eventsTry.status < 300) {
+          woResult = eventsTry;
+          woModule = "Events";
+        }
+      }
+      if (woResult.status >= 400 && woStatusField) {
+        var noStatus = await fetchMeetingsPage(woModule, "");
+        if (noStatus.status >= 200 && noStatus.status < 300) {
+          woResult = noStatus;
+          woStatusField = "";
+        } else if (woStatusField !== "Event_Status") {
+          var altStatus = await fetchMeetingsPage(woModule, "Event_Status");
+          if (altStatus.status >= 200 && altStatus.status < 300) {
+            woResult = altStatus;
+            woStatusField = "Event_Status";
+          }
+        }
+      }
+      if (woResult.status < 200 || woResult.status >= 300) {
+        return { statusCode: woResult.status, headers: h, body: woResult.body };
+      }
+      try {
+        var woJson = JSON.parse(woResult.body);
+        woJson.data = (woJson.data || []).map(function (row) {
+          if (!row.Meeting_Title && row.Event_Title) row.Meeting_Title = row.Event_Title;
+          if (!row.Meeting_Status && row.Event_Status) row.Meeting_Status = row.Event_Status;
+          return row;
+        });
+        woJson.__fp_module = woModule;
+        woJson.__fp_status_field = woStatusField || "Meeting_Status";
+        return { statusCode: 200, headers: h, body: JSON.stringify(woJson) };
+      } catch (we) {
+        return { statusCode: woResult.status, headers: h, body: woResult.body };
       }
     }
 

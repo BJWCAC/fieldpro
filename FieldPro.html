@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=398"/>
+<link rel="stylesheet" href="src/styles.css?v=399"/>
 
 </head>
 <body autocomplete="off">
@@ -34,6 +34,7 @@
     <button onclick="newProject()" style="background:var(--amber);color:#001a18;border:none;border-radius:4px;padding:4px 10px;font-size:11px;font-family:Barlow Condensed,sans-serif;font-weight:700;cursor:pointer">+ NEW</button>
   </div>
   <div class="tab on" id="t-deals" onclick="go('deals')">Deals <span class="tbadge" id="tb-deals" style="display:none"></span></div>
+  <div class="tab" id="t-wo" onclick="go('wo')">WO <span class="tbadge" id="tb-wo" style="display:none"></span></div>
   <div class="tab" id="t-map" onclick="go('map')">Map</div>
   <div class="tab" id="t-capture" onclick="go('capture')">Capture <span class="tbadge" id="tb-photos" style="display:none"></span></div>
   <div class="tab" id="t-assets" onclick="go('assets')">Assets</div>
@@ -90,6 +91,48 @@
     <div id="deal-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
   </div>
   <div id="deals-list"></div>
+</div>
+
+<!-- WO -->
+<div class="pane" id="p-wo">
+  <details class="help-box" data-help-id="wo-tab">
+    <summary>Help: WO</summary>
+    <div class="help-box-body">
+      <p>The WO tab is the Zoho <strong>meeting</strong> — the same record as the Meetings module. One work order per meeting. Host is the technician. Meeting Status defaults to Active.</p>
+      <ul>
+        <li>Select your technician (same picker as Settings) to see meetings hosted by you.</li>
+        <li>Tap <strong>Refresh from Zoho</strong> so the list is current.</li>
+        <li>Use <strong>Meeting Status</strong> to include statuses other than Active.</li>
+        <li>Meetings are listed start of day first, then in time order.</li>
+        <li>Open a WO to see deal, account, and contact links. <strong>Work this WO</strong> selects that deal and opens Capture.</li>
+        <li>Work without a meeting still uses Deals → Capture. This tab does not create meetings.</li>
+      </ul>
+    </div>
+  </details>
+  <div class="workflow-card">
+    <div class="stitle">WO Workflow</div>
+    <ol>
+      <li>Sign in as the technician (Host on the meeting).</li>
+      <li>Refresh meetings from Zoho.</li>
+      <li>Leave Meeting Status on Active, or add other statuses.</li>
+      <li>Open today's first meeting — earliest start time is at the top.</li>
+      <li>Work this WO to load the deal and go to Capture.</li>
+    </ol>
+  </div>
+  <div id="wo-no-tech-bar" class="no-deal-bar" style="display:none"><span>Select a technician to see your scheduled work</span><button type="button" class="bg bsm" onclick="openTechnicianPrompt()">PICK TECHNICIAN</button></div>
+  <div class="g2" style="margin-bottom:6px">
+    <button class="bp bfull" id="wo-ref-btn" type="button" onclick="loadWorkOrders()">Refresh from Zoho</button>
+    <button class="bg bfull" type="button" onclick="resetWorkOrdersUI()">Unstick / reset screen</button>
+  </div>
+  <div id="wo-err" class="err-box" style="display:none"></div>
+  <div id="wo-sync-msg" style="font-size:11px;color:var(--dim);margin-bottom:10px;min-height:16px">Tap Refresh to load meetings from Zoho</div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Meeting Status</div>
+    <div class="wo-status-chips" id="wo-status-chips"></div>
+    <input type="text" id="wo-search" placeholder="Search meetings..." oninput="renderWorkOrders()" data-no-auto-advance style="margin-top:8px"/>
+  </div>
+  <div id="wo-count" style="font-size:11px;color:var(--dim);margin-bottom:8px"></div>
+  <div id="wo-list"></div>
 </div>
 
 <!-- CAPTURE -->
@@ -1113,8 +1156,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=398"></script>
-<script src="src/app.js?v=398"></script>
+<script src="src/accounts-map.js?v=399"></script>
+<script src="src/app.js?v=399"></script>
 
 </body>
 </html>

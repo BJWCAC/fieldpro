@@ -11,6 +11,7 @@ Every change must be reviewed against the whole program, not only the screen bei
 When a new behavior is added to one part of CapStone, ask whether the same behavior or pattern should also apply to:
 
 - Deals
+- WO
 - Capture
 - Assets
 - Report
@@ -39,6 +40,8 @@ Do not add a new tab as a one-off design. New tabs should feel like the existing
 
 For the planned **Inbox** tab (Plaud Note Pro / unassigned voice), read `docs/PLAUD_INTEGRATION.md` before implementation.
 
+For the **WO** (Work Order) tab, read `docs/WO_TAB_DESIGN.md`. The WO *is* the Zoho Meetings record (Host = technician, Meeting Status defaults to Active). Any change to Host matching, status filtering, or start-of-day sort must run `node tests/wo-tab.js`.
+
 ## Consistency checklist for every PR
 
 Before a PR is considered complete, check:
@@ -48,6 +51,7 @@ Before a PR is considered complete, check:
 3. Does this change affect Inbox?
 4. Does this change affect Report?
 5. Does this change affect Deals?
+5a. Does this change affect WO?
 6. Does this change affect History?
 7. Does this change affect Settings?
 8. Does this change need Pending Sync support?
@@ -221,6 +225,7 @@ Every CapStone tab that collects user work must **autosave draft state** so swit
 - **On background / page hide** — save capture + asset drafts (capture also writes History when possible).
 - **On cold start** — offer restore via confirm dialog (`maybeRestoreCaptureDraft`, `maybeRestoreAssetDraft`).
 - **New tabs** — add `build*Draft`, `save*DraftNow`, `schedule*DraftSave`, `*DraftHasWork`, and wire into `go()` + visibility/pagehide. Document the storage key in this section.
+- **WO** — first slice does not collect field notes (list + meeting record only). Status chips persist in `fp_wo_status_filter`; the meeting list caches in `fp_work_orders`.
 
 ## Field auto-advance rules (all tabs)
 
@@ -535,6 +540,7 @@ node tests/customer-copy-redaction.js
 node tests/parts-lookup.js
 node tests/pdf-layout.js
 node tests/copy-capture-to-deals.js
+node tests/wo-tab.js
 git diff --check
 ```
 

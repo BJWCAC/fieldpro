@@ -93,6 +93,12 @@ body.light .pcard{background:#fff;border-color:#b2ddd6}
 .asset-gps-slot:empty{display:none}
 .asset-gps-slot .asset-gps-cell{width:100%;min-width:0;box-sizing:border-box}
 .asset-gps-slot .asset-gps-cell input{width:100%;box-sizing:border-box}
+.wo-status-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.wo-status-chip{border:1px solid var(--bdr);background:var(--card);color:var(--text);border-radius:14px;padding:4px 10px;font-size:12px;font-family:"Barlow Condensed",sans-serif;font-weight:700;cursor:pointer}
+.wo-status-chip.on{border-color:var(--amber);background:#0a2020;color:var(--amber)}
+body.light .wo-status-chip.on{background:#d0f0ea;color:#0f2420}
+.wo-link-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.wo-day-hdr{font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.04em;text-transform:uppercase;margin:12px 0 6px}
 .deal-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .deal-card.sel{border-color:var(--amber);background:#0a2020}
 body.light .deal-card{background:#fff}

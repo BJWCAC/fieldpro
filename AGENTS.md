@@ -36,6 +36,7 @@ There is no test framework. Per `docs/CAPSTONE_DEVELOPMENT_RULES.md`, the standa
 - `node tests/day-night-buttons.js` (plain Node script; required for any change to `.bg` / `.bw` surface classes or day/night button styling)
 - `node tests/pdf-layout.js` (plain Node script; required for any change to `buildPDF()` pagination or first-page layout)
 - `node tests/copy-capture-to-deals.js` (plain Node script; required for any change to copy-visit-to-other-deals or History blob refcounting)
+- `node tests/wo-tab.js` (plain Node script; required for any change to WO Host matching, Meeting Status filtering, or start-of-day sort)
 - `git diff --check`
 
 ### Versioning gotcha
