@@ -2632,7 +2632,11 @@ function woFilterExplain(rows,tech,statuses,from,to){
   });
   if(!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. None have Host "+(tech||"(none)")+". The technician picker must match the meeting Host (a first name still matches First Last). Meetings with no Host still list."};
   if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for Host "+tech+", but none in "+(statuses||[]).join(", ")+". Tap another Meeting Status chip — Active is a status, not a date."};
-  if(!dateHits)return{title:"No meetings in this date range",detail:statusHits+" match Host and status, but none between "+woRangeLabel(from,to)+". Change From / To, or tap Today."};
+  if(!dateHits){
+    var lab=woRangeLabel(from,to);
+    var when=(from&&to&&from===to)?"none on "+lab:"none between "+lab;
+    return{title:"No meetings in this date range",detail:statusHits+" match Host and status, but "+when+". Change From / To, or tap Today."};
+  }
   return{title:"No meetings",detail:""};
 }
 function woAttachDealAccount(m,deals){
