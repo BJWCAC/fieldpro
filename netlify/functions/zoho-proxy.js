@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "291";
+var PROXY_BUILD = "292";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -715,6 +715,19 @@ exports.handler = async function(event) {
       var woModule = data.crm_module || "Meetings";
       var woStatusField = data.status_field || "Meeting_Status";
 
+      function woIso(d) {
+        return d.toISOString().replace(/\.\d{3}Z$/, "+00:00");
+      }
+      var woNow = new Date();
+      var woStart = data.start ? new Date(data.start) : new Date(woNow.getTime());
+      var woEnd = data.end ? new Date(data.end) : new Date(woNow.getTime());
+      if (!data.start) woStart.setFullYear(woStart.getFullYear() - 1);
+      if (!data.end) woEnd.setFullYear(woEnd.getFullYear() + 1);
+      if (isNaN(woStart.getTime())) woStart = new Date(woNow.getTime() - 365 * 24 * 3600 * 1000);
+      if (isNaN(woEnd.getTime())) woEnd = new Date(woNow.getTime() + 365 * 24 * 3600 * 1000);
+      var woStartIso = woIso(woStart);
+      var woEndIso = woIso(woEnd);
+
       function meetingListFields(mod, statusField) {
         var title = mod === "Events" ? "Event_Title" : "Meeting_Title";
         var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Host", "Venue", "Location", "Description", "$se_module", "$event_cancelled"];
@@ -722,35 +735,97 @@ exports.handler = async function(event) {
         return parts.join(",");
       }
 
-      function fetchMeetingsPage(mod, statusField) {
+      function fetchMeetingsPage(mod, statusField, rangeMode) {
+        var fields = encodeURIComponent(meetingListFields(mod, statusField));
+        var path = "/crm/v3/" + mod + "?per_page=200&page=" + woPage + "&fields=" + fields;
+        if (rangeMode === "start_end") {
+          path += "&start=" + encodeURIComponent(woStartIso) + "&end=" + encodeURIComponent(woEndIso);
+        } else if (rangeMode === "search") {
+          var crit = encodeURIComponent("(Start_DateTime:between:" + woStartIso + "," + woEndIso + ")");
+          path = "/crm/v3/" + mod + "/search?criteria=" + crit + "&per_page=200&page=" + woPage + "&fields=" + fields;
+        }
         return req({
           hostname: "www.zohoapis.com",
-          path: "/crm/v3/" + mod + "?per_page=200&page=" + woPage + "&fields=" + encodeURIComponent(meetingListFields(mod, statusField)),
+          path: path,
           method: "GET",
           headers: { "Authorization": "Zoho-oauthtoken " + token }
         });
       }
 
-      var woResult = await fetchMeetingsPage(woModule, woStatusField);
+      function meetingRowCount(result) {
+        if (!result) return -1;
+        if (result.status === 204) return 0;
+        if (result.status < 200 || result.status >= 300) return -1;
+        try {
+          var parsed = JSON.parse(result.body || "{}");
+          return Array.isArray(parsed.data) ? parsed.data.length : 0;
+        } catch (e) {
+          return -1;
+        }
+      }
+
+      function considerMeetingResult(result, rangeMode, best) {
+        if (!result || result.status < 200 || result.status >= 300) return best;
+        result.__fp_range = rangeMode || "none";
+        var n = meetingRowCount(result);
+        if (!best || n > best.count) return { result: result, count: n };
+        return best;
+      }
+
+      async function fetchMeetingsWithFallbacks(mod, statusField) {
+        // Zoho Meetings/Events GET without a usable window is often 204 or
+        // today's rows only. Prefer the mode that actually returns the year
+        // window. Pin data.range on later pages so paging stays on one mode.
+        var pinned = data.range || data.range_mode || "";
+        if (pinned === "none") pinned = "";
+        if (pinned) {
+          var pinnedResult = await fetchMeetingsPage(mod, statusField, pinned);
+          if (pinnedResult.status >= 200 && pinnedResult.status < 300) {
+            pinnedResult.__fp_range = pinned || "none";
+            return pinnedResult;
+          }
+        }
+        var best = null;
+        var last = null;
+        var modes = ["start_end", "search"];
+        for (var mi = 0; mi < modes.length; mi++) {
+          last = await fetchMeetingsPage(mod, statusField, modes[mi]);
+          best = considerMeetingResult(last, modes[mi], best);
+        }
+        if (!best || best.count === 0) {
+          last = await fetchMeetingsPage(mod, statusField, "");
+          best = considerMeetingResult(last, "none", best);
+        }
+        return (best && best.result) || last;
+      }
+
+      var woResult = await fetchMeetingsWithFallbacks(woModule, woStatusField);
       if (!data.crm_module && woPage === 1 && woResult.status >= 400) {
-        var eventsTry = await fetchMeetingsPage("Events", woStatusField);
+        var eventsTry = await fetchMeetingsWithFallbacks("Events", woStatusField);
         if (eventsTry.status >= 200 && eventsTry.status < 300) {
           woResult = eventsTry;
           woModule = "Events";
         }
       }
       if (woResult.status >= 400 && woStatusField) {
-        var noStatus = await fetchMeetingsPage(woModule, "");
+        var noStatus = await fetchMeetingsWithFallbacks(woModule, "");
         if (noStatus.status >= 200 && noStatus.status < 300) {
           woResult = noStatus;
           woStatusField = "";
         } else if (woStatusField !== "Event_Status") {
-          var altStatus = await fetchMeetingsPage(woModule, "Event_Status");
+          var altStatus = await fetchMeetingsWithFallbacks(woModule, "Event_Status");
           if (altStatus.status >= 200 && altStatus.status < 300) {
             woResult = altStatus;
             woStatusField = "Event_Status";
           }
         }
+      }
+      if (woResult.status === 204) {
+        return {
+          statusCode: 200,
+          headers: h,
+          body: JSON.stringify({ data: [], info: { more_records: false }, __fp_module: woModule, __fp_status_field: woStatusField || "Meeting_Status", __fp_range: "empty" })
+        };
       }
       if (woResult.status < 200 || woResult.status >= 300) {
         return { statusCode: woResult.status, headers: h, body: woResult.body };
@@ -764,6 +839,9 @@ exports.handler = async function(event) {
         });
         woJson.__fp_module = woModule;
         woJson.__fp_status_field = woStatusField || "Meeting_Status";
+        woJson.__fp_range = woResult.__fp_range || "start_end";
+        woJson.__fp_start = woStartIso;
+        woJson.__fp_end = woEndIso;
         return { statusCode: 200, headers: h, body: JSON.stringify(woJson) };
       } catch (we) {
         return { statusCode: woResult.status, headers: h, body: woResult.body };
