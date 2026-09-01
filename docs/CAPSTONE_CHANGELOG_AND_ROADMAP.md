@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-09-01
-Current live version: v398
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=398
+Current live version: v399
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=399
 ```
 
 ---
@@ -30,6 +30,12 @@ Related docs (detail, not status):
 ---
 
 ## Completed
+
+### Field workflow
+
+| Version | PR | What shipped |
+|---------|-----|--------------|
+| v399 | — | **WO tab** — dedicated Work Order tab that *is* the Zoho Meetings record. Host is the technician (existing picker). Meeting Status defaults to Active and is selectable. List is start-of-day first. Deal / account / contact / meeting Zoho links. **Work this WO** selects the deal and opens Capture. Does not create meetings; Deals → Capture still works. Result 1 / drawdown / cal cert modules (tied to the asset) are a later slice. `node tests/wo-tab.js`. Proxy build **291** (`get_meetings`, `get_meeting_status_values`). |
 
 ### Reliability & data safety
 
@@ -290,6 +296,7 @@ Related docs (detail, not status):
 | Medium | **Asset category field rollout** | All categories shipped through **Scales &amp; Balances (v307)** — Flow Meter, FOC, Gas Detector, General, Lift Station, Scales &amp; Balances |
 | On hold → **ready** | **Training video** | Track A + Inbox + Stage 0 complete — can schedule when desired |
 | Low | **Optional Capture photo parity** | Only if field testing requests |
+| Later | **WO: Result 1 / drawdown / cal cert on the meeting** | Existing Zoho modules tied to the asset. Show on the open WO after the list/record slice. |
 
 ---
 
@@ -327,7 +334,7 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
-| **WO tab (Work Order)** | Asked for as a tab that holds the Zoho meeting itself — schedule plus links to deal, account, and contact — because a deal can have several meetings and the work (calibration cert, Result 1, drawdown) happens on a meeting. Design draft in `docs/WO_TAB_DESIGN.md`. Accepted list rules (2026-09-01): reuse the existing technician selection so the list is that tech's calendar for the day; sort date/time start-of-day first (earliest meeting on top, then in order). Recommended: the meeting *is* the WO (no new Zoho module); Capture still allowed without one. Waiting on: every meeting vs some types; `Who_Id` vs Participants; look-back window; walk-in with no meeting; whether certificates are existing Zoho/PDF templates; one WO per meeting vs per asset; dedicated tab vs meetings under Deals; Owner-only vs invited Participant. |
+| **WO tab — Result modules** | First slice (v399) lists meetings only. Result 1, drawdown, and calibration certificate are existing Zoho modules tied to the asset — fetch and show them on the open WO in a later slice. |
 | **Resend API key for picklist request emails** | Add `RESEND_API_KEY` on Netlify; optional `PICKLIST_REQUEST_FROM` (verified domain). Default to: `bradwhite@calibrationsandcontrols.com`. Until set, requests queue in Pending Sync. |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
@@ -366,3 +373,4 @@ Related docs (detail, not status):
 | v393 | Report prompt gets this visit's instrument identity; three customer-copy gaps close |
 | v394 | Parts Lookup reads the entire capture including photos, then searches the live web |
 | v395 | Customer copies withhold unlabeled replacement part / serial numbers in the service-report body |
+| v399 | WO tab — Meetings as work orders; Host filter; Meeting Status; start-of-day sort |

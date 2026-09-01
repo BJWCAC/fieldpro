@@ -373,9 +373,9 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="398";
-var MIN_ZOHO_PROXY_BUILD=289;
+var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:["Active"],woModule:"Meetings",woStatusField:"Meeting_Status",photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="399";
+var MIN_ZOHO_PROXY_BUILD=291;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1097,10 +1097,10 @@ function el(id){return document.getElementById(id);}
 // admin sees everything; user sees only allowed tabs + settings groups. This hides UI to
 // prevent mistakes/clutter; it is not a hard security boundary (a determined user can bypass
 // via devtools). The Settings tab and Access card always stay reachable to avoid lockout.
-var RBAC_TAB_TOGGLES=[["deals","Deals"],["map","Map"],["capture","Capture"],["assets","Assets"],["ia","IA"],["inbox","Inbox"],["report","Report"],["history","History"]];
-var RBAC_ALL_TABS=["deals","map","capture","assets","ia","inbox","report","history","settings"];
+var RBAC_TAB_TOGGLES=[["deals","Deals"],["wo","WO"],["map","Map"],["capture","Capture"],["assets","Assets"],["ia","IA"],["inbox","Inbox"],["report","Report"],["history","History"]];
+var RBAC_ALL_TABS=["deals","wo","map","capture","assets","ia","inbox","report","history","settings"];
 var RBAC_SETTINGS_GROUPS=[["technician","User / Technician"],["pending","Sync / Pending"],["zoho","Zoho + Save Behavior"],["help","Workflow Help"],["storage","Storage / History"],["troubleshooting","Troubleshooting"],["appearance","Appearance"],["plaud","Plaud / Inbox"],["keysync","Key Sync (Cloud)"],["apikeys","API Keys"],["appinfo","App Info"]];
-var RBAC_DEFAULT_USER_TABS={deals:1,map:1,capture:1,assets:1,ia:1,inbox:1,report:1,history:1};
+var RBAC_DEFAULT_USER_TABS={deals:1,wo:1,map:1,capture:1,assets:1,ia:1,inbox:1,report:1,history:1};
 var RBAC_DEFAULT_USER_SETTINGS={technician:1,pending:1,help:1,appearance:1,appinfo:1};
 var RBAC_DEFAULT_USER_CAPS={destructive:0};
 var RBAC_CAP_TOGGLES=[["destructive","Delete / clear data (Clear All History, Remove Old Photos, Reset App Cache, Clear WorkDrive cache)"]];
@@ -1111,7 +1111,7 @@ function getRole(){try{var r=localStorage.getItem("fp_role");if(r==="admin"||r==
 function isAdmin(){return getRole()==="admin";}
 function setRole(r){try{localStorage.setItem("fp_role",r==="admin"?"admin":"user");}catch(e){}}
 function getUserPerms(){
-  try{var p=JSON.parse(localStorage.getItem("fp_perms")||"null");if(p&&p.tabs&&p.settings)return {tabs:p.tabs,settings:p.settings,caps:Object.assign({},RBAC_DEFAULT_USER_CAPS,p.caps||{})};}catch(e){}
+  try{var p=JSON.parse(localStorage.getItem("fp_perms")||"null");if(p&&p.tabs&&p.settings)return {tabs:Object.assign({},RBAC_DEFAULT_USER_TABS,p.tabs),settings:Object.assign({},RBAC_DEFAULT_USER_SETTINGS,p.settings),caps:Object.assign({},RBAC_DEFAULT_USER_CAPS,p.caps||{})};}catch(e){}
   return {tabs:Object.assign({},RBAC_DEFAULT_USER_TABS),settings:Object.assign({},RBAC_DEFAULT_USER_SETTINGS),caps:Object.assign({},RBAC_DEFAULT_USER_CAPS)};
 }
 function saveUserPerms(p){try{localStorage.setItem("fp_perms",JSON.stringify(p));}catch(e){}}
@@ -1245,7 +1245,7 @@ function go(n){
   if(typeof saveCaptureDraftNow==="function"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
   if(n==="ia")A.assetModule="internal";
   else if(n==="assets")A.assetModule="equipments";
-  ["deals","capture","assets","ia","inbox","report","history","map","settings"].forEach(function(x){
+  ["deals","wo","capture","assets","ia","inbox","report","history","map","settings"].forEach(function(x){
     var paneId=x==="ia"?"p-assets":"p-"+x;
     var p=el(paneId),t=el("t-"+x);
     var on=(x==="assets"||x==="ia")?(n==="assets"||n==="ia"):(x===n);
@@ -1255,6 +1255,7 @@ function go(n){
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="capture"&&typeof updateCaptureStorageWarning==="function")updateCaptureStorageWarning();
   if((n==="assets"||n==="ia")&&typeof renderAssetForm==="function")renderAssetForm();
+  if(n==="wo"&&typeof renderWorkOrders==="function")renderWorkOrders();
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="map"&&typeof initAccountsMapTab==="function")initAccountsMapTab();
@@ -1303,6 +1304,10 @@ function dealHeaderText(d){
 function setHeaderDeal(d){
   var hdn=el("hdr-deal-name");if(!hdn)return;
   var txt=dealHeaderText(d);
+  if(A.wo&&A.wo.title){
+    var when=typeof formatWoWhen==="function"?formatWoWhen(A.wo.start,true):"";
+    txt=(txt?txt+" · ":"")+A.wo.title+(when?" · "+when:"");
+  }
   hdn.textContent=txt;hdn.style.display=txt?"block":"none";
 }
 function updateReportContext(){
@@ -1652,6 +1657,7 @@ function saveTechnicianSetting(v){
   A.technician=v||"";
   try{localStorage.setItem("fp_technician",A.technician);}catch(e){}
   setTechnicianUI();
+  if(typeof renderWorkOrders==="function")renderWorkOrders();
   if(typeof renderKeySyncUI==="function")renderKeySyncUI();
   keySyncAutoPulledForTech="";
   scheduleKeySyncAutoPush();
@@ -1808,6 +1814,7 @@ function bootApp(){
     if(typeof renderHistory==="function")renderHistory();
     try{
       var n=loadDealsFromCache();
+      if(typeof loadWorkOrdersFromCache==="function")loadWorkOrdersFromCache();
       if(sm){sm.textContent=n?n+" deals from cache — tap Refresh to update":"Tap Refresh to load deals from Zoho";sm.style.color="var(--dim)";}
     }catch(e){
       try{localStorage.removeItem("fp_deals");}catch(e2){}
@@ -2276,7 +2283,7 @@ function newProject(){
 }
 function clearCapture(){
   clearCaptureDraft();
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.wo=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -2415,6 +2422,7 @@ function selectDeal(id,opts){
       showToast("This visit is now on the new deal. The earlier History record stays on the first deal. Use Copy to Other Deals to file it on several deals at once.",8000);
     }
   }
+  if(!opts.fromWo)A.wo=null;
   A.sel=d;
   ast().linkMode="deal";
   ast().standaloneAccount=null;
@@ -2445,6 +2453,10 @@ function selectDeal(id,opts){
     go("deals");
     return;
   }
+  if(tab==="wo"){
+    go("wo");
+    return;
+  }
   go("capture");
 }
 function importCSV(input){
@@ -2460,6 +2472,409 @@ function importCSV(input){
   reader.readAsText(file);input.value="";
 }
 function parseCSVLine(l){var res=[],cur="",inQ=false;for(var i=0;i<l.length;i++){var ch=l[i];if(ch==='"')inQ=!inQ;else if(ch===","&&!inQ){res.push(cur);cur="";}else cur+=ch;}res.push(cur);return res;}
+
+
+// WORK ORDERS (Zoho Meetings)
+function woLookupName(v){
+  if(v==null||v==="")return "";
+  if(typeof v==="object")return String(v.name||"").trim();
+  return String(v).trim();
+}
+function woLookupId(v){
+  if(!v)return "";
+  if(typeof v==="object")return String(v.id||"").trim();
+  return String(v).trim();
+}
+function woNormalizeName(s){
+  return String(s||"").trim().replace(/\s+/g," ").toLowerCase();
+}
+function woIsActiveStatus(status){
+  return woNormalizeName(status)==="active";
+}
+function woMeetingStatus(m){
+  if(!m)return "";
+  return String(m.status||"").trim();
+}
+function woHostName(m){
+  if(!m)return "";
+  return String(m.host||"").trim();
+}
+function woMatchesTechnician(m,techName){
+  var tech=woNormalizeName(techName);
+  if(!tech)return false;
+  return woNormalizeName(woHostName(m))===tech;
+}
+function woMatchesStatusFilter(m,selected){
+  var list=selected||[];
+  if(!list.length)return false;
+  var st=woNormalizeName(woMeetingStatus(m));
+  for(var i=0;i<list.length;i++){
+    if(woNormalizeName(list[i])===st)return true;
+  }
+  return false;
+}
+function woStartMs(m){
+  if(!m||!m.start)return 0;
+  var t=Date.parse(m.start);
+  return isNaN(t)?0:t;
+}
+function sortWorkOrdersByStart(rows){
+  return (rows||[]).slice().sort(function(a,b){
+    var d=woStartMs(a)-woStartMs(b);
+    if(d)return d;
+    return String(a.title||"").localeCompare(String(b.title||""));
+  });
+}
+function filterWorkOrders(rows,opts){
+  opts=opts||{};
+  var tech=opts.technician;
+  var statuses=opts.statuses;
+  var q=woNormalizeName(opts.query);
+  return sortWorkOrdersByStart((rows||[]).filter(function(m){
+    if(m&&m.cancelled)return false;
+    if(tech!=null&&tech!==""){if(!woMatchesTechnician(m,tech))return false;}
+    if(statuses&&statuses.length){if(!woMatchesStatusFilter(m,statuses))return false;}
+    if(q){
+      var blob=woNormalizeName([m.title,m.accountName,m.dealName,m.venue,m.host,m.contact,m.status].join(" "));
+      if(blob.indexOf(q)<0)return false;
+    }
+    return true;
+  }));
+}
+function woAttachDealAccount(m,deals){
+  deals=deals||[];
+  var se=String(m.seModule||"");
+  if(se==="Deals"&&m.whatId){
+    m.dealId=m.whatId;
+    m.dealName=m.dealName||m.whatName;
+    for(var i=0;i<deals.length;i++){
+      if(deals[i].id===m.whatId){
+        m.dealName=deals[i].Deal_Name||m.dealName;
+        m.accountId=deals[i].Account_Id||m.accountId;
+        m.accountName=deals[i].Account_Name||m.accountName;
+        break;
+      }
+    }
+  }else if(se==="Accounts"&&m.whatId){
+    m.accountId=m.whatId;
+    m.accountName=m.accountName||m.whatName;
+    var found=null;
+    for(var j=0;j<deals.length;j++){
+      if(deals[j].Account_Id===m.whatId){
+        if(!found||deals[j].Stage==="Active")found=deals[j];
+        if(deals[j].Stage==="Active")break;
+      }
+    }
+    if(found){
+      m.dealId=found.id;
+      m.dealName=found.Deal_Name||"";
+      m.accountName=found.Account_Name||m.accountName;
+    }
+  }
+  return m;
+}
+function normalizeZohoMeeting(rec,extras){
+  extras=extras||{};
+  var venue=rec&&(rec.Venue||rec.Location);
+  var m={
+    id:rec&&rec.id||"",
+    title:String((rec&&(rec.Meeting_Title||rec.Event_Title||rec.Title))||"Meeting").trim()||"Meeting",
+    start:rec&&rec.Start_DateTime||"",
+    end:rec&&rec.End_DateTime||"",
+    venue:woLookupName(venue),
+    description:typeof (rec&&rec.Description)==="string"?rec.Description:"",
+    status:woLookupName(rec&&(rec.Meeting_Status||rec.Event_Status||rec.Status)),
+    host:woLookupName(rec&&rec.Host),
+    hostId:woLookupId(rec&&rec.Host),
+    contact:woLookupName(rec&&rec.Who_Id),
+    contactId:woLookupId(rec&&rec.Who_Id),
+    whatId:woLookupId(rec&&rec.What_Id),
+    whatName:woLookupName(rec&&rec.What_Id),
+    seModule:String((rec&&rec.$se_module)||"").trim(),
+    cancelled:!!(rec&&(rec.$event_cancelled===true||rec.$event_cancelled==="true")),
+    dealId:"",
+    dealName:"",
+    accountId:"",
+    accountName:"",
+    eventModule:extras.eventModule||"Meetings"
+  };
+  return woAttachDealAccount(m,extras.deals||(typeof A!=="undefined"&&A.deals)||[]);
+}
+function woDefaultStatusFilter(){return ["Active"];}
+function woStatusFilterFromStorage(){
+  try{
+    var raw=localStorage.getItem("fp_wo_status_filter");
+    if(!raw)return woDefaultStatusFilter();
+    var p=JSON.parse(raw);
+    if(Array.isArray(p)&&p.length)return p.map(function(s){return String(s);});
+  }catch(e){}
+  return woDefaultStatusFilter();
+}
+function saveWoStatusFilter(list){
+  A.woStatusFilter=list&&list.length?list.slice():woDefaultStatusFilter();
+  try{localStorage.setItem("fp_wo_status_filter",JSON.stringify(A.woStatusFilter));}catch(e){}
+}
+function collectWorkOrderStatuses(rows,extra){
+  var seen={},out=[];
+  function add(s){
+    s=String(s||"").trim();
+    if(!s)return;
+    var k=woNormalizeName(s);
+    if(seen[k])return;
+    seen[k]=true;
+    out.push(s);
+  }
+  add("Active");
+  (extra||[]).forEach(add);
+  (rows||[]).forEach(function(m){add(m&&m.status);});
+  out.sort(function(a,b){
+    if(woIsActiveStatus(a)&&!woIsActiveStatus(b))return -1;
+    if(!woIsActiveStatus(a)&&woIsActiveStatus(b))return 1;
+    return a.localeCompare(b);
+  });
+  return out;
+}
+function formatWoWhen(start,timeOnly){
+  if(!start)return "";
+  var d=new Date(start);
+  if(isNaN(d.getTime()))return String(start);
+  var now=new Date();
+  var sameDay=d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();
+  var t=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  if(timeOnly&&sameDay)return t;
+  if(sameDay)return "Today · "+t;
+  return d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})+" · "+t;
+}
+function woDayKey(start){
+  if(!start)return "";
+  var d=new Date(start);
+  if(isNaN(d.getTime()))return "";
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function woDayLabel(start){
+  if(!start)return "No date";
+  var d=new Date(start);
+  if(isNaN(d.getTime()))return "No date";
+  var now=new Date();
+  if(d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate())return "Today";
+  var tmw=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+  if(d.getFullYear()===tmw.getFullYear()&&d.getMonth()===tmw.getMonth()&&d.getDate()===tmw.getDate())return "Tomorrow";
+  return d.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"});
+}
+function zohoMeetingUrl(id,mod){
+  return "https://crm.zoho.com/crm/tab/"+(mod||A.woModule||"Meetings")+"/"+encodeURIComponent(id||"");
+}
+function zohoDealRecordUrl(id){return "https://crm.zoho.com/crm/tab/Potentials/"+encodeURIComponent(id||"");}
+function zohoAccountRecordUrl(id){return "https://crm.zoho.com/crm/tab/Accounts/"+encodeURIComponent(id||"");}
+function zohoContactRecordUrl(id){return "https://crm.zoho.com/crm/tab/Contacts/"+encodeURIComponent(id||"");}
+function showWoErr(msg){
+  var e=el("wo-err");
+  if(!e)return;
+  if(msg){e.textContent=msg;e.style.display="block";}
+  else{e.textContent="";e.style.display="none";}
+}
+function resetWorkOrdersUI(){
+  var btn=el("wo-ref-btn");if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+  showWoErr("");
+  var sm=el("wo-sync-msg");
+  if(A.workOrders&&A.workOrders.length){
+    if(sm){sm.textContent=A.workOrders.length+" meetings (cached) — tap Refresh to update";sm.style.color="var(--dim)";}
+    renderWorkOrders();
+  }else if(sm){sm.textContent="Tap Refresh to load meetings from Zoho";sm.style.color="var(--dim)";}
+}
+function loadWorkOrdersFromCache(){
+  if(!A.woStatusFilter||!A.woStatusFilter.length)A.woStatusFilter=woStatusFilterFromStorage();
+  try{
+    var raw=localStorage.getItem("fp_work_orders");
+    if(!raw){renderWorkOrders();return 0;}
+    var d=JSON.parse(raw);
+    var rows=Array.isArray(d)?d:(d.meetings||[]);
+    A.workOrders=rows.map(function(r){return woAttachDealAccount(r,A.deals||[]);});
+    A.woModule=d.module||A.woModule||"Meetings";
+    A.woStatusField=d.statusField||A.woStatusField||"Meeting_Status";
+    if(Array.isArray(d.statuses)&&d.statuses.length)A.woStatuses=d.statuses;
+    else A.woStatuses=collectWorkOrderStatuses(A.workOrders,A.woStatuses);
+    renderWorkOrders();
+    return A.workOrders.length;
+  }catch(e){
+    try{localStorage.removeItem("fp_work_orders");}catch(e2){}
+    A.workOrders=[];
+    renderWorkOrders();
+    return 0;
+  }
+}
+function persistWorkOrdersCache(){
+  try{
+    localStorage.setItem("fp_work_orders",JSON.stringify({
+      savedAt:new Date().toISOString(),
+      module:A.woModule||"Meetings",
+      statusField:A.woStatusField||"Meeting_Status",
+      statuses:A.woStatuses||[],
+      meetings:A.workOrders||[]
+    }));
+  }catch(e){}
+}
+function toggleWoStatus(status){
+  var cur=(A.woStatusFilter||[]).slice();
+  var key=woNormalizeName(status);
+  var next=[];
+  var found=false;
+  cur.forEach(function(s){
+    if(woNormalizeName(s)===key)found=true;
+    else next.push(s);
+  });
+  if(!found)next.push(status);
+  if(!next.length)next=woDefaultStatusFilter();
+  saveWoStatusFilter(next);
+  renderWorkOrders();
+}
+function selectWorkOrder(id,opts){
+  opts=opts||{};
+  var m=(A.workOrders||[]).find(function(x){return x.id===id;});
+  if(!m)return;
+  A.wo=m;
+  if(m.dealId){
+    var d=(A.deals||[]).find(function(x){return x.id===m.dealId;});
+    if(d){
+      selectDeal(m.dealId,{stayOnTab:opts.goCapture?"capture":"wo",fromWo:true});
+      A.wo=m;
+      updateDealUI();
+      if(opts.goCapture)go("capture");
+      else renderWorkOrders();
+      return;
+    }
+    A.sel={id:m.dealId,Deal_Name:m.dealName||"",Account_Name:m.accountName||"",Account_Id:m.accountId||"",Stage:"",Amount:null,Description:"",Owner:"",Closing_Date:null};
+    updateDealUI();
+  }else{
+    updateDealUI();
+  }
+  if(opts.goAssets){go("assets");return;}
+  if(opts.goCapture){go("capture");return;}
+  renderWorkOrders();
+}
+function workThisWo(id){selectWorkOrder(id,{goCapture:true});}
+function openWoAssets(id){selectWorkOrder(id,{goAssets:true});}
+async function loadWorkOrders(){
+  var btn=el("wo-ref-btn");if(btn){btn.disabled=true;btn.textContent="Syncing...";}
+  var sm=el("wo-sync-msg");showWoErr("");
+  if(sm){sm.textContent="Connecting to Zoho CRM (20s timeout)...";sm.style.color="var(--dim)";}
+  try{
+    var tokOk=await refreshZohoToken();
+    if(!tokOk)throw new Error(zohoRefreshFailMsg());
+    try{
+      var sr=await zohoProxyFetch({action:"get_meeting_status_values"},ZOHO_FETCH_MS);
+      if(sr.ok){
+        var sj=await sr.json();
+        if(sj.field_api_name)A.woStatusField=sj.field_api_name;
+        if(sj.module)A.woModule=sj.module;
+        if(Array.isArray(sj.statuses)&&sj.statuses.length)A.woStatuses=sj.statuses;
+      }
+    }catch(se){}
+    var all=[],page=1,hasMore=true,crmModule=A.woModule||"Meetings";
+    while(hasMore&&page<=10){
+      var body={action:"get_meetings",page:page,status_field:A.woStatusField||"Meeting_Status"};
+      if(crmModule)body.crm_module=crmModule;
+      var r=await zohoProxyFetch(body,ZOHO_FETCH_MS);
+      if(!r.ok){
+        if(r.status===401){
+          await refreshZohoToken(true);
+          r=await zohoProxyFetch(body,ZOHO_FETCH_MS);
+        }
+        if(!r.ok)throw new Error("Proxy error "+r.status);
+      }
+      var d=await r.json();
+      if(page===1&&d.__fp_module){crmModule=d.__fp_module;A.woModule=crmModule;}
+      if(d.__fp_status_field)A.woStatusField=d.__fp_status_field;
+      (d.data||[]).forEach(function(rec){all.push(normalizeZohoMeeting(rec,{eventModule:A.woModule,deals:A.deals||[]}));});
+      hasMore=!!(d.info&&d.info.more_records);
+      page++;
+      if(sm)sm.textContent="Loading meetings... page "+page+" ("+all.length+" so far)";
+    }
+    A.workOrders=all;
+    A.woStatuses=collectWorkOrderStatuses(all,A.woStatuses);
+    persistWorkOrdersCache();
+    if(sm){
+      sm.textContent=all.length+" meetings loaded — "+new Date().toLocaleTimeString();
+      sm.style.color=all.length?"var(--green)":"var(--amber)";
+    }
+    renderWorkOrders();
+  }catch(e){
+    if(sm){sm.textContent="Zoho error: "+e.message;sm.style.color="var(--red)";}
+    showWoErr("Could not load meetings: "+e.message+". Tap Refresh from Zoho. Cached meetings stay if you already loaded them.");
+    try{
+      var n=loadWorkOrdersFromCache();
+      if(n&&sm){sm.textContent=n+" cached meetings shown — Zoho sync failed above";sm.style.color="var(--amber)";}
+    }catch(e2){}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
+  }
+}
+function renderWorkOrders(){
+  if(!A.woStatusFilter||!A.woStatusFilter.length)A.woStatusFilter=woStatusFilterFromStorage();
+  var tech=(A.technician||"").trim();
+  var noTech=el("wo-no-tech-bar");
+  if(noTech)noTech.style.display=tech? "none":"flex";
+  A.woStatuses=collectWorkOrderStatuses(A.workOrders,A.woStatuses);
+  var chips=el("wo-status-chips");
+  if(chips){
+    chips.innerHTML=(A.woStatuses||[]).map(function(s){
+      var on=woMatchesStatusFilter({status:s},A.woStatusFilter);
+      return "<button type='button' class='wo-status-chip"+(on?" on":"")+"' onclick='toggleWoStatus("+JSON.stringify(s)+")'>"+esc(s)+"</button>";
+    }).join("");
+  }
+  var q=(el("wo-search")||{value:""}).value;
+  var list=el("wo-list");
+  if(!list)return;
+  if(!tech){
+    badge("tb-wo","");
+    var dc0=el("wo-count");if(dc0)dc0.textContent="";
+    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>Select a technician</div><div class='e-sub'>WO shows meetings where Host is the technician signed in on this device.</div></div>";
+    return;
+  }
+  var filtered=filterWorkOrders(A.workOrders,{technician:tech,statuses:A.woStatusFilter,query:q});
+  badge("tb-wo",filtered.length);
+  var dc=el("wo-count");
+  if(dc)dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · Host "+tech+" · "+(A.woStatusFilter||[]).join(", ");
+  if(!filtered.length){
+    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>No meetings</div><div class='e-sub'>"+(A.workOrders&&A.workOrders.length?"None match this Host and Meeting Status. Try another status.":"Tap Refresh from Zoho to load the Meetings module.")+"</div></div>";
+    return;
+  }
+  var html="";
+  var lastDay="";
+  filtered.forEach(function(m){
+    var day=woDayKey(m.start);
+    if(day!==lastDay){
+      html+="<div class='wo-day-hdr'>"+esc(woDayLabel(m.start))+"</div>";
+      lastDay=day;
+    }
+    var sel=A.wo&&A.wo.id===m.id;
+    html+="<div class='deal-card"+(sel?" sel":"")+"' onclick='selectWorkOrder(\""+esc(m.id)+"\")'>";
+    html+="<div class='d-acct'>"+esc(m.accountName||m.whatName||"---")+"</div>";
+    html+="<div class='d-deal'>"+esc(m.title)+"</div>";
+    html+="<div class='d-meta'><span class='stage-pill'>"+esc(m.status||"")+"</span>";
+    html+="<span style='font-size:11px;color:var(--dim)'>"+esc(formatWoWhen(m.start))+"</span>";
+    if(m.host)html+="<span style='font-size:11px;color:var(--dim)'>Host "+esc(m.host)+"</span>";
+    if(m.venue)html+="<span style='font-size:11px;color:var(--dim)'>"+esc(m.venue)+"</span>";
+    html+="</div>";
+    if(m.dealName)html+="<div class='d-desc'>"+esc(m.dealName)+(m.contact?" · "+esc(m.contact):"")+"</div>";
+    else if(m.contact)html+="<div class='d-desc'>"+esc(m.contact)+"</div>";
+    if(sel){
+      html+="<div class='wo-link-row'>";
+      if(m.dealId)html+="<a class='map-popup-link' href='"+esc(zohoDealRecordUrl(m.dealId))+"' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()'>Deal ↗</a>";
+      if(m.accountId)html+="<a class='map-popup-link' href='"+esc(zohoAccountRecordUrl(m.accountId))+"' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()'>Account ↗</a>";
+      if(m.contactId)html+="<a class='map-popup-link' href='"+esc(zohoContactRecordUrl(m.contactId))+"' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()'>Contact ↗</a>";
+      if(m.id)html+="<a class='map-popup-link' href='"+esc(zohoMeetingUrl(m.id,m.eventModule))+"' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()'>Meeting ↗</a>";
+      html+="</div>";
+      if(m.description)html+="<div class='d-desc'>"+esc(m.description)+"</div>";
+      html+="<div class='g2' style='margin-top:10px'>";
+      html+="<button type='button' class='bp bfull' onclick='event.stopPropagation();workThisWo(\""+esc(m.id)+"\")'>Work this WO</button>";
+      html+="<button type='button' class='bg bfull' onclick='event.stopPropagation();openWoAssets(\""+esc(m.id)+"\")'>Open assets</button>";
+      html+="</div>";
+    }
+    html+="</div>";
+  });
+  list.innerHTML=html;
+}
 
 
 // ASSETS / EQUIPMENTS
