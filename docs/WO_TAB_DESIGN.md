@@ -34,7 +34,7 @@ Deal (the job)
 |------|------|
 | Shape | Dedicated **WO** tab. The meeting *is* the WO. No new Work_Orders module. |
 | One WO per | Meeting. Same record as Meetings. Assets listed from the deal, underneath. |
-| Technician | Existing picker. Match **Host** (not Owner, not Participants). No Host match → the row is not theirs. Blank Host does not list. |
+| Technician | Existing picker. **My meetings** matches Host, or Owner when Host is blank. **All hosts** shows everyone. |
 | Meeting Status | Default **Active**. The filter is selectable so other statuses can be shown. |
 | Dates | From / To pickers plus **Today**. Default is 14 days back through 60 days forward. This is the Zoho window — separate from Meeting Status. |
 | Sort | Start of the day first (`Start_DateTime` ascending). Earliest meeting on top, then in schedule order. |
@@ -65,7 +65,7 @@ This tab is the technician's calendar, the way they already look at Zoho.
 - Badge = count after Host + status + date filters.
 - Map keeps its own upcoming + coordinates view. The WO list does not require a pin.
 
-How Host matches: the technician chosen on the setup / Settings picker (`A.technician`) must match `Host.name`. Normalize (trim, collapse spaces, case-fold). A first name matches `First Last` (`Quintin` = `Quintin Smith`). A Host email matches on the local part (`quintin@shop.com`). Blank Host does not list. `Brad White` will not match `Bradley White` until the names agree in Zoho.
+How Host matches: **My meetings** is the setup / Settings technician (`A.technician`) against `Host.name`, or `Owner` when Host is blank. Normalize (trim, punctuation, case-fold). A first name matches `First Last`. `Brad White` matches `White, Brad` and `Bradley White`. A Host email matches on the local part. **All hosts** shows every meeting in the date window. **All statuses** is for calendars that use Planned/Scheduled instead of Active.
 
 ---
 
