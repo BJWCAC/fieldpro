@@ -3,8 +3,8 @@
 Ideas for a **WO** (Work Order) tab. This is a design draft, not a build plan that has been accepted yet.
 
 ```text
-Last updated: 2026-08-31
-Status: Ideas for review — pick an approach before any tab is built
+Last updated: 2026-09-01
+Status: Ideas for review — two list rules are accepted (technician filter, newest-first)
 Related: docs/CAPSTONE_DEVELOPMENT_RULES.md (Future tab rule)
 ```
 
@@ -19,6 +19,12 @@ Related: docs/CAPSTONE_DEVELOPMENT_RULES.md (Future tab rule)
 - The WO tab should hold **the meeting itself** — the same fields the meeting already has — plus links to the **deal**, the **account**, and the **contact**.
 
 That last sentence is the load-bearing one: the work order is not a new kind of CRM record. It is the meeting, shown in CapStone as the day's ticket.
+
+**Accepted list rules (2026-09-01):**
+
+- Technicians open this tab the way they open the Zoho calendar: **what is scheduled for me today**.
+- The list uses the **existing technician selection** (`A.technician` / Settings / boot prompt, from `Internal_Assets.Users`). It is not a second login.
+- Meetings are listed in **date and time order, most recent first** (start datetime descending).
 
 ---
 
@@ -91,7 +97,23 @@ WO tab
 
 ### List
 
-Same card language as Deals: account on top, meeting title as the name, meta chips for when, venue, deal stage, technician/owner. Filters: search, account, date window (Today / Upcoming / Last 14 days), optional "mine" if Owner matches the signed-in technician. Badge = count in the current window.
+This tab is the technician's **calendar for the day**, not a second Deals list.
+
+Same card language as Deals: account on top, meeting title as the name, meta chips for when, venue, deal stage, assigned technician. Day headers (`Today`, `Tomorrow`, `Mon Sep 1`) so a 4pm yesterday and an 8am today do not blend. Badge = count in the current window after the technician filter.
+
+**Sort (accepted):** `Start_DateTime` descending — latest date, then latest time, at the top. A 2pm today sits above an 8am today; tomorrow sits above today. One-line flip to ascending if a field day wants morning-first inside *Today*.
+
+**Technician filter (accepted):** default list is meetings scheduled for the signed-in technician. Reuse `A.technician` (saved in `fp_technician`). Changing the picker in Settings or the boot prompt refilters immediately. No technician selected → do not show everyone else's calendar; show the same empty state as Capture's missing context ("Select a technician to see your scheduled work") and the existing technician prompt. An **All technicians** chip can exist for admin later; it is not the default.
+
+How a meeting counts as "theirs":
+
+CapStone's technician list is **display names** from the `Internal_Assets.Users` picklist (`get_technicians`). It is not a Zoho user id. Meetings carry `Owner` as `{id, name}`. Match the picklist name to `Owner.name` after a light normalize (trim, collapse spaces, case-fold). Also match if that name appears as a **user** Participant — the calendar often invites the tech while a dispatcher stays Owner.
+
+If the picklist says `Brad White` and Zoho Owner is `Bradley White`, the row will not match until someone aligns the names in Zoho or we add a later user-id map. First slice does not invent nicknames. Unmatched rows stay out of the default list; they are not deleted from the cache.
+
+Fetch: pull meetings for the date window with `Owner` (and Participants) on the record, then filter on the device. A later improvement can resolve the picklist name to a CRM user id and use Zoho criteria so the proxy returns a smaller page.
+
+Default date window stays **Today** (the calendar they already look at). Upcoming and a short look-back remain available as chips; sort is still newest-first inside whatever window is on.
 
 Refresh is its own button, like Deals. Cache in `localStorage` (`fp_work_orders`) so the list opens offline the way deals already do. Map can keep its own upcoming-only, location-required view; do not make the WO list depend on geocoding.
 
@@ -152,9 +174,9 @@ Header today shows account + deal. With a WO selected it should also show the me
 
 No code in this PR. When an approach is accepted, the first slice is roughly:
 
-1. **`zoho-proxy`**: a `get_meetings` (or widened `get_map_events`) that returns `Who_Id`, Participants, Description, Owner, and does not require coordinates. Keep the Map action as the upcoming/located subset, or share one fetch and filter in each tab.
+1. **`zoho-proxy`**: a `get_meetings` (or widened `get_map_events`) that returns `Who_Id`, Participants, Description, **Owner**, and does not require coordinates. Keep the Map action as the upcoming/located subset, or share one fetch and filter in each tab.
 2. **`FieldPro.html`**: tab button, pane, workflow card, help box, list + record layout. Cache-bust + `FP_VERSION`.
-3. **`src/app.js`**: `A.wo`, load/cache/render, `selectWorkOrder()` that also calls `selectDeal`, RBAC toggle (`RBAC_TAB_TOGGLES`), `go('wo')`.
+3. **`src/app.js`**: `A.wo`, load/cache/render, filter by `A.technician` against Owner / user Participants, sort by `Start_DateTime` descending, `selectWorkOrder()` that also calls `selectDeal`, RBAC toggle (`RBAC_TAB_TOGGLES`), `go('wo')`. Changing `saveTechnicianSetting()` must re-render the WO list.
 4. **Header / Capture**: show meeting context when `A.wo` is set. Do not require it.
 5. **Docs**: Future tab checklist, changelog, this file marked accepted.
 
@@ -172,14 +194,24 @@ History `meetingId` and the asset-checkbox / certificate blocks are a second sli
 
 ---
 
+## Decided
+
+| Item | Call |
+|------|------|
+| Technician filter | Required. Use the existing technician selection. Default list = that technician's meetings only. No technician selected → prompt, do not show the full shop calendar. |
+| Match field | `Owner.name` (and user Participants) against the `Internal_Assets.Users` display name. Not a new login. |
+| Sort | Date and time, **most recent first** (`Start_DateTime` descending). |
+| Day view | This tab is their calendar for the day. Default window **Today**. |
+
 ## Open questions (need your call)
 
 1. **Is every Zoho meeting a work order**, or only some types / titles / pipelines (calibration vs service vs internal)?
 2. **Contact**: is `Who_Id` the one contact, or do you routinely put several people on Participants?
-3. **How far back** should the list keep completed meetings — last 7 days, 14, 30, or "this deal's meetings, any date"?
+3. **How far back** should chips other than Today reach — last 7 days, 14, 30, or "this deal's meetings, any date"?
 4. **Walk-in / emergency** with no meeting: stay on Deals → Capture, or should WO allow "create a meeting from here"?
 5. **Certificates**: are Result 1, drawdown, and calibration cert existing Zoho records or PDF templates, or do you want CapStone to write them later?
 6. **One WO per meeting, or one per asset?** A six-instrument calibration on Tuesday afternoon is one meeting. Is that one work order with six assets, or six work orders?
 7. **Tab vs under Deals** — confirm you still want a dedicated **WO** tab (Approach A) rather than Approach C.
+8. **Owner vs calendar invite** — when a dispatcher owns the meeting and the tech is only invited, should that row still show (current yes: match Participants too)?
 
-The recommendation, if you do not want to think about it further: **Approach A, one WO per meeting, assets listed from the deal, certificates later, walk-ins still allowed without a WO, list = today + upcoming + last 14 days, contact = `Who_Id`.**
+The recommendation, if you do not want to think about it further: **Approach A, one WO per meeting, assets listed from the deal, certificates later, walk-ins still allowed without a WO, default list = today for the signed-in technician, newest first, contact = `Who_Id`.**
