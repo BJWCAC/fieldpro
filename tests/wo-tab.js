@@ -1,5 +1,6 @@
-// Checks for WO tab helpers: Host is the technician, Meeting Status
-// defaults to Active, and meetings sort start-of-day first.
+// Checks for WO tab helpers: Settings User / Technician (Users) is the
+// technician, Meeting Status defaults to all statuses, and meetings sort
+// start-of-day first.
 // Run: node tests/wo-tab.js
 var fs=require("fs");
 var path=require("path");
@@ -57,6 +58,9 @@ eval(sliceFn("woActionTab","selectWorkOrder"));
 
 check("Host name comes off the Host lookup",woLookupName({id:"u1",name:"Quintin"})==="Quintin");
 check("Host object can use email when name is blank",woLookupName({id:"u1",email:"quintin@shop.com"})==="quintin@shop.com");
+check("Users lookup can use Name",woLookupName({id:"u1",Name:"Brad White"})==="Brad White");
+check("Users picklist can use display_value",woLookupName({display_value:"Brad White"})==="Brad White");
+check("Users multi-select is joined",woLookupName([{name:"Brad White"},{name:"Daniel Olson"}])==="Brad White, Daniel Olson");
 check("blank Host is empty",woLookupName(null)==="");
 check("name normalize folds case and spaces",woNormalizeName("  Quintin   White ")==="quintin white");
 check("Active status is recognized in any case",woIsActiveStatus("ACTIVE")&&woIsActiveStatus("Active"));
@@ -77,9 +81,12 @@ check("blank Host is not the signed-in technician",woMatchesTechnician({host:""}
 check("blank Host uses Owner when it matches the technician",woMatchesTechnician({host:"",owner:"Brad White"},"Brad White")===true);
 check("Brad White matches Host White, Brad",woMatchesTechnician({host:"White, Brad"},"Brad White")===true);
 check("Brad White matches Host Bradley White",woMatchesTechnician({host:"Bradley White"},"Brad White")===true);
-check("Owner does not override a different Host",woMatchesTechnician({host:"Dispatcher",owner:"Quintin"},"Quintin")===false);
+check("Owner matches even when Host is a dispatcher",woMatchesTechnician({host:"Dispatcher",owner:"Quintin"},"Quintin")===true);
+check("Users picklist matches when Host is a dispatcher",woMatchesTechnician({host:"Dispatcher",users:"Brad White"},"Brad White")===true);
+check("Users array matches Settings User / Technician",woMatchesTechnician({host:"",users:[{Name:"Brad White"}]},"Brad White")===true);
 check("no technician selected matches nothing",woMatchesTechnician(quintin,"")===false);
 
+check("empty status filter keeps Planned",woMatchesStatusFilter({status:"Planned"},[])===true);
 check("Active filter keeps Active",woMatchesStatusFilter(quintin,["Active"])===true);
 check("blank Meeting Status still shows when Active is selected",woMatchesStatusFilter({status:""},["Active"])===true);
 check("Active filter drops Completed",woMatchesStatusFilter(completed,["Active"])===false);
@@ -90,7 +97,10 @@ var sorted=sortWorkOrdersByStart([later,quintin]);
 check("start of day is first",sorted[0].id==="m1"&&sorted[1].id==="m2",JSON.stringify(sorted.map(function(m){return m.id;})));
 
 var filtered=filterWorkOrders([later,otherTech,completed,cancelled,quintin],{technician:"Quintin",statuses:["Active"]});
-check("filter is Host + Active + not cancelled",filtered.length===2&&filtered[0].id==="m1"&&filtered[1].id==="m2",JSON.stringify(filtered.map(function(m){return m.id;})));
+check("filter is technician + Active + not cancelled",filtered.length===2&&filtered[0].id==="m1"&&filtered[1].id==="m2",JSON.stringify(filtered.map(function(m){return m.id;})));
+var usersOnly={id:"m7",title:"Users field only",start:"2026-09-01T09:00:00-05:00",host:"Dispatcher",users:"Brad White",status:"Planned",cancelled:false};
+check("Users field lists for Brad when Host is not Brad",filterWorkOrders([usersOnly],{technician:"Brad White",statuses:[]}).length===1);
+check("all-status default keeps Planned Users meetings",filterWorkOrders([usersOnly],{technician:"Brad White",statuses:woDefaultStatusFilter()}).length===1);
 check("All hosts includes the other technician",filterWorkOrders([later,otherTech,quintin],{technician:"Quintin",statuses:["Active"],hostMode:"all"}).length===3);
 check("Completed appears when that status is selected",filterWorkOrders([completed,quintin],{technician:"Quintin",statuses:["Completed"]}).length===1);
 check("without a date picker next month still lists",filterWorkOrders([nextMonth],{technician:"Quintin",statuses:["Active"]}).length===1);
@@ -113,7 +123,24 @@ var rec=normalizeZohoMeeting({
   $se_module:"Deals",
   Venue:"Drive-thru"
 }, {deals:A.deals,eventModule:"Meetings"});
-check("normalized Host is the technician field",rec.host==="Quintin");
+check("normalized Host is kept",rec.host==="Quintin");
+var usersRec=normalizeZohoMeeting({
+  id:"ev2",
+  Meeting_Title:"Chart recorder",
+  Start_DateTime:"2026-09-01T08:00:00-05:00",
+  Host:{id:"d1",name:"Dispatcher"},
+  Users:"Brad White",
+  Meeting_Status:"Planned"
+},{deals:A.deals,eventModule:"Meetings"});
+check("normalized Users is the Settings technician field",usersRec.users==="Brad White");
+check("Users picklist matches Brad White",woMatchesTechnician(usersRec,"Brad White")===true);
+var usersArr=normalizeZohoMeeting({
+  id:"ev3",
+  Meeting_Title:"Array users",
+  Start_DateTime:"2026-09-01T08:00:00-05:00",
+  Users:[{id:"u2",Name:"Brad White"}]
+},{deals:A.deals,eventModule:"Meetings"});
+check("Users array normalizes to Brad White",usersArr.users==="Brad White"&&woMatchesTechnician(usersArr,"Brad White")===true);
 check("normalized contact is Who_Id",rec.contact==="Site Contact"&&rec.contactId==="c1");
 check("normalized status is Meeting Status",rec.status==="Active");
 check("deal link comes from What_Id",rec.dealId==="deal-2"&&rec.dealName==="Sanitary McDonalds");
@@ -122,12 +149,12 @@ check("account is filled from the cached deal",rec.accountName==="McDonalds"&&re
 var statuses=collectWorkOrderStatuses([completed,quintin],["Cancelled"]);
 check("Active is always offered first",statuses[0]==="Active");
 check("other statuses from the Meetings picklist stay available",statuses.indexOf("Completed")>=0&&statuses.indexOf("Cancelled")>=0);
-check("default status filter is Active",woDefaultStatusFilter().length===1&&woDefaultStatusFilter()[0]==="Active");
+check("default status filter is all statuses",woDefaultStatusFilter().length===0);
 
 var emptyLoad=woFilterExplain([],"Quintin",["Active"]);
 check("empty fetch mentions the Today button",/today/i.test(emptyLoad.detail));
 var hostMiss=woFilterExplain([otherTech],"Quintin",["Active"]);
-check("Host miss names the technician",hostMiss.title.indexOf("Host")>=0&&hostMiss.detail.indexOf("Quintin")>=0);
+check("technician miss names User / Technician",/technician/i.test(hostMiss.title)&&hostMiss.detail.indexOf("Quintin")>=0);
 var statusMiss=woFilterExplain([completed],"Quintin",["Active"]);
 check("status miss says Active is not a date",statusMiss.detail.indexOf("not a date")>=0);
 var dateMiss=woFilterExplain([nextMonth],"Quintin",["Active"],"2026-09-01","2026-09-01");
