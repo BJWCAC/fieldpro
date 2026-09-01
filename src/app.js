@@ -2939,7 +2939,18 @@ function loadWorkOrdersFromCache(){
     if(!raw){renderWorkOrders();return 0;}
     var d=JSON.parse(raw);
     var rows=Array.isArray(d)?d:(d.meetings||[]);
-    A.workOrders=rows.map(function(r){return woAttachDealAccount(r,A.deals||[]);});
+    A.workOrders=rows.map(function(r){
+      if(r){
+        if(r.users&&typeof r.users!=="string")r.users=woLookupName(r.users);
+        if(r.technician&&typeof r.technician!=="string")r.technician=woLookupName(r.technician);
+        r.techNames=[];
+        woAddTechName(r.techNames,r.host);
+        woAddTechName(r.techNames,r.owner);
+        woAddTechName(r.techNames,r.users);
+        woAddTechName(r.techNames,r.technician);
+      }
+      return woAttachDealAccount(r,A.deals||[]);
+    });
     A.woModule=d.module||A.woModule||"Meetings";
     A.woStatusField=d.statusField||A.woStatusField||"Meeting_Status";
     if(Array.isArray(d.techFields)&&d.techFields.length)A.woTechFields=d.techFields;
@@ -3153,7 +3164,7 @@ function renderWorkOrders(){
     html+="<div class='d-deal'>"+esc(m.title)+"</div>";
     html+="<div class='d-meta'><span class='stage-pill'>"+esc(m.status||"")+"</span>";
     html+="<span style='font-size:11px;color:var(--dim)'>"+esc(formatWoWhen(m.start))+"</span>";
-    var techShown=(m.users||m.technician||m.host||m.owner||"");
+    var techShown=woLookupName(m.users)||woLookupName(m.technician)||woLookupName(m.host)||woLookupName(m.owner)||(woMeetingTechNames(m)[0]||"");
     html+="<span style='font-size:11px;color:var(--dim)'>"+(techShown?"User "+esc(techShown):"User not set")+"</span>";
     if(m.venue)html+="<span style='font-size:11px;color:var(--dim)'>"+esc(m.venue)+"</span>";
     html+="</div>";

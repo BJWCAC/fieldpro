@@ -141,6 +141,7 @@ var usersArr=normalizeZohoMeeting({
   Users:[{id:"u2",Name:"Brad White"}]
 },{deals:A.deals,eventModule:"Meetings"});
 check("Users array normalizes to Brad White",usersArr.users==="Brad White"&&woMatchesTechnician(usersArr,"Brad White")===true);
+check("card User label reads a Users array", (woLookupName([{Name:"Brad White"}])||woLookupName("Dispatcher"))==="Brad White");
 check("normalized contact is Who_Id",rec.contact==="Site Contact"&&rec.contactId==="c1");
 check("normalized status is Meeting Status",rec.status==="Active");
 check("deal link comes from What_Id",rec.dealId==="deal-2"&&rec.dealName==="Sanitary McDonalds");
