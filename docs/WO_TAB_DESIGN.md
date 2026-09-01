@@ -57,13 +57,13 @@ This tab is the technician's calendar, the way they already look at Zoho.
 
 - Refresh from Zoho (own button). Cache in `localStorage` (`fp_work_orders`) so the list opens offline.
 - No technician selected → existing technician prompt; do not show the shop calendar.
-- **Meeting Status** chips/select: default Active; tap to include other values from the Meetings picklist.
+- **Meeting Status** chips/select: default Active; tap to include other values from the Meetings picklist. Active is a **status**, not a date. Zoho's Meetings GET without a start/end window only returns **today**; CapStone asks for about a year back and a year forward (search fallback if needed).
 - Cards: account, meeting title, start time, venue, Host, status, deal name. Day headers (`Today`, `Mon Sep 1`).
 - Sort: `Start_DateTime` ascending inside the current status filter.
 - Badge = count after Host + status filters.
 - Map keeps its own upcoming + coordinates view. The WO list does not require a pin.
 
-How Host matches: normalize the picklist name and `Host.name` (trim, collapse spaces, case-fold). `Brad White` will not match `Bradley White` until the names agree in Zoho.
+How Host matches: normalize the picklist name and `Host.name` (trim, collapse spaces, case-fold). A first name matches `First Last` (`Quintin` = `Quintin Smith`). `Brad White` will not match `Bradley White` until the names agree in Zoho.
 
 ---
 

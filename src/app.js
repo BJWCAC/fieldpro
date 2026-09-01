@@ -374,8 +374,8 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:["Active"],woModule:"Meetings",woStatusField:"Meeting_Status",photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="399";
-var MIN_ZOHO_PROXY_BUILD=291;
+var FP_VERSION="400";
+var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
 var _fpLastClickedBtn=null;
@@ -1255,7 +1255,10 @@ function go(n){
   if(n==="capture"&&typeof updateCaptureModeStatus==="function")updateCaptureModeStatus();
   if(n==="capture"&&typeof updateCaptureStorageWarning==="function")updateCaptureStorageWarning();
   if((n==="assets"||n==="ia")&&typeof renderAssetForm==="function")renderAssetForm();
-  if(n==="wo"&&typeof renderWorkOrders==="function")renderWorkOrders();
+  if(n==="wo"&&typeof renderWorkOrders==="function"){
+    renderWorkOrders();
+    if((!A.workOrders||!A.workOrders.length)&&!A.woLoading&&typeof loadWorkOrders==="function")loadWorkOrders();
+  }
   if(n==="inbox"&&typeof renderInbox==="function"){renderInbox();startInboxPollIfNeeded();startPlaudAutoPullIfNeeded();}
   if(n==="history"&&typeof renderHistory==="function")renderHistory();
   if(n==="map"&&typeof initAccountsMapTab==="function")initAccountsMapTab();
@@ -2025,7 +2028,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","loadWorkOrders","resetWorkOrdersUI","toggleWoStatus","selectWorkOrder","workThisWo","openWoAssets","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -2499,15 +2502,32 @@ function woHostName(m){
   if(!m)return "";
   return String(m.host||"").trim();
 }
+function woNameTokens(s){
+  return woNormalizeName(s).split(" ").filter(Boolean);
+}
 function woMatchesTechnician(m,techName){
   var tech=woNormalizeName(techName);
   if(!tech)return false;
-  return woNormalizeName(woHostName(m))===tech;
+  var host=woNormalizeName(woHostName(m));
+  if(!host)return false;
+  if(host===tech)return true;
+  var ht=woNameTokens(host),tt=woNameTokens(tech);
+  if(!ht.length||!tt.length)return false;
+  var shorter=ht.length<=tt.length?ht:tt;
+  var longer=ht.length<=tt.length?tt:ht;
+  for(var i=0;i<shorter.length;i++){
+    if(longer.indexOf(shorter[i])<0)return false;
+  }
+  return true;
 }
 function woMatchesStatusFilter(m,selected){
   var list=selected||[];
   if(!list.length)return false;
   var st=woNormalizeName(woMeetingStatus(m));
+  if(!st){
+    for(var j=0;j<list.length;j++){if(woIsActiveStatus(list[j]))return true;}
+    return false;
+  }
   for(var i=0;i<list.length;i++){
     if(woNormalizeName(list[i])===st)return true;
   }
@@ -2540,6 +2560,21 @@ function filterWorkOrders(rows,opts){
     }
     return true;
   }));
+}
+function woFilterExplain(rows,tech,statuses){
+  var n=(rows||[]).length;
+  if(!n)return{title:"No meetings loaded",detail:"Tap Refresh from Zoho. Zoho only returns today's meetings unless CapStone asks for a wider date range — this build does that. The Active filter is Meeting Status, not today's date."};
+  var hostHits=0,statusHits=0;
+  (rows||[]).forEach(function(m){
+    if(m&&m.cancelled)return;
+    if(woMatchesTechnician(m,tech)){
+      hostHits++;
+      if(woMatchesStatusFilter(m,statuses))statusHits++;
+    }
+  });
+  if(!hostHits)return{title:"No meetings for this Host",detail:n+" meetings loaded. None have Host "+(tech||"(none)")+". The technician picker must match the meeting Host (a first name still matches First Last)."};
+  if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for Host "+tech+", but none in "+(statuses||[]).join(", ")+". Tap another Meeting Status chip — Active is a status, not a date."};
+  return{title:"No meetings",detail:""};
 }
 function woAttachDealAccount(m,deals){
   deals=deals||[];
@@ -2755,6 +2790,8 @@ function selectWorkOrder(id,opts){
 function workThisWo(id){selectWorkOrder(id,{goCapture:true});}
 function openWoAssets(id){selectWorkOrder(id,{goAssets:true});}
 async function loadWorkOrders(){
+  if(A.woLoading)return;
+  A.woLoading=true;
   var btn=el("wo-ref-btn");if(btn){btn.disabled=true;btn.textContent="Syncing...";}
   var sm=el("wo-sync-msg");showWoErr("");
   if(sm){sm.textContent="Connecting to Zoho CRM (20s timeout)...";sm.style.color="var(--dim)";}
@@ -2770,10 +2807,11 @@ async function loadWorkOrders(){
         if(Array.isArray(sj.statuses)&&sj.statuses.length)A.woStatuses=sj.statuses;
       }
     }catch(se){}
-    var all=[],page=1,hasMore=true,crmModule=A.woModule||"Meetings";
+    var all=[],page=1,hasMore=true,crmModule=A.woModule||"Meetings",rangeMode="";
     while(hasMore&&page<=10){
       var body={action:"get_meetings",page:page,status_field:A.woStatusField||"Meeting_Status"};
       if(crmModule)body.crm_module=crmModule;
+      if(rangeMode)body.range=rangeMode;
       var r=await zohoProxyFetch(body,ZOHO_FETCH_MS);
       if(!r.ok){
         if(r.status===401){
@@ -2785,6 +2823,7 @@ async function loadWorkOrders(){
       var d=await r.json();
       if(page===1&&d.__fp_module){crmModule=d.__fp_module;A.woModule=crmModule;}
       if(d.__fp_status_field)A.woStatusField=d.__fp_status_field;
+      if(d.__fp_range)rangeMode=d.__fp_range;
       (d.data||[]).forEach(function(rec){all.push(normalizeZohoMeeting(rec,{eventModule:A.woModule,deals:A.deals||[]}));});
       hasMore=!!(d.info&&d.info.more_records);
       page++;
@@ -2794,7 +2833,7 @@ async function loadWorkOrders(){
     A.woStatuses=collectWorkOrderStatuses(all,A.woStatuses);
     persistWorkOrdersCache();
     if(sm){
-      sm.textContent=all.length+" meetings loaded — "+new Date().toLocaleTimeString();
+      sm.textContent=all.length+" meetings loaded (not only today) — "+new Date().toLocaleTimeString();
       sm.style.color=all.length?"var(--green)":"var(--amber)";
     }
     renderWorkOrders();
@@ -2806,6 +2845,7 @@ async function loadWorkOrders(){
       if(n&&sm){sm.textContent=n+" cached meetings shown — Zoho sync failed above";sm.style.color="var(--amber)";}
     }catch(e2){}
   }finally{
+    A.woLoading=false;
     if(btn){btn.disabled=false;btn.textContent="Refresh from Zoho";}
   }
 }
@@ -2836,7 +2876,8 @@ function renderWorkOrders(){
   var dc=el("wo-count");
   if(dc)dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · Host "+tech+" · "+(A.woStatusFilter||[]).join(", ");
   if(!filtered.length){
-    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>No meetings</div><div class='e-sub'>"+(A.workOrders&&A.workOrders.length?"None match this Host and Meeting Status. Try another status.":"Tap Refresh from Zoho to load the Meetings module.")+"</div></div>";
+    var why=woFilterExplain(A.workOrders,tech,A.woStatusFilter);
+    list.innerHTML="<div class='empty'><div class='e-icon'>&#128197;</div><div class='e-title'>"+esc(why.title)+"</div><div class='e-sub'>"+esc(why.detail)+"</div></div>";
     return;
   }
   var html="";
