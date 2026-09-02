@@ -3235,7 +3235,6 @@ function woFieldIsLookup(field){
 }
 function woFieldIsEditable(field){
   if(!field||woSkipFieldApi(field.api_name)||woSkipFieldType(field.data_type))return false;
-  if(field.read_only)return false;
   if(woFieldIsLookup(field))return false;
   return true;
 }
@@ -3288,9 +3287,29 @@ function woDateOnly(val){
   var m=s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m?m[1]:s;
 }
+function woFieldValueAliases(api){
+  api=String(api||"");
+  if(/^(Meeting_Title|Event_Title|Title)$/i.test(api))return ["Meeting_Title","Event_Title","Title"];
+  if(/^(Meeting_Status|Event_Status|Status)$/i.test(api))return ["Meeting_Status","Event_Status","Status"];
+  if(/^(Venue|Location)$/i.test(api))return ["Venue","Location"];
+  if(/^(Users|User|Current_User)$/i.test(api))return ["Users","User","Current_User"];
+  return [api];
+}
+function woRecordFieldRaw(record,field){
+  record=record||{};
+  var api=field&&field.api_name;
+  if(api&&record[api]!=null&&record[api]!=="")return record[api];
+  var keys=woFieldValueAliases(api);
+  for(var i=0;i<keys.length;i++){
+    if(keys[i]===api)continue;
+    if(record[keys[i]]!=null&&record[keys[i]]!=="")return record[keys[i]];
+  }
+  if(api&&Object.prototype.hasOwnProperty.call(record,api))return record[api];
+  return undefined;
+}
 function woInputValueFromRecord(field,record){
   record=record||{};
-  var raw=record[field.api_name];
+  var raw=woRecordFieldRaw(record,field);
   var dt=String(field.data_type||"").toLowerCase();
   if(dt==="datetime")return woIsoToLocalInput(typeof raw==="string"?raw:woDisplayFieldValue(raw));
   if(dt==="date")return woDateOnly(typeof raw==="string"?raw:woDisplayFieldValue(raw));
@@ -3373,12 +3392,18 @@ function woSeedRecordFromList(m){
   var titleField=(m.eventModule==="Events")?"Event_Title":"Meeting_Title";
   var statusField=(typeof A!=="undefined"&&A.woStatusField)||(m.eventModule==="Events"?"Event_Status":"Meeting_Status");
   woSeedPutIfEmpty(rec,titleField,m.title);
+  woSeedPutIfEmpty(rec,"Title",m.title);
+  woSeedPutIfEmpty(rec,"Event_Title",m.title);
+  woSeedPutIfEmpty(rec,"Meeting_Title",m.title);
   woSeedPutIfEmpty(rec,"Start_DateTime",m.start);
   woSeedPutIfEmpty(rec,"End_DateTime",m.end);
   woSeedPutIfEmpty(rec,"Venue",m.venue);
   woSeedPutIfEmpty(rec,"Location",m.venue);
   woSeedPutIfEmpty(rec,"Description",m.description);
   woSeedPutIfEmpty(rec,statusField,m.status);
+  woSeedPutIfEmpty(rec,"Meeting_Status",m.status);
+  woSeedPutIfEmpty(rec,"Event_Status",m.status);
+  woSeedPutIfEmpty(rec,"Status",m.status);
   woSeedPutIfEmpty(rec,"Users",m.users);
   woSeedPutIfEmpty(rec,"Technician",m.technician);
   woSeedPutIfEmpty(rec,"Host",m.host);
@@ -3613,15 +3638,16 @@ function renderWoForm(opts){
     var val=Object.prototype.hasOwnProperty.call(values,api)?values[api]:woInputValueFromRecord(field,A.woForm.original||{});
     var target="wo:"+api;
     var label=field.label||api;
+    var dt=String(field.data_type||"").toLowerCase();
     html+="<div class='wo-form-field'>";
     html+="<div class='field-ai-row'><label class='lbl' style='margin-bottom:0' for='"+esc(id)+"'>"+esc(label)+(field.required?" *":"")+"</label>";
     html+="<button type='button' class='field-ai-btn "+neutral+" bsm' data-field-ai-target='"+esc(target)+"' title='Update this meeting field with AI' onclick='event.preventDefault();event.stopPropagation();runFieldPolishAi(\""+esc(target)+"\")'>→ AI</button>";
     html+="</div>";
     html+="<div class='field-ai-status' id='field-ai-status-"+esc(fieldAiTargetKey(target))+"'></div>";
     if(!editable){
-      html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val?esc(woDisplayFieldValue(val)):"<span style='color:var(--dim)'>Not set</span>")+"</div>";
+      if(dt==="boolean")html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val==="true"||val===true?"Yes":"No")+"</div>";
+      else html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val?esc(woDisplayFieldValue(val)):"<span style='color:var(--dim)'>Not set</span>")+"</div>";
     }else{
-      var dt=String(field.data_type||"").toLowerCase();
       var opts=woPicklistOptions(field);
       if(dt==="boolean"){
         html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>"+esc(label)+"</span></label>";

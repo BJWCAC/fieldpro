@@ -177,7 +177,9 @@ eval(sliceFn("woMeetingFieldByApi","woDisplayFieldValue"));
 eval(sliceFn("woDisplayFieldValue","woIsoToLocalInput"));
 eval(sliceFn("woIsoToLocalInput","woLocalInputToIso"));
 eval(sliceFn("woLocalInputToIso","woDateOnly"));
-eval(sliceFn("woDateOnly","woInputValueFromRecord"));
+eval(sliceFn("woDateOnly","woFieldValueAliases"));
+eval(sliceFn("woFieldValueAliases","woRecordFieldRaw"));
+eval(sliceFn("woRecordFieldRaw","woInputValueFromRecord"));
 eval(sliceFn("woInputValueFromRecord","woZohoValueFromInput"));
 eval(sliceFn("woZohoValueFromInput","woValuesEqual"));
 eval(sliceFn("woValuesEqual","woApplyAiPicklistValue"));
@@ -199,6 +201,7 @@ check("system fields are skipped",woSkipFieldApi("id")&&woSkipFieldApi("Created_
 check("formula fields are not editable",woFieldIsEditable({api_name:"Age",data_type:"formula",read_only:false})===false);
 check("lookups are not sent as free text",woFieldIsEditable({api_name:"Who_Id",data_type:"lookup",read_only:false})===false);
 check("title is editable",woFieldIsEditable({api_name:"Meeting_Title",data_type:"text",read_only:false})===true);
+check("webhook read_only text stays editable",woFieldIsEditable({api_name:"Title",data_type:"text",read_only:true})===true);
 check("title sorts before description",woFieldSortRank("Meeting_Title")<woFieldSortRank("Description"));
 check("sorted fields keep title first",woSortMeetingFields(fields)[0].api_name==="Meeting_Title");
 check("input id is stable",woFieldInputId("Meeting_Status")==="wo-f-Meeting_Status");
@@ -248,7 +251,10 @@ check("seed keeps the Host lookup object",seeded.Host&&seeded.Host.name==="Quint
 check("seed does not copy $ keys",seeded.$se_module==null);
 check("seed fills Meeting Title from the list",seeded.Meeting_Title==="Sanitary McDonalds");
 check("title input comes from the Zoho record",woInputValueFromRecord({api_name:"Meeting_Title",data_type:"text"},seeded)==="Sanitary McDonalds");
+check("Title field reads Meeting_Title",woInputValueFromRecord({api_name:"Title",data_type:"text"},seeded)==="Sanitary McDonalds");
+check("Status field reads Meeting_Status",woInputValueFromRecord({api_name:"Status",data_type:"text"},seeded)==="Active");
 check("lookup input shows the Zoho name",woInputValueFromRecord({api_name:"Who_Id",data_type:"lookup",lookup:true},seeded)==="Site Contact");
+check("meeting field read_only ignores webhook",!/read_only: !!\(f\.read_only \|\| f\.webhook/.test(fs.readFileSync(path.join(__dirname,"../netlify/functions/zoho-proxy.js"),"utf8")));
 
 check("re-render does not overlay empty DOM onto Zoho values",/if\(opts\.keepValues\)/.test(src)&&!/opts\.keepValues\|\|Object\.keys\(live\)/.test(src));
 check("boolean checkbox uses the Zoho field label",!/All-day meeting/.test(src));

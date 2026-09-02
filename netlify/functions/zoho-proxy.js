@@ -979,7 +979,7 @@ exports.handler = async function(event) {
           label: String(f.field_label || f.display_label || api).trim(),
           data_type: dt,
           required: !!(f.system_mandatory || f.required),
-          read_only: !!(f.read_only || f.webhook || f.formula),
+          read_only: !!(f.read_only || f.formula),
           custom_field: !!f.custom_field,
           lookup: !!(f.lookup && f.lookup.module),
           lookup_module: f.lookup && f.lookup.module ? String(f.lookup.module.api_name || f.lookup.module || "") : "",
