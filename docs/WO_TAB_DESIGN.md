@@ -21,8 +21,8 @@ Deal (the job)
 
 - A **Deal** is the job. Every job gets a deal. A deal can have several meetings.
 - A **WO is that meeting**, field for field, the same record as the Meetings module. One WO per meeting. Assets stay listed on the deal underneath; they do not split the WO.
-- **Host** on the meeting is the technician. CapStone's existing technician picker (`Internal_Assets.Users` → `A.technician`) filters the list to that Host.
-- **Meeting Status** is the status field. Default list is **Active**. Other statuses are selectable on the same control.
+- **Users** on the meeting is the technician — the same Settings **User / Technician** picklist (`Internal_Assets.Users` / Current User → `A.technician`). Host and Owner are fallbacks. CapStone matches any of Users, Technician, Host, Owner.
+- **Meeting Status** is the status field. Default list is **all statuses**. Chips narrow it; many calendars use Planned or Scheduled, not Active.
 - **Who_Id** is the contact link. Host is not the contact.
 - Certificates (Result 1, drawdown, calibration certificate) are **existing Zoho modules** whose result rows are tied to the asset being worked. First slice does not fetch or write them.
 
@@ -34,8 +34,8 @@ Deal (the job)
 |------|------|
 | Shape | Dedicated **WO** tab. The meeting *is* the WO. No new Work_Orders module. |
 | One WO per | Meeting. Same record as Meetings. Assets listed from the deal, underneath. |
-| Technician | Existing picker. **My meetings** matches Host, or Owner when Host is blank. **All hosts** shows everyone. |
-| Meeting Status | Default **Active**. The filter is selectable so other statuses can be shown. |
+| Technician | Existing Settings **User / Technician** picker. **My meetings** matches Users, Technician, Host, and Owner. **All hosts** shows everyone. |
+| Meeting Status | Default **all statuses**. Chips narrow it. |
 | Dates | From / To pickers plus **Today**. Default is 14 days back through 60 days forward. This is the Zoho window — separate from Meeting Status. |
 | Sort | Start of the day first (`Start_DateTime` ascending). Earliest meeting on top, then in schedule order. |
 | Contact | `Who_Id` on the meeting. Open in Zoho. |
@@ -59,13 +59,13 @@ This tab is the technician's calendar, the way they already look at Zoho.
 - Refresh from Zoho (own button). Cache in `localStorage` (`fp_work_orders`) so the list opens offline.
 - No technician selected → existing technician prompt; do not show the shop calendar.
 - **Dates:** From / To pickers plus a **Today** button. Default window is 14 days back through 60 days forward. Changing dates (or Today) asks Zoho for that window. Active is still Meeting Status — not the same as Today.
-- **Meeting Status** chips/select: default Active; tap to include other values from the Meetings picklist.
-- Cards: account, meeting title, start time, venue, Host, status, deal name. Day headers (`Today`, `Mon Sep 1`).
+- **Meeting Status** chips/select: default all statuses; tap a chip to narrow.
+- Cards: account, meeting title, start time, venue, User / Technician, status, deal name. Day headers (`Today`, `Mon Sep 1`).
 - Sort: `Start_DateTime` ascending inside the current status + date filters.
-- Badge = count after Host + status + date filters.
+- Badge = count after User / Technician + status + date filters.
 - Map keeps its own upcoming + coordinates view. The WO list does not require a pin.
 
-How Host matches: **My meetings** is the setup / Settings technician (`A.technician`) against `Host.name`, or `Owner` when Host is blank. Normalize (trim, punctuation, case-fold). A first name matches `First Last`. `Brad White` matches `White, Brad` and `Bradley White`. A Host email matches on the local part. **All hosts** shows every meeting in the date window. **All statuses** is for calendars that use Planned/Scheduled instead of Active.
+How the technician matches: **My meetings** is the setup / Settings **User / Technician** name (`A.technician`, Internal_Assets.Users) against `Users`, `Technician`, `Host`, and `Owner` on the meeting — not Host alone. Users may be a picklist string, a lookup `{name}`, or an array of those. Normalize (trim, punctuation, case-fold). A first name matches `First Last`. `Brad White` matches `White, Brad` and `Bradley White`. An email matches on the local part. **All hosts** shows every meeting in the date window. **All statuses** is the default so Planned/Scheduled calendars are not hidden.
 
 ---
 
@@ -73,7 +73,7 @@ How Host matches: **My meetings** is the setup / Settings technician (`A.technic
 
 The meeting, as it is in Zoho:
 
-- Title, start / end, venue, Host, Meeting Status, description
+- Title, start / end, venue, User / Technician (Users), Host, Meeting Status, description
 - Cancelled flag if Zoho set `$event_cancelled`
 - Links: **Deal**, **Account**, **Contact** (`Who_Id`), **Meeting in Zoho**
 
@@ -90,7 +90,7 @@ Tab order: **Deals · WO · Map · Capture · …**
 First slice (this build):
 
 1. `zoho-proxy` `get_meetings` + Meeting Status picklist (Meetings module first; Events fallback). Fields include Host, Who_Id, Meeting Status, What_Id.
-2. WO tab: list, status filter, Host filter, start-of-day sort, open record, Zoho links, Work this WO.
+2. WO tab: list, status filter, User / Technician filter, start-of-day sort, open record, Zoho links, Work this WO.
 3. RBAC toggle, header shows the selected meeting, technician change refilters.
 4. Capture is not blocked when no WO is selected.
 

@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "293";
+var PROXY_BUILD = "294";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -678,13 +678,33 @@ exports.handler = async function(event) {
         }
         return null;
       }
+      function pickTechnicianFields(body) {
+        var rows = [];
+        try { rows = (JSON.parse(body).fields || []); } catch (e) { return []; }
+        var out = [];
+        var skip = /^(id|Created_By|Modified_By|Created_Time|Modified_Time|Who_Id|What_Id|Check_In_By|Tag)$/i;
+        rows.forEach(function (f) {
+          var api = String((f && f.api_name) || "");
+          var label = String((f && (f.field_label || f.display_label)) || "");
+          var dt = String((f && f.data_type) || "").toLowerCase();
+          if (!api || out.indexOf(api) >= 0 || skip.test(api)) return;
+          // Settings User / Technician is Internal_Assets.Users (label Current User).
+          // Meetings use that same Users picklist — not a singular "User" field.
+          if (/^(Host|Owner|Users|Technician|Current_User|Assigned_To)$/i.test(api)) { out.push(api); return; }
+          if (/technician|current user|user\s*\/\s*technician|^users?$/i.test(label)) { out.push(api); return; }
+          if ((dt === "user" || dt === "ownerlookup" || dt === "picklist") && /user|tech|assign/i.test(api + " " + label)) out.push(api);
+        });
+        return out;
+      }
       var statusMods = ["Meetings", "Events"];
       var statusMod = "";
       var statusField = null;
       var statusFieldsResult = null;
+      var technicianFields = [];
       for (var smi = 0; smi < statusMods.length; smi++) {
         statusFieldsResult = await meetingFieldsForModule(statusMods[smi]);
         if (statusFieldsResult.status >= 200 && statusFieldsResult.status < 300) {
+          if (!technicianFields.length) technicianFields = pickTechnicianFields(statusFieldsResult.body);
           statusField = pickMeetingStatusField(statusFieldsResult.body);
           if (statusField) { statusMod = statusMods[smi]; break; }
         }
@@ -705,7 +725,8 @@ exports.handler = async function(event) {
           ok: true,
           module: statusMod || "Meetings",
           field_api_name: statusField ? statusField.api_name : "Meeting_Status",
-          statuses: statusValues
+          statuses: statusValues,
+          technician_fields: technicianFields
         })
       };
     }
@@ -714,6 +735,53 @@ exports.handler = async function(event) {
       var woPage = data.page || 1;
       var woModule = data.crm_module || "Meetings";
       var woStatusField = data.status_field || "Meeting_Status";
+      var extraFields = Array.isArray(data.extra_fields) ? data.extra_fields : [];
+      var woDroppedFields = [];
+      var woTitleOverride = "";
+
+      function uniquePush(arr, v) {
+        v = String(v || "");
+        if (!v || arr.indexOf(v) >= 0) return;
+        arr.push(v);
+      }
+      function dropMeetingField(f) {
+        f = String(f || "");
+        if (!f || /^Host$/i.test(f) || /^(Start_DateTime|End_DateTime|What_Id|Who_Id|Venue|Location|Description)$/i.test(f)) return;
+        uniquePush(woDroppedFields, f);
+      }
+      function zohoInvalidFieldNames(result) {
+        var found = [];
+        if (!result || !result.body) return found;
+        var body = String(result.body);
+        try {
+          var j = JSON.parse(result.body);
+          var details = j.details;
+          if (details && details.api_name) uniquePush(found, details.api_name);
+          if (Array.isArray(details)) {
+            details.forEach(function (d) { if (d && d.api_name) uniquePush(found, d.api_name); });
+          }
+          if (Array.isArray(j.data)) {
+            j.data.forEach(function (row) {
+              if (row && row.details && row.details.api_name) uniquePush(found, row.details.api_name);
+            });
+          }
+        } catch (e) {}
+        var re = /api_name["']?\s*[:=]\s*["']([A-Za-z0-9_$]+)["']/g;
+        var m;
+        while ((m = re.exec(body))) uniquePush(found, m[1]);
+        return found;
+      }
+      // Settings User / Technician is Users. Never request a singular User —
+      // that field is not on Meetings and Zoho 400s the entire GET, which then
+      // used to drop Users (the real technician field) on retry.
+      function technicianFieldCandidates() {
+        var out = [];
+        extraFields.forEach(function (f) { uniquePush(out, f); });
+        ["Users", "Technician", "Owner", "Current_User", "Assigned_To"].forEach(function (f) { uniquePush(out, f); });
+        return out.filter(function (f) {
+          return woDroppedFields.indexOf(f) < 0 && !/^User$/i.test(f) && !/^Host$/i.test(f);
+        });
+      }
 
       function woIso(d) {
         return d.toISOString().replace(/\.\d{3}Z$/, "+00:00");
@@ -729,10 +797,14 @@ exports.handler = async function(event) {
       var woEndIso = woIso(woEnd);
 
       function meetingListFields(mod, statusField) {
-        var title = mod === "Events" ? "Event_Title" : "Meeting_Title";
-        var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Host", "Owner", "Venue", "Location", "Description", "$se_module", "$event_cancelled"];
-        if (statusField) parts.push(statusField);
-        return parts.join(",");
+        var title = woTitleOverride || (mod === "Events" ? "Event_Title" : "Meeting_Title");
+        var parts = [title, "Start_DateTime", "End_DateTime", "What_Id", "Who_Id", "Venue", "Location", "Description", "Host"];
+        ["$se_module", "$event_cancelled"].forEach(function (f) {
+          if (woDroppedFields.indexOf(f) < 0) parts.push(f);
+        });
+        technicianFieldCandidates().forEach(function (f) { uniquePush(parts, f); });
+        if (statusField && parts.indexOf(statusField) < 0 && woDroppedFields.indexOf(statusField) < 0) parts.push(statusField);
+        return parts.filter(function (f) { return woDroppedFields.indexOf(f) < 0; }).join(",");
       }
 
       function fetchMeetingsPage(mod, statusField, rangeMode) {
@@ -799,21 +871,52 @@ exports.handler = async function(event) {
         return (best && best.result) || last;
       }
 
-      var woResult = await fetchMeetingsWithFallbacks(woModule, woStatusField);
+      async function fetchMeetingsDroppingInvalid(mod, statusField) {
+        var result = await fetchMeetingsWithFallbacks(mod, statusField);
+        var step = 0;
+        while (result && result.status >= 400 && step < 8) {
+          var bad = zohoInvalidFieldNames(result);
+          if (bad.length) {
+            bad.forEach(dropMeetingField);
+          } else if (step === 0) {
+            ["Owner", "Current_User", "Assigned_To", "$se_module", "$event_cancelled"].concat(extraFields).forEach(function (f) {
+              if (!/^Users$/i.test(f) && !/^Technician$/i.test(f)) dropMeetingField(f);
+            });
+          } else if (step === 1) {
+            technicianFieldCandidates().forEach(function (f) { if (!/^Users$/i.test(f)) dropMeetingField(f); });
+          } else if (step === 2) {
+            dropMeetingField("Technician");
+          } else if (step === 3) {
+            dropMeetingField("Users");
+          } else if (mod === "Meetings" && !woTitleOverride) {
+            woTitleOverride = "Event_Title";
+            dropMeetingField("Meeting_Title");
+          } else {
+            break;
+          }
+          result = await fetchMeetingsWithFallbacks(mod, statusField);
+          step++;
+        }
+        return result;
+      }
+
+      var woResult = await fetchMeetingsDroppingInvalid(woModule, woStatusField);
       if (!data.crm_module && woPage === 1 && woResult.status >= 400) {
-        var eventsTry = await fetchMeetingsWithFallbacks("Events", woStatusField);
+        woTitleOverride = "";
+        var eventsTry = await fetchMeetingsDroppingInvalid("Events", woStatusField);
         if (eventsTry.status >= 200 && eventsTry.status < 300) {
           woResult = eventsTry;
           woModule = "Events";
         }
       }
       if (woResult.status >= 400 && woStatusField) {
-        var noStatus = await fetchMeetingsWithFallbacks(woModule, "");
+        dropMeetingField(woStatusField);
+        var noStatus = await fetchMeetingsDroppingInvalid(woModule, "");
         if (noStatus.status >= 200 && noStatus.status < 300) {
           woResult = noStatus;
           woStatusField = "";
         } else if (woStatusField !== "Event_Status") {
-          var altStatus = await fetchMeetingsWithFallbacks(woModule, "Event_Status");
+          var altStatus = await fetchMeetingsDroppingInvalid(woModule, "Event_Status");
           if (altStatus.status >= 200 && altStatus.status < 300) {
             woResult = altStatus;
             woStatusField = "Event_Status";
@@ -842,6 +945,9 @@ exports.handler = async function(event) {
         woJson.__fp_range = woResult.__fp_range || "start_end";
         woJson.__fp_start = woStartIso;
         woJson.__fp_end = woEndIso;
+        woJson.__fp_fields = meetingListFields(woModule, woStatusField);
+        woJson.__fp_tech_fields = technicianFieldCandidates();
+        woJson.__fp_dropped_fields = woDroppedFields;
         return { statusCode: 200, headers: h, body: JSON.stringify(woJson) };
       } catch (we) {
         return { statusCode: woResult.status, headers: h, body: woResult.body };
