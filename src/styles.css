@@ -104,6 +104,10 @@ body.light .pcard{background:#fff;border-color:#b2ddd6}
 body.light .wo-status-chip.on{background:#d0f0ea;color:#0f2420}
 .wo-link-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .wo-day-hdr{font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.04em;text-transform:uppercase;margin:12px 0 6px}
+#wo-record{margin-bottom:12px}
+.wo-form-field{margin-bottom:10px}
+.wo-form-readonly{font-size:13px;color:var(--text);padding:6px 0;line-height:1.45}
+.wo-form-hint{font-size:11px;color:var(--dim);margin:0 0 10px}
 .deal-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .deal-card.sel{border-color:var(--amber);background:#0a2020}
 body.light .deal-card{background:#fff}

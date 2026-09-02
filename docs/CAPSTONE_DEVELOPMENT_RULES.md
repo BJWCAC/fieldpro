@@ -225,7 +225,7 @@ Every CapStone tab that collects user work must **autosave draft state** so swit
 - **On background / page hide** — save capture + asset drafts (capture also writes History when possible).
 - **On cold start** — offer restore via confirm dialog (`maybeRestoreCaptureDraft`, `maybeRestoreAssetDraft`).
 - **New tabs** — add `build*Draft`, `save*DraftNow`, `schedule*DraftSave`, `*DraftHasWork`, and wire into `go()` + visibility/pagehide. Document the storage key in this section.
-- **WO** — first slice does not collect field notes (list + meeting record only). Status chips persist in `fp_wo_status_filter`; the meeting list caches in `fp_work_orders`.
+- **WO** — meeting field form drafts in `fp_wo_draft` (keyed by meeting id). Status chips persist in `fp_wo_status_filter`; the meeting list caches in `fp_work_orders`; live field metadata caches in `fp_wo_fields`.
 
 ## Field auto-advance rules (all tabs)
 
@@ -310,6 +310,7 @@ Examples:
 
 - Zoho report notes
 - Zoho asset records
+- Zoho meeting / WO field updates
 - Zoho asset notes
 - Deal asset subform links
 - WorkDrive files

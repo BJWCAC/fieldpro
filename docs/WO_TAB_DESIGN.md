@@ -3,8 +3,8 @@
 The **WO** tab is the Zoho **Meetings** record, shown in CapStone as the day's work order. It is not a new CRM module.
 
 ```text
-Last updated: 2026-09-01
-Status: Accepted — first slice is the list + meeting record
+Last updated: 2026-09-02
+Status: Accepted — list + editable meeting form (Zoho write-back)
 Related: docs/CAPSTONE_DEVELOPMENT_RULES.md (Future tab rule)
 ```
 
@@ -71,13 +71,15 @@ How the technician matches: **My meetings** is the setup / Settings **User / Tec
 
 ## Record (the open WO)
 
-The meeting, as it is in Zoho:
+Opening a meeting shows the **same Zoho Meetings fields** as an editable form (`#wo-record`). Field metadata comes from `get_meeting_fields` (live `settings/fields`); the record comes from `get_meeting`. Fallback fields (title, status, start/end, venue, description, Users) are used offline.
 
-- Title, start / end, venue, User / Technician (Users), Host, Meeting Status, description
+- Every shown field has **→ AI**. Typed text is polished; an empty field is drafted from this meeting (and Capture voice notes when present). Picklists must land on a listed option.
+- **Save meeting to Zoho** PUTs only changed editable fields via `update_meeting`. Lookups (Host, Contact, Related To, Owner) stay read-only. Failed saves queue as Pending Sync `meeting_update`.
+- Local draft: `fp_wo_draft` (autosave on edit, restore when the same meeting is reopened).
 - Cancelled flag if Zoho set `$event_cancelled`
 - Links: **Deal**, **Account**, **Contact** (`Who_Id`), **Meeting in Zoho**
 
-Primary action: **Work this WO** — sets `A.wo` and the linked deal (`A.sel`), goes to Capture. Secondary: **Open assets on this deal**.
+Primary action: **Save meeting to Zoho**. **Work this WO** — sets `A.wo` and the linked deal (`A.sel`), goes to Capture. Secondary: **Open assets on this deal**.
 
 Assets on the open WO come from that deal's `Assets_and_Checklist`. Later: Result 1 / drawdown / cal cert rows for those assets.
 
@@ -91,7 +93,10 @@ First slice (this build):
 
 1. `zoho-proxy` `get_meetings` + Meeting Status picklist (Meetings module first; Events fallback). Fields include Host, Who_Id, Meeting Status, What_Id.
 2. WO tab: list, status filter, User / Technician filter, start-of-day sort, open record, Zoho links, Work this WO.
-3. RBAC toggle, header shows the selected meeting, technician change refilters.
-4. Capture is not blocked when no WO is selected.
+3. Open meeting form: live Meetings fields, per-field → AI, Save to Zoho (`get_meeting_fields` / `get_meeting` / `update_meeting`).
+4. RBAC toggle, header shows the selected meeting, technician change refilters.
+5. Capture is not blocked when no WO is selected.
 
-Not in the first slice: create a meeting, History `meetingId`, asset checkboxes, Result 1 / drawdown / cal cert fetch.
+In this slice: live meeting field form, per-field → AI, Save to Zoho, `fp_wo_draft`, Pending Sync `meeting_update`. Proxy build **295** (`get_meeting_fields`, `get_meeting`, `update_meeting`).
+
+Not in this slice: create a meeting, History `meetingId`, asset checkboxes, Result 1 / drawdown / cal cert fetch.

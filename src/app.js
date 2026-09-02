@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="404";
+var FP_VERSION="405";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -1243,6 +1243,7 @@ function go(n){
   if(!isTabAllowed(n))n=firstAllowedTab();
   if(typeof saveAssetDraftNow==="function"&&typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
   if(typeof saveCaptureDraftNow==="function"&&typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
+  if(typeof saveWoDraftNow==="function"&&typeof woFormHasWork==="function"&&woFormHasWork())saveWoDraftNow();
   if(n==="ia")A.assetModule="internal";
   else if(n==="assets")A.assetModule="equipments";
   ["deals","wo","capture","assets","ia","inbox","report","history","map","settings"].forEach(function(x){
@@ -1870,10 +1871,12 @@ async function startCapStone(){
       if(document.visibilityState!=="hidden")return;
       if(typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureWorkLocally({silent:true});
       if(typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
+      if(typeof woFormHasWork==="function"&&woFormHasWork())saveWoDraftNow();
     });
     window.addEventListener("pagehide",function(){
       if(typeof captureDraftHasWork==="function"&&captureDraftHasWork())saveCaptureDraftNow();
       if(typeof assetDraftHasWork==="function"&&assetDraftHasWork())saveAssetDraftNow();
+      if(typeof woFormHasWork==="function"&&woFormHasWork())saveWoDraftNow();
     });
   }catch(e){}
 }
@@ -2028,7 +2031,7 @@ function wrapAction(fn){
   wrapped._fpOriginal=fn;
   return wrapped;
 }
-var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","loadWorkOrders","resetWorkOrdersUI","toggleWoStatus","toggleWoHostMode","selectAllWoStatuses","setWoDateRange","setWoDateToday","selectWorkOrder","workThisWo","openWoAssets","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
+var FP_ACTION_NAMES=["go","newProject","loadDeals","resetDealsUI","loadWorkOrders","resetWorkOrdersUI","toggleWoStatus","toggleWoHostMode","selectAllWoStatuses","setWoDateRange","setWoDateToday","selectWorkOrder","workThisWo","openWoAssets","saveWorkOrderToZoho","refreshWoRecord","closeWoRecord","getLocation","toggleRecordAudio","startCam","snap","togglePause","stopCam","saveVideo","saveAllCapturePhotosToPhone","saveCaptureWorkLocally","generate","regenerateReport","updateReportPhotos","setAssetIntent","resetAssetIntent","setAssetSetupMode","startAssetDealAdd","startAssetAccountAdd","openAssetAccountPicker","closeAssetAccountPicker","pickAssetAccount","searchExistingAssets","searchAssetByCurrentField","loadExistingAssetFromSearch","startAssetReplacement","extractAssetFromPhoto","researchAndPrefillAsset","confirmAllAssetPrefill","saveAssetToZoho","checkZohoProxyDeploy","resetAssetFormForNext","startNewAsset","reopenSavedAsset","deleteLoadedAsset","applyAssetPicklistNearMatch","requestAssetPicklistValue","addAssetSubformRow","removeAssetSubformRow","saveNote","openShare","togPhotos","dlPDF","retryReportSave","retryReportUploads","openInboxDealPicker","openCopyCaptureDealPicker","confirmCopyCaptureToDeals","copyHistToDeals","toggleCopyDeal","pullFromPlaud","addInboxManualNote","generateInboxSummary","saveInboxToZoho","loadAccountsMap","applyMapFilters","applyMapClusterMode","clearMapStageFilter","toggleMapLegend","toggleMapMissingPanel","toggleMapSitePanel","loadTechniciansFromZoho","retryPendingUploads","clearPendingUploads","retryPendingAi","clearPendingAi","exportHistory","clearOldPhotos","clearAllHistory","resetAppCache","clearWorkDriveFolderCache","clearDealCache","freeDealCacheFromWarning","savePlaudRefreshToken","verifyPlaudConnection","clearPlaudConnection","togglePlaudAutoPull","toggleAutoSaveZoho","toggleAutoSavePhonePhotos","toggleDark","enterKey","saveApiKey","openQuickStart","runFieldPolishAi","editAssetPhotoLabel","linkInboxToActiveDeal","mapSelectDeal","mapSelectDealForAccount","mapZoomPendingSite","selectDeal","applyFilters","setSort","importCSV","retryCapturePhotoUpload","saveCapturePhotoToPhone","addPhotos","autoSync","uploadToWorkDriveAll","dlHistPDF"];
 var FP_WRAP_SKIP={wrapAction:1,withBusy:1,fetchWithTimeout:1,incGlobalBusy:1,decGlobalBusy:1,markButtonBusy:1,clearActiveButtonBusy:1,initButtonFeedback:1,installActionWrappers:1,fpRememberView:1,fpRestoreView:1,fpAfterDomUpdate:1,initNoAutofill:1,el:1,esc:1,showToast:1};
 function installActionWrappers(){
   FP_ACTION_NAMES.forEach(function(name){
@@ -2106,7 +2109,7 @@ function isLightTheme(){return document.body.classList.contains("light");}
    setup cards are always white. Capture / History / Deals cards are dark at
    night and white in day mode — same surface rule as .bw vs .bg. */
 function surfaceNeutralClass(alwaysLight){return (alwaysLight||isLightTheme())?"bw":"bg";}
-function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");renderReportCopyPickers();if(typeof renderPhotoCards==="function")renderPhotoCards();if(typeof renderVideoCards==="function")renderVideoCards();if(typeof renderHistory==="function")renderHistory();var cdb=el("copy-deals-btn");if(cdb)cdb.className=surfaceNeutralClass()+"-lg";scheduleKeySyncAutoPush();}
+function toggleDark(){var isD=!document.body.classList.contains("light");document.body.classList.toggle("light",isD);var td=el("tog-dark");if(td)td.classList.toggle("on",!isD);localStorage.setItem("fp_theme",isD?"light":"dark");renderReportCopyPickers();if(typeof renderPhotoCards==="function")renderPhotoCards();if(typeof renderVideoCards==="function")renderVideoCards();if(typeof renderHistory==="function")renderHistory();if(typeof renderWoForm==="function"&&A.wo)renderWoForm();var cdb=el("copy-deals-btn");if(cdb)cdb.className=surfaceNeutralClass()+"-lg";scheduleKeySyncAutoPush();}
 function toggleAutoSaveZoho(){
   A.autoSaveZoho=!A.autoSaveZoho;
   var t=el("tog-auto-zoho");if(t)t.classList.toggle("on",A.autoSaveZoho);
@@ -2286,7 +2289,7 @@ function newProject(){
 }
 function clearCapture(){
   clearCaptureDraft();
-  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.wo=null;A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
+  A.photos=[];A.reportPhotos=[];A.reportTechnician="";A.dealPdfAttached=false;A.dealPdfAttachments={};A.dealPdfStale=false;A.lastSaveResult=null;A.lastSaveIssue=null;A.location=null;A.report="";A.sel=null;A.wo=null;A.woForm=null;if(typeof hideWoRecord==="function")hideWoRecord();A.videoBlob=null;A.videoChunks=[];A.videoId=null;A.videoMime="";A.videoSize=0;A.videoName="";A.audioBlob=null;A.audioChunks=[];A.audioId=null;A.audioMime="";A.audioSize=0;A.transcriptJobId=null;A.transcriptStatus="";stopCaptureTranscriptPolling();A.videos=[];A._recEntry=null;stopVideoTranscriptPolling();A.workdrivePdfUrl=null;A.currentHistoryId=null;A.zohoNoteId=null;
   var pc=el("photo-cards");if(pc)pc.innerHTML="";
   if(el("tx"))el("tx").value="";if(el("tx2"))el("tx2").value="";
   SEC_IDS.forEach(function(id){var e=el(id);if(e)e.value="";});
@@ -2425,7 +2428,7 @@ function selectDeal(id,opts){
       showToast("This visit is now on the new deal. The earlier History record stays on the first deal. Use Copy to Other Deals to file it on several deals at once.",8000);
     }
   }
-  if(!opts.fromWo)A.wo=null;
+  if(!opts.fromWo){A.wo=null;A.woForm=null;if(typeof hideWoRecord==="function")hideWoRecord();}
   A.sel=d;
   ast().linkMode="deal";
   ast().standaloneAccount=null;
@@ -3028,6 +3031,7 @@ function selectWorkOrder(id,opts){
     return;
   }
   renderWorkOrders();
+  if(typeof openWoRecord==="function")openWoRecord(m.id);
 }
 function workThisWo(id){selectWorkOrder(id,{goCapture:true});}
 function openWoAssets(id){selectWorkOrder(id,{goAssets:true});}
@@ -3050,6 +3054,7 @@ async function loadWorkOrders(){
         if(Array.isArray(sj.technician_fields))A.woTechFields=sj.technician_fields;
       }
     }catch(se){}
+    try{if(typeof loadMeetingFields==="function")loadMeetingFields();}catch(fe){}
     var range=ensureWoDateRange();
     syncWoDateInputs();
     var all=[],page=1,hasMore=true,crmModule=A.woModule||"Meetings",rangeMode="";
@@ -3186,8 +3191,571 @@ function renderWorkOrders(){
     html+="</div>";
   });
   list.innerHTML=html;
+  if(!filtered.some(function(m){return A.wo&&A.wo.id===m.id;})){
+    if(typeof hideWoRecord==="function"&&!A.woForm)hideWoRecord();
+  }
 }
 
+function woFallbackFields(moduleName,statusField,statuses){
+  var title=moduleName==="Events"?"Event_Title":"Meeting_Title";
+  var status=statusField||(moduleName==="Events"?"Event_Status":"Meeting_Status");
+  var statusOpts=(statuses&&statuses.length)?statuses.slice():["Active","Planned","Scheduled","Completed","Cancelled"];
+  return [
+    {api_name:title,label:"Title",data_type:"text",required:true,read_only:false,pick_list_values:[]},
+    {api_name:status,label:"Meeting Status",data_type:"picklist",required:false,read_only:false,pick_list_values:statusOpts},
+    {api_name:"Start_DateTime",label:"Start",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"End_DateTime",label:"End",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"All_day",label:"All day",data_type:"boolean",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Venue",label:"Venue",data_type:"text",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Location",label:"Location",data_type:"text",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Description",label:"Description",data_type:"textarea",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Users",label:"User / Technician",data_type:"picklist",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Technician",label:"Technician",data_type:"text",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Host",label:"Host",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"Who_Id",label:"Contact",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"What_Id",label:"Related To",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"Owner",label:"Owner",data_type:"lookup",required:false,read_only:true,pick_list_values:[]}
+  ];
+}
+function woSkipFieldApi(api){
+  api=String(api||"");
+  if(!api||api.indexOf("$")===0)return true;
+  return /^(id|Created_By|Modified_By|Created_Time|Modified_Time|Last_Activity_Time|Record_Image|Recurring_Activity|Participants|Remind_Participants)$/i.test(api);
+}
+function woSkipFieldType(dt){
+  dt=String(dt||"").toLowerCase();
+  return /^(formula|rollup_summary|autonumber|fileupload|imageupload|profileimage|subform|alert|rrule|multiuser|service)$/.test(dt);
+}
+function woFieldIsLookup(field){
+  if(!field)return false;
+  if(field.lookup)return true;
+  var dt=String(field.data_type||"").toLowerCase();
+  return dt==="lookup"||dt==="ownerlookup"||dt==="userlookup";
+}
+function woFieldIsEditable(field){
+  if(!field||woSkipFieldApi(field.api_name)||woSkipFieldType(field.data_type))return false;
+  if(field.read_only)return false;
+  if(woFieldIsLookup(field))return false;
+  return true;
+}
+function woFieldSortRank(api){
+  var order=["Meeting_Title","Event_Title","Title","Meeting_Status","Event_Status","Status","Start_DateTime","End_DateTime","All_day","Venue","Location","Description","Users","Technician","Host","Who_Id","What_Id","Owner"];
+  var i=order.indexOf(api);
+  return i<0?100+String(api).charCodeAt(0):i;
+}
+function woSortMeetingFields(fields){
+  return (fields||[]).slice().filter(function(f){return f&&!woSkipFieldApi(f.api_name)&&!woSkipFieldType(f.data_type);}).sort(function(a,b){
+    var d=woFieldSortRank(a.api_name)-woFieldSortRank(b.api_name);
+    if(d)return d;
+    return String(a.label||a.api_name).localeCompare(String(b.label||b.api_name));
+  });
+}
+function woFieldInputId(api){return "wo-f-"+String(api||"").replace(/[^A-Za-z0-9_]/g,"_");}
+function woMeetingFieldByApi(fields,api){
+  fields=fields||[];
+  for(var i=0;i<fields.length;i++){if(fields[i]&&fields[i].api_name===api)return fields[i];}
+  return null;
+}
+function woDisplayFieldValue(val){
+  if(val==null||val==="")return "";
+  if(typeof val==="boolean")return val?"true":"false";
+  if(Array.isArray(val)||(typeof val==="object"))return woLookupName(val);
+  return String(val);
+}
+function woIsoToLocalInput(iso){
+  if(!iso)return "";
+  var d=new Date(iso);
+  if(isNaN(d.getTime())){
+    var m=String(iso).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+    return m?m[1]+"T"+m[2]:String(iso);
+  }
+  function pad(n){return String(n).padStart(2,"0");}
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function woLocalInputToIso(local){
+  if(!local)return "";
+  var d=new Date(local);
+  if(isNaN(d.getTime()))return String(local);
+  var off=-d.getTimezoneOffset();
+  var sign=off>=0?"+":"-";
+  var abs=Math.abs(off);
+  function pad(n){return String(n).padStart(2,"0");}
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes())+":00"+sign+pad(Math.floor(abs/60))+":"+pad(abs%60);
+}
+function woDateOnly(val){
+  var s=String(val||"");
+  var m=s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m?m[1]:s;
+}
+function woInputValueFromRecord(field,record){
+  record=record||{};
+  var raw=record[field.api_name];
+  var dt=String(field.data_type||"").toLowerCase();
+  if(dt==="datetime")return woIsoToLocalInput(typeof raw==="string"?raw:woDisplayFieldValue(raw));
+  if(dt==="date")return woDateOnly(typeof raw==="string"?raw:woDisplayFieldValue(raw));
+  if(dt==="boolean")return raw===true||raw==="true"||raw==="1"?"true":"";
+  if(woFieldIsLookup(field))return woDisplayFieldValue(raw);
+  if(dt==="multipicklist"&&Array.isArray(raw))return raw.map(woDisplayFieldValue).filter(Boolean).join(";");
+  if(raw==null)return "";
+  return woDisplayFieldValue(raw);
+}
+function woZohoValueFromInput(field,inputVal){
+  var dt=String(field.data_type||"").toLowerCase();
+  if(dt==="boolean")return inputVal===true||inputVal==="true"||inputVal==="1"||inputVal==="on";
+  if(dt==="datetime")return woLocalInputToIso(inputVal);
+  if(dt==="date")return woDateOnly(inputVal);
+  if(dt==="integer"||dt==="bigint"){
+    if(inputVal===""||inputVal==null)return null;
+    var n=parseInt(inputVal,10);
+    return isNaN(n)?inputVal:n;
+  }
+  if(dt==="double"||dt==="currency"||dt==="decimal"){
+    if(inputVal===""||inputVal==null)return null;
+    var f=parseFloat(inputVal);
+    return isNaN(f)?inputVal:f;
+  }
+  if(woFieldIsLookup(field))return inputVal;
+  return inputVal==null?"":String(inputVal);
+}
+function woValuesEqual(field,a,b){
+  var dt=String(field&&field.data_type||"").toLowerCase();
+  if(dt==="boolean")return (!!a)===((b===true||b==="true"||b==="1"||b==="on"));
+  if(dt==="datetime")return woIsoToLocalInput(woDisplayFieldValue(a))===woIsoToLocalInput(woDisplayFieldValue(b));
+  if(dt==="date")return woDateOnly(woDisplayFieldValue(a))===woDateOnly(woDisplayFieldValue(b));
+  return String(a==null?"":woDisplayFieldValue(a))===String(b==null?"":woDisplayFieldValue(b));
+}
+function woApplyAiPicklistValue(options,raw){
+  var t=String(raw||"").trim();
+  if(!t)return "";
+  var opts=options||[];
+  for(var i=0;i<opts.length;i++){if(String(opts[i])===t)return opts[i];}
+  var n=woNormalizeName(t);
+  for(var j=0;j<opts.length;j++){if(woNormalizeName(opts[j])===n)return opts[j];}
+  for(var k=0;k<opts.length;k++){if(woNormalizeName(opts[k]).indexOf(n)>=0||n.indexOf(woNormalizeName(opts[k]))>=0)return opts[k];}
+  return t;
+}
+function woSeedRecordFromList(m){
+  if(!m)return{};
+  var titleField=(m.eventModule==="Events")?"Event_Title":"Meeting_Title";
+  var statusField=A.woStatusField||(m.eventModule==="Events"?"Event_Status":"Meeting_Status");
+  var rec={};
+  rec[titleField]=m.title||"";
+  rec.Start_DateTime=m.start||"";
+  rec.End_DateTime=m.end||"";
+  rec.Venue=m.venue||"";
+  rec.Location=m.venue||"";
+  rec.Description=m.description||"";
+  rec[statusField]=m.status||"";
+  rec.Users=m.users||"";
+  rec.Technician=m.technician||"";
+  rec.Host=m.host||"";
+  rec.Who_Id=m.contact||"";
+  rec.What_Id=m.whatName||m.dealName||"";
+  rec.Owner=m.owner||"";
+  rec.All_day=false;
+  return rec;
+}
+function woBuildMeetingUpdatePayload(fields,original,current){
+  var payload={};
+  (fields||[]).forEach(function(field){
+    if(!woFieldIsEditable(field))return;
+    var api=field.api_name;
+    var before=original?original[api]:undefined;
+    var after=current&&Object.prototype.hasOwnProperty.call(current,api)?current[api]:undefined;
+    if(woValuesEqual(field,before,after))return;
+    payload[api]=woZohoValueFromInput(field,after);
+  });
+  return payload;
+}
+function woPicklistOptions(field){
+  var opts=(field&&field.pick_list_values?field.pick_list_values.slice():[]);
+  if(field&&(/^(Users|Technician|Current_User)$/i.test(field.api_name||""))){
+    (A.technicians||[]).forEach(function(n){if(n&&opts.indexOf(n)<0)opts.push(n);});
+  }
+  if(field&&(field.api_name===A.woStatusField||/status/i.test(field.api_name||""))){
+    (A.woStatuses||[]).forEach(function(n){if(n&&opts.indexOf(n)<0)opts.push(n);});
+  }
+  return opts;
+}
+function woFormHasWork(){
+  if(!A.woForm||!A.woForm.id)return false;
+  if(A.woForm.dirty)return true;
+  try{
+    var cur=woReadFormValues();
+    return Object.keys(woBuildMeetingUpdatePayload(A.woFields||woFallbackFields(A.woModule,A.woStatusField,A.woStatuses),A.woForm.original||{},cur)).length>0;
+  }catch(e){return !!A.woForm.dirty;}
+}
+function woReadFormValues(){
+  var values={};
+  var fields=woSortMeetingFields(A.woFields&&A.woFields.length?A.woFields:woFallbackFields(A.woModule,A.woStatusField,A.woStatuses));
+  fields.forEach(function(field){
+    var id=woFieldInputId(field.api_name);
+    var node=el(id);
+    if(!node){
+      if(A.woForm&&A.woForm.values&&A.woForm.values[field.api_name]!=null)values[field.api_name]=A.woForm.values[field.api_name];
+      return;
+    }
+    if(node.type==="checkbox")values[field.api_name]=node.checked?"true":"";
+    else values[field.api_name]=node.value;
+  });
+  return values;
+}
+function woSetFormValue(api,val){
+  if(!A.woForm)return;
+  A.woForm.values=A.woForm.values||{};
+  A.woForm.values[api]=val;
+  A.woForm.dirty=true;
+  var node=el(woFieldInputId(api));
+  if(node){
+    if(node.getAttribute&&node.getAttribute("data-wo-readonly"))node.textContent=val?String(val):"";
+    else if(node.type==="checkbox")node.checked=val===true||val==="true"||val==="1";
+    else node.value=val==null?"":String(val);
+  }
+  scheduleWoDraftSave();
+  updateWoSaveState();
+}
+function buildWoDraft(){
+  if(!A.woForm||!A.woForm.id)return null;
+  return{
+    version:1,
+    savedAt:new Date().toISOString(),
+    id:A.woForm.id,
+    module:A.woForm.module||A.woModule||"Meetings",
+    values:woReadFormValues(),
+    original:A.woForm.original||{}
+  };
+}
+function saveWoDraftNow(){
+  var d=buildWoDraft();
+  if(!d)return;
+  try{localStorage.setItem("fp_wo_draft",JSON.stringify(d));}catch(e){}
+  var st=el("wo-draft-status");
+  if(st){st.textContent="Meeting draft saved "+new Date().toLocaleTimeString();st.style.color="var(--dim)";}
+}
+function scheduleWoDraftSave(){
+  if(A.woDraftTimer)clearTimeout(A.woDraftTimer);
+  A.woDraftTimer=setTimeout(function(){A.woDraftTimer=null;saveWoDraftNow();},800);
+}
+function loadWoDraft(id){
+  try{
+    var raw=localStorage.getItem("fp_wo_draft");
+    if(!raw)return null;
+    var d=JSON.parse(raw);
+    if(!d||String(d.id)!==String(id))return null;
+    return d;
+  }catch(e){return null;}
+}
+function clearWoDraft(id){
+  try{
+    var raw=localStorage.getItem("fp_wo_draft");
+    if(!raw)return;
+    var d=JSON.parse(raw);
+    if(!id||String(d.id)===String(id))localStorage.removeItem("fp_wo_draft");
+  }catch(e){try{localStorage.removeItem("fp_wo_draft");}catch(e2){}}
+}
+function hideWoRecord(){
+  var box=el("wo-record");
+  if(box){box.style.display="none";box.innerHTML="";}
+}
+function closeWoRecord(){
+  if(woFormHasWork())saveWoDraftNow();
+  A.wo=null;
+  A.woForm=null;
+  hideWoRecord();
+  renderWorkOrders();
+}
+function updateWoSaveState(){
+  var btn=el("wo-save-btn");
+  if(!btn)return;
+  var dirty=woFormHasWork();
+  btn.textContent=A.woSaving?"Saving to Zoho...":(dirty?"Save meeting to Zoho":"Saved to Zoho");
+  btn.disabled=!!A.woSaving||!dirty;
+}
+function woFormContextText(){
+  var lines=[];
+  var m=A.wo||{};
+  if(m.title)lines.push("Title: "+m.title);
+  if(m.status)lines.push("Meeting Status: "+m.status);
+  if(m.start)lines.push("Start: "+m.start);
+  if(m.end)lines.push("End: "+m.end);
+  if(m.venue)lines.push("Venue: "+m.venue);
+  if(m.users||m.technician||m.host)lines.push("Technician: "+(m.users||m.technician||m.host));
+  if(m.accountName)lines.push("Account: "+m.accountName);
+  if(m.dealName)lines.push("Deal: "+m.dealName);
+  if(m.contact)lines.push("Contact: "+m.contact);
+  if(m.description)lines.push("Description: "+m.description);
+  var vals=A.woForm&&A.woForm.values?A.woForm.values:{};
+  Object.keys(vals).forEach(function(k){
+    if(vals[k])lines.push(k+": "+vals[k]);
+  });
+  if(typeof getVoiceNotesValue==="function"){
+    var voice=getVoiceNotesValue();
+    if(voice)lines.push("Capture voice notes: "+voice);
+  }
+  return lines.join("\n");
+}
+function woEnsureFields(){
+  if(A.woFields&&A.woFields.length)return A.woFields;
+  try{
+    var raw=localStorage.getItem("fp_wo_fields");
+    if(raw){
+      var d=JSON.parse(raw);
+      if(d&&Array.isArray(d.fields)&&d.fields.length){
+        A.woFields=d.fields;
+        if(d.module)A.woModule=d.module;
+        return A.woFields;
+      }
+    }
+  }catch(e){}
+  A.woFields=woFallbackFields(A.woModule,A.woStatusField,A.woStatuses);
+  return A.woFields;
+}
+async function loadMeetingFields(){
+  try{
+    var tokOk=await refreshZohoToken();
+    if(!tokOk)return woEnsureFields();
+    var r=await zohoProxyFetch({action:"get_meeting_fields",crm_module:A.woModule||"Meetings"},ZOHO_FETCH_MS);
+    if(!r.ok)return woEnsureFields();
+    var d=await r.json();
+    if(Array.isArray(d.fields)&&d.fields.length){
+      A.woFields=d.fields;
+      if(d.module)A.woModule=d.module;
+      try{localStorage.setItem("fp_wo_fields",JSON.stringify({savedAt:new Date().toISOString(),module:A.woModule,fields:A.woFields}));}catch(e){}
+    }
+  }catch(e){}
+  return woEnsureFields();
+}
+async function loadMeetingRecord(id){
+  var rec=woSeedRecordFromList(A.wo);
+  try{
+    var tokOk=await refreshZohoToken();
+    if(!tokOk)return rec;
+    var fields=(A.woFields||[]).map(function(f){return f.api_name;}).filter(Boolean);
+    var body={action:"get_meeting",meeting_id:id,crm_module:A.woModule||"Meetings"};
+    if(fields.length)body.fields=fields;
+    var r=await zohoProxyFetch(body,ZOHO_FETCH_MS);
+    if(!r.ok)return rec;
+    var d=await r.json();
+    var row=(d.data&&d.data[0])||null;
+    if(row&&String(row.id)===String(id)){
+      rec=Object.assign({},rec,row);
+      if(d.__fp_module)A.woModule=d.__fp_module;
+    }
+  }catch(e){}
+  return rec;
+}
+function renderWoForm(opts){
+  opts=opts||{};
+  var box=el("wo-record");
+  if(!box)return;
+  if(!A.wo||!A.woForm){hideWoRecord();return;}
+  var live=woReadFormValues();
+  if(opts.keepValues||Object.keys(live).length)A.woForm.values=Object.assign({},A.woForm.values||{},live);
+  var fields=woSortMeetingFields(woEnsureFields());
+  var values=A.woForm.values||{};
+  var m=A.wo;
+  var neutral=surfaceNeutralClass();
+  var html="<div class='card'>";
+  html+="<div class='stitle'>Meeting</div>";
+  html+="<div class='wo-form-hint'>Same Zoho Meetings record. Edit here and Save to Zoho. → AI polishes a typed value, or drafts from this meeting when the field is empty.</div>";
+  html+="<div id='wo-form-status' class='wo-form-hint'>"+esc(A.woForm.status||"")+"</div>";
+  html+="<div id='wo-draft-status' class='wo-form-hint'></div>";
+  fields.forEach(function(field){
+    var api=field.api_name;
+    var id=woFieldInputId(api);
+    var editable=woFieldIsEditable(field);
+    var val=Object.prototype.hasOwnProperty.call(values,api)?values[api]:"";
+    var target="wo:"+api;
+    html+="<div class='wo-form-field'>";
+    html+="<div class='field-ai-row'><label class='lbl' style='margin-bottom:0' for='"+esc(id)+"'>"+esc(field.label||api)+(field.required?" *":"")+"</label>";
+    html+="<button type='button' class='field-ai-btn "+neutral+" bsm' data-field-ai-target='"+esc(target)+"' title='Update this meeting field with AI' onclick='event.preventDefault();event.stopPropagation();runFieldPolishAi(\""+esc(target)+"\")'>→ AI</button>";
+    html+="</div>";
+    html+="<div class='field-ai-status' id='field-ai-status-"+esc(fieldAiTargetKey(target))+"'></div>";
+    if(!editable){
+      html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val?esc(val):"<span style='color:var(--dim)'>Not set</span>")+"</div>";
+    }else{
+      var dt=String(field.data_type||"").toLowerCase();
+      var opts=woPicklistOptions(field);
+      if(dt==="boolean"){
+        html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>All-day meeting</span></label>";
+      }else if(dt==="picklist"||opts.length){
+        html+="<select id='"+esc(id)+"' onchange='onWoFieldInput(\""+esc(api)+"\")'><option value=''></option>";
+        var seen={};
+        opts.forEach(function(opt){
+          seen[opt]=1;
+          html+="<option value='"+esc(opt)+"'"+(String(val)===String(opt)?" selected":"")+">"+esc(opt)+"</option>";
+        });
+        if(val&&!seen[val])html+="<option value='"+esc(val)+"' selected>"+esc(val)+"</option>";
+        html+="</select>";
+      }else if(dt==="textarea"||dt==="website"&&api==="Description"||api==="Description"){
+        html+="<textarea id='"+esc(id)+"' rows='3' inputmode='text' oninput='onWoFieldInput(\""+esc(api)+"\")'>"+esc(val)+"</textarea>";
+      }else if(dt==="datetime"){
+        html+="<input id='"+esc(id)+"' type='datetime-local' value='"+esc(val)+"' onchange='onWoFieldInput(\""+esc(api)+"\")'/>";
+      }else if(dt==="date"){
+        html+="<input id='"+esc(id)+"' type='date' value='"+esc(val)+"' onchange='onWoFieldInput(\""+esc(api)+"\")'/>";
+      }else if(dt==="integer"||dt==="bigint"||dt==="double"||dt==="currency"||dt==="decimal"){
+        html+="<input id='"+esc(id)+"' type='number' step='any' value='"+esc(val)+"' oninput='onWoFieldInput(\""+esc(api)+"\")'/>";
+      }else{
+        html+="<input id='"+esc(id)+"' type='text' inputmode='text' value='"+esc(val)+"' oninput='onWoFieldInput(\""+esc(api)+"\")'/>";
+      }
+    }
+    html+="</div>";
+  });
+  html+="<div class='g2' style='margin-top:12px'>";
+  html+="<button type='button' class='bp bfull' id='wo-save-btn' onclick='saveWorkOrderToZoho()'>Save meeting to Zoho</button>";
+  html+="<button type='button' class='"+neutral+" bfull' onclick='refreshWoRecord()'>Reload from Zoho</button>";
+  html+="</div>";
+  html+="<div class='g2' style='margin-top:8px'>";
+  html+="<button type='button' class='bp bfull' data-no-busy onclick='workThisWo(\""+esc(m.id)+"\")'>Work this WO</button>";
+  html+="<button type='button' class='"+neutral+" bfull' data-no-busy onclick='openWoAssets(\""+esc(m.id)+"\")'>Open assets</button>";
+  html+="</div>";
+  html+="<div style='margin-top:8px'><button type='button' class='"+neutral+" bsm' onclick='closeWoRecord()'>Close meeting</button></div>";
+  html+="</div>";
+  box.innerHTML=html;
+  box.style.display="block";
+  if(typeof initNoAutofill==="function")initNoAutofill(box);
+  if(typeof installAutoAdvanceInRoot==="function")installAutoAdvanceInRoot(box);
+  if(typeof restoreFieldAiUiFromQueue==="function")restoreFieldAiUiFromQueue();
+  updateWoSaveState();
+}
+function onWoFieldInput(api){
+  if(!A.woForm)return;
+  A.woForm.values=woReadFormValues();
+  A.woForm.dirty=true;
+  scheduleWoDraftSave();
+  updateWoSaveState();
+}
+function woValuesFromRecord(record){
+  var values={};
+  woSortMeetingFields(woEnsureFields()).forEach(function(field){
+    values[field.api_name]=woInputValueFromRecord(field,record||{});
+  });
+  return values;
+}
+async function openWoRecord(id){
+  if(!id||!A.wo||String(A.wo.id)!==String(id))return;
+  if(A.woForm&&A.woForm.id&&A.woForm.id!==String(id)&&woFormHasWork())saveWoDraftNow();
+  if(A.woForm&&A.woForm.id===String(id)&&A.woForm.dirty){
+    renderWoForm({keepValues:true});
+    return;
+  }
+  A.woForm={id:String(id),module:A.woModule||"Meetings",values:woValuesFromRecord(woSeedRecordFromList(A.wo)),original:woSeedRecordFromList(A.wo),dirty:false,status:"Loading meeting fields..."};
+  renderWoForm();
+  try{
+    await loadMeetingFields();
+    var rec=await loadMeetingRecord(id);
+    if(!A.woForm||A.woForm.id!==String(id))return;
+    A.woForm.original=rec;
+    A.woForm.values=woValuesFromRecord(rec);
+    A.woForm.module=A.woModule||A.woForm.module;
+    var draft=loadWoDraft(id);
+    if(draft&&draft.values){
+      A.woForm.values=Object.assign({},A.woForm.values,draft.values);
+      A.woForm.dirty=true;
+      A.woForm.status="Restored unsaved meeting edits.";
+    }else{
+      A.woForm.status="Loaded from Zoho.";
+      A.woForm.dirty=false;
+    }
+    renderWoForm();
+    try{el("wo-record").scrollIntoView({block:"nearest",behavior:"smooth"});}catch(e){}
+  }catch(e){
+    if(A.woForm)A.woForm.status="Could not load every Zoho field — showing cached meeting. "+(e.message||e);
+    renderWoForm();
+  }
+}
+async function refreshWoRecord(){
+  if(!A.wo||!A.wo.id)return;
+  if(A.woForm)A.woForm.dirty=false;
+  clearWoDraft(A.wo.id);
+  A.woForm=null;
+  await openWoRecord(A.wo.id);
+}
+function meetingSaveError(parsed,httpStatus,txt){
+  var row=parsed&&parsed.data&&parsed.data[0];
+  if(row&&row.status==="error"){
+    var msg=row.message||row.code||"Zoho rejected meeting save";
+    if(row.details&&row.details.api_name)msg+=" ("+row.details.api_name+")";
+    throw new Error(msg);
+  }
+  if(!httpStatus||httpStatus<200||httpStatus>=300)throw new Error("Zoho meeting "+(httpStatus||"?")+": "+String(txt||"").substring(0,160));
+}
+function applyMeetingSaveToCache(id,payload){
+  var m=(A.workOrders||[]).find(function(x){return String(x.id)===String(id);});
+  if(!m)return;
+  if(payload.Meeting_Title||payload.Event_Title||payload.Title)m.title=payload.Meeting_Title||payload.Event_Title||payload.Title;
+  if(payload.Start_DateTime)m.start=payload.Start_DateTime;
+  if(payload.End_DateTime)m.end=payload.End_DateTime;
+  if(payload.Venue!=null)m.venue=payload.Venue;
+  if(payload.Description!=null)m.description=payload.Description;
+  if(payload.Meeting_Status!=null)m.status=woLookupName(payload.Meeting_Status);
+  if(payload.Event_Status!=null)m.status=woLookupName(payload.Event_Status);
+  if(payload.Users!=null)m.users=woLookupName(payload.Users);
+  if(payload.Technician!=null)m.technician=woLookupName(payload.Technician);
+  if(A.wo&&String(A.wo.id)===String(id))A.wo=m;
+  persistWorkOrdersCache();
+}
+async function postMeetingToZoho(id,payload,moduleName){
+  var r=await zohoProxyFetch({action:"update_meeting",meeting_id:id,crm_module:moduleName||A.woModule||"Meetings",meeting:payload},30000);
+  var txt=await r.text();
+  var parsed={};try{parsed=JSON.parse(txt);}catch(e){}
+  meetingSaveError(parsed,r.status,txt);
+  return parsed;
+}
+function enqueuePendingMeetingUpdate(id,payload,moduleName,error){
+  var items=getPendingUploads();
+  var existing=items.some(function(i){return i.type==="meeting_update"&&String(i.meetingId)===String(id);});
+  if(existing){
+    items=items.map(function(i){
+      if(i.type==="meeting_update"&&String(i.meetingId)===String(id)){
+        i.payload=Object.assign({},i.payload||{},payload);
+        i.module=moduleName||i.module;
+        i.error=error||i.error||"";
+        i.filename=(A.wo&&A.wo.title)||id;
+      }
+      return i;
+    });
+    savePendingUploads(items);
+    return;
+  }
+  enqueuePendingUpload({type:"meeting_update",meetingId:id,payload:payload,module:moduleName||A.woModule||"Meetings",assetLabel:"Meeting update",filename:(A.wo&&A.wo.title)||id,error:error||""});
+}
+async function uploadPendingMeetingUpdate(item){
+  if(!item||!item.meetingId||!item.payload)throw new Error("Pending meeting update missing data");
+  await refreshZohoToken();
+  await postMeetingToZoho(item.meetingId,item.payload,item.module);
+  applyMeetingSaveToCache(item.meetingId,item.payload);
+}
+async function saveWorkOrderToZoho(){
+  if(!A.wo||!A.wo.id||!A.woForm){showToast("Open a meeting first",3000);return;}
+  A.woForm.values=woReadFormValues();
+  var payload=woBuildMeetingUpdatePayload(woEnsureFields(),woValuesFromRecord(A.woForm.original||{}),A.woForm.values);
+  if(!Object.keys(payload).length){showToast("No meeting changes to save",3000);updateWoSaveState();return;}
+  var st=el("wo-form-status");
+  A.woSaving=true;updateWoSaveState();
+  if(st){st.textContent="Saving meeting to Zoho...";st.style.color="var(--dim)";}
+  try{
+    var tokOk=await refreshZohoToken();
+    if(!tokOk)throw new Error(zohoRefreshFailMsg());
+    await postMeetingToZoho(A.wo.id,payload,A.woForm.module||A.woModule);
+    A.woForm.original=Object.assign({},A.woForm.original||{},payload);
+    A.woForm.dirty=false;
+    A.woForm.status="Saved to Zoho "+new Date().toLocaleTimeString();
+    clearWoDraft(A.wo.id);
+    applyMeetingSaveToCache(A.wo.id,payload);
+    if(st){st.textContent=A.woForm.status;st.style.color="var(--green)";}
+    showToast("Meeting saved to Zoho",2500);
+    renderWorkOrders();
+    renderWoForm({keepValues:true});
+  }catch(e){
+    enqueuePendingMeetingUpdate(A.wo.id,payload,A.woForm.module||A.woModule,e.message||String(e));
+    A.woForm.status="Save queued — "+(e.message||e);
+    if(st){st.textContent=A.woForm.status;st.style.color="var(--amber)";}
+    showToast("Meeting save queued in Pending Sync",4500);
+  }finally{
+    A.woSaving=false;updateWoSaveState();
+  }
+}
 
 // ASSETS / EQUIPMENTS
 // The status box lives under the Save/Update button so technicians see save
@@ -7096,6 +7664,7 @@ function pendingUploadLabel(item){
   if(item.type==="capture_photo")return "Capture photo — "+(item.filename||"photo");
   if(item.type==="capture_video")return "Capture video — "+(item.filename||"video");
   if(item.type==="picklist_request")return "Picklist request — "+((item.payload&&item.payload.fieldLabel)||"field")+": "+((item.payload&&item.payload.proposedValue)||item.filename||"value");
+  if(item.type==="meeting_update")return "Meeting update — "+(item.filename||item.meetingId||"meeting");
   return (item.assetLabel||"Pending sync")+" — "+(item.filename||"file");
 }
 function enqueueCapturePhotoUpload(photo,idx,folderId,error){
@@ -7162,7 +7731,7 @@ async function retryPendingUploads(opts){
       discarded++;
       continue;
     }
-    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="capture_video")await uploadPendingCaptureVideo(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else throw new Error("Unknown pending upload type");if(orig.binKey)doneKeys.push(orig.binKey);}
+    try{if(item.type==="asset_photo")await uploadPendingAssetPhoto(item);else if(item.type==="capture_photo")await uploadPendingCapturePhoto(item);else if(item.type==="capture_video")await uploadPendingCaptureVideo(item);else if(item.type==="deal_pdf")await uploadPendingDealPdf(item);else if(item.type==="workdrive_pdf")await uploadPendingWorkDrivePdf(item);else if(item.type==="report_note")await uploadPendingReportNote(item);else if(item.type==="deal_asset_link")await uploadPendingDealAssetLink(item);else if(item.type==="equipment_note")await uploadPendingEquipmentNote(item);else if(item.type==="deal_asset_note")await uploadPendingDealAssetNote(item);else if(item.type==="picklist_request")await uploadPendingPicklistRequest(item);else if(item.type==="meeting_update")await uploadPendingMeetingUpdate(item);else throw new Error("Unknown pending upload type");if(orig.binKey)doneKeys.push(orig.binKey);}
     catch(e){orig.error=e.message;orig.attempts=(orig.attempts||0)+1;orig.lastAttempt=new Date().toISOString();if(isPendingConfigError(e))orig.configBlocked=1;else delete orig.configBlocked;remaining.push(orig);}
   }
   A.pendingRetrying=false;
@@ -7254,6 +7823,11 @@ function fieldAiLabel(target){
   if(target==="parts")return "Parts lookup";
   if(target==="report")return "Generate AI Report";
   if(target==="asset")return "Asset photo extraction";
+  if(target.indexOf("wo:")===0){
+    var api=target.slice(3);
+    var f=typeof woMeetingFieldByApi==="function"?woMeetingFieldByApi(A.woFields,api):null;
+    return (f&&f.label)||api||"Meeting field";
+  }
   return target;
 }
 function getVoiceNotesValue(){
@@ -7276,6 +7850,16 @@ function getFieldTargetValue(target){
     return p?p.desc||"":"";
   }
   if(target.indexOf("asset:")===0){var node=el(target.slice(6));return node?node.value||"" :"";}
+  if(target.indexOf("wo:")===0){
+    var api=target.slice(3);
+    var wn=el(woFieldInputId(api));
+    if(wn){
+      if(wn.type==="checkbox")return wn.checked?"true":"";
+      if(wn.getAttribute&&wn.getAttribute("data-wo-readonly"))return (A.woForm&&A.woForm.values&&A.woForm.values[api])||wn.textContent||"";
+      return wn.value||"";
+    }
+    return A.woForm&&A.woForm.values?A.woForm.values[api]||"":"";
+  }
   var node=el(target);
   return node?node.value||"":"";
 }
@@ -7288,6 +7872,15 @@ function setFieldTargetValue(target,val){
     return;
   }
   if(target.indexOf("asset:")===0){var an=el(target.slice(6));if(an){an.value=val;if(typeof scheduleAssetDraftSave==="function")scheduleAssetDraftSave();if(typeof updateAssetSaveState==="function")updateAssetSaveState();}return;}
+  if(target.indexOf("wo:")===0){
+    var wapi=target.slice(3);
+    var field=woMeetingFieldByApi(A.woFields,wapi);
+    if(field&&(field.data_type==="picklist"||woPicklistOptions(field).length))val=woApplyAiPicklistValue(woPicklistOptions(field),val);
+    if(field&&String(field.data_type||"").toLowerCase()==="datetime")val=woIsoToLocalInput(val)||val;
+    if(field&&String(field.data_type||"").toLowerCase()==="date")val=woDateOnly(val);
+    woSetFormValue(wapi,val);
+    return;
+  }
   var node=el(target);
   if(node){node.value=val;if(typeof checkGen==="function")checkGen();if(typeof scheduleCaptureDraftSave==="function")scheduleCaptureDraftSave();}
 }
@@ -7352,6 +7945,19 @@ function enqueuePendingAi(item){
 }
 async function requestFieldPolish(rawText,label,target){
   if(!API_KEY)throw new Error("Add your Anthropic API key in Settings first.");
+  if(target&&target.indexOf("wo:")===0){
+    var api=target.slice(3);
+    var field=woMeetingFieldByApi(A.woFields,api);
+    var dt=field?String(field.data_type||"text"):"text";
+    var opts=field?woPicklistOptions(field):[];
+    var prompt="You are filling one Zoho Meetings / work-order field for a water/wastewater field-service technician.\nField: "+label+" ("+api+"), type "+dt+"\n";
+    if(opts.length)prompt+="Allowed values (return exactly one):\n- "+opts.join("\n- ")+"\n";
+    prompt+="Current value:\n"+(rawText||"(empty)")+"\n\nMeeting context:\n"+woFormContextText()+"\n\nIf the current value has text, polish it into clear professional field-service language. Keep every factual detail. Do not invent equipment, readings, or actions.\nIf it is empty, draft a concise value from the meeting context only. If there is not enough in the context, return the current value unchanged (empty is allowed).\nFor picklists return exactly one listed option. For dates return YYYY-MM-DD. For datetimes return ISO 8601.\nReturn only the field value — no headings, labels, or markdown.";
+    var woData=await callAPI({content:[{type:"text",text:prompt}],maxTok:400,ms:25000});
+    var woOut=getText(woData).trim();
+    if(!woOut)throw new Error("AI returned empty text");
+    return woOut;
+  }
   var context="water/wastewater treatment field service documentation";
   if(target.indexOf("asset:")===0)context="equipment asset record for Zoho CRM";
   if(target.indexOf("photo:")===0)context="photo description for a field service report";
@@ -7363,8 +7969,8 @@ async function requestFieldPolish(rawText,label,target){
 }
 async function runFieldPolishAi(targetId,opts){
   opts=opts||{};
-  var raw=getFieldTargetValue(targetId).trim();
-  if(!raw){if(!opts.silent)showToast("Dictate or type text first, then tap → AI",3000);return;}
+  var raw=String(getFieldTargetValue(targetId)||"").trim();
+  if(!raw&&!(targetId&&targetId.indexOf("wo:")===0)){if(!opts.silent)showToast("Dictate or type text first, then tap → AI",3000);return;}
   if(!API_KEY&&!opts.fromQueue){enterKey();if(!opts.silent)showToast("Add API key, then tap → AI again",3000);return;}
   setFieldAiUi(targetId,"processing");
   try{
@@ -7416,7 +8022,7 @@ async function processPendingAiItem(item){
   if(item.type==="field_polish"){
     var raw=(getFieldTargetValue(item.target)||item.rawText||"").trim();
     if(!raw&&item.rawText)raw=item.rawText;
-    if(!raw)throw new Error("Field text missing");
+    if(!raw&&!(item.target&&item.target.indexOf("wo:")===0))throw new Error("Field text missing");
     item.rawText=raw;
     var polished=await requestFieldPolish(raw,item.label||fieldAiLabel(item.target),item.target);
     setFieldTargetValue(item.target,polished);

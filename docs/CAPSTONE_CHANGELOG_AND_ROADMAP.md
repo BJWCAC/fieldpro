@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-09-01
-Current live version: v404
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=404
+Last updated: 2026-09-02
+Current live version: v405
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=405
 ```
 
 ---
@@ -35,6 +35,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v405 | #296 | **WO meeting form writes every Zoho meeting field** — opening a WO shows the live Meetings fields (or a fallback title/status/start/end/venue/description/Users set offline). Each field has → AI (polish typed text, or draft from this meeting when empty). Save to Zoho PUTs only changed editable fields; lookups stay read-only. Drafts persist in `fp_wo_draft`; failed saves queue as Pending Sync `meeting_update`. Proxy build **295** (`get_meeting_fields`, `get_meeting`, `update_meeting`). `node tests/wo-tab.js`. |
 | v404 | #295 | **WO technician is the Settings User / Technician field (`Users`)** — meetings were still empty because CapStone treated Host as the technician and the proxy asked Zoho for a singular `User` field that is not on Meetings. That 400'd the whole GET, then the retry dropped `Users` (the real picklist, same Internal_Assets.Users / Current User list as Settings). My meetings now matches Users, Technician, Host, and Owner — including a Users array or `Name` / `display_value` object, and Owner even when Host is a dispatcher. Status filter defaults to all statuses (stored Active-only is cleared). Proxy build **294** never requests `User`, never drops Host, keeps `Users` on a 400 retry, and only drops a field Zoho named invalid. |
 | v403 | #294 | **Brad White (and any technician) can see their meetings** — My meetings matches Host, or Owner when Host is blank; Brad White matches `White, Brad` and `Bradley White`. Complete matches Completed. **All hosts** and **All statuses** chips (Planned/Scheduled calendars were empty on Active). Empty state lists the Hosts and Statuses Zoho actually returned. A Zoho 0-row fetch no longer wipes a good cache. Proxy build **293** also requests Owner. |
 | v402 | #293 | **Work this WO / Open assets leave the WO tab; list is the setup-screen technician** — Open assets stayed on WO when a deal was found (`stayOnTab` was `wo`). Work this WO could snap back to WO if disabling the button retargeted the click to the card. Both now go to Capture / Assets and ignore a same-tick card click. Host filter is the technician from the setup prompt / Settings (`A.technician`); a blank Host no longer lists for everyone. |
@@ -339,7 +340,7 @@ Related docs (detail, not status):
 
 | Item | Notes |
 |------|-------|
-| **WO tab — Result modules** | First slice (v399) lists meetings only. Result 1, drawdown, and calibration certificate are existing Zoho modules tied to the asset — fetch and show them on the open WO in a later slice. |
+| **WO tab — Result modules** | The meeting form (v405) edits Zoho Meetings fields. Result 1, drawdown, and calibration certificate are existing Zoho modules tied to the asset — fetch and show them on the open WO in a later slice. |
 | **Resend API key for picklist request emails** | Add `RESEND_API_KEY` on Netlify; optional `PICKLIST_REQUEST_FROM` (verified domain). Default to: `bradwhite@calibrationsandcontrols.com`. Until set, requests queue in Pending Sync. |
 | Field test results | Fill in `docs/CAPSTONE_FIELD_TEST_LOG.md` after device testing |
 | Plaud Stage 0 validation | Done — Claude MCP + CapStone Inbox → Zoho |
@@ -379,3 +380,4 @@ Related docs (detail, not status):
 | v394 | Parts Lookup reads the entire capture including photos, then searches the live web |
 | v395 | Customer copies withhold unlabeled replacement part / serial numbers in the service-report body |
 | v399 | WO tab — Meetings as work orders; Host filter; Meeting Status; start-of-day sort |
+| v405 | WO meeting form — live Zoho fields, per-field → AI, Save to Zoho |

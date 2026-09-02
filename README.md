@@ -46,7 +46,7 @@ Build v308 builds on the Android field workflow with the Inbox voice pipeline, A
 
 - technician selection on each device (loaded from Zoho `Internal_Assets.Users`)
 - Zoho deal selection with Deal Selection Workflow card
-- **WO tab** — Zoho Meetings as work orders (Host = technician, Meeting Status default Active, start-of-day first)
+- **WO tab** — Zoho Meetings as work orders (User / Technician from Settings, start-of-day first). Open a meeting to edit its Zoho fields; each field has → AI; Save writes the meeting.
 - GPS capture with View on OpenStreetMap link
 - photo and video field documentation with labels, sync status, and phone Downloads backup
 - local History save **before** Zoho/network steps

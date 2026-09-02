@@ -36,14 +36,14 @@ There is no test framework. Per `docs/CAPSTONE_DEVELOPMENT_RULES.md`, the standa
 - `node tests/day-night-buttons.js` (plain Node script; required for any change to `.bg` / `.bw` surface classes or day/night button styling)
 - `node tests/pdf-layout.js` (plain Node script; required for any change to `buildPDF()` pagination or first-page layout)
 - `node tests/copy-capture-to-deals.js` (plain Node script; required for any change to copy-visit-to-other-deals or History blob refcounting)
-- `node tests/wo-tab.js` (plain Node script; required for any change to WO Host matching, Meeting Status filtering, or start-of-day sort)
+- `node tests/wo-tab.js` (plain Node script; required for any change to WO Host matching, Meeting Status filtering, start-of-day sort, or the meeting field form / Zoho update payload)
 - `git diff --check`
 
 ### Versioning gotcha
 Script/style URLs are cache-busted with `?v=NNN` query strings in `FieldPro.html` (e.g. `src/app.js?v=307`). When editing app behavior, bump `FP_VERSION` and the matching cache-bust query strings (see the Version and cache rules in `docs/CAPSTONE_DEVELOPMENT_RULES.md`).
 
 ### Testing `localStorage`/storage-driven UI
-State that drives the UI (History, cached deals, drafts, sync queues) lives in `localStorage` under `fp_*` keys, with photo/PDF bytes offloaded to IndexedDB. To test storage-dependent behavior (e.g. the Capture "Storage getting full" banner) without the backend, seed `localStorage` from the DevTools Console and reload. Key names include `fp_history`, `fp_deals`, `fp_pending_uploads`, `fp_pending_ai`, `fp_inbox`, `fp_capture_draft`, `fp_asset_draft`. Example to reproduce a full-storage warning driven by cached deals rather than History:
+State that drives the UI (History, cached deals, drafts, sync queues) lives in `localStorage` under `fp_*` keys, with photo/PDF bytes offloaded to IndexedDB. To test storage-dependent behavior (e.g. the Capture "Storage getting full" banner) without the backend, seed `localStorage` from the DevTools Console and reload. Key names include `fp_history`, `fp_deals`, `fp_pending_uploads`, `fp_pending_ai`, `fp_inbox`, `fp_capture_draft`, `fp_asset_draft`, `fp_wo_draft`, `fp_work_orders`, `fp_wo_fields`. Example to reproduce a full-storage warning driven by cached deals rather than History:
 
 ```js
 localStorage.removeItem('fp_history');

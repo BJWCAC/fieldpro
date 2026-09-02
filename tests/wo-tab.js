@@ -164,6 +164,57 @@ check("Work this WO goes to Capture",woActionTab({goCapture:true})==="capture");
 check("Open assets goes to Assets",woActionTab({goAssets:true})==="assets");
 check("opening a WO stays on WO",woActionTab({})==="wo");
 
+eval(sliceFn("woFallbackFields","woSkipFieldApi"));
+eval(sliceFn("woSkipFieldApi","woSkipFieldType"));
+eval(sliceFn("woSkipFieldType","woFieldIsLookup"));
+eval(sliceFn("woFieldIsLookup","woFieldIsEditable"));
+eval(sliceFn("woFieldIsEditable","woFieldSortRank"));
+eval(sliceFn("woFieldSortRank","woSortMeetingFields"));
+eval(sliceFn("woSortMeetingFields","woFieldInputId"));
+eval(sliceFn("woFieldInputId","woMeetingFieldByApi"));
+eval(sliceFn("woMeetingFieldByApi","woDisplayFieldValue"));
+eval(sliceFn("woDisplayFieldValue","woIsoToLocalInput"));
+eval(sliceFn("woIsoToLocalInput","woLocalInputToIso"));
+eval(sliceFn("woLocalInputToIso","woDateOnly"));
+eval(sliceFn("woDateOnly","woInputValueFromRecord"));
+eval(sliceFn("woInputValueFromRecord","woZohoValueFromInput"));
+eval(sliceFn("woZohoValueFromInput","woValuesEqual"));
+eval(sliceFn("woValuesEqual","woApplyAiPicklistValue"));
+eval(sliceFn("woApplyAiPicklistValue","woSeedRecordFromList"));
+eval(sliceFn("woSeedRecordFromList","woBuildMeetingUpdatePayload"));
+eval(sliceFn("woBuildMeetingUpdatePayload","woPicklistOptions"));
+
+var fields=woFallbackFields("Meetings","Meeting_Status",["Active","Completed"]);
+check("fallback includes Title, Status, Description",fields.some(function(f){return f.api_name==="Meeting_Title";})&&fields.some(function(f){return f.api_name==="Meeting_Status";})&&fields.some(function(f){return f.api_name==="Description";}));
+check("system fields are skipped",woSkipFieldApi("id")&&woSkipFieldApi("Created_By")&&woSkipFieldApi("$se_module")&&!woSkipFieldApi("Venue"));
+check("formula fields are not editable",woFieldIsEditable({api_name:"Age",data_type:"formula",read_only:false})===false);
+check("lookups are not sent as free text",woFieldIsEditable({api_name:"Who_Id",data_type:"lookup",read_only:false})===false);
+check("title is editable",woFieldIsEditable({api_name:"Meeting_Title",data_type:"text",read_only:false})===true);
+check("title sorts before description",woFieldSortRank("Meeting_Title")<woFieldSortRank("Description"));
+check("sorted fields keep title first",woSortMeetingFields(fields)[0].api_name==="Meeting_Title");
+check("input id is stable",woFieldInputId("Meeting_Status")==="wo-f-Meeting_Status");
+check("lookup display uses the name",woDisplayFieldValue({id:"c1",name:"Site Contact"})==="Site Contact");
+check("boolean display is true/false",woDisplayFieldValue(true)==="true"&&woDisplayFieldValue(false)==="false");
+check("date-only strips time",woDateOnly("2026-09-02T08:00:00-05:00")==="2026-09-02");
+var local=woIsoToLocalInput("2026-09-02T14:30:00-05:00");
+check("iso to local input has T",local.indexOf("T")>0&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local));
+var back=woLocalInputToIso(local);
+check("local input returns an offset ISO",/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/.test(back));
+check("AI picklist matches case-insensitively",woApplyAiPicklistValue(["Active","Completed"],"completed")==="Completed");
+check("AI picklist keeps an exact option",woApplyAiPicklistValue(["Active","Planned"],"Planned")==="Planned");
+var payload=woBuildMeetingUpdatePayload(fields,{
+  Meeting_Title:"Old title",
+  Description:"",
+  Meeting_Status:"Active"
+},{
+  Meeting_Title:"Sanitary McDonalds",
+  Description:"Calibrated the recorder.",
+  Meeting_Status:"Active"
+});
+check("payload includes changed title and description",payload.Meeting_Title==="Sanitary McDonalds"&&payload.Description==="Calibrated the recorder.");
+check("payload omits unchanged status",payload.Meeting_Status==null);
+check("unchanged meeting builds an empty payload",Object.keys(woBuildMeetingUpdatePayload(fields,{Venue:"Plant"},{Venue:"Plant"})).length===0);
+
 if(failed){
   console.error(failed+" failed, "+passed+" passed");
   process.exit(1);
