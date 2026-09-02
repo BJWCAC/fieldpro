@@ -146,6 +146,7 @@ check("normalized contact is Who_Id",rec.contact==="Site Contact"&&rec.contactId
 check("normalized status is Meeting Status",rec.status==="Active");
 check("deal link comes from What_Id",rec.dealId==="deal-2"&&rec.dealName==="Sanitary McDonalds");
 check("account is filled from the cached deal",rec.accountName==="McDonalds"&&rec.accountId==="acct-2");
+check("normalized meeting keeps the Zoho row",rec.raw&&rec.raw.Venue==="Drive-thru"&&rec.raw.Host&&rec.raw.Host.name==="Quintin");
 
 var statuses=collectWorkOrderStatuses([completed,quintin],["Cancelled"]);
 check("Active is always offered first",statuses[0]==="Active");
@@ -180,12 +181,20 @@ eval(sliceFn("woDateOnly","woInputValueFromRecord"));
 eval(sliceFn("woInputValueFromRecord","woZohoValueFromInput"));
 eval(sliceFn("woZohoValueFromInput","woValuesEqual"));
 eval(sliceFn("woValuesEqual","woApplyAiPicklistValue"));
-eval(sliceFn("woApplyAiPicklistValue","woSeedRecordFromList"));
+eval(sliceFn("woApplyAiPicklistValue","woCopyRawMeetingKeys"));
+eval(sliceFn("woCopyRawMeetingKeys","woMergeMeetingRow"));
+eval(sliceFn("woMergeMeetingRow","woSeedPutIfEmpty"));
+eval(sliceFn("woSeedPutIfEmpty","woSeedRecordFromList"));
 eval(sliceFn("woSeedRecordFromList","woBuildMeetingUpdatePayload"));
 eval(sliceFn("woBuildMeetingUpdatePayload","woPicklistOptions"));
 
 var fields=woFallbackFields("Meetings","Meeting_Status",["Active","Completed"]);
 check("fallback includes Title, Status, Description",fields.some(function(f){return f.api_name==="Meeting_Title";})&&fields.some(function(f){return f.api_name==="Meeting_Status";})&&fields.some(function(f){return f.api_name==="Description";}));
+check("fallback title uses Zoho Meeting Title",fields.filter(function(f){return f.api_name==="Meeting_Title";})[0].label==="Meeting Title");
+check("fallback From and To match Zoho",fields.filter(function(f){return f.api_name==="Start_DateTime";})[0].label==="From"&&fields.filter(function(f){return f.api_name==="End_DateTime";})[0].label==="To");
+check("fallback Users keeps the Zoho name",fields.filter(function(f){return f.api_name==="Users";})[0].label==="Users");
+check("fallback Who_Id is Contact Name",fields.filter(function(f){return f.api_name==="Who_Id";})[0].label==="Contact Name");
+check("fallback Owner is Meeting Owner",fields.filter(function(f){return f.api_name==="Owner";})[0].label==="Meeting Owner");
 check("system fields are skipped",woSkipFieldApi("id")&&woSkipFieldApi("Created_By")&&woSkipFieldApi("$se_module")&&!woSkipFieldApi("Venue"));
 check("formula fields are not editable",woFieldIsEditable({api_name:"Age",data_type:"formula",read_only:false})===false);
 check("lookups are not sent as free text",woFieldIsEditable({api_name:"Who_Id",data_type:"lookup",read_only:false})===false);
@@ -214,6 +223,37 @@ var payload=woBuildMeetingUpdatePayload(fields,{
 check("payload includes changed title and description",payload.Meeting_Title==="Sanitary McDonalds"&&payload.Description==="Calibrated the recorder.");
 check("payload omits unchanged status",payload.Meeting_Status==null);
 check("unchanged meeting builds an empty payload",Object.keys(woBuildMeetingUpdatePayload(fields,{Venue:"Plant"},{Venue:"Plant"})).length===0);
+
+var mergedKeep=woMergeMeetingRow({Meeting_Title:"A",Venue:"Plant",Custom_Note:"keep"},{Venue:"Shop",Missing:undefined});
+check("merge keeps seed when overlay omits a key",mergedKeep.Meeting_Title==="A"&&mergedKeep.Custom_Note==="keep");
+check("merge writes overlay values",mergedKeep.Venue==="Shop");
+check("merge does not copy undefined",woMergeMeetingRow({Venue:"Plant"},{Venue:undefined}).Venue==="Plant");
+check("merge allows Zoho null",woMergeMeetingRow({Venue:"Plant"},{Venue:null}).Venue===null);
+
+var rawMeeting={
+  id:"ev1",
+  Meeting_Title:"Sanitary McDonalds",
+  Start_DateTime:"2026-09-01T08:00:00-05:00",
+  Host:{id:"u1",name:"Quintin"},
+  Who_Id:{id:"c1",name:"Site Contact"},
+  What_Id:{id:"deal-2",name:"Sanitary McDonalds"},
+  Meeting_Status:{name:"Active"},
+  Venue:"Drive-thru",
+  Job_Notes:"Bleed the air",
+  $se_module:"Deals"
+};
+var seeded=woSeedRecordFromList(normalizeZohoMeeting(rawMeeting,{deals:A.deals,eventModule:"Meetings"}));
+check("seed copies custom Zoho fields from the list row",seeded.Job_Notes==="Bleed the air");
+check("seed keeps the Host lookup object",seeded.Host&&seeded.Host.name==="Quintin");
+check("seed does not copy $ keys",seeded.$se_module==null);
+check("seed fills Meeting Title from the list",seeded.Meeting_Title==="Sanitary McDonalds");
+check("title input comes from the Zoho record",woInputValueFromRecord({api_name:"Meeting_Title",data_type:"text"},seeded)==="Sanitary McDonalds");
+check("lookup input shows the Zoho name",woInputValueFromRecord({api_name:"Who_Id",data_type:"lookup",lookup:true},seeded)==="Site Contact");
+
+check("re-render does not overlay empty DOM onto Zoho values",/if\(opts\.keepValues\)/.test(src)&&!/opts\.keepValues\|\|Object\.keys\(live\)/.test(src));
+check("boolean checkbox uses the Zoho field label",!/All-day meeting/.test(src));
+check("picklists are only picklist types",/dt==="picklist"\|\|dt==="multipicklist"/.test(src)&&!/dt==="picklist"\|\|opts\.length/.test(src));
+check("get_meeting prefers layout GET then missing fields",/Layout GET \(no fields\)/.test(fs.readFileSync(path.join(__dirname,"../netlify/functions/zoho-proxy.js"),"utf8")));
 
 if(failed){
   console.error(failed+" failed, "+passed+" passed");
