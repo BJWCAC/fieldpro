@@ -3537,7 +3537,7 @@ async function loadMeetingRecord(id){
     if(!r.ok)return rec;
     var d=await r.json();
     var row=(d.data&&d.data[0])||null;
-    if(row){
+    if(row&&String(row.id)===String(id)){
       rec=Object.assign({},rec,row);
       if(d.__fp_module)A.woModule=d.__fp_module;
     }
@@ -3577,7 +3577,7 @@ function renderWoForm(opts){
       var dt=String(field.data_type||"").toLowerCase();
       var opts=woPicklistOptions(field);
       if(dt==="boolean"){
-        html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>Yes</span></label>";
+        html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>All-day meeting</span></label>";
       }else if(dt==="picklist"||opts.length){
         html+="<select id='"+esc(id)+"' onchange='onWoFieldInput(\""+esc(api)+"\")'><option value=''></option>";
         var seen={};
