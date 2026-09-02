@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "295";
+var PROXY_BUILD = "296";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -969,7 +969,7 @@ exports.handler = async function(event) {
         if (Array.isArray(f.pick_list_values)) {
           f.pick_list_values.forEach(function (opt) {
             if (!opt || opt.type === "unused") return;
-            var pv = String(opt.actual_value || opt.display_value || "").trim();
+            var pv = String(opt.display_value || opt.actual_value || "").trim();
             if (!pv || pv === "-None-") return;
             if (pickVals.indexOf(pv) < 0) pickVals.push(pv);
           });
@@ -979,7 +979,7 @@ exports.handler = async function(event) {
           label: String(f.field_label || f.display_label || api).trim(),
           data_type: dt,
           required: !!(f.system_mandatory || f.required),
-          read_only: !!(f.read_only || f.webhook || f.formula),
+          read_only: !!(f.read_only || f.formula),
           custom_field: !!f.custom_field,
           lookup: !!(f.lookup && f.lookup.module),
           lookup_module: f.lookup && f.lookup.module ? String(f.lookup.module.api_name || f.lookup.module || "") : "",
@@ -1046,44 +1046,95 @@ exports.handler = async function(event) {
         for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
         return out;
       }
-      async function fetchMeetingChunks(mod) {
-        if (!fieldList.length) {
-          return req({
-            hostname: "www.zohoapis.com",
-            path: "/crm/v3/" + encodeURIComponent(mod) + "/" + encodeURIComponent(oneId),
-            method: "GET",
-            headers: { "Authorization": "Zoho-oauthtoken " + token }
-          });
-        }
-        var merged = null;
-        var last = null;
-        var groups = chunk(fieldList, 45);
-        for (var gi = 0; gi < groups.length; gi++) {
-          last = await req({
-            hostname: "www.zohoapis.com",
-            path: "/crm/v3/" + encodeURIComponent(mod) + "/" + encodeURIComponent(oneId) + "?fields=" + encodeURIComponent(groups[gi].join(",")),
-            method: "GET",
-            headers: { "Authorization": "Zoho-oauthtoken " + token }
-          });
-          if (last.status < 200 || last.status >= 300) return last;
-          try {
-            var parsed = JSON.parse(last.body || "{}");
-            var row = (parsed.data && parsed.data[0]) || {};
-            merged = Object.assign(merged || {}, row);
-          } catch (e) {
-            return last;
+      function uniquePushMeeting(arr, v) {
+        v = String(v || "");
+        if (!v || arr.indexOf(v) >= 0) return;
+        arr.push(v);
+      }
+      function meetingInvalidFields(result) {
+        var found = [];
+        if (!result || !result.body) return found;
+        var body = String(result.body);
+        try {
+          var j = JSON.parse(result.body);
+          var details = j.details;
+          if (details && details.api_name) uniquePushMeeting(found, details.api_name);
+          if (Array.isArray(details)) {
+            details.forEach(function (d) { if (d && d.api_name) uniquePushMeeting(found, d.api_name); });
           }
+          if (Array.isArray(j.data)) {
+            j.data.forEach(function (row) {
+              if (row && row.details && row.details.api_name) uniquePushMeeting(found, row.details.api_name);
+            });
+          }
+        } catch (e) {}
+        var re = /api_name["']?\s*[:=]\s*["']([A-Za-z0-9_$]+)["']/g;
+        var m;
+        while ((m = re.exec(body))) uniquePushMeeting(found, m[1]);
+        return found;
+      }
+      function getMeetingById(mod, fieldsQuery) {
+        var path = "/crm/v3/" + encodeURIComponent(mod) + "/" + encodeURIComponent(oneId);
+        if (fieldsQuery) path += "?fields=" + encodeURIComponent(fieldsQuery);
+        return req({
+          hostname: "www.zohoapis.com",
+          path: path,
+          method: "GET",
+          headers: { "Authorization": "Zoho-oauthtoken " + token }
+        });
+      }
+      async function fetchMeetingRecord(mod) {
+        // Layout GET (no fields) returns the meeting as Zoho shows it. Chunk any
+        // requested names the layout omitted; drop a field Zoho names invalid
+        // instead of failing the whole record.
+        var base = await getMeetingById(mod, "");
+        if (base.status < 200 || base.status >= 300) return base;
+        var merged = {};
+        try {
+          var parsed = JSON.parse(base.body || "{}");
+          merged = Object.assign({}, (parsed.data && parsed.data[0]) || {});
+        } catch (e) {
+          return base;
+        }
+        var remaining = fieldList.filter(function (f) {
+          return f && f.charAt(0) !== "$" && !Object.prototype.hasOwnProperty.call(merged, f);
+        });
+        var skip = [];
+        var guard = 0;
+        while (remaining.length && guard < 16) {
+          guard++;
+          var before = remaining.join(",");
+          var groups = chunk(remaining, 45);
+          for (var gi = 0; gi < groups.length; gi++) {
+            var last = await getMeetingById(mod, groups[gi].join(","));
+            if (last.status >= 200 && last.status < 300) {
+              try {
+                var p = JSON.parse(last.body || "{}");
+                var row = (p.data && p.data[0]) || {};
+                Object.keys(row).forEach(function (k) {
+                  if (row[k] !== undefined) merged[k] = row[k];
+                });
+              } catch (e) {}
+              groups[gi].forEach(function (f) { uniquePushMeeting(skip, f); });
+              continue;
+            }
+            var bad = meetingInvalidFields(last);
+            if (bad.length) bad.forEach(function (b) { uniquePushMeeting(skip, b); });
+            else uniquePushMeeting(skip, groups[gi][0]);
+          }
+          remaining = remaining.filter(function (f) { return skip.indexOf(f) < 0 && !Object.prototype.hasOwnProperty.call(merged, f); });
+          if (remaining.join(",") === before) break;
         }
         return {
           status: 200,
-          body: JSON.stringify({ data: [merged || {}], info: { more_records: false } })
+          body: JSON.stringify({ data: [merged], info: { more_records: false } })
         };
       }
       for (var omi = 0; omi < oneMods.length; omi++) {
         var om = oneMods[omi];
         if (!om || oneSeen[om]) continue;
         oneSeen[om] = true;
-        oneResult = await fetchMeetingChunks(om);
+        oneResult = await fetchMeetingRecord(om);
         if (oneResult.status >= 200 && oneResult.status < 300) { oneMod = om; break; }
       }
       if (!oneMod) {
@@ -1093,6 +1144,7 @@ exports.handler = async function(event) {
         var oneJson = JSON.parse(oneResult.body || "{}");
         oneJson.__fp_module = oneMod;
         oneJson.ok = true;
+        oneJson.proxy_build = PROXY_BUILD;
         return { statusCode: 200, headers: h, body: JSON.stringify(oneJson) };
       } catch (oe) {
         return { statusCode: oneResult.status, headers: h, body: oneResult.body };

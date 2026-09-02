@@ -71,10 +71,10 @@ How the technician matches: **My meetings** is the setup / Settings **User / Tec
 
 ## Record (the open WO)
 
-Opening a meeting shows the **same Zoho Meetings fields** as an editable form (`#wo-record`). Field metadata comes from `get_meeting_fields` (live `settings/fields`); the record comes from `get_meeting`. Fallback fields (title, status, start/end, venue, description, Users) are used offline.
+Opening a meeting shows the **same Zoho Meetings fields** as an editable form (`#wo-record`), **prefilled with that meeting's current values**. Field **labels** are Zoho `field_label` (the name on the Meetings layout). Metadata comes from `get_meeting_fields`; the record comes from `get_meeting` (layout GET first, then any missing requested fields). The list row keeps the raw Zoho record so custom fields still seed the form offline. Fallback labels match Zoho: Meeting Title, From, To, All day, Users, Contact Name, Related To, Meeting Owner.
 
 - Every shown field has **→ AI**. Typed text is polished; an empty field is drafted from this meeting (and Capture voice notes when present). Picklists must land on a listed option.
-- **Save meeting to Zoho** PUTs only changed editable fields via `update_meeting`. Lookups (Host, Contact, Related To, Owner) stay read-only. Failed saves queue as Pending Sync `meeting_update`.
+- **Save meeting to Zoho** PUTs only changed editable fields via `update_meeting`. Lookups (Host, Contact Name, Related To, Meeting Owner) stay read-only. Failed saves queue as Pending Sync `meeting_update`.
 - Local draft: `fp_wo_draft` (autosave on edit, restore when the same meeting is reopened).
 - Cancelled flag if Zoho set `$event_cancelled`
 - Links: **Deal**, **Account**, **Contact** (`Who_Id`), **Meeting in Zoho**
@@ -97,6 +97,6 @@ First slice (this build):
 4. RBAC toggle, header shows the selected meeting, technician change refilters.
 5. Capture is not blocked when no WO is selected.
 
-In this slice: live meeting field form, per-field → AI, Save to Zoho, `fp_wo_draft`, Pending Sync `meeting_update`. Proxy build **295** (`get_meeting_fields`, `get_meeting`, `update_meeting`).
+In this slice: live meeting field form, prefilled from the Zoho record, Zoho field labels, per-field → AI, Save to Zoho, `fp_wo_draft`, Pending Sync `meeting_update`. Proxy build **296** (`get_meeting_fields`, `get_meeting` layout-first, `update_meeting`).
 
 Not in this slice: create a meeting, History `meetingId`, asset checkboxes, Result 1 / drawdown / cal cert fetch.

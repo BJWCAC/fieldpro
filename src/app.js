@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="405";
+var FP_VERSION="406";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2772,7 +2772,8 @@ function normalizeZohoMeeting(rec,extras){
     dealName:"",
     accountId:"",
     accountName:"",
-    eventModule:extras.eventModule||"Meetings"
+    eventModule:extras.eventModule||"Meetings",
+    raw:rec||null
   };
   woAddTechName(m.techNames,m.host);
   woAddTechName(m.techNames,m.owner);
@@ -3201,20 +3202,20 @@ function woFallbackFields(moduleName,statusField,statuses){
   var status=statusField||(moduleName==="Events"?"Event_Status":"Meeting_Status");
   var statusOpts=(statuses&&statuses.length)?statuses.slice():["Active","Planned","Scheduled","Completed","Cancelled"];
   return [
-    {api_name:title,label:"Title",data_type:"text",required:true,read_only:false,pick_list_values:[]},
-    {api_name:status,label:"Meeting Status",data_type:"picklist",required:false,read_only:false,pick_list_values:statusOpts},
-    {api_name:"Start_DateTime",label:"Start",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
-    {api_name:"End_DateTime",label:"End",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:title,label:"Meeting Title",data_type:"text",required:true,read_only:false,pick_list_values:[]},
+    {api_name:status,label:"Status",data_type:"picklist",required:false,read_only:false,pick_list_values:statusOpts},
+    {api_name:"Start_DateTime",label:"From",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"End_DateTime",label:"To",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
     {api_name:"All_day",label:"All day",data_type:"boolean",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Venue",label:"Venue",data_type:"text",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Location",label:"Location",data_type:"text",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Description",label:"Description",data_type:"textarea",required:false,read_only:false,pick_list_values:[]},
-    {api_name:"Users",label:"User / Technician",data_type:"picklist",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Users",label:"Users",data_type:"picklist",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Technician",label:"Technician",data_type:"text",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Host",label:"Host",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
-    {api_name:"Who_Id",label:"Contact",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"Who_Id",label:"Contact Name",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
     {api_name:"What_Id",label:"Related To",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
-    {api_name:"Owner",label:"Owner",data_type:"lookup",required:false,read_only:true,pick_list_values:[]}
+    {api_name:"Owner",label:"Meeting Owner",data_type:"lookup",required:false,read_only:true,pick_list_values:[]}
   ];
 }
 function woSkipFieldApi(api){
@@ -3234,7 +3235,6 @@ function woFieldIsLookup(field){
 }
 function woFieldIsEditable(field){
   if(!field||woSkipFieldApi(field.api_name)||woSkipFieldType(field.data_type))return false;
-  if(field.read_only)return false;
   if(woFieldIsLookup(field))return false;
   return true;
 }
@@ -3252,7 +3252,7 @@ function woSortMeetingFields(fields){
 }
 function woFieldInputId(api){return "wo-f-"+String(api||"").replace(/[^A-Za-z0-9_]/g,"_");}
 function woMeetingFieldByApi(fields,api){
-  fields=fields||[];
+  fields=fields&&fields.length?fields:(typeof A!=="undefined"&&A.woFields)||[];
   for(var i=0;i<fields.length;i++){if(fields[i]&&fields[i].api_name===api)return fields[i];}
   return null;
 }
@@ -3287,15 +3287,41 @@ function woDateOnly(val){
   var m=s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m?m[1]:s;
 }
+function woFieldValueAliases(api){
+  api=String(api||"");
+  if(/^(Meeting_Title|Event_Title|Title)$/i.test(api))return ["Meeting_Title","Event_Title","Title"];
+  if(/^(Meeting_Status|Event_Status|Status)$/i.test(api))return ["Meeting_Status","Event_Status","Status"];
+  if(/^(Venue|Location)$/i.test(api))return ["Venue","Location"];
+  if(/^(Users|User|Current_User)$/i.test(api))return ["Users","User","Current_User"];
+  return [api];
+}
+function woRecordFieldRaw(record,field){
+  record=record||{};
+  var api=field&&field.api_name;
+  if(api&&record[api]!=null&&record[api]!=="")return record[api];
+  var keys=woFieldValueAliases(api);
+  for(var i=0;i<keys.length;i++){
+    if(keys[i]===api)continue;
+    if(record[keys[i]]!=null&&record[keys[i]]!=="")return record[keys[i]];
+  }
+  if(api&&Object.prototype.hasOwnProperty.call(record,api))return record[api];
+  return undefined;
+}
 function woInputValueFromRecord(field,record){
   record=record||{};
-  var raw=record[field.api_name];
+  var raw=woRecordFieldRaw(record,field);
   var dt=String(field.data_type||"").toLowerCase();
   if(dt==="datetime")return woIsoToLocalInput(typeof raw==="string"?raw:woDisplayFieldValue(raw));
   if(dt==="date")return woDateOnly(typeof raw==="string"?raw:woDisplayFieldValue(raw));
   if(dt==="boolean")return raw===true||raw==="true"||raw==="1"?"true":"";
   if(woFieldIsLookup(field))return woDisplayFieldValue(raw);
   if(dt==="multipicklist"&&Array.isArray(raw))return raw.map(woDisplayFieldValue).filter(Boolean).join(";");
+  if(dt==="picklist"||dt==="multipicklist"){
+    var shown=raw==null?"":woDisplayFieldValue(raw);
+    if(!shown)return "";
+    var mapped=woApplyAiPicklistValue(woPicklistOptions(field),shown);
+    return mapped||shown;
+  }
   if(raw==null)return "";
   return woDisplayFieldValue(raw);
 }
@@ -3334,25 +3360,57 @@ function woApplyAiPicklistValue(options,raw){
   for(var k=0;k<opts.length;k++){if(woNormalizeName(opts[k]).indexOf(n)>=0||n.indexOf(woNormalizeName(opts[k]))>=0)return opts[k];}
   return t;
 }
+function woCopyRawMeetingKeys(raw){
+  var rec={};
+  if(!raw||typeof raw!=="object")return rec;
+  Object.keys(raw).forEach(function(k){
+    if(!k||k.charAt(0)==="$")return;
+    rec[k]=raw[k];
+  });
+  if(raw.id)rec.id=raw.id;
+  return rec;
+}
+function woMergeMeetingRow(base,overlay){
+  var out=woCopyRawMeetingKeys(base);
+  if(!overlay||typeof overlay!=="object")return out;
+  Object.keys(overlay).forEach(function(k){
+    if(!k||k.charAt(0)==="$")return;
+    if(overlay[k]===undefined)return;
+    out[k]=overlay[k];
+  });
+  if(overlay.id)out.id=overlay.id;
+  else if(base&&base.id)out.id=base.id;
+  return out;
+}
+function woSeedPutIfEmpty(rec,api,val){
+  if(val==null||val==="")return;
+  if(rec[api]==null||rec[api]==="")rec[api]=val;
+}
 function woSeedRecordFromList(m){
   if(!m)return{};
+  var rec=woCopyRawMeetingKeys(m.raw);
   var titleField=(m.eventModule==="Events")?"Event_Title":"Meeting_Title";
-  var statusField=A.woStatusField||(m.eventModule==="Events"?"Event_Status":"Meeting_Status");
-  var rec={};
-  rec[titleField]=m.title||"";
-  rec.Start_DateTime=m.start||"";
-  rec.End_DateTime=m.end||"";
-  rec.Venue=m.venue||"";
-  rec.Location=m.venue||"";
-  rec.Description=m.description||"";
-  rec[statusField]=m.status||"";
-  rec.Users=m.users||"";
-  rec.Technician=m.technician||"";
-  rec.Host=m.host||"";
-  rec.Who_Id=m.contact||"";
-  rec.What_Id=m.whatName||m.dealName||"";
-  rec.Owner=m.owner||"";
-  rec.All_day=false;
+  var statusField=(typeof A!=="undefined"&&A.woStatusField)||(m.eventModule==="Events"?"Event_Status":"Meeting_Status");
+  woSeedPutIfEmpty(rec,titleField,m.title);
+  woSeedPutIfEmpty(rec,"Title",m.title);
+  woSeedPutIfEmpty(rec,"Event_Title",m.title);
+  woSeedPutIfEmpty(rec,"Meeting_Title",m.title);
+  woSeedPutIfEmpty(rec,"Start_DateTime",m.start);
+  woSeedPutIfEmpty(rec,"End_DateTime",m.end);
+  woSeedPutIfEmpty(rec,"Venue",m.venue);
+  woSeedPutIfEmpty(rec,"Location",m.venue);
+  woSeedPutIfEmpty(rec,"Description",m.description);
+  woSeedPutIfEmpty(rec,statusField,m.status);
+  woSeedPutIfEmpty(rec,"Meeting_Status",m.status);
+  woSeedPutIfEmpty(rec,"Event_Status",m.status);
+  woSeedPutIfEmpty(rec,"Status",m.status);
+  woSeedPutIfEmpty(rec,"Users",m.users);
+  woSeedPutIfEmpty(rec,"Technician",m.technician);
+  woSeedPutIfEmpty(rec,"Host",m.host);
+  woSeedPutIfEmpty(rec,"Who_Id",m.contact);
+  woSeedPutIfEmpty(rec,"What_Id",m.whatName||m.dealName);
+  woSeedPutIfEmpty(rec,"Owner",m.owner);
+  if(rec.All_day==null)rec.All_day=false;
   return rec;
 }
 function woBuildMeetingUpdatePayload(fields,original,current){
@@ -3391,8 +3449,17 @@ function woReadFormValues(){
   fields.forEach(function(field){
     var id=woFieldInputId(field.api_name);
     var node=el(id);
+    var stored=A.woForm&&A.woForm.values?A.woForm.values[field.api_name]:undefined;
     if(!node){
-      if(A.woForm&&A.woForm.values&&A.woForm.values[field.api_name]!=null)values[field.api_name]=A.woForm.values[field.api_name];
+      if(stored!=null)values[field.api_name]=stored;
+      return;
+    }
+    if(node.getAttribute&&node.getAttribute("data-wo-readonly")){
+      values[field.api_name]=stored!=null?stored:(node.textContent&&node.textContent!=="Not set"?node.textContent:"");
+      return;
+    }
+    if(node.value===undefined&&node.type!=="checkbox"){
+      if(stored!=null)values[field.api_name]=stored;
       return;
     }
     if(node.type==="checkbox")values[field.api_name]=node.checked?"true":"";
@@ -3537,10 +3604,12 @@ async function loadMeetingRecord(id){
     if(!r.ok)return rec;
     var d=await r.json();
     var row=(d.data&&d.data[0])||null;
-    if(row&&String(row.id)===String(id)){
-      rec=Object.assign({},rec,row);
-      if(d.__fp_module)A.woModule=d.__fp_module;
-    }
+    if(!row)return rec;
+    var rowId=row.id!=null?String(row.id):"";
+    if(rowId&&rowId!==String(id))return rec;
+    rec=woMergeMeetingRow(rec,row);
+    if(d.__fp_module)A.woModule=d.__fp_module;
+    if(A.wo&&String(A.wo.id)===String(id))A.wo.raw=woMergeMeetingRow(A.wo.raw,row);
   }catch(e){}
   return rec;
 }
@@ -3549,43 +3618,48 @@ function renderWoForm(opts){
   var box=el("wo-record");
   if(!box)return;
   if(!A.wo||!A.woForm){hideWoRecord();return;}
-  var live=woReadFormValues();
-  if(opts.keepValues||Object.keys(live).length)A.woForm.values=Object.assign({},A.woForm.values||{},live);
+  if(opts.keepValues){
+    var live=woReadFormValues();
+    A.woForm.values=Object.assign({},A.woForm.values||{},live);
+  }
   var fields=woSortMeetingFields(woEnsureFields());
   var values=A.woForm.values||{};
   var m=A.wo;
   var neutral=surfaceNeutralClass();
   var html="<div class='card'>";
   html+="<div class='stitle'>Meeting</div>";
-  html+="<div class='wo-form-hint'>Same Zoho Meetings record. Edit here and Save to Zoho. → AI polishes a typed value, or drafts from this meeting when the field is empty.</div>";
+  html+="<div class='wo-form-hint'>Same Zoho Meetings record. Labels match Zoho. Values are the meeting's current fields — edit and Save to Zoho. → AI polishes a typed value, or drafts from this meeting when the field is empty.</div>";
   html+="<div id='wo-form-status' class='wo-form-hint'>"+esc(A.woForm.status||"")+"</div>";
   html+="<div id='wo-draft-status' class='wo-form-hint'></div>";
   fields.forEach(function(field){
     var api=field.api_name;
     var id=woFieldInputId(api);
     var editable=woFieldIsEditable(field);
-    var val=Object.prototype.hasOwnProperty.call(values,api)?values[api]:"";
+    var val=Object.prototype.hasOwnProperty.call(values,api)?values[api]:woInputValueFromRecord(field,A.woForm.original||{});
     var target="wo:"+api;
+    var label=field.label||api;
+    var dt=String(field.data_type||"").toLowerCase();
     html+="<div class='wo-form-field'>";
-    html+="<div class='field-ai-row'><label class='lbl' style='margin-bottom:0' for='"+esc(id)+"'>"+esc(field.label||api)+(field.required?" *":"")+"</label>";
+    html+="<div class='field-ai-row'><label class='lbl' style='margin-bottom:0' for='"+esc(id)+"'>"+esc(label)+(field.required?" *":"")+"</label>";
     html+="<button type='button' class='field-ai-btn "+neutral+" bsm' data-field-ai-target='"+esc(target)+"' title='Update this meeting field with AI' onclick='event.preventDefault();event.stopPropagation();runFieldPolishAi(\""+esc(target)+"\")'>→ AI</button>";
     html+="</div>";
     html+="<div class='field-ai-status' id='field-ai-status-"+esc(fieldAiTargetKey(target))+"'></div>";
     if(!editable){
-      html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val?esc(val):"<span style='color:var(--dim)'>Not set</span>")+"</div>";
+      if(dt==="boolean")html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val==="true"||val===true?"Yes":"No")+"</div>";
+      else html+="<div class='wo-form-readonly' id='"+esc(id)+"' data-wo-readonly='1'>"+(val?esc(woDisplayFieldValue(val)):"<span style='color:var(--dim)'>Not set</span>")+"</div>";
     }else{
-      var dt=String(field.data_type||"").toLowerCase();
       var opts=woPicklistOptions(field);
       if(dt==="boolean"){
-        html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>All-day meeting</span></label>";
-      }else if(dt==="picklist"||opts.length){
+        html+="<label class='tog-row' style='margin:0'><input type='checkbox' id='"+esc(id)+"' "+(val==="true"||val===true?"checked":"")+" onchange='onWoFieldInput(\""+esc(api)+"\")'/> <span>"+esc(label)+"</span></label>";
+      }else if(dt==="picklist"||dt==="multipicklist"){
         html+="<select id='"+esc(id)+"' onchange='onWoFieldInput(\""+esc(api)+"\")'><option value=''></option>";
         var seen={};
+        var selected=woApplyAiPicklistValue(opts,val);
         opts.forEach(function(opt){
-          seen[opt]=1;
-          html+="<option value='"+esc(opt)+"'"+(String(val)===String(opt)?" selected":"")+">"+esc(opt)+"</option>";
+          seen[String(opt)]=1;
+          html+="<option value='"+esc(opt)+"'"+(String(selected)===String(opt)?" selected":"")+">"+esc(opt)+"</option>";
         });
-        if(val&&!seen[val])html+="<option value='"+esc(val)+"' selected>"+esc(val)+"</option>";
+        if(val&&!seen[String(val)]&&!seen[String(selected)])html+="<option value='"+esc(val)+"' selected>"+esc(val)+"</option>";
         html+="</select>";
       }else if(dt==="textarea"||dt==="website"&&api==="Description"||api==="Description"){
         html+="<textarea id='"+esc(id)+"' rows='3' inputmode='text' oninput='onWoFieldInput(\""+esc(api)+"\")'>"+esc(val)+"</textarea>";
@@ -7875,7 +7949,7 @@ function setFieldTargetValue(target,val){
   if(target.indexOf("wo:")===0){
     var wapi=target.slice(3);
     var field=woMeetingFieldByApi(A.woFields,wapi);
-    if(field&&(field.data_type==="picklist"||woPicklistOptions(field).length))val=woApplyAiPicklistValue(woPicklistOptions(field),val);
+    if(field&&(String(field.data_type||"").toLowerCase()==="picklist"||String(field.data_type||"").toLowerCase()==="multipicklist"))val=woApplyAiPicklistValue(woPicklistOptions(field),val);
     if(field&&String(field.data_type||"").toLowerCase()==="datetime")val=woIsoToLocalInput(val)||val;
     if(field&&String(field.data_type||"").toLowerCase()==="date")val=woDateOnly(val);
     woSetFormValue(wapi,val);

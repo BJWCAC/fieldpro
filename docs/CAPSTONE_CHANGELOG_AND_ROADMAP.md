@@ -6,8 +6,8 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 
 ```text
 Last updated: 2026-09-02
-Current live version: v405
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=405
+Current live version: v406
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=406
 ```
 
 ---
@@ -35,6 +35,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v406 | #297 | **WO meeting form prefills Zoho values and Zoho field names** — opening a WO no longer redraws blank inputs over the loaded meeting. Labels are Zoho `field_label` (offline fallback: Meeting Title, From, To, Users, Contact Name). List rows keep the raw Zoho record so custom fields seed the form; `Title` reads `Meeting_Title`. `webhook` on a Zoho field is not read-only, so title/status/description stay editable. GET-by-id uses the layout first and drops invalid field names instead of failing the whole record. Proxy build **296**. `node tests/wo-tab.js`. |
 | v405 | #296 | **WO meeting form writes every Zoho meeting field** — opening a WO shows the live Meetings fields (or a fallback title/status/start/end/venue/description/Users set offline). Each field has → AI (polish typed text, or draft from this meeting when empty). Save to Zoho PUTs only changed editable fields; lookups stay read-only. Drafts persist in `fp_wo_draft`; failed saves queue as Pending Sync `meeting_update`. Proxy build **295** (`get_meeting_fields`, `get_meeting`, `update_meeting`). `node tests/wo-tab.js`. |
 | v404 | #295 | **WO technician is the Settings User / Technician field (`Users`)** — meetings were still empty because CapStone treated Host as the technician and the proxy asked Zoho for a singular `User` field that is not on Meetings. That 400'd the whole GET, then the retry dropped `Users` (the real picklist, same Internal_Assets.Users / Current User list as Settings). My meetings now matches Users, Technician, Host, and Owner — including a Users array or `Name` / `display_value` object, and Owner even when Host is a dispatcher. Status filter defaults to all statuses (stored Active-only is cleared). Proxy build **294** never requests `User`, never drops Host, keeps `Users` on a 400 retry, and only drops a field Zoho named invalid. |
 | v403 | #294 | **Brad White (and any technician) can see their meetings** — My meetings matches Host, or Owner when Host is blank; Brad White matches `White, Brad` and `Bradley White`. Complete matches Completed. **All hosts** and **All statuses** chips (Planned/Scheduled calendars were empty on Active). Empty state lists the Hosts and Statuses Zoho actually returned. A Zoho 0-row fetch no longer wipes a good cache. Proxy build **293** also requests Owner. |
@@ -381,3 +382,4 @@ Related docs (detail, not status):
 | v395 | Customer copies withhold unlabeled replacement part / serial numbers in the service-report body |
 | v399 | WO tab — Meetings as work orders; Host filter; Meeting Status; start-of-day sort |
 | v405 | WO meeting form — live Zoho fields, per-field → AI, Save to Zoho |
+| v406 | WO meeting form prefills Zoho values and uses Zoho field names |
