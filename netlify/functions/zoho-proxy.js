@@ -1,6 +1,6 @@
 const https = require("https");
 const crypto = require("crypto");
-var PROXY_BUILD = "296";
+var PROXY_BUILD = "297";
 
 // Warm-instance cache — Zoho access tokens never leave this function.
 var cachedZohoToken = null;
@@ -927,7 +927,7 @@ exports.handler = async function(event) {
         return {
           statusCode: 200,
           headers: h,
-          body: JSON.stringify({ data: [], info: { more_records: false }, __fp_module: woModule, __fp_status_field: woStatusField || "Meeting_Status", __fp_range: "empty" })
+          body: JSON.stringify({ data: [], info: { more_records: false }, __fp_module: woModule, __fp_status_field: woStatusField || "Meeting_Status", __fp_status_field_dropped: !woStatusField, __fp_range: "empty" })
         };
       }
       if (woResult.status < 200 || woResult.status >= 300) {
@@ -942,6 +942,10 @@ exports.handler = async function(event) {
         });
         woJson.__fp_module = woModule;
         woJson.__fp_status_field = woStatusField || "Meeting_Status";
+        // Meetings layouts without a status field make every row statusless.
+        // Say so, so the app can read the status off the meeting date instead
+        // of listing finished meetings as Active.
+        woJson.__fp_status_field_dropped = !woStatusField || woDroppedFields.indexOf(woStatusField) >= 0;
         woJson.__fp_range = woResult.__fp_range || "start_end";
         woJson.__fp_start = woStartIso;
         woJson.__fp_end = woEndIso;

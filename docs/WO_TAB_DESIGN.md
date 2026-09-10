@@ -23,6 +23,7 @@ Deal (the job)
 - A **WO is that meeting**, field for field, the same record as the Meetings module. One WO per meeting. Assets stay listed on the deal underneath; they do not split the WO.
 - **Users** on the meeting is the technician — the same Settings **User / Technician** picklist (`Internal_Assets.Users` / Current User → `A.technician`). Host and Owner are fallbacks. CapStone matches any of Users, Technician, Host, Owner.
 - **Meeting Status** is the status field. Default list is **all statuses**. Chips narrow it; many calendars use Planned or Scheduled, not Active.
+- When Zoho sends **no** Meeting Status for a meeting — the field is not on the Meetings layout, or the proxy had to drop it to make the GET succeed — CapStone reads the status off the calendar instead of showing the meeting under every chip. A meeting is **Active through the end of the day it is scheduled on**, then **Completed**; a cancelled meeting is **Cancelled**, and a meeting with no date stays Active. The card pill says `(from the date)` and the count line says how many were read that way. A status Zoho did send always wins, and a derived status is never written back to Zoho.
 - **Who_Id** is the contact link. Host is not the contact.
 - Certificates (Result 1, drawdown, calibration certificate) are **existing Zoho modules** whose result rows are tied to the asset being worked. First slice does not fetch or write them.
 
@@ -35,7 +36,7 @@ Deal (the job)
 | Shape | Dedicated **WO** tab. The meeting *is* the WO. No new Work_Orders module. |
 | One WO per | Meeting. Same record as Meetings. Assets listed from the deal, underneath. |
 | Technician | Existing Settings **User / Technician** picker. **My meetings** matches Users, Technician, Host, and Owner. **All hosts** shows everyone. |
-| Meeting Status | Default **all statuses**. Chips narrow it. |
+| Meeting Status | Default **all statuses**. Chips narrow it. A meeting Zoho sent no status for is read from its date: Active through the end of its own day, Completed after that. |
 | Dates | From / To pickers plus **Today**. Default is 14 days back through 60 days forward. This is the Zoho window — separate from Meeting Status. |
 | Sort | Start of the day first (`Start_DateTime` ascending). Earliest meeting on top, then in schedule order. |
 | Contact | `Who_Id` on the meeting. Open in Zoho. |

@@ -40,7 +40,7 @@ Do not add a new tab as a one-off design. New tabs should feel like the existing
 
 For the planned **Inbox** tab (Plaud Note Pro / unassigned voice), read `docs/PLAUD_INTEGRATION.md` before implementation.
 
-For the **WO** (Work Order) tab, read `docs/WO_TAB_DESIGN.md`. The WO *is* the Zoho Meetings record (Host = technician, Meeting Status defaults to Active). Any change to Host matching, status filtering, or start-of-day sort must run `node tests/wo-tab.js`.
+For the **WO** (Work Order) tab, read `docs/WO_TAB_DESIGN.md`. The WO *is* the Zoho Meetings record (Host = technician, Meeting Status defaults to Active). A meeting Zoho sent no status for is read off its date — Active through the end of its own day, then Completed — and that derived status is displayed and filtered on only, never written back to Zoho. Any change to Host matching, status filtering, or start-of-day sort must run `node tests/wo-tab.js`.
 
 ## Consistency checklist for every PR
 
