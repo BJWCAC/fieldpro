@@ -20,7 +20,7 @@ function sliceFn(name,nextName){
   return src.slice(start,end);
 }
 var A={deals:[
-  {id:"deal-1",Deal_Name:"CAC-4641 recorder",Account_Name:"Rogers WWTP",Account_Id:"acct-1",Stage:"Active"},
+  {id:"deal-1",Deal_Name:"CAC-4641 recorder",Account_Name:"Rogers WWTP",Account_Id:"acct-1",Stage:"Active",Description:"Recorder due for annual calibration"},
   {id:"deal-2",Deal_Name:"Sanitary McDonalds",Account_Name:"McDonalds",Account_Id:"acct-2",Stage:"Active"}
 ]};
 eval(sliceFn("woLookupName","woLookupId"));
@@ -205,9 +205,15 @@ check("opening a WO stays on WO",woActionTab({})==="wo");
 eval(sliceFn("woFallbackFields","woSkipFieldApi"));
 eval(sliceFn("woSkipFieldApi","woSkipFieldType"));
 eval(sliceFn("woSkipFieldType","woFieldIsLookup"));
-eval(sliceFn("woFieldIsLookup","woFieldIsEditable"));
-eval(sliceFn("woFieldIsEditable","woFieldSortRank"));
-eval(sliceFn("woFieldSortRank","woSortMeetingFields"));
+eval(sliceFn("woFieldIsLookup","woFieldIsShown"));
+eval(sliceFn("woFieldIsShown","woFieldForcedReadOnly"));
+eval(sliceFn("woFieldForcedReadOnly","woFieldIsEditable"));
+eval(sliceFn("woFieldIsEditable","woFieldOrderKey"));
+eval(sliceFn("woFieldOrderKey","woFieldIsAllDay"));
+eval(sliceFn("woFieldIsAllDay","woFieldSortRank"));
+eval(sliceFn("woFieldSortRank","woDealDescriptionText"));
+eval(sliceFn("woDealDescriptionText","woDealDescriptionField"));
+eval(sliceFn("woDealDescriptionField","woSortMeetingFields"));
 eval(sliceFn("woSortMeetingFields","woFieldInputId"));
 eval(sliceFn("woFieldInputId","woMeetingFieldByApi"));
 eval(sliceFn("woMeetingFieldByApi","woDisplayFieldValue"));
@@ -241,6 +247,61 @@ check("title is editable",woFieldIsEditable({api_name:"Meeting_Title",data_type:
 check("webhook read_only text stays editable",woFieldIsEditable({api_name:"Title",data_type:"text",read_only:true})===true);
 check("title sorts before description",woFieldSortRank("Meeting_Title")<woFieldSortRank("Description"));
 check("sorted fields keep title first",woSortMeetingFields(fields)[0].api_name==="Meeting_Title");
+
+var order=woSortMeetingFields(fields).map(function(f){return f.api_name;});
+var wanted=["Meeting_Title","Venue","Location","Start_DateTime","End_DateTime","Who_Id","What_Id","Meeting_Status","Host","Participants","Description","Deal_Description"];
+check("meeting form follows the asked-for field order",order.slice(0,wanted.length).join(",")===wanted.join(","),order.join(","));
+check("All day is the last field on the form",order[order.length-1]==="All_day",order.join(","));
+check("leftover fields sit under Deal Description and above All day",order.indexOf("Users")>order.indexOf("Deal_Description")&&order.indexOf("Users")<order.indexOf("All_day"),order.join(","));
+check("Participants is shown on the meeting form",fields.some(function(f){return f.api_name==="Participants";})&&!woSkipFieldApi("Participants"));
+check("Participants is never written back to Zoho",woFieldIsEditable({api_name:"Participants",data_type:"multiselectlookup",read_only:false})===false);
+check("Participants survives a Zoho type CapStone otherwise skips",woFieldIsShown({api_name:"Participants",data_type:"subform"})===true);
+check("Remind Participants stays off the form",woSkipFieldApi("Remind_Participants")===true);
+check("Participants names read from the Zoho array",woDisplayFieldValue([{name:"Site Contact"},{name:"Quintin"}])==="Site Contact, Quintin");
+
+var zohoLabeled=[
+  {api_name:"Event_Title",label:"Title",data_type:"text"},
+  {api_name:"CF_Deal_Notes",label:"Deal Description",data_type:"textarea"},
+  {api_name:"Venue",label:"Meeting Venue",data_type:"text"},
+  {api_name:"What_Id",label:"Deal",data_type:"lookup"},
+  {api_name:"All_day",label:"All day",data_type:"boolean"}
+];
+var labeledOrder=woSortMeetingFields(zohoLabeled).map(function(f){return f.api_name;});
+check("Zoho labels place a renamed field",labeledOrder.join(",")==="Event_Title,Venue,What_Id,CF_Deal_Notes,All_day",labeledOrder.join(","));
+check("a real Deal Description field is not doubled",labeledOrder.filter(function(a){return a==="Deal_Description";}).length===0);
+check("a real Deal Description field stays editable",woFieldIsEditable({api_name:"CF_Deal_Notes",label:"Deal Description",data_type:"textarea"})===true);
+
+// The shop's own Zoho layout (Events module): the status field is Work_Status,
+// Host is the Owner lookup, the venue field is labeled Location, and Deal
+// Description is a real Zoho field. Only the labels put those where asked.
+var shopLayout=[
+  {api_name:"All_day",label:"All day",data_type:"boolean"},
+  {api_name:"Asset_List_From_Deals",label:"Asset List From Deals",data_type:"textarea"},
+  {api_name:"Deal_Description",label:"Deal Description",data_type:"textarea"},
+  {api_name:"Description",label:"Description",data_type:"textarea"},
+  {api_name:"End_DateTime",label:"To",data_type:"datetime"},
+  {api_name:"Event_Title",label:"Title",data_type:"text"},
+  {api_name:"Owner",label:"Host",data_type:"ownerlookup"},
+  {api_name:"Participants",label:"Participants",data_type:"bigint"},
+  {api_name:"Start_DateTime",label:"From",data_type:"datetime"},
+  {api_name:"Venue",label:"Location",data_type:"text"},
+  {api_name:"What_Id",label:"Related To",data_type:"lookup"},
+  {api_name:"Who_Id",label:"Contact Name",data_type:"lookup"},
+  {api_name:"Work_Status",label:"Meeting Status",data_type:"picklist"}
+];
+var shopOrder=woSortMeetingFields(shopLayout).map(function(f){return f.label;});
+check("the shop's own Zoho layout reads in the asked-for order",shopOrder.join(",")==="Title,Location,From,To,Contact Name,Related To,Meeting Status,Host,Participants,Description,Deal Description,Asset List From Deals,All day",shopOrder.join(","));
+check("Work_Status is the Meeting Status slot",woFieldSortRank("Work_Status","Meeting Status")===woFieldSortRank("Meeting_Status","Meeting Status"));
+check("Owner labeled Host is the Host slot",woFieldSortRank("Owner","Host")===woFieldSortRank("Host","Host"));
+check("Owner labeled Meeting Owner is a leftover field",woFieldSortRank("Owner","Meeting Owner")>woFieldSortRank("Deal_Description","Deal Description"));
+check("Participants stays read-only when Zoho calls it a number",woFieldIsEditable({api_name:"Participants",data_type:"bigint"})===false);
+
+var dealDescField=woSortMeetingFields(fields).filter(function(f){return f.api_name==="Deal_Description";})[0];
+check("Deal Description is added when the layout has none",!!dealDescField&&dealDescField.fpVirtual==="deal_description");
+check("Deal Description is read-only",woFieldIsEditable(dealDescField)===false);
+check("Deal Description reads the linked deal",woDealDescriptionText({dealId:"deal-1"})==="Recorder due for annual calibration");
+check("Deal Description is blank with no deal",woDealDescriptionText({dealId:"deal-none"})==="");
+check("Deal Description is not sent to Zoho",Object.keys(woBuildMeetingUpdatePayload([dealDescField],{},{Deal_Description:"Recorder due for annual calibration"})).length===0);
 check("input id is stable",woFieldInputId("Meeting_Status")==="wo-f-Meeting_Status");
 check("lookup display uses the name",woDisplayFieldValue({id:"c1",name:"Site Contact"})==="Site Contact");
 check("boolean display is true/false",woDisplayFieldValue(true)==="true"&&woDisplayFieldValue(false)==="false");

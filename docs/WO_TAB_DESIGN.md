@@ -3,7 +3,7 @@
 The **WO** tab is the Zoho **Meetings** record, shown in CapStone as the day's work order. It is not a new CRM module.
 
 ```text
-Last updated: 2026-09-02
+Last updated: 2026-09-10
 Status: Accepted — list + editable meeting form (Zoho write-back)
 Related: docs/CAPSTONE_DEVELOPMENT_RULES.md (Future tab rule)
 ```
@@ -73,6 +73,15 @@ How the technician matches: **My meetings** is the setup / Settings **User / Tec
 ## Record (the open WO)
 
 Opening a meeting shows the **same Zoho Meetings fields** as an editable form (`#wo-record`), **prefilled with that meeting's current values**. Field **labels** are Zoho `field_label` (the name on the Meetings layout). Metadata comes from `get_meeting_fields`; the record comes from `get_meeting` (layout GET first, then any missing requested fields). The list row keeps the raw Zoho record so custom fields still seed the form offline. Fallback labels match Zoho: Meeting Title, From, To, All day, Users, Contact Name, Related To, Meeting Owner.
+
+**Field order** (`woFieldSortRank()`), top to bottom — the order a technician reads a work order in:
+
+1. Title · 2. Venue · 3. Location · 4. From · 5. To · 6. Contact Name · 7. Deal (`What_Id`) · 8. Meeting Status · 9. Host · 10. Participants · 11. Description · 12. Deal Description
+
+Every other field on the layout follows underneath, and **All day is last** — it is a checkbox, not something the technician reads first. A field is placed by `api_name`, and when the layout renamed it, by its Zoho label (a `What_Id` labeled *Deal*, a custom field labeled *Deal Description*), so a renamed or custom field still lands where it belongs.
+
+- **Participants** is shown but read-only: it is a Zoho participant list, not free text, so CapStone displays the names and never sends it back in an update.
+- **Deal Description** is the linked deal's own `Description`, read-only, from the cached deal (`woDealDescriptionText()`). It is only added when the Meetings layout has no field of its own by that name; a real Zoho field with that label keeps its Zoho value and stays editable. Being CapStone's own row, it has no **→ AI** button and is never part of the Zoho payload.
 
 - Every shown field has **→ AI**. Typed text is polished; an empty field is drafted from this meeting (and Capture voice notes when present). Picklists must land on a listed option.
 - **Save meeting to Zoho** PUTs only changed editable fields via `update_meeting`. Lookups (Host, Contact Name, Related To, Meeting Owner) stay read-only. Failed saves queue as Pending Sync `meeting_update`.

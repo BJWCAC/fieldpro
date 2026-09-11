@@ -5,9 +5,9 @@ Living record of what CapStone has shipped, what is planned next, and what we ha
 **Maintain this file on every meaningful change** — feature PR, bug fix, doc update, field-test finding, or user decision to defer/decline work. Bump the `Last updated` line and add a short entry under the right section. Do not rely on chat history alone.
 
 ```text
-Last updated: 2026-09-02
-Current live version: v406
-Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=406
+Last updated: 2026-09-10
+Current live version: v408
+Test URL: https://BJWCAC.github.io/fieldpro/FieldPro.html?v=408
 ```
 
 ---
@@ -35,6 +35,7 @@ Related docs (detail, not status):
 
 | Version | PR | What shipped |
 |---------|-----|--------------|
+| v408 | #299 | **WO meeting form reads in work-order order** — Title, Venue, Location, From, To, Contact Name, Deal, Meeting Status, Host, Participants, Description, Deal Description; every other layout field follows and the **All day** checkbox is last. Placement is by `api_name` or, for a renamed/custom field, by its Zoho label — which is what puts the shop's own layout in order, where the status field is `Work_Status`, Host is the `Owner` lookup, and the venue field is labeled Location. Participants is shown read-only (Zoho participant list, never sent back). Deal Description is a real field on that layout; CapStone only adds its own read-only row from the linked deal when the layout has none. `node tests/wo-tab.js`. |
 | v407 | #298 | **Active on the WO tab stops listing meetings that are already over** — reported from the field as "Meeting fields, I did a refresh for active meetings. It is displaying others status meetings as well completed." When Zoho sends no Meeting Status for a meeting — the field is not on the Meetings layout, or the proxy had to drop it to make the GET succeed — v400 let that statusless meeting through **every** chip, including Active, so a refresh with Active selected listed last month's finished work beside today's. CapStone now reads the missing status off the calendar instead: a meeting is **Active through the end of the day it is scheduled on**, then **Completed**; a cancelled meeting is Cancelled, and a meeting with no date stays Active. A status Zoho did send always wins, and a derived status is only ever displayed and filtered on — it is never written back to Zoho or into the meeting form. The card pill says `(from the date)`, the count line says how many were read that way, the Completed chip now appears for those meetings, and the sync line names the missing status field (proxy build **297** returns `__fp_status_field_dropped`) so the fix in Zoho is obvious. `node tests/wo-tab.js`. |
 | v406 | #297 | **WO meeting form prefills Zoho values and Zoho field names** — opening a WO no longer redraws blank inputs over the loaded meeting. Labels are Zoho `field_label` (offline fallback: Meeting Title, From, To, Users, Contact Name). List rows keep the raw Zoho record so custom fields seed the form; `Title` reads `Meeting_Title`. `webhook` on a Zoho field is not read-only, so title/status/description stay editable. GET-by-id uses the layout first and drops invalid field names instead of failing the whole record. Proxy build **296**. `node tests/wo-tab.js`. |
 | v405 | #296 | **WO meeting form writes every Zoho meeting field** — opening a WO shows the live Meetings fields (or a fallback title/status/start/end/venue/description/Users set offline). Each field has → AI (polish typed text, or draft from this meeting when empty). Save to Zoho PUTs only changed editable fields; lookups stay read-only. Drafts persist in `fp_wo_draft`; failed saves queue as Pending Sync `meeting_update`. Proxy build **295** (`get_meeting_fields`, `get_meeting`, `update_meeting`). `node tests/wo-tab.js`. |

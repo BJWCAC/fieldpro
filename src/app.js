@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woStatusFieldDropped:false,woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="407";
+var FP_VERSION="408";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -3243,25 +3243,26 @@ function woFallbackFields(moduleName,statusField,statuses){
   var statusOpts=(statuses&&statuses.length)?statuses.slice():["Active","Planned","Scheduled","Completed","Cancelled"];
   return [
     {api_name:title,label:"Meeting Title",data_type:"text",required:true,read_only:false,pick_list_values:[]},
-    {api_name:status,label:"Status",data_type:"picklist",required:false,read_only:false,pick_list_values:statusOpts},
-    {api_name:"Start_DateTime",label:"From",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
-    {api_name:"End_DateTime",label:"To",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
-    {api_name:"All_day",label:"All day",data_type:"boolean",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Venue",label:"Venue",data_type:"text",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Location",label:"Location",data_type:"text",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Start_DateTime",label:"From",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"End_DateTime",label:"To",data_type:"datetime",required:false,read_only:false,pick_list_values:[]},
+    {api_name:"Who_Id",label:"Contact Name",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"What_Id",label:"Related To",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:status,label:"Status",data_type:"picklist",required:false,read_only:false,pick_list_values:statusOpts},
+    {api_name:"Host",label:"Host",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"Participants",label:"Participants",data_type:"multiselectlookup",required:false,read_only:true,pick_list_values:[]},
     {api_name:"Description",label:"Description",data_type:"textarea",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Users",label:"Users",data_type:"picklist",required:false,read_only:false,pick_list_values:[]},
     {api_name:"Technician",label:"Technician",data_type:"text",required:false,read_only:false,pick_list_values:[]},
-    {api_name:"Host",label:"Host",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
-    {api_name:"Who_Id",label:"Contact Name",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
-    {api_name:"What_Id",label:"Related To",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
-    {api_name:"Owner",label:"Meeting Owner",data_type:"lookup",required:false,read_only:true,pick_list_values:[]}
+    {api_name:"Owner",label:"Meeting Owner",data_type:"lookup",required:false,read_only:true,pick_list_values:[]},
+    {api_name:"All_day",label:"All day",data_type:"boolean",required:false,read_only:false,pick_list_values:[]}
   ];
 }
 function woSkipFieldApi(api){
   api=String(api||"");
   if(!api||api.indexOf("$")===0)return true;
-  return /^(id|Created_By|Modified_By|Created_Time|Modified_Time|Last_Activity_Time|Record_Image|Recurring_Activity|Participants|Remind_Participants)$/i.test(api);
+  return /^(id|Created_By|Modified_By|Created_Time|Modified_Time|Last_Activity_Time|Record_Image|Recurring_Activity|Remind_Participants)$/i.test(api);
 }
 function woSkipFieldType(dt){
   dt=String(dt||"").toLowerCase();
@@ -3273,19 +3274,78 @@ function woFieldIsLookup(field){
   var dt=String(field.data_type||"").toLowerCase();
   return dt==="lookup"||dt==="ownerlookup"||dt==="userlookup";
 }
+function woFieldIsShown(field){
+  if(!field||woSkipFieldApi(field.api_name))return false;
+  if(woFieldForcedReadOnly(field.api_name))return true;
+  return !woSkipFieldType(field.data_type);
+}
+function woFieldForcedReadOnly(api){
+  return /^Participants$/i.test(String(api||""));
+}
 function woFieldIsEditable(field){
   if(!field||woSkipFieldApi(field.api_name)||woSkipFieldType(field.data_type))return false;
+  if(field.fpVirtual||woFieldForcedReadOnly(field.api_name))return false;
   if(woFieldIsLookup(field))return false;
   return true;
 }
-function woFieldSortRank(api){
-  var order=["Meeting_Title","Event_Title","Title","Meeting_Status","Event_Status","Status","Start_DateTime","End_DateTime","All_day","Venue","Location","Description","Users","Technician","Host","Who_Id","What_Id","Owner"];
-  var i=order.indexOf(api);
-  return i<0?100+String(api).charCodeAt(0):i;
+function woFieldOrderKey(s){
+  return woNormalizeName(String(s||"").replace(/[_-]+/g," "));
+}
+function woFieldIsAllDay(api,label){
+  return /^all day( event)?$/.test(woFieldOrderKey(api))||/^all day( event)?$/.test(woFieldOrderKey(label));
+}
+function woFieldSortRank(api,label){
+  var order=[
+    {apis:["Meeting_Title","Event_Title","Title"],labels:["title","meeting title","event title","subject"]},
+    {apis:["Venue"],labels:["venue","meeting venue"]},
+    {apis:["Location"],labels:["location","meeting location"]},
+    {apis:["Start_DateTime"],labels:["from","start","start time"]},
+    {apis:["End_DateTime"],labels:["to","end","end time"]},
+    {apis:["Who_Id","Contact_Name"],labels:["contact name","contact"]},
+    {apis:["What_Id"],labels:["deal","deal name","related to"]},
+    {apis:["Meeting_Status","Event_Status","Status"],labels:["meeting status","event status","status"]},
+    {apis:["Host"],labels:["host"]},
+    {apis:["Participants"],labels:["participants"]},
+    {apis:["Description"],labels:["description"]},
+    {apis:["Deal_Description"],labels:["deal description"]}
+  ];
+  var a=woFieldOrderKey(api),l=woFieldOrderKey(label),i,j;
+  for(i=0;i<order.length;i++){
+    for(j=0;j<order[i].apis.length;j++){if(woFieldOrderKey(order[i].apis[j])===a)return i;}
+  }
+  if(l){
+    for(i=0;i<order.length;i++){if(order[i].labels.indexOf(l)>=0)return i;}
+  }
+  if(woFieldIsAllDay(api,label))return 900;
+  return 100+(String(api||"").charCodeAt(0)||0);
+}
+function woDealDescriptionText(m){
+  if(!m)return "";
+  var deals=(typeof A!=="undefined"&&A.deals)||[];
+  var id=m.dealId?String(m.dealId):"";
+  var name=woNormalizeName(m.dealName);
+  for(var i=0;i<deals.length;i++){
+    var d=deals[i];
+    if(!d)continue;
+    if(id&&String(d.id)===id)return String(d.Description||"");
+    if(!id&&name&&woNormalizeName(d.Deal_Name)===name)return String(d.Description||"");
+  }
+  return "";
+}
+function woDealDescriptionField(fields){
+  for(var i=0;i<(fields||[]).length;i++){
+    var f=fields[i];
+    if(!f)continue;
+    if(woFieldOrderKey(f.api_name)==="deal description"||woFieldOrderKey(f.label)==="deal description")return null;
+  }
+  return {api_name:"Deal_Description",label:"Deal Description",data_type:"textarea",required:false,read_only:true,fpVirtual:"deal_description",pick_list_values:[]};
 }
 function woSortMeetingFields(fields){
-  return (fields||[]).slice().filter(function(f){return f&&!woSkipFieldApi(f.api_name)&&!woSkipFieldType(f.data_type);}).sort(function(a,b){
-    var d=woFieldSortRank(a.api_name)-woFieldSortRank(b.api_name);
+  var list=(fields||[]).slice().filter(woFieldIsShown);
+  var dealDesc=woDealDescriptionField(list);
+  if(dealDesc)list.push(dealDesc);
+  return list.sort(function(a,b){
+    var d=woFieldSortRank(a.api_name,a.label)-woFieldSortRank(b.api_name,b.label);
     if(d)return d;
     return String(a.label||a.api_name).localeCompare(String(b.label||b.api_name));
   });
@@ -3349,6 +3409,7 @@ function woRecordFieldRaw(record,field){
 }
 function woInputValueFromRecord(field,record){
   record=record||{};
+  if(field&&field.fpVirtual==="deal_description")return woDealDescriptionText((typeof A!=="undefined"&&A.wo)||null);
   var raw=woRecordFieldRaw(record,field);
   var dt=String(field.data_type||"").toLowerCase();
   if(dt==="datetime")return woIsoToLocalInput(typeof raw==="string"?raw:woDisplayFieldValue(raw));
@@ -3681,7 +3742,7 @@ function renderWoForm(opts){
     var dt=String(field.data_type||"").toLowerCase();
     html+="<div class='wo-form-field'>";
     html+="<div class='field-ai-row'><label class='lbl' style='margin-bottom:0' for='"+esc(id)+"'>"+esc(label)+(field.required?" *":"")+"</label>";
-    html+="<button type='button' class='field-ai-btn "+neutral+" bsm' data-field-ai-target='"+esc(target)+"' title='Update this meeting field with AI' onclick='event.preventDefault();event.stopPropagation();runFieldPolishAi(\""+esc(target)+"\")'>→ AI</button>";
+    if(!field.fpVirtual)html+="<button type='button' class='field-ai-btn "+neutral+" bsm' data-field-ai-target='"+esc(target)+"' title='Update this meeting field with AI' onclick='event.preventDefault();event.stopPropagation();runFieldPolishAi(\""+esc(target)+"\")'>→ AI</button>";
     html+="</div>";
     html+="<div class='field-ai-status' id='field-ai-status-"+esc(fieldAiTargetKey(target))+"'></div>";
     if(!editable){
