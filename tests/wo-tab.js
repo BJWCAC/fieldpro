@@ -234,6 +234,31 @@ check("Zoho labels place a renamed field",labeledOrder.join(",")==="Event_Title,
 check("a real Deal Description field is not doubled",labeledOrder.filter(function(a){return a==="Deal_Description";}).length===0);
 check("a real Deal Description field stays editable",woFieldIsEditable({api_name:"CF_Deal_Notes",label:"Deal Description",data_type:"textarea"})===true);
 
+// The shop's own Zoho layout (Events module): the status field is Work_Status,
+// Host is the Owner lookup, the venue field is labeled Location, and Deal
+// Description is a real Zoho field. Only the labels put those where asked.
+var shopLayout=[
+  {api_name:"All_day",label:"All day",data_type:"boolean"},
+  {api_name:"Asset_List_From_Deals",label:"Asset List From Deals",data_type:"textarea"},
+  {api_name:"Deal_Description",label:"Deal Description",data_type:"textarea"},
+  {api_name:"Description",label:"Description",data_type:"textarea"},
+  {api_name:"End_DateTime",label:"To",data_type:"datetime"},
+  {api_name:"Event_Title",label:"Title",data_type:"text"},
+  {api_name:"Owner",label:"Host",data_type:"ownerlookup"},
+  {api_name:"Participants",label:"Participants",data_type:"bigint"},
+  {api_name:"Start_DateTime",label:"From",data_type:"datetime"},
+  {api_name:"Venue",label:"Location",data_type:"text"},
+  {api_name:"What_Id",label:"Related To",data_type:"lookup"},
+  {api_name:"Who_Id",label:"Contact Name",data_type:"lookup"},
+  {api_name:"Work_Status",label:"Meeting Status",data_type:"picklist"}
+];
+var shopOrder=woSortMeetingFields(shopLayout).map(function(f){return f.label;});
+check("the shop's own Zoho layout reads in the asked-for order",shopOrder.join(",")==="Title,Location,From,To,Contact Name,Related To,Meeting Status,Host,Participants,Description,Deal Description,Asset List From Deals,All day",shopOrder.join(","));
+check("Work_Status is the Meeting Status slot",woFieldSortRank("Work_Status","Meeting Status")===woFieldSortRank("Meeting_Status","Meeting Status"));
+check("Owner labeled Host is the Host slot",woFieldSortRank("Owner","Host")===woFieldSortRank("Host","Host"));
+check("Owner labeled Meeting Owner is a leftover field",woFieldSortRank("Owner","Meeting Owner")>woFieldSortRank("Deal_Description","Deal Description"));
+check("Participants stays read-only when Zoho calls it a number",woFieldIsEditable({api_name:"Participants",data_type:"bigint"})===false);
+
 var dealDescField=woSortMeetingFields(fields).filter(function(f){return f.api_name==="Deal_Description";})[0];
 check("Deal Description is added when the layout has none",!!dealDescField&&dealDescField.fpVirtual==="deal_description");
 check("Deal Description is read-only",woFieldIsEditable(dealDescField)===false);
