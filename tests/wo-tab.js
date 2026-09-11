@@ -27,7 +27,12 @@ eval(sliceFn("woLookupName","woLookupId"));
 eval(sliceFn("woLookupId","woNormalizeName"));
 eval(sliceFn("woNormalizeName","woIsActiveStatus"));
 eval(sliceFn("woIsActiveStatus","woMeetingStatus"));
-eval(sliceFn("woMeetingStatus","woHostName"));
+eval(sliceFn("woMeetingStatus","woMeetingEndMs"));
+eval(sliceFn("woMeetingEndMs","woStartOfTodayMs"));
+eval(sliceFn("woStartOfTodayMs","woDerivedStatus"));
+eval(sliceFn("woDerivedStatus","woEffectiveStatus"));
+eval(sliceFn("woEffectiveStatus","woStatusIsDerived"));
+eval(sliceFn("woStatusIsDerived","woHostName"));
 eval(sliceFn("woHostName","woNameTokens"));
 eval(sliceFn("woNameTokens","woNamesMatch"));
 eval(sliceFn("woNamesMatch","woMatchesTechnician"));
@@ -86,9 +91,33 @@ check("Users picklist matches when Host is a dispatcher",woMatchesTechnician({ho
 check("Users array matches Settings User / Technician",woMatchesTechnician({host:"",users:[{Name:"Brad White"}]},"Brad White")===true);
 check("no technician selected matches nothing",woMatchesTechnician(quintin,"")===false);
 
+function isoDaysFromToday(days,hour){
+  var d=new Date();
+  d.setDate(d.getDate()+days);
+  d.setHours(hour==null?9:hour,0,0,0);
+  return d.toISOString();
+}
+var noStatusPast={id:"m8",title:"Finished last week",start:isoDaysFromToday(-7,9),end:isoDaysFromToday(-7,11),host:"Quintin",status:"",cancelled:false};
+var noStatusThisMorning={id:"m9",title:"Ran this morning",start:isoDaysFromToday(0,6),end:isoDaysFromToday(0,7),host:"Quintin",status:"",cancelled:false};
+var noStatusTomorrow={id:"m10",title:"Tomorrow",start:isoDaysFromToday(1,9),end:isoDaysFromToday(1,11),host:"Quintin",status:"",cancelled:false};
+var noStatusNoDate={id:"m11",title:"No date at all",start:"",host:"Quintin",status:"",cancelled:false};
+
+check("a Zoho status wins over the date",woEffectiveStatus({status:"Planned",start:isoDaysFromToday(-30,9)})==="Planned");
+check("a statusless meeting from a past day reads Completed",woDerivedStatus(noStatusPast)==="Completed");
+check("a statusless meeting that ran this morning is still Active",woDerivedStatus(noStatusThisMorning)==="Active");
+check("a statusless meeting still to come is Active",woDerivedStatus(noStatusTomorrow)==="Active");
+check("a statusless meeting with no date stays Active",woDerivedStatus(noStatusNoDate)==="Active");
+check("a statusless meeting without an end time uses its start",woDerivedStatus({start:isoDaysFromToday(-3,9),status:""})==="Completed");
+check("a cancelled statusless meeting reads Cancelled",woDerivedStatus({start:isoDaysFromToday(1,9),status:"",cancelled:true})==="Cancelled");
+check("a Zoho status is not marked as read from the date",woStatusIsDerived(quintin)===false);
+check("a statusless meeting is marked as read from the date",woStatusIsDerived(noStatusPast)===true);
+
 check("empty status filter keeps Planned",woMatchesStatusFilter({status:"Planned"},[])===true);
 check("Active filter keeps Active",woMatchesStatusFilter(quintin,["Active"])===true);
-check("blank Meeting Status still shows when Active is selected",woMatchesStatusFilter({status:""},["Active"])===true);
+check("Active drops a statusless meeting from a past day",woMatchesStatusFilter(noStatusPast,["Active"])===false);
+check("Active keeps a statusless meeting from earlier today",woMatchesStatusFilter(noStatusThisMorning,["Active"])===true);
+check("Active keeps a statusless meeting with no date",woMatchesStatusFilter(noStatusNoDate,["Active"])===true);
+check("Completed finds the statusless meeting that is over",woMatchesStatusFilter(noStatusPast,["Completed"])===true);
 check("Active filter drops Completed",woMatchesStatusFilter(completed,["Active"])===false);
 check("selecting Completed includes that status",woMatchesStatusFilter(completed,["Active","Completed"])===true);
 check("Complete chip matches Completed status",woMatchesStatusFilter(completed,["Complete"])===true);
@@ -151,6 +180,12 @@ check("normalized meeting keeps the Zoho row",rec.raw&&rec.raw.Venue==="Drive-th
 var statuses=collectWorkOrderStatuses([completed,quintin],["Cancelled"]);
 check("Active is always offered first",statuses[0]==="Active");
 check("other statuses from the Meetings picklist stay available",statuses.indexOf("Completed")>=0&&statuses.indexOf("Cancelled")>=0);
+check("a Completed chip is offered when only the date says so",collectWorkOrderStatuses([noStatusPast,noStatusTomorrow],[]).indexOf("Completed")>=0);
+check("the Active list drops statusless meetings that are over",filterWorkOrders([noStatusPast,noStatusThisMorning,noStatusTomorrow],{technician:"Quintin",statuses:["Active"]}).map(function(m){return m.id;}).join(",")==="m9,m10");
+check("Completed lists the statusless meeting that is over",filterWorkOrders([noStatusPast,noStatusTomorrow],{technician:"Quintin",statuses:["Completed"]}).length===1);
+check("all statuses still lists every statusless meeting",filterWorkOrders([noStatusPast,noStatusThisMorning,noStatusTomorrow],{technician:"Quintin",statuses:[]}).length===3);
+check("the loaded hint says a status came from the date",woLoadedHint([noStatusPast]).indexOf("Completed (from the date)")>=0,woLoadedHint([noStatusPast]));
+check("searching Completed finds the statusless meeting that is over",filterWorkOrders([noStatusPast,noStatusTomorrow],{technician:"Quintin",statuses:[],query:"completed"}).length===1);
 check("default status filter is all statuses",woDefaultStatusFilter().length===0);
 
 var emptyLoad=woFilterExplain([],"Quintin",["Active"]);
@@ -159,6 +194,8 @@ var hostMiss=woFilterExplain([otherTech],"Quintin",["Active"]);
 check("technician miss names User / Technician",/technician/i.test(hostMiss.title)&&hostMiss.detail.indexOf("Quintin")>=0);
 var statusMiss=woFilterExplain([completed],"Quintin",["Active"]);
 check("status miss says Active is not a date",statusMiss.detail.indexOf("not a date")>=0);
+var derivedMiss=woFilterExplain([noStatusPast],"Quintin",["Active"]);
+check("status miss says where a missing status came from",derivedMiss.detail.indexOf("read that status from the meeting date")>=0,derivedMiss.detail);
 var dateMiss=woFilterExplain([nextMonth],"Quintin",["Active"],"2026-09-01","2026-09-01");
 check("date miss names the range",dateMiss.title.indexOf("date")>=0&&dateMiss.detail.indexOf("Today")>=0);
 check("Work this WO goes to Capture",woActionTab({goCapture:true})==="capture");

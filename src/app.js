@@ -373,8 +373,8 @@ var REPORT_COPY_CUSTOM_KEY="custom";
 var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
-var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="407";
+var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woStatusFieldDropped:false,woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
+var FP_VERSION="408";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -2512,6 +2512,34 @@ function woMeetingStatus(m){
   if(!m)return "";
   return String(m.status||"").trim();
 }
+function woMeetingEndMs(m){
+  if(!m)return 0;
+  var t=Date.parse(m.end||m.start||"");
+  return isNaN(t)?0:t;
+}
+function woStartOfTodayMs(){
+  var d=new Date();
+  d.setHours(0,0,0,0);
+  return d.getTime();
+}
+function woDerivedStatus(m){
+  // Zoho does not always send a Meeting Status: the field can be missing from
+  // the Meetings layout, or the proxy drops it when the GET rejects it. Read
+  // the status off the calendar instead, so a meeting that is already over
+  // does not sit in the Active list. A meeting stays Active through the end of
+  // the day it was scheduled on — this morning's job is still today's work.
+  if(!m)return "";
+  if(m.cancelled)return "Cancelled";
+  var endMs=woMeetingEndMs(m);
+  if(!endMs)return "Active";
+  return endMs<woStartOfTodayMs()?"Completed":"Active";
+}
+function woEffectiveStatus(m){
+  return woMeetingStatus(m)||woDerivedStatus(m);
+}
+function woStatusIsDerived(m){
+  return !!m&&!woMeetingStatus(m);
+}
 function woHostName(m){
   if(!m)return "";
   return String(m.host||"").trim();
@@ -2573,11 +2601,8 @@ function woStatusKeyList(s){
 function woMatchesStatusFilter(m,selected){
   var list=selected||[];
   if(!list.length)return true;
-  var st=woNormalizeName(woMeetingStatus(m));
-  if(!st){
-    for(var j=0;j<list.length;j++){if(woIsActiveStatus(list[j]))return true;}
-    return false;
-  }
+  var st=woNormalizeName(woEffectiveStatus(m));
+  if(!st)return false;
   var have=woStatusKeyList(st);
   for(var i=0;i<list.length;i++){
     var want=woStatusKeyList(list[i]);
@@ -2660,7 +2685,7 @@ function filterWorkOrders(rows,opts){
     if(statuses&&statuses.length){if(!woMatchesStatusFilter(m,statuses))return false;}
     if(from||to){if(!woInDateRange(m,from,to))return false;}
     if(q){
-      var blob=woNormalizeName([m.title,m.accountName,m.dealName,m.venue,m.host,m.owner,m.users,m.technician,m.contact,m.status].concat(woMeetingTechNames(m)).join(" "));
+      var blob=woNormalizeName([m.title,m.accountName,m.dealName,m.venue,m.host,m.owner,m.users,m.technician,m.contact,woEffectiveStatus(m)].concat(woMeetingTechNames(m)).join(" "));
       if(blob.indexOf(q)<0)return false;
     }
     return true;
@@ -2678,7 +2703,7 @@ function woCountMap(rows,keyFn){
 }
 function woLoadedHint(rows){
   var hosts=woCountMap(rows,function(m){var n=woMeetingTechNames(m);return n.length?n.join(" / "):"(no user)";});
-  var st=woCountMap(rows,function(m){return woMeetingStatus(m)||"(no status)";});
+  var st=woCountMap(rows,function(m){return woEffectiveStatus(m)+(woStatusIsDerived(m)?" (from the date)":"");});
   var parts=[];
   if(hosts)parts.push("Hosts: "+hosts);
   if(st)parts.push("Statuses: "+st);
@@ -2704,7 +2729,12 @@ function woFilterExplain(rows,tech,statuses,from,to,hostMode){
     var missing=named?("None matched User / Technician "+(tech||"(none)")+". Tap All hosts. "):("None of them have Users / Technician / Host / Owner in this response. Redeploy zoho-proxy and tap Refresh from Zoho, or tap All hosts. ");
     return{title:"No meetings for this technician",detail:n+" meetings loaded. "+(hint?hint+". ":"")+missing+"CapStone matches the Settings User / Technician name to Users, Technician, Host, and Owner."};
   }
-  if(!statusHits)return{title:"No meetings in this Meeting Status",detail:hostHits+" for "+(hostMode==="all"?"everyone":("User / Technician "+tech))+", but none in "+(statuses||[]).join(", ")+". Tap All statuses — many calendars use Planned or Scheduled, not Active. Active is a status, not a date."};
+  if(!statusHits){
+    var derived=0;
+    (rows||[]).forEach(function(m){if(m&&!m.cancelled&&woStatusIsDerived(m))derived++;});
+    var derivedNote=derived?(" Zoho sent no Meeting Status for "+derived+" of them, so CapStone read that status from the meeting date — a meeting is Active through the end of its own day, then Completed."):"";
+    return{title:"No meetings in this Meeting Status",detail:hostHits+" for "+(hostMode==="all"?"everyone":("User / Technician "+tech))+", but none in "+(statuses||[]).join(", ")+". Tap All statuses — many calendars use Planned or Scheduled, not Active. Active is a status, not a date."+derivedNote};
+  }
   if(!dateHits){
     var lab=woRangeLabel(from,to);
     var when=(from&&to&&from===to)?"none on "+lab:"none between "+lab;
@@ -2878,7 +2908,7 @@ function collectWorkOrderStatuses(rows,extra){
   }
   add("Active");
   (extra||[]).forEach(add);
-  (rows||[]).forEach(function(m){add(m&&m.status);});
+  (rows||[]).forEach(function(m){add(woEffectiveStatus(m));});
   out.sort(function(a,b){
     if(woIsActiveStatus(a)&&!woIsActiveStatus(b))return -1;
     if(!woIsActiveStatus(a)&&woIsActiveStatus(b))return 1;
@@ -2957,6 +2987,7 @@ function loadWorkOrdersFromCache(){
     });
     A.woModule=d.module||A.woModule||"Meetings";
     A.woStatusField=d.statusField||A.woStatusField||"Meeting_Status";
+    A.woStatusFieldDropped=!!d.statusFieldDropped;
     if(Array.isArray(d.techFields)&&d.techFields.length)A.woTechFields=d.techFields;
     if(Array.isArray(d.statuses)&&d.statuses.length)A.woStatuses=d.statuses;
     else A.woStatuses=collectWorkOrderStatuses(A.workOrders,A.woStatuses);
@@ -2975,6 +3006,7 @@ function persistWorkOrdersCache(){
       savedAt:new Date().toISOString(),
       module:A.woModule||"Meetings",
       statusField:A.woStatusField||"Meeting_Status",
+      statusFieldDropped:!!A.woStatusFieldDropped,
       statuses:A.woStatuses||[],
       techFields:A.woTechFields||[],
       from:A.woFrom||"",
@@ -3077,6 +3109,8 @@ async function loadWorkOrders(){
       var d=await r.json();
       if(page===1&&d.__fp_module){crmModule=d.__fp_module;A.woModule=crmModule;}
       if(d.__fp_status_field)A.woStatusField=d.__fp_status_field;
+      if(page===1)A.woStatusFieldDropped=!!d.__fp_status_field_dropped;
+      else if(d.__fp_status_field_dropped)A.woStatusFieldDropped=true;
       if(Array.isArray(d.__fp_tech_fields)&&d.__fp_tech_fields.length)A.woTechFields=d.__fp_tech_fields;
       if(d.__fp_range)rangeMode=d.__fp_range;
       (d.data||[]).forEach(function(rec){all.push(normalizeZohoMeeting(rec,{eventModule:A.woModule,deals:A.deals||[],techFields:A.woTechFields||[]}));});
@@ -3094,8 +3128,9 @@ async function loadWorkOrders(){
       A.woStatuses=collectWorkOrderStatuses(all,A.woStatuses);
       persistWorkOrdersCache();
       if(sm){
-        sm.textContent=all.length+" meetings loaded for "+woRangeLabel(range.from,range.to)+" — "+new Date().toLocaleTimeString();
-        sm.style.color=all.length?"var(--green)":"var(--amber)";
+        var noStatusField=A.woStatusFieldDropped?(" · Zoho has no "+(A.woStatusField||"Meeting_Status")+" field on "+(A.woModule||"Meetings")+", so Meeting Status is read from the meeting date"):"";
+        sm.textContent=all.length+" meetings loaded for "+woRangeLabel(range.from,range.to)+" — "+new Date().toLocaleTimeString()+noStatusField;
+        sm.style.color=all.length?(A.woStatusFieldDropped?"var(--amber)":"var(--green)"):"var(--amber)";
       }
     }
     renderWorkOrders();
@@ -3146,7 +3181,10 @@ function renderWorkOrders(){
   var filtered=filterWorkOrders(A.workOrders,{technician:tech,statuses:A.woStatusFilter,query:q,from:range.from,to:range.to,hostMode:A.woHostMode});
   badge("tb-wo",filtered.length);
   var dc=el("wo-count");
-  if(dc)dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · "+woRangeLabel(range.from,range.to)+" · "+(A.woHostMode==="all"?"All hosts":("User / Technician "+tech))+" · "+((A.woStatusFilter||[]).length?(A.woStatusFilter||[]).join(", "):"all statuses");
+  if(dc){
+    var fromDate=filtered.filter(woStatusIsDerived).length;
+    dc.textContent=filtered.length+" of "+(A.workOrders||[]).length+" meetings · "+woRangeLabel(range.from,range.to)+" · "+(A.woHostMode==="all"?"All hosts":("User / Technician "+tech))+" · "+((A.woStatusFilter||[]).length?(A.woStatusFilter||[]).join(", "):"all statuses")+(fromDate?(" · "+fromDate+" with no Zoho Meeting Status, read from the date"):"");
+  }
   if(!filtered.length){
     var why=woFilterExplain(A.workOrders,tech,A.woStatusFilter,range.from,range.to,A.woHostMode);
     var extra="";
@@ -3168,7 +3206,9 @@ function renderWorkOrders(){
     html+="<div class='deal-card"+(sel?" sel":"")+"' onclick='selectWorkOrder(\""+esc(m.id)+"\")'>";
     html+="<div class='d-acct'>"+esc(m.accountName||m.whatName||"---")+"</div>";
     html+="<div class='d-deal'>"+esc(m.title)+"</div>";
-    html+="<div class='d-meta'><span class='stage-pill'>"+esc(m.status||"")+"</span>";
+    var stShown=woEffectiveStatus(m);
+    var stFromDate=woStatusIsDerived(m);
+    html+="<div class='d-meta'><span class='stage-pill'"+(stFromDate?" title='Zoho sent no Meeting Status for this meeting. CapStone read it from the meeting date.'":"")+">"+esc(stShown)+(stFromDate?" (from the date)":"")+"</span>";
     html+="<span style='font-size:11px;color:var(--dim)'>"+esc(formatWoWhen(m.start))+"</span>";
     var techShown=woLookupName(m.users)||woLookupName(m.technician)||woLookupName(m.host)||woLookupName(m.owner)||(woMeetingTechNames(m)[0]||"");
     html+="<span style='font-size:11px;color:var(--dim)'>"+(techShown?"User "+esc(techShown):"User not set")+"</span>";
