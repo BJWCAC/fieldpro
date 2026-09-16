@@ -9,7 +9,7 @@
 <title>CapStone</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="src/styles.css?v=408"/>
+<link rel="stylesheet" href="src/styles.css?v=409"/>
 
 </head>
 <body autocomplete="off">
@@ -521,6 +521,9 @@
     </div>
     <div id="asset-picklist-request-panel" class="asset-picklist-request-panel asset-module-equipments" style="display:none"></div>
     <div class="asset-module-equipments" style="margin-bottom:8px"><label class="lbl">Model Number *</label><input id="asset-model"/></div>
+    <div class="asset-module-equipments" id="asset-serial-slot-equipments" style="margin-bottom:8px">
+      <div id="asset-serial-cell"><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
+    </div>
     <div class="g2 asset-module-equipments" style="margin-bottom:8px">
       <div><label class="lbl">Series</label><select id="asset-series"></select></div>
       <div><label class="lbl">Series Other</label><input id="asset-series-other" placeholder="Only if series is Other"/></div>
@@ -539,9 +542,9 @@
       <div><label class="lbl">Brand</label><input id="asset-ia-brand" placeholder="Example: Fluke"/></div>
       <div><label class="lbl">Part Number</label><input id="asset-ia-part" placeholder="Example: 87V"/></div>
     </div>
-    <div class="g2" style="margin-bottom:8px">
-      <div><label class="lbl">Serial Number *</label><input id="asset-serial"/></div>
-      <div class="asset-module-internal" style="display:none"><label class="lbl">Tag</label><input id="asset-ia-tag" placeholder="Optional tag"/></div>
+    <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
+      <div id="asset-serial-slot-ia"></div>
+      <div><label class="lbl">Tag</label><input id="asset-ia-tag" placeholder="Optional tag"/></div>
     </div>
     <div class="g2 asset-module-internal" style="display:none;margin-bottom:8px">
       <div><label class="lbl">Use Status *</label><select id="asset-use-status"></select></div>
@@ -1168,8 +1171,8 @@
   </div>
 </div>
 
-<script src="src/accounts-map.js?v=408"></script>
-<script src="src/app.js?v=408"></script>
+<script src="src/accounts-map.js?v=409"></script>
+<script src="src/app.js?v=409"></script>
 
 </body>
 </html>
