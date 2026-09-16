@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woStatusFieldDropped:false,woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="408";
+var FP_VERSION="409";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -4017,11 +4017,23 @@ function placeAssetGpsCell(internal){
     gps.style.width="";gps.style.maxWidth="";
   }
 }
+// Serial sits with the nameplate identity fields: under Model Number on
+// Assets, under Part Number on IA. One input is moved between those slots
+// so the field is not left at the bottom of the category block.
+function placeAssetSerialCell(internal){
+  var cell=el("asset-serial-cell");
+  var eqSlot=el("asset-serial-slot-equipments");
+  var iaSlot=el("asset-serial-slot-ia");
+  if(!cell)return;
+  var dest=internal?iaSlot:eqSlot;
+  if(dest&&cell.parentElement!==dest)dest.appendChild(cell);
+}
 function renderAssetModuleUi(){
   var internal=isInternalAssetModule();
   document.querySelectorAll(".asset-module-equipments").forEach(function(n){n.style.display=internal?"none":"";});
   document.querySelectorAll(".asset-module-internal").forEach(function(n){n.style.display=internal?"":"none";});
   placeAssetGpsCell(internal);
+  placeAssetSerialCell(internal);
   var helpEq=el("asset-help-equipments"),helpIa=el("asset-help-internal");
   if(helpEq)helpEq.style.display=internal?"none":"";
   if(helpIa)helpIa.style.display=internal?"":"none";

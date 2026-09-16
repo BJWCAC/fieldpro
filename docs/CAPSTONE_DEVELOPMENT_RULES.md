@@ -329,6 +329,15 @@ Pending Sync items should:
 - show attempts/errors
 - be removable/clearable when needed
 
+## Asset identity field order
+
+Serial Number sits with the nameplate identity fields, not after the category block:
+
+- **Assets tab** — immediately under Model Number (the part / model / order identifier on Equipments)
+- **IA tab** — immediately under Part Number, beside Tag
+
+`placeAssetSerialCell()` moves the one `#asset-serial` input between those slots when the module changes. Any change to that order must run `node tests/asset-field-order.js`.
+
 ## Draft/recovery rules
 
 If a workflow has meaningful user-entered data, evaluate draft autosave.
@@ -542,6 +551,7 @@ node tests/parts-lookup.js
 node tests/pdf-layout.js
 node tests/copy-capture-to-deals.js
 node tests/wo-tab.js
+node tests/asset-field-order.js
 git diff --check
 ```
 

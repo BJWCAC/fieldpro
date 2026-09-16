@@ -37,6 +37,7 @@ There is no test framework. Per `docs/CAPSTONE_DEVELOPMENT_RULES.md`, the standa
 - `node tests/pdf-layout.js` (plain Node script; required for any change to `buildPDF()` pagination or first-page layout)
 - `node tests/copy-capture-to-deals.js` (plain Node script; required for any change to copy-visit-to-other-deals or History blob refcounting)
 - `node tests/wo-tab.js` (plain Node script; required for any change to WO Host matching, Meeting Status filtering, start-of-day sort, or the meeting field form / Zoho update payload)
+- `node tests/asset-field-order.js` (plain Node script; required for any change to Assets/IA identity-field order — Model / Part Number / Serial)
 - `git diff --check`
 
 ### Versioning gotcha
