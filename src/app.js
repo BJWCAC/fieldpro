@@ -374,7 +374,7 @@ var REPORT_COPY_PREF_KEY="fp_report_copy";
 var REPORT_COPY_SCOPES=["capture","report"];
 var REPORT_COPY_MAX_LEN=60;
 var A={deals:[],sel:null,workOrders:[],wo:null,woStatuses:[],woStatusFilter:[],woModule:"Meetings",woStatusField:"Meeting_Status",woStatusFieldDropped:false,woFrom:"",woTo:"",woHostMode:"mine",woTechFields:[],photos:[],location:null,report:"",reportPhotos:[],reportTechnician:"",dealPdfAttached:false,dealPdfAttachments:{},dealPdfStale:false,reportCopyType:REPORT_COPY_DEFAULT,reportCopyCustom:"",lastSaveResult:null,lastSaveIssue:null,zohoToken:null,recording:false,paused:false,stream:null,mRec:null,videoChunks:[],videoBlob:null,videoId:null,videoMime:"",videoSize:0,videoName:"",audioChunks:[],audioBlob:null,aRec:null,audioId:null,audioMime:"",audioSize:0,transcriptJobId:null,transcriptStatus:"",transcriptTimer:null,videos:[],_recEntry:null,inclPhotos:true,sortF:"Account_Name",sortD:"asc",recordAudio:false,autoSaveZoho:true,autoSavePhonePhotos:true,savingToZoho:false,currentHistoryId:null,zohoNoteId:null,technician:"",technicians:[],assetPhotoDescResolver:null,assetPhotoLabelPhoto:null,assetPhotoLabelResolver:null,assetPhotoLabelRole:ASSET_PHOTO_ROLE_DEFAULT,pendingRetrying:false,pendingRetryTimer:null,lastPendingAutoRetry:0,pendingAiRetrying:false,pendingAiRetryTimer:null,lastPendingAiAutoRetry:0,draftRestored:false,draftTimer:null,historySaveTimer:null,historyOffloadTimer:null,storageFullWarned:false,idbAvailable:false,assetDraftRestored:false,assetDraftTimer:null,equipmentConfig:null,internalAssetConfig:null,assetModule:"equipments",engineeringUnitLookups:null,engineeringUnitLookupsLoading:false,subformOutputTypePicklist:null,subformOutputTypePicklistLoading:false,assetReqHandlersBound:false,inboxPickerItemId:null,dealPickerContext:null,copySourceHistoryId:null,copyDealIds:null,assetAccountsCache:null,parts:[],partsMeta:null,partsLookupRunning:false,asset:{photos:[],lastUploadedPhotoFingerprints:{},saving:false,saved:false,blockDraftSave:false,currentAssetId:null,activeDealKey:"",mode:"add",intent:null,linkMode:"deal",standaloneAccount:null,searchResults:[],loadedOriginal:null,replacementMode:false,savedItems:[],dynamicValues:{},dynamicSuggested:{},dynamicTouched:{},subformRows:[],subformTouched:{},entryStateResetting:false,_draftRestoreFields:null,aiSpecsText:"",aiSpecsKey:"",aiPrefill:{},researching:false},ia:null};
-var FP_VERSION="408";
+var FP_VERSION="409";
 var MIN_ZOHO_PROXY_BUILD=292;
 var _fpBusyCount=0;
 var _fpActiveBtn=null;
@@ -7340,6 +7340,8 @@ function equipmentSaveError(parsed,httpStatus,txt){
   var row=parsed&&parsed.data&&parsed.data[0];
   if(row&&row.status==="error"){
     var msg=row.message||row.code||"Zoho rejected equipment save";
+    var dupField=row.code==="DUPLICATE_DATA"&&row.details&&row.details.api_name;
+    if(dupField)throw new Error("Zoho rejected this asset because "+dupField+" is set as a unique field in Zoho. CapStone allows the same value on more than one asset — turn off the unique setting for "+dupField+" in Zoho (Setup → Modules and Fields → field → Edit Properties) and save again.");
     if(row.details&&row.details.api_name)msg+=" ("+row.details.api_name+")";
     throw new Error(msg);
   }
@@ -7513,24 +7515,11 @@ function assetPayload(opts){
   if(subRows.length)payload.Subform_1=subRows;
   return payload;
 }
-async function findExistingEquipmentBySerial(){
-  if(ast().currentAssetId)return ast().currentAssetId;
-  var serial=assetInput("asset-serial");
-  if(!serial)return null;
-  var actions=assetModuleProxyActions();
-  var body={action:actions.findBySerial,serial_number:serial};
-  if(!isInternalAssetModule()){
-    var acctId=assetSaveAccountId();
-    if(!acctId)return null;
-    body.account_id=acctId;
-  }
-  var r=await zohoProxyFetch(body,30000);
-  if(!r.ok)return null;
-  var d={};try{d=await r.json();}catch(e){}
-  if(d&&d.equipment_id)return d;
-  if(d&&d.internal_asset_id)return{equipment_id:d.internal_asset_id,equipment:d.internal_asset||d.equipment};
-  return null;
-}
+// A serial number is not an identity here. The same serial legitimately shows up
+// on more than one record (a manufacturer reuses it across families, a plant runs
+// identical instruments, a nameplate is unreadable and typed in as a best guess),
+// so Add New always creates a new record. Only an asset the technician loaded on
+// purpose is updated, never one matched by serial behind their back.
 async function saveEquipmentRecord(){
   await ensureActiveAssetConfig();
   await prepareAssetDynamicFieldsForSave();
@@ -7540,15 +7529,6 @@ async function saveEquipmentRecord(){
   var includeBlank=isUpdate;
   var fullPayload=assetPayload({includeBlank:includeBlank,isUpdate:isUpdate});
   if(!isInternalAssetModule()&&!isUpdate&&(!fullPayload.Account||!fullPayload.Account.id||!isZohoLookupRecordId(fullPayload.Account.id)))throw new Error("Account is required — pick a deal or tap Account only — pick account");
-  var existing=ast().currentAssetId?{equipment_id:ast().currentAssetId}:await findExistingEquipmentBySerial();
-  if(existing&&existing.equipment_id&&!ast().currentAssetId){
-    var label=(existing.equipment&&existing.equipment.Name)||assetInput("asset-name")||"this asset";
-    if(!confirm("An asset with this serial number already exists for this account ("+label+"). Update the existing asset instead of creating a duplicate?"))throw new Error("Asset save cancelled to avoid duplicate serial number");
-    ast().currentAssetId=existing.equipment_id;
-    isUpdate=true;
-    includeBlank=true;
-    fullPayload=assetPayload({includeBlank:true,isUpdate:true});
-  }
   var equipmentIdForSpecs=ast().currentAssetId||null;
   var bgSpecs=!isInternalAssetModule()&&isAssetBgSpecsEnabled();
   var specIdentity=isInternalAssetModule()?null:{category:assetInput("asset-category"),brand:assetInput("asset-brand"),type:assetInput("asset-type"),series:assetInput("asset-series"),model:assetInput("asset-model"),brandOther:assetInput("asset-brand-other")};
