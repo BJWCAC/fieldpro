@@ -284,6 +284,23 @@ For any save to Zoho:
 - preserve user-entered context
 - show success/failure status
 
+### An asset serial number is not an identity (v409)
+
+Avoiding a duplicate never means writing over a record the technician did not
+choose. The same serial legitimately lands on more than one asset — a
+manufacturer reuses it across families, a plant runs identical instruments, an
+unreadable nameplate is typed in as a best guess — so **Add New always creates a
+new Equipment / Internal_Assets record, whatever the serial is**. An asset is
+updated only when the technician searched for it and loaded it
+(`ast().currentAssetId`). Nothing matches by serial on the technician's behalf.
+
+Search is still how a real duplicate is avoided: Search by Serial on the Asset
+tab, load the match, and the save becomes an update. If Zoho itself rejects the
+create because a field is set unique there, `equipmentSaveError()` names the
+field and says to turn that setting off in Zoho rather than hiding it behind a
+generic Zoho error. Any change to how a save picks create vs update must run
+`node tests/asset-duplicate-serial.js`.
+
 ### Changing one part of a finished report
 
 A report is reviewed before it is issued, so its wording is user-approved
@@ -542,6 +559,7 @@ node tests/parts-lookup.js
 node tests/pdf-layout.js
 node tests/copy-capture-to-deals.js
 node tests/wo-tab.js
+node tests/asset-duplicate-serial.js
 git diff --check
 ```
 
