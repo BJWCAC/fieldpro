@@ -145,7 +145,8 @@ for each  vk in vendorBuckets.keys()
 		continue;
 	}
 	info "rw_prep_materials PO: " + resp;
-	poNum = ifnull(resp.get("purchaseorder").get("purchaseorder_number"),"");
+	poNum = "";
+	if(resp != null && resp.containKey("purchaseorder")) { poNum = ifnull(resp.get("purchaseorder").get("purchaseorder_number"),""); }
 	if(poNum == "") { errors.add("PO number missing vendor " + vk); continue; }
 	poNumbers.add(poNum);
 }
