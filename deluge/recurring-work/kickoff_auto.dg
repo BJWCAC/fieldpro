@@ -1,0 +1,175 @@
+void schedule.Create_Deal_Automation_Kickoff_Date()
+{
+listdata = {1,2,3,4,5,6,7,8,9,10};
+Recur_Ids = List();
+for each  data in listdata
+{
+	AllRecurrings = zoho.crm.getRecords("Recurring_Work",data,200);
+	for each  rec in AllRecurrings
+	{
+		currentDate = zoho.currentdate.toDate().toString("yyyy-MM-dd");
+		if(rec.get("Next_Service_Date") != "")
+		{
+			//info ele.get("Kickoff_Service_Date") ;
+			if(rec.get("Next_Service_Date") == currentDate && rec.get("Active_Inactive") == true)
+			{
+				Id = rec.get("id");
+				//info Id;
+				Recur_Ids.add(Id);
+			}
+		}
+	}
+}
+info Recur_Ids;
+//info Recur_Ids.size();
+if(Recur_Ids.size() > 0)
+{
+	count = 0;
+	for each  Id in Recur_Ids
+	{
+		count = count + 1;
+		getRecurring = zoho.crm.getRecordById("Recurring_Work",Id.toLong());
+		getGenerate_Time_Span_Days = ifnull(getRecurring.get("Generate_Time_Span_Days"),"");
+		getNext_Service_Date = ifnull(getRecurring.get("Next_Service_Date"),"");
+		getName = ifnull(getRecurring.get("Name"),"");
+		getTechnician_Service_Notes = ifnull(getRecurring.get("Technician_Service_Notes"),"");
+		getWorkorder_Item_Type = ifnull(getRecurring.get("Workorder_Item_Type"),"");
+		AccountId = "";
+		ContactId = "";
+		getAccount = getRecurring.get("Account");
+		getContact = getRecurring.get("Contacts");
+		if(getAccount != null)
+		{
+			AccountId = getAccount.get("id");
+		}
+		if(getContact != null)
+		{
+			ContactId = getContact.get("id");
+		}
+		getCustomer_PO = ifnull(getRecurring.get("Customer_PO"),"");
+		getAmount = ifnull(getRecurring.get("Amount"),"");
+		getTechnician = ifnull(getRecurring.get("Technician"),"");
+		/*Subform Asset*/
+		sub_forms = List();
+		getAssets_and_Products = ifnull(getRecurring.get("Assets_and_Products"),"");
+		for each  Items in getAssets_and_Products
+		{
+			if(Items != null)
+			{
+				subform = Map();
+				subform.put("Assets",Items.get("Assets").get("id"));
+				//getAssetsName = Items.get("Assets").get("name");
+				//info "aname" +":"+ getAssets ;
+				sub_forms.add(subform);
+			}
+		}
+		/*Subform Product*/
+		sub_tables = List();
+		getProductsSubform = ifnull(getRecurring.get("Products_Tools"),"");
+		for each  products in getProductsSubform
+		{
+			if(products != null)
+			{
+				subtable = Map();
+				subtable.put("Products",products.get("Products").get("id"));
+				//getProductName = products.get("Products").get("name");
+				subtable.put("Quantity",products.get("Quantity"));
+				sub_tables.add(subtable);
+			}
+		}
+		dealmap = Map();
+		//LayoutId=3631313000007898916 -- Jobs layout ID//
+		dealmap.put("Layout","3631313000007898916");
+		dealmap.put("Deal_Name",getName);
+		dealmap.put("Description",getTechnician_Service_Notes);
+		dealmap.put("Workorder_Item_Type","Calib - Recurr");
+		dealmap.put("Account_Name",AccountId);
+		dealmap.put("Contact_Name",ContactId);
+		dealmap.put("Customer_PO",getCustomer_PO);
+		dealmap.put("Amount",getAmount);
+		dealmap.put("Preferred_Technician",getTechnician.get("id"));
+		//dealmap.put("ED",getTotal_Duration);
+		dealmap.put("Recurring_Work_Lookup",input.Id);
+		dealmap.put("Stage","Active");
+		dealmap.put("Recurring_or_T_M_Troubleshooting","Recurring");
+		dealmap.put("Assets_and_Checklist",sub_forms);
+		dealmap.put("Time_Tracker",sub_tables);
+		// new code of addition pipeline logic
+		/* The logic should be: 
+		If Service Type = On Site, create the Deal in the Jobs pipeline.
+        If Service Type = Mail-In Lab, create the Deal in the Inhouse Lab pipeline.
+		*/
+		Service_Type = ifnull(getRecurring.get("Service_Type"),"");
+		if(Service_Type == "On Site")
+		{
+			dealmap.put("Pipeline","3631313000034293042");
+			// Jobs
+		}
+		else if(Service_Type == "Mail In Lab")
+		{
+			dealmap.put("Pipeline","3631313000136915992");
+			// InHouse Lab
+		}
+		// end of pipeline script
+		info dealmap;
+		dataList = List();
+		dataList.add(dealmap);
+		param = Map();
+		param.put("data",dataList);
+		// Trigger workflow, approval, blueprint, orchestration as needed
+		triggerList = List();
+		triggerList.add("workflow");
+		param.put("trigger",triggerList);
+		CreateDeal = invokeurl
+		[
+			url :"https://www.zohoapis.com/crm/v8/Deals"
+			type :POST
+			parameters:param.toString()
+			connection:"zoho_pipeline_scope"
+		];
+		//CreateDeal = zoho.crm.createRecord("Deals",dealmap,{"trigger":{"workflow"}});
+		if(CreateDeal.get("data").size() > 0)
+		{
+			dealResponse = CreateDeal.get("data").get(0);
+			dealId = dealResponse.get("details").get("id");
+			if(dealId != null)
+			{
+				deal = zoho.crm.getRecordById("Deals",dealId.toLong());
+				getJobID = deal.get("Job_ID");
+				/*Deal Name conact with JOB ID*/
+				newDealName = getName.concat(" - ").concat(getJobID);
+				mymap = Map();
+				mymap.put("Layout","3631313000007898916");
+				mymap.put("Deal_Name",newDealName);
+				UpdateDeal = zoho.crm.updateRecord("Deals",dealId.toLong(),mymap);
+				//info UpdateDeal;
+				/*----------------------- Event/Meeting create -------------------*/
+				//laura==3631313000019565001 -- Meeting HOST 
+				if(UpdateDeal.get("id") != null)
+				{
+					dealId = UpdateDeal.get("id");
+					/*------------------------------- Next service date in Recur -------------------------------*/
+					recurMap = Map();
+					newNext_Service_Date = getNext_Service_Date.addMonth(getGenerate_Time_Span_Days).toString("yyyy-MM-dd");
+					recurMap.put("Next_Service_Date",newNext_Service_Date);
+					recurUpdate = zoho.crm.updateRecord("Recurring_Work",Id,recurMap);
+					info "Successfully";
+				}
+			}
+		}
+	}
+}
+else
+{
+	info "No data found";
+}
+info count;
+if(count == 1)
+{
+	info count + " " + "Record is found";
+}
+else if(count > 0)
+{
+	info count + " " + "Records are found";
+}
+}
