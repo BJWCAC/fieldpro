@@ -1,0 +1,190 @@
+// Trigger: Date-based workflow on Recurring_Work at K − 30 days (Next_Service_Date minus 30)
+// Workflow criteria: Active_Inactive = true; function exits if no Ship_Ahead rows. Args: rwId
+void standalone.rw_prep_materials(String rwId)
+{
+BOOKS_ORG_ID = "714953277";
+BOOKS_CONN = "zbooks";
+CRM_CONN = "zoho_pipeline_scope";
+CLIQ_CHANNEL = "Field-Ops";
+APPROVER_ID = "3631313000000183017";
+rwLink = "https://crm.zoho.com/crm/org678237898/tab/Recurring_Work/" + rwId;
+errors = List();
+try { rw = zoho.crm.getRecordById("Recurring_Work",rwId.toLong()); }
+catch (e)
+{
+	info "rw_prep_materials getRecord failed: " + e;
+	zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: could not load Recurring Work " + rwLink);
+	return;
+}
+if(rw.get("Active_Inactive") != true) { info "rw_prep_materials: inactive"; return; }
+shipRows = List();
+for each  row in ifnull(rw.get("Products_Tools"),List())
+{
+	if(row != null && row.get("Ship_Ahead") == true) { shipRows.add(row); }
+}
+if(shipRows.size() == 0) { info "rw_prep_materials: no Ship_Ahead rows"; return; }
+matStatus = ifnull(rw.get("Materials_Status"),"");
+if(matStatus.toString().trim() == "") { matStatus = "Not Required"; }
+if(matStatus != "Not Required" && matStatus != "PO Pending")
+{
+	info "rw_prep_materials: status " + matStatus + ", skip";
+	return;
+}
+if(ifnull(rw.get("Books_PO_Number"),"").toString().trim() != "")
+{
+	info "rw_prep_materials: Books_PO_Number set (idempotent)";
+	return;
+}
+taskCriteria = "((What_Id:equals:" + rwId + ")and(Subject:starts_with:Approve PO)and(Status:not_equals:Completed))";
+try
+{
+	openTasks = zoho.crm.searchRecords("Tasks",taskCriteria,1,1);
+	if(openTasks != null && openTasks.size() > 0) { info "rw_prep_materials: open Approve PO task"; return; }
+}
+catch (e)
+{
+	info "rw_prep_materials task search: " + e;
+	zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: task search failed " + rwLink);
+}
+accountName = "";
+acct = rw.get("Account");
+if(acct != null) { accountName = ifnull(acct.get("name"),""); }
+contactName = "";
+siteContact = rw.get("Contact_On_Site");
+if(siteContact != null) { contactName = ifnull(siteContact.get("name"),""); }
+rwName = ifnull(rw.get("Name"),"");
+vendorBuckets = Map();
+itemSummary = List();
+for each  srow in shipRows
+{
+	prodRef = srow.get("Products");
+	if(prodRef == null) { errors.add("Ship-Ahead row missing Products"); continue; }
+	qty = ifnull(srow.get("Quantity"),1);
+	try { prod = zoho.crm.getRecordById("Products",prodRef.get("id").toLong()); }
+	catch (e)
+	{
+		info "rw_prep_materials product: " + e;
+		errors.add("CRM product " + prodRef.get("id") + " load failed");
+		zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: product load failed " + rwLink);
+		continue;
+	}
+	productCode = ifnull(prod.get("Product_Code"),"").toString().trim();
+	productName = ifnull(prod.get("Product_Name"),ifnull(prod.get("Name"),""));
+	itemSummary.add(qty.toString() + " x " + productName);
+	vendorRef = prod.get("Vendor_Name");
+	if(vendorRef == null || ifnull(vendorRef.get("name"),"") == "") { errors.add("No vendor for " + productName); continue; }
+	vendorName = vendorRef.get("name");
+	booksItemId = "";
+	if(productCode != "")
+	{
+		try
+		{
+			itemsResp = zoho.books.getRecords("Items",BOOKS_ORG_ID,"sku=" + productCode,BOOKS_CONN);
+			if(itemsResp.containKey("items") && itemsResp.get("items").size() > 0) { booksItemId = itemsResp.get("items").get(0).get("item_id"); }
+		}
+		catch (e)
+		{
+			info "rw_prep_materials Books sku: " + e;
+			zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: Books SKU lookup failed " + rwLink);
+		}
+	}
+	if(booksItemId == "" && productName != "")
+	{
+		try
+		{
+			itemsResp = zoho.books.getRecords("Items",BOOKS_ORG_ID,"name_contains=" + encodeUrl(productName),BOOKS_CONN);
+			if(itemsResp.containKey("items") && itemsResp.get("items").size() > 0) { booksItemId = itemsResp.get("items").get(0).get("item_id"); }
+		}
+		catch (e)
+		{
+			info "rw_prep_materials Books name: " + e;
+			zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: Books name lookup failed " + rwLink);
+		}
+	}
+	if(booksItemId == "") { errors.add("Books item not found: " + productName + " / SKU " + productCode); continue; }
+	vendorId = "";
+	try
+	{
+		vendResp = zoho.books.getRecords("Contacts",BOOKS_ORG_ID,"contact_type=vendor&contact_name=" + encodeUrl(vendorName),BOOKS_CONN);
+		if(vendResp.containKey("contacts") && vendResp.get("contacts").size() > 0) { vendorId = vendResp.get("contacts").get(0).get("contact_id"); }
+	}
+	catch (e)
+	{
+		info "rw_prep_materials Books vendor: " + e;
+		zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: Books vendor lookup failed " + rwLink);
+	}
+	if(vendorId == "") { errors.add("Books vendor not found: " + vendorName); continue; }
+	lineItem = Map();
+	lineItem.put("item_id",booksItemId);
+	lineItem.put("quantity",qty);
+	lineItem.put("description",productName);
+	vendorKey = vendorId.toString();
+	if(!vendorBuckets.containKey(vendorKey)) { vendorBuckets.put(vendorKey,List()); }
+	vendorBuckets.get(vendorKey).add(lineItem);
+}
+if(vendorBuckets.size() == 0)
+{
+	info "rw_prep_materials: no vendor buckets";
+	if(errors.size() > 0) { zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: no POs " + rwLink + " " + errors.toString()); }
+	return;
+}
+poNumbers = List();
+for each  vk in vendorBuckets.keys()
+{
+	po = Map();
+	po.put("vendor_id",vk);
+	po.put("reference_number","RW-" + rwId);
+	po.put("line_items",vendorBuckets.get(vk));
+	po.put("notes","Ship to: " + accountName + ". Hold for CAC technician. Site contact: " + contactName);
+	try { resp = zoho.books.createRecord("PurchaseOrders",BOOKS_ORG_ID,po,BOOKS_CONN); }
+	catch (e)
+	{
+		info "rw_prep_materials PO create: " + e;
+		zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: PO create failed " + rwLink + " v=" + vk);
+		errors.add("PO create failed vendor " + vk);
+		continue;
+	}
+	info "rw_prep_materials PO: " + resp;
+	poNum = "";
+	if(resp != null && resp.containKey("purchaseorder")) { poNum = ifnull(resp.get("purchaseorder").get("purchaseorder_number"),""); }
+	if(poNum == "") { errors.add("PO number missing vendor " + vk); continue; }
+	poNumbers.add(poNum);
+}
+if(poNumbers.size() == 0)
+{
+	if(errors.size() > 0) { zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: all POs failed " + rwLink + " " + errors.toString()); }
+	return;
+}
+poJoined = "";
+for each  pn in poNumbers
+{
+	if(poJoined != "") { poJoined = poJoined + ","; }
+	poJoined = poJoined + pn;
+}
+rwUpdate = Map();
+rwUpdate.put("Materials_Status","PO Pending");
+rwUpdate.put("Books_PO_Number",poJoined);
+try { info "rw_prep_materials RW update: " + zoho.crm.updateRecord("Recurring_Work",rwId.toLong(),rwUpdate); }
+catch (e)
+{
+	info "rw_prep_materials RW update: " + e;
+	zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: CRM update failed " + rwLink);
+	return;
+}
+taskDesc = "PO number(s): " + poJoined + "\nItems: " + itemSummary.toString();
+if(errors.size() > 0) { taskDesc = taskDesc + "\nErrors:\n" + errors.toString(); }
+taskMap = Map();
+taskMap.put("Subject","Approve PO – " + accountName + " – " + rwName);
+taskMap.put("Owner",APPROVER_ID);
+taskMap.put("Due_Date",zoho.currentdate.addDay(3).toString("yyyy-MM-dd"));
+taskMap.put("What_Id",rwId);
+taskMap.put("$se_module","Recurring_Work");
+taskMap.put("Description",taskDesc);
+try { info "rw_prep_materials task: " + zoho.crm.createRecord("Tasks",taskMap); }
+catch (e)
+{
+	info "rw_prep_materials task: " + e;
+	zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: task create failed " + rwLink);
+}
+if(errors.size() > 0) { zoho.cliq.postToChannel(CLIQ_CHANNEL,"rw_prep_materials: errors on " + rwLink + " " + errors.toString()); }
+}
