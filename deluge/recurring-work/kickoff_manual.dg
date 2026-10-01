@@ -21,7 +21,6 @@ if(getContact != null)
 }
 getCustomer_PO = ifnull(getRecurring.get("Customer_PO"),"");
 getAmount = ifnull(getRecurring.get("Amount"),"");
-getTechnician = ifnull(getRecurring.get("Technician"),"");
 sub_forms = List();
 /*Subform Asset */
 getAssets_and_Products = ifnull(getRecurring.get("Assets_and_Products"),"");
@@ -58,7 +57,11 @@ dealmap.put("Account_Name",AccountId);
 dealmap.put("Contact_Name",ContactId);
 dealmap.put("Customer_PO",getCustomer_PO);
 dealmap.put("Amount",getAmount);
-dealmap.put("Preferred_Technician",getTechnician.get("id"));
+techObj = getRecurring.get("Technician");
+if(techObj != null)
+{
+	dealmap.put("Preferred_Technician",techObj.get("id"));
+}
 dealmap.put("Recurring_Work_Lookup",input.Id);
 dealmap.put("Stage","Active");
 dealmap.put("Recurring_or_T_M_Troubleshooting","Recurring");
