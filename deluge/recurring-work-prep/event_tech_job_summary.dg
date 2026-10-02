@@ -1,0 +1,96 @@
+// Runs 2 days before a Meeting. If the job has ship-ahead materials, emails the meeting owner (technician)
+// a job summary and posts it to Cliq #fieldops. Set ONLY_SHIP_AHEAD = false to send it for every visit.
+ONLY_SHIP_AHEAD = true;
+ev = zoho.crm.getRecordById("Events",eventId.toLong());
+info "1 meeting: " + ev.get("Event_Title") + " / " + ev.get("Start_DateTime");
+dealRef = ev.get("What_Id");
+if(dealRef == null)
+{
+	info "STOP: meeting not linked to a deal";
+	return;
+}
+deal = zoho.crm.getRecordById("Deals",dealRef.get("id").toLong());
+rwRef = deal.get("Recurring_Work_Lookup");
+rw = null;
+if(rwRef != null)
+{
+	rw = zoho.crm.getRecordById("Recurring_Work",rwRef.get("id").toLong());
+}
+items = "";
+if(rw != null)
+{
+	for each  row in ifnull(rw.get("Products_Tools"),List())
+	{
+		if(row != null && row.get("Ship_Ahead") == true && row.get("Products") != null)
+		{
+			items = items + "<br>- " + ifnull(row.get("Quantity"),1).toString() + " x " + row.get("Products").get("name");
+		}
+	}
+}
+if(ONLY_SHIP_AHEAD == true && items == "")
+{
+	info "STOP: no ship-ahead materials";
+	return;
+}
+// Account and site address
+accountName = "";
+address = "";
+acctRef = deal.get("Account_Name");
+if(acctRef != null)
+{
+	acct = zoho.crm.getRecordById("Accounts",acctRef.get("id").toLong());
+	accountName = ifnull(acct.get("Account_Name"),"");
+	address = ifnull(acct.get("Shipping_Street"),"") + ", " + ifnull(acct.get("Shipping_City"),"") + ", " + ifnull(acct.get("Shipping_State"),"") + " " + ifnull(acct.get("Shipping_Code"),"");
+}
+// Site contact: Contact On-Site if filled, otherwise Contacts
+contactLine = "No site contact on record";
+siteContact = null;
+if(rw != null)
+{
+	siteContact = rw.get("Contact_On_Site");
+	if(siteContact == null)
+	{
+		siteContact = rw.get("Contacts");
+	}
+}
+if(siteContact != null)
+{
+	c = zoho.crm.getRecordById("Contacts",siteContact.get("id").toLong());
+	contactLine = ifnull(c.get("Full_Name"),"") + "  " + ifnull(c.get("Phone"),"") + "  " + ifnull(c.get("Mobile"),"");
+}
+visitTime = ev.get("Start_DateTime").toString().subString(0,16).replaceAll("T"," ");
+html = "<b>Job summary: " + accountName + "</b><br>Visit: " + visitTime + "<br>Work order: " + ifnull(deal.get("Deal_Name"),"") + "<br>Site address: " + address + "<br>Site contact: " + contactLine;
+if(rw != null)
+{
+	html = html + "<br><br><b>Work site prep (customer):</b><br>" + ifnull(rw.get("Work_Site_Prep"),"None listed").replaceAll("\n","<br>");
+	html = html + "<br><br><b>Notes:</b><br>" + ifnull(rw.get("Technician_Service_Notes"),"None").replaceAll("\n","<br>");
+}
+if(items != "")
+{
+	html = html + "<br><br><b>Ship-ahead materials</b><br>Status: " + ifnull(rw.get("Materials_Status"),"Not ordered") + "<br>Tracking: " + ifnull(rw.get("Tracking_Number"),"(none)") + "<br>Items:" + items;
+	leftover = ifnull(rw.get("Leftover_On_Site"),"");
+	if(leftover != "")
+	{
+		html = html + "<br>Left on site last visit: " + leftover;
+	}
+}
+// Send to the meeting owner (technician); fall back to Brad if no email
+techEmail = "";
+if(ev.get("Owner") != null)
+{
+	techEmail = ifnull(ev.get("Owner").get("email"),"");
+}
+if(techEmail == "")
+{
+	techEmail = "bradwhite@calibrationsandcontrols.com";
+}
+sendmail
+[
+	from :zoho.loginuserid
+	to :techEmail
+	subject :"Job in 2 days: " + accountName + " (" + visitTime + ")"
+	message :html
+]
+info "2 email sent to " + techEmail;
+cliqText = html.replaceAll("<br>","\n").replaceAll("<b>","*").replaceAll("</b>","*");
+info "3 cliq: " + zoho.cliq.postToChannel("fieldops",cliqText,"cliq");

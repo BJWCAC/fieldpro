@@ -1,0 +1,97 @@
+// Runs when a Meeting is created. If its Deal's Recurring Work has ship-ahead materials,
+// creates a "Confirm materials received" task for Garrett, emails Brad + Garrett, and posts to Cliq #fieldops.
+GARRETT_ID = "3631313000003095001";
+NOTIFY_EMAILS = "bradwhite@calibrationsandcontrols.com,garrettwhite@calibrationsandcontrols.com";
+ev = zoho.crm.getRecordById("Events",eventId.toLong());
+info "1 meeting: " + ev.get("Event_Title") + " / " + ev.get("Start_DateTime");
+dealRef = ev.get("What_Id");
+if(dealRef == null)
+{
+	info "STOP: meeting not linked to a deal";
+	return;
+}
+deal = zoho.crm.getRecordById("Deals",dealRef.get("id").toLong());
+rwRef = deal.get("Recurring_Work_Lookup");
+if(rwRef == null)
+{
+	info "STOP: deal not linked to Recurring Work";
+	return;
+}
+rwId = rwRef.get("id");
+rw = zoho.crm.getRecordById("Recurring_Work",rwId.toLong());
+items = "";
+for each  row in ifnull(rw.get("Products_Tools"),List())
+{
+	if(row != null && row.get("Ship_Ahead") == true && row.get("Products") != null)
+	{
+		items = items + "\n- " + ifnull(row.get("Quantity"),1).toString() + " x " + row.get("Products").get("name");
+	}
+}
+if(items == "")
+{
+	info "STOP: no ship-ahead materials";
+	return;
+}
+status = ifnull(rw.get("Materials_Status"),"");
+if(status == "Received on Site")
+{
+	info "STOP: already confirmed received";
+	return;
+}
+refNum = ifnull(rw.get("Recurring_Work_ID"),"");
+accountName = "";
+if(rw.get("Account") != null)
+{
+	accountName = rw.get("Account").get("name");
+}
+// Skip if an open confirm task already exists for this Recurring Work record
+existing = zoho.crm.searchRecords("Tasks","(Subject:starts_with:Confirm materials received)");
+for each  t in existing
+{
+	if(t.get("What_Id") != null && t.get("What_Id").get("id") == rwId && t.get("Status") != "Completed")
+	{
+		info "STOP: open confirm task already exists";
+		return;
+	}
+}
+// Site contact: Contact On-Site if filled, otherwise Contacts
+siteContact = rw.get("Contact_On_Site");
+if(siteContact == null)
+{
+	siteContact = rw.get("Contacts");
+}
+contactLine = "No site contact on record";
+if(siteContact != null)
+{
+	c = zoho.crm.getRecordById("Contacts",siteContact.get("id").toLong());
+	contactLine = ifnull(c.get("Full_Name"),"") + "  " + ifnull(c.get("Phone"),"") + "  " + ifnull(c.get("Email"),"");
+}
+// Due 7 days before the visit, or today if that has passed
+visitDate = ev.get("Start_DateTime").toString().subString(0,10).toDate("yyyy-MM-dd");
+dueDate = visitDate.subDay(7);
+if(dueDate < zoho.currentdate)
+{
+	dueDate = zoho.currentdate;
+}
+tracking = ifnull(rw.get("Tracking_Number"),"(none yet)");
+details = "Customer: " + accountName + " (" + refNum + ")\nVisit: " + visitDate.toString("MMM d, yyyy") + "\nMaterials status: " + status + "\nTracking: " + tracking + "\nSite contact: " + contactLine + "\nItems:" + items;
+taskMap = Map();
+taskMap.put("Subject","Confirm materials received on site - " + accountName + " - " + refNum);
+taskMap.put("Owner",GARRETT_ID);
+taskMap.put("Due_Date",dueDate.toString("yyyy-MM-dd"));
+taskMap.put("What_Id",rwId);
+taskMap.put("$se_module","Recurring_Work");
+taskMap.put("Description",details + "\n\nWhen confirmed, mark this task Completed. That sets the status to Received on Site.");
+info "2 task: " + zoho.crm.createRecord("Tasks",taskMap);
+// Email Brad + Garrett
+sendmail
+[
+	from :zoho.loginuserid
+	to :NOTIFY_EMAILS
+	subject :"Confirm materials received: " + accountName + " " + refNum + " (due " + dueDate.toString("MMM d") + ")"
+	message :details.replaceAll("\n","<br>")
+]
+info "3 email sent";
+// Cliq #fieldops
+cliqResp = zoho.cliq.postToChannel("fieldops","Confirm materials received by " + dueDate.toString("MMM d") + ": " + accountName + " " + refNum + "\n" + details,"cliq");
+info "4 cliq: " + cliqResp;

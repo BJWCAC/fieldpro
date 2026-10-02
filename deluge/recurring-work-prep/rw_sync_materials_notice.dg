@@ -1,0 +1,44 @@
+// Writes the ship-ahead materials summary into "Materials Notice" on every open Deal linked to this Recurring Work record.
+rw = zoho.crm.getRecordById("Recurring_Work",rwId.toLong());
+info "1 loaded RW: " + rw.get("Name");
+items = "";
+for each  row in ifnull(rw.get("Products_Tools"),List())
+{
+	if(row != null && row.get("Ship_Ahead") == true && row.get("Products") != null)
+	{
+		items = items + "\n- " + ifnull(row.get("Quantity"),1).toString() + " x " + row.get("Products").get("name");
+	}
+}
+notice = "";
+if(items != "")
+{
+	status = ifnull(rw.get("Materials_Status"),"");
+	if(status == "")
+	{
+		status = "Not ordered yet";
+	}
+	notice = "SHIP-AHEAD MATERIALS\nStatus: " + status + "\nItems:" + items;
+	tracking = ifnull(rw.get("Tracking_Number"),"");
+	if(tracking != "")
+	{
+		notice = notice + "\nTracking: " + tracking;
+	}
+	leftover = ifnull(rw.get("Leftover_On_Site"),"");
+	if(leftover != "")
+	{
+		notice = notice + "\nLeft on site last visit: " + leftover;
+	}
+}
+info "2 notice: " + notice;
+closedStages = {"Completed","Closed/Invoiced","Completed and Shipped","Closed Lost","Cancelled by Customer"};
+deals = zoho.crm.searchRecords("Deals","(Recurring_Work_Lookup:equals:" + rwId + ")");
+info "3 linked deals found: " + deals.size();
+for each  d in deals
+{
+	if(!closedStages.contains(d.get("Stage")))
+	{
+		upd = Map();
+		upd.put("Materials_Notice",notice);
+		info "4 updated deal " + d.get("Deal_Name") + ": " + zoho.crm.updateRecord("Deals",d.get("id").toLong(),upd);
+	}
+}
