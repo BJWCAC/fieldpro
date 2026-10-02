@@ -1,0 +1,17 @@
+// Runs when a "Confirm materials received" task is completed: sets the Recurring Work status to Received on Site.
+t = zoho.crm.getRecordById("Tasks",taskId.toLong());
+info "1 task: " + t.get("Subject") + " / " + t.get("Status");
+if(!ifnull(t.get("Subject"),"").startsWith("Confirm materials received"))
+{
+	info "STOP: not a confirm-received task";
+	return;
+}
+rwRef = t.get("What_Id");
+if(rwRef == null)
+{
+	info "STOP: task not linked to a Recurring Work record";
+	return;
+}
+upd = Map();
+upd.put("Materials_Status","Received on Site");
+info "2 RW update: " + zoho.crm.updateRecord("Recurring_Work",rwRef.get("id").toLong(),upd,{"trigger":{"workflow"}});

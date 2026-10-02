@@ -1,8 +1,3 @@
-// Trigger: Workflow on Deals — Stage modified
-// Criteria: Stage is Completed / Closed/Invoiced / Completed and Shipped AND Recurring_Work_Lookup is not empty
-// Arguments: dealId = Deal Id
-void automation.deal_closed_reset_materials(String dealId)
-{
 deal = zoho.crm.getRecordById("Deals",dealId.toLong());
 info "1 loaded deal: " + deal.get("Deal_Name") + " / stage: " + deal.get("Stage");
 rwRef = deal.get("Recurring_Work_Lookup");
@@ -17,4 +12,3 @@ upd.put("Materials_Status","Not Required");
 upd.put("Tracking_Number",null);
 upd.put("Books_PO_Number",null);
 info "2 reset RW " + rwId + ": " + zoho.crm.updateRecord("Recurring_Work",rwId.toLong(),upd);
-}

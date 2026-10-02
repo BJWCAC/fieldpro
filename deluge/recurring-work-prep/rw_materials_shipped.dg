@@ -1,7 +1,3 @@
-// Trigger: Workflow on Recurring_Work — Tracking_Number modified (not empty)
-// Arguments: rwId = Recurring Work Id
-void automation.rw_materials_shipped(String rwId)
-{
 // TEST MODE: while true, every email goes to the CRM admin (Brad) instead of the customer and tech.
 // Change to false after the test looks right.
 TEST_MODE = false;
@@ -61,6 +57,11 @@ if(tech != null)
 	techEmail = ifnull(tech.get("email"),"");
 	techName = ifnull(tech.get("name"),"");
 }
+if(techEmail == "")
+{
+	techEmail = zoho.adminuserid;
+	techName = "(no tech assigned)";
+}
 info "5 tech: " + techName + " / " + techEmail;
 custTo = custEmail;
 techTo = techEmail;
@@ -115,5 +116,4 @@ if(techTo != "")
 else
 {
 	info "7 SKIPPED tech email: no Preferred Technician email";
-}
 }
