@@ -1,0 +1,119 @@
+// Trigger: Workflow on Recurring_Work — Tracking_Number modified (not empty)
+// Arguments: rwId = Recurring Work Id
+void automation.rw_materials_shipped(String rwId)
+{
+// TEST MODE: while true, every email goes to the CRM admin (Brad) instead of the customer and tech.
+// Change to false after the test looks right.
+TEST_MODE = false;
+rw = zoho.crm.getRecordById("Recurring_Work",rwId.toLong());
+info "1 loaded RW: " + rw.get("Name");
+tracking = ifnull(rw.get("Tracking_Number"),"").trim();
+if(tracking == "")
+{
+	info "STOP: no tracking number";
+	return;
+}
+refNum = ifnull(rw.get("Recurring_Work_ID"),"");
+accountName = "";
+if(rw.get("Account") != null)
+{
+	accountName = rw.get("Account").get("name");
+}
+serviceMonth = ifnull(rw.get("Pick_List_1"),"");
+// Items being shipped (Ship Ahead rows)
+itemsHtml = "";
+itemsText = "";
+for each  row in ifnull(rw.get("Products_Tools"),List())
+{
+	if(row != null && row.get("Ship_Ahead") == true && row.get("Products") != null)
+	{
+		line = ifnull(row.get("Quantity"),1).toString() + " x " + row.get("Products").get("name");
+		itemsHtml = itemsHtml + "<li>" + line + "</li>";
+		itemsText = itemsText + line + "; ";
+	}
+}
+info "2 items: " + itemsText;
+// Update status
+upd = Map();
+upd.put("Materials_Status","Shipped");
+info "3 status update: " + zoho.crm.updateRecord("Recurring_Work",rwId.toLong(),upd);
+// Customer: Contact On-Site if filled, otherwise Contacts
+siteContact = rw.get("Contact_On_Site");
+if(siteContact == null)
+{
+	siteContact = rw.get("Contacts");
+}
+custEmail = "";
+custFirst = "";
+if(siteContact != null)
+{
+	c = zoho.crm.getRecordById("Contacts",siteContact.get("id").toLong());
+	custEmail = ifnull(c.get("Email"),"");
+	custFirst = ifnull(c.get("First_Name"),"");
+}
+info "4 customer email: " + custEmail;
+// Technician: Preferred Technician on the Recurring Work record
+techEmail = "";
+techName = "";
+tech = rw.get("Technician");
+if(tech != null)
+{
+	techEmail = ifnull(tech.get("email"),"");
+	techName = ifnull(tech.get("name"),"");
+}
+info "5 tech: " + techName + " / " + techEmail;
+custTo = custEmail;
+techTo = techEmail;
+if(TEST_MODE == true)
+{
+	custTo = zoho.adminuserid;
+	techTo = zoho.adminuserid;
+}
+// Customer email
+if(custTo != "")
+{
+	greeting = "Hello,";
+	if(custFirst != "")
+	{
+		greeting = "Hello " + custFirst + ",";
+	}
+	custMsg = greeting + "<br><br>Calibrations & Controls has shipped the following materials for your upcoming " + serviceMonth + " calibration visit:<ul>" + itemsHtml + "</ul>Tracking number: <b>" + tracking + "</b><br><br>Please hold these items for our technician. Do not open them or put them into service.<br><br>Thank you,<br>Calibrations & Controls";
+	if(TEST_MODE == true)
+	{
+		custMsg = "[TEST - would go to " + custEmail + "]<br><br>" + custMsg;
+	}
+	sendmail
+	[
+		from :zoho.loginuserid
+		to :custTo
+		subject :"Materials shipped for your upcoming CAC calibration visit"
+		message :custMsg
+	]
+	info "6 customer email sent to " + custTo;
+}
+else
+{
+	info "6 SKIPPED customer email: no contact email";
+}
+// Technician email
+if(techTo != "")
+{
+	techMsg = "Ship-ahead materials are on the way to " + accountName + " (" + refNum + ").<ul>" + itemsHtml + "</ul>Tracking: <b>" + tracking + "</b><br>Service month: " + serviceMonth;
+	if(TEST_MODE == true)
+	{
+		techMsg = "[TEST - would go to " + techEmail + "]<br><br>" + techMsg;
+	}
+	sendmail
+	[
+		from :zoho.loginuserid
+		to :techTo
+		subject :"Materials shipped: " + accountName + " " + refNum
+		message :techMsg
+	]
+	info "7 tech email sent to " + techTo;
+}
+else
+{
+	info "7 SKIPPED tech email: no Preferred Technician email";
+}
+}
